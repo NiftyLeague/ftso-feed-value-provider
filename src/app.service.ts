@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { FeedId, FeedValueData, FeedVolumeData } from "./dto/provider-requests.dto";
-import { BaseDataFeed } from "./data-feeds/base-feed";
+import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
+import { BaseDataFeed } from "@/data-feeds/base-feed";
 
 @Injectable()
 export class ExampleProviderService {

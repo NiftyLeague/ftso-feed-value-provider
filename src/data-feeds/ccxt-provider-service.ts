@@ -1,13 +1,13 @@
 import { Logger } from "@nestjs/common";
 import ccxt, { Exchange, Trade } from "ccxt";
-import { FeedId, FeedValueData, FeedVolumeData } from "../dto/provider-requests.dto";
+import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
-import { retry, RetryError, sleepFor } from "src/utils/retry";
+import { retry, RetryError, sleepFor } from "@/utils/retry";
 import { VolumeStore } from "./volumes";
-import { asError } from "../utils/error";
+import { asError } from "@/utils/error";
 
-import prodFeeds from "../config/feeds.json";
-import testFeeds from "../config/test-feeds.json";
+import prodFeeds from "@/config/feeds.json";
+import testFeeds from "@/config/test-feeds.json";
 
 enum FeedCategory {
   None = 0,

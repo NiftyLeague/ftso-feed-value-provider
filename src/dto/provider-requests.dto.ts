@@ -1,6 +1,14 @@
-export class FeedId {
+import { EnhancedFeedId, FeedIdWithHex } from "@/types/enhanced-feed-id.types";
+
+export class FeedId implements EnhancedFeedId {
   category: number;
   name: string;
+}
+
+// Enhanced feed ID with additional FTSO compatibility features
+export class EnhancedFeedIdDto extends FeedId implements FeedIdWithHex {
+  hexName?: string;
+  paddedName?: string;
 }
 
 export class Volume {

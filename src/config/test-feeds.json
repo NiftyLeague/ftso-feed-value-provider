@@ -7,11 +7,7 @@
         "symbol": "BTC/USDT"
       },
       {
-        "exchange": "bitget",
-        "symbol": "BTC/USDT"
-      },
-      {
-        "exchange": "coinbasepro",
+        "exchange": "coinbase",
         "symbol": "BTC/USDT"
       }
     ]
@@ -24,11 +20,7 @@
         "symbol": "ETH/USDT"
       },
       {
-        "exchange": "bitget",
-        "symbol": "ETH/USDT"
-      },
-      {
-        "exchange": "coinbasepro",
+        "exchange": "coinbase",
         "symbol": "ETH/USDT"
       }
     ]
@@ -38,7 +30,7 @@
     "feed": { "category": 1, "name": "USDT/USD" },
     "sources": [
       {
-        "exchange": "coinbasepro",
+        "exchange": "coinbase",
         "symbol": "USDT/USD"
       }
     ]

@@ -1,4 +1,4 @@
-import { FeedId, FeedValueData, FeedVolumeData } from "../dto/provider-requests.dto";
+import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
 
 export abstract class BaseDataFeed {
   abstract getValue(feed: FeedId): Promise<FeedValueData>;

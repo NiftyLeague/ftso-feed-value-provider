@@ -1,12 +1,12 @@
 import { Body, Controller, Param, DefaultValuePipe, ParseIntPipe, Post, Inject, Logger, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { ExampleProviderService } from "./app.service";
+import { ExampleProviderService } from "@/app.service";
 import {
   FeedValuesRequest,
   FeedValuesResponse,
   FeedVolumesResponse,
   RoundFeedValuesResponse,
-} from "./dto/provider-requests.dto";
+} from "@/dto/provider-requests.dto";
 
 @ApiTags("Feed Value Provider API")
 @Controller()

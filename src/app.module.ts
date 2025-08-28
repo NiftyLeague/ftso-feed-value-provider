@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
-import { ExampleProviderService } from "./app.service";
-import { ExampleProviderController } from "./app.controller";
-import { CcxtFeed } from "./data-feeds/ccxt-provider-service";
-import { RandomFeed } from "./data-feeds/random-feed";
-import { BaseDataFeed } from "./data-feeds/base-feed";
-import { FixedFeed } from "./data-feeds/fixed-feed";
+import { ExampleProviderService } from "@/app.service";
+import { ExampleProviderController } from "@/app.controller";
+import { CcxtFeed } from "@/data-feeds/ccxt-provider-service";
+import { RandomFeed } from "@/data-feeds/random-feed";
+import { BaseDataFeed } from "@/data-feeds/base-feed";
+import { FixedFeed } from "@/data-feeds/fixed-feed";
 
 @Module({
   imports: [],

@@ -1,5 +1,5 @@
-import { ILogger } from "./ILogger";
-import { asError, errorString } from "./error";
+import { ILogger } from "@/utils/ILogger";
+import { asError, errorString } from "@/utils/error";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_INITIAL_BACKOFF_MS = 1_000;

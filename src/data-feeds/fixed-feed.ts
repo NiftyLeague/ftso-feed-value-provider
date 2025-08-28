@@ -1,5 +1,5 @@
 import { Logger } from "@nestjs/common";
-import { FeedId, FeedValueData, FeedVolumeData } from "../dto/provider-requests.dto";
+import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
 
 /** Safe value that will not overflow for all default feeds. */

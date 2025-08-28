@@ -1,11 +1,11 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { NestFactory } from "@nestjs/core";
-import { AppModule } from "./app.module";
-import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
+import { NestFactory } from "@nestjs/core";
+import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
 import { LogLevel } from "@nestjs/common";
+import { AppModule } from "@/app.module";
 
 async function bootstrap() {
   let logLevels: LogLevel[] = ["log"];

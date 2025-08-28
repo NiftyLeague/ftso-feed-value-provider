@@ -1,4 +1,4 @@
-import { FeedId, FeedValueData, FeedVolumeData } from "../dto/provider-requests.dto";
+import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
 import { BaseDataFeed } from "./base-feed";
 
 const baseValue = 0.05;
