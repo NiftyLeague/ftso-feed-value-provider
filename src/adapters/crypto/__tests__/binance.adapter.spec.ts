@@ -139,26 +139,26 @@ describe("BinanceAdapter", () => {
       expect(result.symbol).toBe("BTC/USD");
     });
 
-    it("should normalize BTC pairs correctly", () => {
+    it("should normalize USDT pairs correctly", () => {
       const mockData: BinanceTickerData = {
         e: "24hrTicker",
         E: Date.now(),
-        s: "ETHBTC",
-        p: "0.001",
-        P: "2.00",
-        w: "0.03",
-        x: "0.029",
-        c: "0.03",
-        Q: "10.0",
-        b: "0.0299",
-        B: "100.0",
-        a: "0.0301",
-        A: "100.0",
-        o: "0.029",
-        h: "0.031",
-        l: "0.028",
+        s: "ETHUSDT",
+        p: "100.0",
+        P: "3.50",
+        w: "2850.0",
+        x: "2800.0",
+        c: "2900.0",
+        Q: "1.0",
+        b: "2899.0",
+        B: "10.0",
+        a: "2901.0",
+        A: "5.0",
+        o: "2800.0",
+        h: "2950.0",
+        l: "2750.0",
         v: "10000.0",
-        q: "300.0",
+        q: "28500000.0",
         O: Date.now() - 86400000,
         C: Date.now(),
         F: 1,
@@ -167,7 +167,7 @@ describe("BinanceAdapter", () => {
       };
 
       const result = adapter.normalizePriceData(mockData);
-      expect(result.symbol).toBe("ETH/BTC");
+      expect(result.symbol).toBe("ETH/USDT");
     });
   });
 

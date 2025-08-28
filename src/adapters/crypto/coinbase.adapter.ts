@@ -49,9 +49,14 @@ export class CoinbaseAdapter extends ExchangeAdapter {
   private isConnectedFlag = false;
   private subscriptions = new Set<string>();
 
+  // Simple symbol mapping - use exact pairs from feeds.json
+  getSymbolMapping(feedSymbol: string): string {
+    // For Coinbase, replace "/" with "-" - use the exact symbol from feeds.json
+    return feedSymbol.replace("/", "-");
+  }
+
   constructor(config?: ExchangeConnectionConfig) {
     super(config);
-    this.initializeSymbolConventions();
   }
 
   async connect(): Promise<void> {
@@ -234,37 +239,15 @@ export class CoinbaseAdapter extends ExchangeAdapter {
 
   // Event handlers
   private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
     this.onPriceUpdateCallback = callback;
   }
 
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-
-    // Set up connection monitoring
-    if (this.wsConnection) {
-      this.wsConnection.onopen = () => {
-        this.isConnectedFlag = true;
-        callback(true);
-      };
-
-      this.wsConnection.onclose = () => {
-        this.isConnectedFlag = false;
-        callback(false);
-      };
-
-      this.wsConnection.onerror = () => {
-        this.isConnectedFlag = false;
-        callback(false);
-      };
-    }
-  }
-
   // Helper method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
     // Coinbase uses format like "BTC-USD", convert to "BTC/USD"
+    // Simple and reliable - we only support symbols from feeds.json
     return exchangeSymbol.replace("-", "/");
   }
 

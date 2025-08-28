@@ -14,7 +14,6 @@ class MockExchangeAdapter extends ExchangeAdapter {
     this.exchangeName = name;
     this.category = category;
     this.capabilities = capabilities;
-    this.initializeSymbolConventions();
   }
 
   async connect(): Promise<void> {
@@ -29,7 +28,7 @@ class MockExchangeAdapter extends ExchangeAdapter {
     return true;
   }
 
-  normalizePriceData(rawData: any): PriceUpdate {
+  normalizePriceData(_rawData: any): PriceUpdate {
     return {
       symbol: "BTC/USD",
       price: 50000,
@@ -39,7 +38,7 @@ class MockExchangeAdapter extends ExchangeAdapter {
     };
   }
 
-  normalizeVolumeData(rawData: any): VolumeUpdate {
+  normalizeVolumeData(_rawData: any): VolumeUpdate {
     return {
       symbol: "BTC/USD",
       volume: 1000,
@@ -48,11 +47,23 @@ class MockExchangeAdapter extends ExchangeAdapter {
     };
   }
 
-  validateResponse(rawData: any): boolean {
+  validateResponse(_rawData: any): boolean {
     return true;
   }
 
-  validateSymbol(feedSymbol: string): boolean {
+  async subscribe(_symbols: string[]): Promise<void> {
+    // Mock implementation
+  }
+
+  async unsubscribe(_symbols: string[]): Promise<void> {
+    // Mock implementation
+  }
+
+  onPriceUpdate(_callback: (update: PriceUpdate) => void): void {
+    // Mock implementation
+  }
+
+  validateSymbol(_feedSymbol: string): boolean {
     return true;
   }
 }

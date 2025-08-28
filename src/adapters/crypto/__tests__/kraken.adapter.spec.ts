@@ -63,21 +63,18 @@ describe("KrakenAdapter", () => {
   });
 
   describe("symbol mapping", () => {
-    it("should map BTC symbols to XBT format", () => {
-      expect(adapter.getSymbolMapping("BTC/USD")).toBe("XBTUSD");
-      expect(adapter.getSymbolMapping("BTC/USDT")).toBe("XBTUSDT");
-      expect(adapter.getSymbolMapping("BTC/EUR")).toBe("XBTEUR");
+    it("should map symbols by removing slash", () => {
+      // Test with actual symbols from feeds.json
+      expect(adapter.getSymbolMapping("SGB/USD")).toBe("SGBUSD");
+      expect(adapter.getSymbolMapping("USDT/USD")).toBe("USDTUSD");
+      expect(adapter.getSymbolMapping("TAO/USD")).toBe("TAOUSD");
+      expect(adapter.getSymbolMapping("RENDER/USD")).toBe("RENDERUSD");
+      expect(adapter.getSymbolMapping("TRUMP/USD")).toBe("TRUMPUSD");
     });
 
-    it("should map ETH symbols correctly", () => {
+    it("should handle other crypto symbols correctly", () => {
       expect(adapter.getSymbolMapping("ETH/USD")).toBe("ETHUSD");
-      expect(adapter.getSymbolMapping("ETH/USDT")).toBe("ETHUSDT");
-      expect(adapter.getSymbolMapping("ETH/BTC")).toBe("ETHXBT");
-    });
-
-    it("should map other crypto symbols correctly", () => {
       expect(adapter.getSymbolMapping("LTC/USD")).toBe("LTCUSD");
-      expect(adapter.getSymbolMapping("ADA/USD")).toBe("ADAUSD");
       expect(adapter.getSymbolMapping("DOT/USD")).toBe("DOTUSD");
     });
 
@@ -89,48 +86,48 @@ describe("KrakenAdapter", () => {
   });
 
   describe("symbol normalization from exchange format", () => {
-    it("should normalize XBT symbols back to BTC", () => {
+    it("should normalize symbols by adding slash", () => {
       const mockData: KrakenTickerData = {
         channelID: 1,
         channelName: "ticker",
-        pair: "XBTUSD",
+        pair: "SGBUSD",
         data: {
-          a: ["50001.00", "1", "1.000"],
-          b: ["49999.00", "1", "1.000"],
-          c: ["50000.00", "0.1"],
+          a: ["1.51", "1", "1.000"],
+          b: ["1.49", "1", "1.000"],
+          c: ["1.50", "0.1"],
           v: ["100.0", "1000.0"],
-          p: ["49500.00", "49800.00"],
+          p: ["1.45", "1.48"],
           t: [50, 500],
-          l: ["48000.00", "48000.00"],
-          h: ["51000.00", "51000.00"],
-          o: ["49000.00", "49000.00"],
+          l: ["1.40", "1.40"],
+          h: ["1.55", "1.55"],
+          o: ["1.45", "1.45"],
         },
       };
 
       const result = adapter.normalizePriceData(mockData);
-      expect(result.symbol).toBe("BTC/USD");
+      expect(result.symbol).toBe("SGB/USD");
     });
 
-    it("should normalize ETH symbols correctly", () => {
+    it("should normalize USDT symbols correctly", () => {
       const mockData: KrakenTickerData = {
         channelID: 1,
         channelName: "ticker",
-        pair: "ETHUSD",
+        pair: "USDTUSD",
         data: {
-          a: ["3001.00", "1", "1.000"],
-          b: ["2999.00", "1", "1.000"],
-          c: ["3000.00", "1.0"],
+          a: ["1.001", "1", "1.000"],
+          b: ["0.999", "1", "1.000"],
+          c: ["1.000", "1.0"],
           v: ["1000.0", "10000.0"],
-          p: ["2950.00", "2980.00"],
+          p: ["0.995", "0.998"],
           t: [100, 1000],
-          l: ["2800.00", "2800.00"],
-          h: ["3100.00", "3100.00"],
-          o: ["2900.00", "2900.00"],
+          l: ["0.990", "0.990"],
+          h: ["1.010", "1.010"],
+          o: ["0.995", "0.995"],
         },
       };
 
       const result = adapter.normalizePriceData(mockData);
-      expect(result.symbol).toBe("ETH/USD");
+      expect(result.symbol).toBe("USDT/USD");
     });
   });
 
@@ -138,25 +135,25 @@ describe("KrakenAdapter", () => {
     const mockTickerData: KrakenTickerData = {
       channelID: 1,
       channelName: "ticker",
-      pair: "XBTUSD",
+      pair: "SGBUSD",
       data: {
-        a: ["50001.00", "1", "1.000"],
-        b: ["49999.00", "1", "1.000"],
-        c: ["50000.00", "0.1"],
+        a: ["1.51", "1", "1.000"],
+        b: ["1.49", "1", "1.000"],
+        c: ["1.50", "0.1"],
         v: ["100.0", "1000.0"],
-        p: ["49500.00", "49800.00"],
+        p: ["1.45", "1.48"],
         t: [50, 500],
-        l: ["48000.00", "48000.00"],
-        h: ["51000.00", "51000.00"],
-        o: ["49000.00", "49000.00"],
+        l: ["1.40", "1.40"],
+        h: ["1.55", "1.55"],
+        o: ["1.45", "1.45"],
       },
     };
 
     it("should normalize price data correctly", () => {
       const result = adapter.normalizePriceData(mockTickerData);
 
-      expect(result.symbol).toBe("BTC/USD");
-      expect(result.price).toBe(50000);
+      expect(result.symbol).toBe("SGB/USD");
+      expect(result.price).toBe(1.5);
       expect(result.source).toBe("kraken");
       expect(result.volume).toBe(1000);
       expect(result.confidence).toBeGreaterThan(0);
@@ -167,7 +164,7 @@ describe("KrakenAdapter", () => {
     it("should normalize volume data correctly", () => {
       const result = adapter.normalizeVolumeData(mockTickerData);
 
-      expect(result.symbol).toBe("BTC/USD");
+      expect(result.symbol).toBe("SGB/USD");
       expect(result.volume).toBe(1000);
       expect(result.source).toBe("kraken");
       expect(typeof result.timestamp).toBe("number");
@@ -375,10 +372,10 @@ describe("KrakenAdapter", () => {
   describe("subscriptions", () => {
     it("should track subscriptions", async () => {
       await adapter.connect();
-      await adapter.subscribe(["BTC/USD", "ETH/USD"]);
+      await adapter.subscribe(["SGB/USD", "ETH/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).toContain("XBTUSD");
+      expect(subscriptions).toContain("SGBUSD");
       expect(subscriptions).toContain("ETHUSD");
     });
 

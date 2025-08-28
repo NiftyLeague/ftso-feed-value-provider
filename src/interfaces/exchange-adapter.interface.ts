@@ -1,6 +1,5 @@
 import { FeedCategory } from "@/types/feed-category.enum";
 import { PriceUpdate, VolumeUpdate } from "./data-source.interface";
-import { SymbolMappingUtils, ExchangeSymbolConventions } from "@/adapters/base/symbol-mapping.utils";
 
 export interface ExchangeConnectionConfig {
   websocketUrl?: string;
@@ -24,18 +23,10 @@ export abstract class ExchangeAdapter {
   abstract readonly category: FeedCategory;
   abstract readonly capabilities: ExchangeCapabilities;
 
-  protected symbolConventions: ExchangeSymbolConventions;
   protected config?: ExchangeConnectionConfig;
 
   constructor(config?: ExchangeConnectionConfig) {
     this.config = config;
-    // Initialize with default conventions, will be set properly in child constructor
-    this.symbolConventions = SymbolMappingUtils.getExchangeConventions("default");
-  }
-
-  // Method to initialize symbol conventions after exchangeName is available
-  protected initializeSymbolConventions(): void {
-    this.symbolConventions = SymbolMappingUtils.getExchangeConventions(this.exchangeName);
   }
 
   // Core normalization methods - must be implemented by each adapter
@@ -48,18 +39,13 @@ export abstract class ExchangeAdapter {
   abstract disconnect(): Promise<void>;
   abstract isConnected(): boolean;
 
-  // Symbol mapping with built-in utilities
-  getSymbolMapping(feedSymbol: string): string {
-    try {
-      return SymbolMappingUtils.toExchangeFormat(feedSymbol, this.symbolConventions);
-    } catch (error) {
-      // Fallback to custom mapping if standard conversion fails
-      return this.getCustomSymbolMapping(feedSymbol);
-    }
-  }
+  // Subscription management methods
+  abstract subscribe(symbols: string[]): Promise<void>;
+  abstract unsubscribe(symbols: string[]): Promise<void>;
+  abstract onPriceUpdate(callback: (update: PriceUpdate) => void): void;
 
-  // Override this method for exchange-specific symbol mappings
-  protected getCustomSymbolMapping(feedSymbol: string): string {
+  // Symbol mapping - override if exchange needs symbol transformation
+  getSymbolMapping(feedSymbol: string): string {
     return feedSymbol;
   }
 
@@ -67,7 +53,13 @@ export abstract class ExchangeAdapter {
   validateSymbol(feedSymbol: string): boolean {
     try {
       const exchangeSymbol = this.getSymbolMapping(feedSymbol);
-      return SymbolMappingUtils.validateSymbolForCategory(feedSymbol, this.category);
+      // Basic validation: ensure we got a non-empty string and it contains valid characters
+      return (
+        exchangeSymbol &&
+        exchangeSymbol.length > 0 &&
+        feedSymbol.includes("/") && // Must be a proper pair format
+        feedSymbol.split("/").length === 2
+      ); // Must have exactly one separator
     } catch {
       return false;
     }

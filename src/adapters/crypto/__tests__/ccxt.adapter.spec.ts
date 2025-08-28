@@ -2,13 +2,26 @@ import { CcxtMultiExchangeAdapter, CcxtMultiExchangeConfig } from "../ccxt.adapt
 import { FeedCategory } from "@/types/feed-category.enum";
 import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
 import { CcxtFeed } from "@/data-feeds/ccxt-provider-service";
+import { Logger } from "@nestjs/common";
 
 // Mock the CcxtFeed
 jest.mock("@/data-feeds/ccxt-provider-service");
 
+// Mock NestJS Logger
+jest.mock("@nestjs/common", () => ({
+  ...jest.requireActual("@nestjs/common"),
+  Logger: jest.fn().mockImplementation(() => ({
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  })),
+}));
+
 describe("CcxtMultiExchangeAdapter", () => {
   let adapter: CcxtMultiExchangeAdapter;
   let mockCcxtFeed: jest.Mocked<CcxtFeed>;
+  let loggerErrorSpy: jest.SpyInstance;
 
   const testFeedId: EnhancedFeedId = {
     category: FeedCategory.Crypto,
@@ -36,6 +49,16 @@ describe("CcxtMultiExchangeAdapter", () => {
     (CcxtFeed as jest.MockedClass<typeof CcxtFeed>).mockImplementation(() => mockCcxtFeed);
 
     adapter = new CcxtMultiExchangeAdapter();
+
+    // Suppress logger errors for cleaner test output
+    loggerErrorSpy = jest.spyOn((adapter as any).logger, "error").mockImplementation();
+  });
+
+  afterEach(() => {
+    // Restore logger after each test
+    if (loggerErrorSpy) {
+      loggerErrorSpy.mockRestore();
+    }
   });
 
   describe("initialization", () => {

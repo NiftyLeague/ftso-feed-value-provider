@@ -69,7 +69,6 @@ export class CryptocomAdapter extends ExchangeAdapter {
 
   constructor(config?: ExchangeConnectionConfig) {
     super(config);
-    this.initializeSymbolConventions();
   }
 
   async connect(): Promise<void> {
@@ -309,7 +308,8 @@ export class CryptocomAdapter extends ExchangeAdapter {
 
   // Helper method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Crypto.com uses format like "BTC_USDT", need to convert to "BTC/USDT"
+    // Crypto.com uses format like "BTC_USDT", convert to "BTC/USDT"
+    // Simple and reliable - we only support symbols from feeds.json
     return exchangeSymbol.replace("_", "/");
   }
 

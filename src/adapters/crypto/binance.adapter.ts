@@ -72,9 +72,14 @@ export class BinanceAdapter extends ExchangeAdapter {
   private subscriptions = new Set<string>();
   private pingInterval?: NodeJS.Timeout;
 
+  // Simple symbol mapping - use exact pairs from feeds.json
+  getSymbolMapping(feedSymbol: string): string {
+    // For Binance, remove the slash - use the exact symbol from feeds.json
+    return feedSymbol.replace("/", "");
+  }
+
   constructor(config?: ExchangeConnectionConfig) {
     super(config);
-    this.initializeSymbolConventions();
   }
 
   async connect(): Promise<void> {
@@ -254,69 +259,29 @@ export class BinanceAdapter extends ExchangeAdapter {
 
   // Event handlers
   private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
     this.onPriceUpdateCallback = callback;
   }
 
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-
-    // Set up connection monitoring
-    if (this.wsConnection) {
-      this.wsConnection.onopen = () => {
-        this.isConnectedFlag = true;
-        callback(true);
-      };
-
-      this.wsConnection.onclose = () => {
-        this.isConnectedFlag = false;
-        callback(false);
-      };
-
-      this.wsConnection.onerror = () => {
-        this.isConnectedFlag = false;
-        callback(false);
-      };
-    }
-  }
-
-  // Helper method to convert exchange symbol back to normalized format
+  // Simple method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Binance uses format like "BTCUSDT", need to split into "BTC/USDT"
-    // This is a simplified approach - in production, you'd want a more robust parser
-    const symbol = exchangeSymbol.toUpperCase();
+    // Add slash if not present (WebSocket format comes without slash)
+    if (!exchangeSymbol.includes("/")) {
+      // Simple approach: find the slash position by trying common quote currencies
+      const quotes = ["USDT", "USDC", "USD", "EUR"];
 
-    // Common quote currencies in order of preference (longer first to avoid conflicts)
-    const quoteAssets = ["USDT", "USDC", "BUSD", "USD", "BTC", "ETH", "BNB"];
-
-    for (const quote of quoteAssets) {
-      if (symbol.endsWith(quote)) {
-        const base = symbol.slice(0, -quote.length);
-        if (base.length > 0) {
-          return `${base}/${quote}`;
+      for (const quote of quotes) {
+        if (exchangeSymbol.endsWith(quote)) {
+          const base = exchangeSymbol.slice(0, -quote.length);
+          if (base.length > 0) {
+            return `${base}/${quote}`;
+          }
         }
       }
     }
 
-    // Fallback: assume last 3-4 characters are quote
-    if (symbol.length >= 6) {
-      // Try 4-character quote first (USDT, USDC, BUSD)
-      if (symbol.length >= 7) {
-        const quote4 = symbol.slice(-4);
-        if (["USDT", "USDC", "BUSD"].includes(quote4)) {
-          return `${symbol.slice(0, -4)}/${quote4}`;
-        }
-      }
-
-      // Try 3-character quote
-      const quote3 = symbol.slice(-3);
-      const base = symbol.slice(0, -3);
-      return `${base}/${quote3}`;
-    }
-
-    return symbol; // Return as-is if can't parse
+    return exchangeSymbol;
   }
 
   // Binance requires periodic ping to keep connection alive

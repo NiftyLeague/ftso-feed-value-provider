@@ -51,73 +51,15 @@ export class KrakenAdapter extends ExchangeAdapter {
   private wsConnection?: WebSocket;
   private isConnectedFlag = false;
   private subscriptions = new Set<string>();
-  private connectionId?: number;
-
-  // Kraken's special symbol mappings
-  private static readonly KRAKEN_SYMBOL_MAP = new Map<string, string>([
-    // Bitcoin mappings
-    ["BTC/USD", "XBT/USD"],
-    ["BTC/USDT", "XBT/USDT"],
-    ["BTC/EUR", "XBT/EUR"],
-    ["BTC/GBP", "XBT/GBP"],
-    ["BTC/JPY", "XBT/JPY"],
-    ["BTC/CAD", "XBT/CAD"],
-
-    // Ethereum mappings (Kraken uses ETH, not XETH)
-    ["ETH/USD", "ETH/USD"],
-    ["ETH/USDT", "ETH/USDT"],
-    ["ETH/EUR", "ETH/EUR"],
-    ["ETH/BTC", "ETH/XBT"],
-
-    // Other common mappings
-    ["LTC/USD", "LTC/USD"],
-    ["LTC/BTC", "LTC/XBT"],
-    ["ADA/USD", "ADA/USD"],
-    ["ADA/BTC", "ADA/XBT"],
-    ["DOT/USD", "DOT/USD"],
-    ["DOT/BTC", "DOT/XBT"],
-  ]);
-
-  // Reverse mapping for normalization
-  private static readonly KRAKEN_REVERSE_MAP = new Map<string, string>();
-
-  static {
-    // Build reverse mapping
-    for (const [normalized, kraken] of KrakenAdapter.KRAKEN_SYMBOL_MAP) {
-      KrakenAdapter.KRAKEN_REVERSE_MAP.set(kraken, normalized);
-    }
-
-    // Add additional reverse mappings for WebSocket format
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("XBTUSD", "BTC/USD");
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("XBTUSDT", "BTC/USDT");
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("ETHUSD", "ETH/USD");
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("ETHUSDT", "ETH/USDT");
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("LTCUSD", "LTC/USD");
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("ADAUSD", "ADA/USD");
-    KrakenAdapter.KRAKEN_REVERSE_MAP.set("DOTUSD", "DOT/USD");
-  }
 
   constructor(config?: ExchangeConnectionConfig) {
     super(config);
-    this.initializeSymbolConventions();
   }
 
-  // Override the base class method to prioritize Kraken's custom mappings
+  // Simple symbol mapping - use exact pairs from feeds.json
   getSymbolMapping(feedSymbol: string): string {
-    // Use Kraken's special mapping first
-    const krakenSymbol = KrakenAdapter.KRAKEN_SYMBOL_MAP.get(feedSymbol);
-    if (krakenSymbol) {
-      return krakenSymbol.replace("/", ""); // Remove slash for WebSocket format
-    }
-
-    // Fallback to standard conversion with BTC->XBT replacement
-    let symbol = feedSymbol.replace("/", "");
-    symbol = symbol.replace("BTC", "XBT");
-    return symbol;
-  }
-
-  protected getCustomSymbolMapping(feedSymbol: string): string {
-    return this.getSymbolMapping(feedSymbol);
+    // For WebSocket, remove the slash - use the exact symbol from feeds.json
+    return feedSymbol.replace("/", "");
   }
 
   async connect(): Promise<void> {
@@ -255,7 +197,7 @@ export class KrakenAdapter extends ExchangeAdapter {
       throw new Error("Not connected to Kraken WebSocket");
     }
 
-    const krakenSymbols = symbols.map(symbol => this.getCustomSymbolMapping(symbol));
+    const krakenSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     const subscribeMessage = {
       event: "subscribe",
@@ -276,7 +218,7 @@ export class KrakenAdapter extends ExchangeAdapter {
       return;
     }
 
-    const krakenSymbols = symbols.map(symbol => this.getCustomSymbolMapping(symbol));
+    const krakenSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     const unsubscribeMessage = {
       event: "unsubscribe",
@@ -294,7 +236,7 @@ export class KrakenAdapter extends ExchangeAdapter {
 
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
-    const krakenSymbol = this.getCustomSymbolMapping(symbol);
+    const krakenSymbol = this.getSymbolMapping(symbol);
     const baseUrl = this.config?.restApiUrl || "https://api.kraken.com";
     const url = `${baseUrl}/0/public/Ticker?pair=${krakenSymbol}`;
 
@@ -343,53 +285,21 @@ export class KrakenAdapter extends ExchangeAdapter {
 
   // Event handlers
   private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
     this.onPriceUpdateCallback = callback;
   }
 
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-
-    // Set up connection monitoring
-    if (this.wsConnection) {
-      this.wsConnection.onopen = () => {
-        this.isConnectedFlag = true;
-        callback(true);
-      };
-
-      this.wsConnection.onclose = () => {
-        this.isConnectedFlag = false;
-        callback(false);
-      };
-
-      this.wsConnection.onerror = () => {
-        this.isConnectedFlag = false;
-        callback(false);
-      };
-    }
-  }
-
-  // Helper method to convert exchange symbol back to normalized format
+  // Simple method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Check reverse mapping first
-    const normalized = KrakenAdapter.KRAKEN_REVERSE_MAP.get(exchangeSymbol);
-    if (normalized) {
-      return normalized;
-    }
-
-    // Handle XBT -> BTC conversion and add slash
-    let symbol = exchangeSymbol.replace("XBT", "BTC");
-
-    // Add slash if not present (for REST API responses)
-    if (!symbol.includes("/")) {
-      // Common quote currencies for Kraken
-      const quotes = ["USD", "USDT", "EUR", "GBP", "JPY", "CAD", "BTC", "ETH"];
+    // Add slash if not present (WebSocket format comes without slash)
+    if (!exchangeSymbol.includes("/")) {
+      // Simple approach: find the slash position by trying common quote currencies
+      const quotes = ["USD", "USDT", "USDC", "EUR"];
 
       for (const quote of quotes) {
-        if (symbol.endsWith(quote)) {
-          const base = symbol.slice(0, -quote.length);
+        if (exchangeSymbol.endsWith(quote)) {
+          const base = exchangeSymbol.slice(0, -quote.length);
           if (base.length > 0) {
             return `${base}/${quote}`;
           }
@@ -397,7 +307,7 @@ export class KrakenAdapter extends ExchangeAdapter {
       }
     }
 
-    return symbol;
+    return exchangeSymbol;
   }
 
   // Get current subscriptions

@@ -257,10 +257,16 @@ describe("OkxAdapter", () => {
       const priceUpdateCallback = jest.fn();
       adapter.onPriceUpdate(priceUpdateCallback);
 
+      // Suppress console.error for this expected error
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+
       // Simulate malformed JSON
       mockWebSocket.onmessage?.({ data: "invalid json" });
 
       expect(priceUpdateCallback).not.toHaveBeenCalled();
+
+      // Restore console.error
+      consoleSpy.mockRestore();
     });
   });
 

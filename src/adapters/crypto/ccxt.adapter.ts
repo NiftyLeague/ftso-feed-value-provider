@@ -73,7 +73,6 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
       tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
       ...config,
     };
-    this.initializeSymbolConventions();
     this.ccxtFeed = new CcxtFeed();
   }
 
