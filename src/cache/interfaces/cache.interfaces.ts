@@ -22,7 +22,7 @@ export interface CacheStats {
 }
 
 export interface CacheConfig {
-  maxTTL: 1000; // 1 second maximum TTL
+  maxTTL: number; // 1 second maximum TTL
   maxEntries: number;
   evictionPolicy: "LRU" | "LFU" | "TTL";
   memoryLimit: number; // in bytes
