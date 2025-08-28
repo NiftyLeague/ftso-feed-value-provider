@@ -216,9 +216,24 @@ export class SymbolMappingUtils {
       return false;
     }
 
-    // Crypto symbols: 2-10 characters for base, 2-10 for quote
-    const cryptoPattern = /^[A-Z]{2,10}\/[A-Z]{2,10}$/;
-    return cryptoPattern.test(symbol);
+    // Crypto symbols: 1-10 characters for base, 2-10 for quote
+    // Allow single character tokens like "S" which are legitimate crypto tokens
+    const cryptoPattern = /^[A-Z]{1,10}\/[A-Z]{2,10}$/;
+    if (!cryptoPattern.test(symbol)) {
+      return false;
+    }
+
+    // Additional check: if quote is a common crypto quote currency, it's likely crypto
+    const [base, quote] = symbol.split("/");
+    const cryptoQuotes = new Set(["USDT", "USDC", "BTC", "ETH", "BNB", "USD"]);
+
+    // If quote is a crypto quote currency, it's crypto regardless of base length
+    if (cryptoQuotes.has(quote)) {
+      return true;
+    }
+
+    // For other quotes, require at least 2 characters for base to avoid conflicts with forex
+    return base.length >= 2;
   }
 
   private static isForexSymbol(symbol: string): boolean {
