@@ -103,7 +103,7 @@ export abstract class ExchangeAdapter {
 
     // Adjust for spread (tighter spread = higher confidence)
     if (additionalFactors?.spread) {
-      const spreadPenalty = Math.min(additionalFactors.spread / 100, 0.3); // Max 30% penalty
+      const spreadPenalty = Math.min(additionalFactors.spread / 10, 0.3); // Max 30% penalty, more sensitive
       confidence -= spreadPenalty;
     }
 
