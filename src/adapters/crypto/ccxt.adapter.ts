@@ -70,7 +70,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
       lambda: 0.00005,
       retryBackoffMs: 10000,
       enableUsdtConversion: true,
-      tier1Exchanges: ["binance", "coinbase", "kraken", "okx"],
+      tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
       ...config,
     };
     this.initializeSymbolConventions();
@@ -382,7 +382,9 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
       const individualPrices = await this.getIndividualPrices(feedId);
 
       // Filter out Tier 1 exchanges (these should be handled by custom adapters)
-      const tier1Exchanges = new Set(this.adapterConfig.tier1Exchanges || ["binance", "coinbase", "kraken", "okx"]);
+      const tier1Exchanges = new Set(
+        this.adapterConfig.tier1Exchanges || ["binance", "coinbase", "kraken", "okx", "cryptocom"]
+      );
       const tier2Prices = individualPrices.filter(price => !tier1Exchanges.has(price.exchange.toLowerCase()));
 
       this.metrics.tier2ExchangeCount = tier2Prices.length;
@@ -417,7 +419,9 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
       }
 
       // Check if we have any Tier 2 exchanges (non-Tier 1)
-      const tier1Exchanges = new Set(this.adapterConfig.tier1Exchanges || ["binance", "coinbase", "kraken", "okx"]);
+      const tier1Exchanges = new Set(
+        this.adapterConfig.tier1Exchanges || ["binance", "coinbase", "kraken", "okx", "cryptocom"]
+      );
       const hasTier2Data = Array.from(symbolPrices.keys()).some(
         exchange => !tier1Exchanges.has(exchange.toLowerCase())
       );
@@ -438,7 +442,9 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
         return [];
       }
 
-      const tier1Exchanges = new Set(this.adapterConfig.tier1Exchanges || ["binance", "coinbase", "kraken", "okx"]);
+      const tier1Exchanges = new Set(
+        this.adapterConfig.tier1Exchanges || ["binance", "coinbase", "kraken", "okx", "cryptocom"]
+      );
       return Array.from(symbolPrices.keys()).filter(exchange => !tier1Exchanges.has(exchange.toLowerCase()));
     } catch {
       return [];

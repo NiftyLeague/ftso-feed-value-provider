@@ -53,7 +53,7 @@ describe("CcxtMultiExchangeAdapter", () => {
       expect(config.lambda).toBe(0.00005);
       expect(config.retryBackoffMs).toBe(10000);
       expect(config.enableUsdtConversion).toBe(true);
-      expect(config.tier1Exchanges).toEqual(["binance", "coinbase", "kraken", "okx"]);
+      expect(config.tier1Exchanges).toEqual(["binance", "coinbase", "kraken", "okx", "cryptocom"]);
     });
 
     it("should initialize with custom configuration", () => {
