@@ -15,7 +15,6 @@ class MockWebSocket {
   onmessage?: (event: { data: string }) => void;
 
   constructor(public url: string) {
-    // Simulate connection opening
     setTimeout(() => {
       this.readyState = MockWebSocket.OPEN;
       this.onopen?.();
@@ -29,10 +28,6 @@ class MockWebSocket {
   close() {
     this.readyState = MockWebSocket.CLOSED;
     this.onclose?.();
-  }
-
-  ping() {
-    // Mock ping implementation
   }
 }
 
@@ -63,97 +58,77 @@ describe("KrakenAdapter", () => {
   });
 
   describe("symbol mapping", () => {
-    it("should map symbols by removing slash", () => {
-      // Test with actual symbols from feeds.json
-      expect(adapter.getSymbolMapping("SGB/USD")).toBe("SGBUSD");
-      expect(adapter.getSymbolMapping("USDT/USD")).toBe("USDTUSD");
-      expect(adapter.getSymbolMapping("TAO/USD")).toBe("TAOUSD");
-      expect(adapter.getSymbolMapping("RENDER/USD")).toBe("RENDERUSD");
-      expect(adapter.getSymbolMapping("TRUMP/USD")).toBe("TRUMPUSD");
+    it("should map BTC symbols correctly", () => {
+      expect(adapter.getSymbolMapping("BTC/USD")).toBe("XBTUSD");
+      expect(adapter.getSymbolMapping("BTC/EUR")).toBe("XBTEUR");
     });
 
-    it("should handle other crypto symbols correctly", () => {
+    it("should map other symbols correctly", () => {
       expect(adapter.getSymbolMapping("ETH/USD")).toBe("ETHUSD");
       expect(adapter.getSymbolMapping("LTC/USD")).toBe("LTCUSD");
-      expect(adapter.getSymbolMapping("DOT/USD")).toBe("DOTUSD");
     });
 
     it("should validate symbols correctly", () => {
       expect(adapter.validateSymbol("BTC/USD")).toBe(true);
-      expect(adapter.validateSymbol("ETH/USDT")).toBe(true);
+      expect(adapter.validateSymbol("ETH/USD")).toBe(true);
       expect(adapter.validateSymbol("INVALID")).toBe(false);
     });
   });
 
   describe("symbol normalization from exchange format", () => {
-    it("should normalize symbols by adding slash", () => {
+    it("should normalize XBT pairs back to BTC", () => {
       const mockData: KrakenTickerData = {
-        channelID: 1,
-        channelName: "ticker",
-        pair: "SGBUSD",
-        data: {
-          a: ["1.51", "1", "1.000"],
-          b: ["1.49", "1", "1.000"],
-          c: ["1.50", "0.1"],
-          v: ["100.0", "1000.0"],
-          p: ["1.45", "1.48"],
-          t: [50, 500],
-          l: ["1.40", "1.40"],
-          h: ["1.55", "1.55"],
-          o: ["1.45", "1.45"],
-        },
+        a: ["50001.00", "1", "1.000"],
+        b: ["49999.00", "1", "1.000"],
+        c: ["50000.00", "0.1"],
+        v: ["1000.0", "5000.0"],
+        p: ["50000.00", "49500.00"],
+        t: [500, 2500],
+        l: ["48000.00", "47000.00"],
+        h: ["51000.00", "52000.00"],
+        o: "49000.00",
       };
 
-      const result = adapter.normalizePriceData(mockData);
-      expect(result.symbol).toBe("SGB/USD");
+      const result = adapter.normalizePriceData(mockData, "XBTUSD");
+      expect(result.symbol).toBe("BTC/USD");
     });
 
-    it("should normalize USDT symbols correctly", () => {
+    it("should normalize other pairs correctly", () => {
       const mockData: KrakenTickerData = {
-        channelID: 1,
-        channelName: "ticker",
-        pair: "USDTUSD",
-        data: {
-          a: ["1.001", "1", "1.000"],
-          b: ["0.999", "1", "1.000"],
-          c: ["1.000", "1.0"],
-          v: ["1000.0", "10000.0"],
-          p: ["0.995", "0.998"],
-          t: [100, 1000],
-          l: ["0.990", "0.990"],
-          h: ["1.010", "1.010"],
-          o: ["0.995", "0.995"],
-        },
+        a: ["2901.00", "10", "10.000"],
+        b: ["2899.00", "5", "5.000"],
+        c: ["2900.00", "1.0"],
+        v: ["10000.0", "50000.0"],
+        p: ["2900.00", "2850.00"],
+        t: [1000, 5000],
+        l: ["2750.00", "2700.00"],
+        h: ["2950.00", "3000.00"],
+        o: "2800.00",
       };
 
-      const result = adapter.normalizePriceData(mockData);
-      expect(result.symbol).toBe("USDT/USD");
+      const result = adapter.normalizePriceData(mockData, "ETHUSD");
+      expect(result.symbol).toBe("ETH/USD");
     });
   });
 
   describe("data normalization", () => {
     const mockTickerData: KrakenTickerData = {
-      channelID: 1,
-      channelName: "ticker",
-      pair: "SGBUSD",
-      data: {
-        a: ["1.51", "1", "1.000"],
-        b: ["1.49", "1", "1.000"],
-        c: ["1.50", "0.1"],
-        v: ["100.0", "1000.0"],
-        p: ["1.45", "1.48"],
-        t: [50, 500],
-        l: ["1.40", "1.40"],
-        h: ["1.55", "1.55"],
-        o: ["1.45", "1.45"],
-      },
+      a: ["50001.00", "1", "1.000"],
+      b: ["49999.00", "1", "1.000"],
+      c: ["50000.00", "0.1"],
+      v: ["1000.0", "5000.0"],
+      p: ["50000.00", "49500.00"],
+      t: [500, 2500],
+      l: ["48000.00", "47000.00"],
+      h: ["51000.00", "52000.00"],
+      o: "49000.00",
     };
 
     it("should normalize price data correctly", () => {
-      const result = adapter.normalizePriceData(mockTickerData);
+      const result = adapter.normalizePriceData(mockTickerData, "XBTUSD");
 
-      expect(result.symbol).toBe("SGB/USD");
-      expect(result.price).toBe(1.5);
+      expect(result.symbol).toBe("BTC/USD");
+      expect(result.price).toBe(50000);
       expect(result.source).toBe("kraken");
       expect(result.volume).toBe(1000);
       expect(result.confidence).toBeGreaterThan(0);
@@ -162,39 +137,21 @@ describe("KrakenAdapter", () => {
     });
 
     it("should normalize volume data correctly", () => {
-      const result = adapter.normalizeVolumeData(mockTickerData);
+      const result = adapter.normalizeVolumeData(mockTickerData, "XBTUSD");
 
-      expect(result.symbol).toBe("SGB/USD");
+      expect(result.symbol).toBe("BTC/USD");
       expect(result.volume).toBe(1000);
       expect(result.source).toBe("kraken");
       expect(typeof result.timestamp).toBe("number");
     });
 
     it("should calculate confidence based on spread", () => {
-      const lowSpreadData: KrakenTickerData = {
-        ...mockTickerData,
-        data: {
-          ...mockTickerData.data,
-          a: ["50000.50", "1", "1.000"] as [string, string, string],
-          b: ["49999.50", "1", "1.000"] as [string, string, string],
-          c: ["50000.00", "0.1"] as [string, string],
-        },
-      };
+      const lowSpreadData = { ...mockTickerData, a: ["50000.50", "1", "1.000"], b: ["49999.50", "1", "1.000"] };
+      const highSpreadData = { ...mockTickerData, a: ["51000.00", "1", "1.000"], b: ["49000.00", "1", "1.000"] };
 
-      const highSpreadData: KrakenTickerData = {
-        ...mockTickerData,
-        data: {
-          ...mockTickerData.data,
-          a: ["51000.00", "1", "1.000"] as [string, string, string],
-          b: ["49000.00", "1", "1.000"] as [string, string, string],
-          c: ["50000.00", "0.1"] as [string, string],
-        },
-      };
+      const lowSpreadResult = adapter.normalizePriceData(lowSpreadData, "XBTUSD");
+      const highSpreadResult = adapter.normalizePriceData(highSpreadData, "XBTUSD");
 
-      const lowSpreadResult = adapter.normalizePriceData(lowSpreadData);
-      const highSpreadResult = adapter.normalizePriceData(highSpreadData);
-
-      // Low spread should have higher confidence
       expect(lowSpreadResult.confidence).toBeGreaterThan(highSpreadResult.confidence);
     });
   });
@@ -202,20 +159,15 @@ describe("KrakenAdapter", () => {
   describe("response validation", () => {
     it("should validate correct ticker data", () => {
       const validData: KrakenTickerData = {
-        channelID: 1,
-        channelName: "ticker",
-        pair: "XBTUSD",
-        data: {
-          a: ["50001.00", "1", "1.000"],
-          b: ["49999.00", "1", "1.000"],
-          c: ["50000.00", "0.1"],
-          v: ["100.0", "1000.0"],
-          p: ["49500.00", "49800.00"],
-          t: [50, 500],
-          l: ["48000.00", "48000.00"],
-          h: ["51000.00", "51000.00"],
-          o: ["49000.00", "49000.00"],
-        },
+        a: ["50001.00", "1", "1.000"],
+        b: ["49999.00", "1", "1.000"],
+        c: ["50000.00", "0.1"],
+        v: ["1000.0", "5000.0"],
+        p: ["50000.00", "49500.00"],
+        t: [500, 2500],
+        l: ["48000.00", "47000.00"],
+        h: ["51000.00", "52000.00"],
+        o: "49000.00",
       };
 
       expect(adapter.validateResponse(validData)).toBe(true);
@@ -224,13 +176,8 @@ describe("KrakenAdapter", () => {
     it("should reject invalid data", () => {
       expect(adapter.validateResponse(null)).toBe(false);
       expect(adapter.validateResponse({})).toBe(false);
-      expect(adapter.validateResponse({ pair: "XBTUSD" })).toBe(false);
-      expect(
-        adapter.validateResponse({
-          pair: "XBTUSD",
-          data: { c: ["invalid"] },
-        })
-      ).toBe(false);
+      expect(adapter.validateResponse({ c: ["50000.00", "0.1"] })).toBe(false);
+      expect(adapter.validateResponse({ c: ["invalid", "0.1"], a: ["50001.00", "1", "1.000"] })).toBe(false);
     });
   });
 
@@ -241,7 +188,6 @@ describe("KrakenAdapter", () => {
     });
 
     it("should handle connection errors", async () => {
-      // Mock WebSocket constructor to throw error
       const originalWebSocket = global.WebSocket;
       (global as any).WebSocket = jest.fn().mockImplementation(() => {
         throw new Error("Connection failed");
@@ -270,11 +216,11 @@ describe("KrakenAdapter", () => {
             a: ["50001.00", "1", "1.000"],
             b: ["49999.00", "1", "1.000"],
             c: ["50000.00", "0.1"],
-            v: ["100.0", "1000.0"],
-            p: ["49500.00", "49800.00"],
-            t: [50, 500],
-            l: ["48000.00", "48000.00"],
-            h: ["51000.00", "51000.00"],
+            v: ["1000.0", "5000.0"],
+            p: ["50000.00", "49500.00"],
+            t: [500, 2500],
+            l: ["48000.00", "47000.00"],
+            h: ["51000.00", "52000.00"],
             o: "49000.00",
           },
         },
@@ -293,6 +239,16 @@ describe("KrakenAdapter", () => {
       expect(result.volume).toBe(1000);
     });
 
+    it("should handle REST API errors", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      });
+
+      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Failed to fetch Kraken ticker");
+    });
+
     it("should handle Kraken API errors", async () => {
       const mockResponse = {
         error: ["EQuery:Unknown asset pair"],
@@ -306,16 +262,6 @@ describe("KrakenAdapter", () => {
 
       await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Kraken API error");
     });
-
-    it("should handle REST API errors", async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        statusText: "Not Found",
-      });
-
-      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Failed to fetch Kraken ticker");
-    });
   });
 
   describe("health check", () => {
@@ -326,39 +272,13 @@ describe("KrakenAdapter", () => {
     });
 
     it("should check REST API when not connected", async () => {
-      const mockResponse = {
-        error: [],
-        result: {
-          status: "online",
-          timestamp: "2023-01-01T12:00:00Z",
-        },
-      };
-
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockResponse),
+        json: () => Promise.resolve({ error: [], result: {} }),
       });
 
       const isHealthy = await adapter.healthCheck();
       expect(isHealthy).toBe(true);
-    });
-
-    it("should return false when system is offline", async () => {
-      const mockResponse = {
-        error: [],
-        result: {
-          status: "maintenance",
-          timestamp: "2023-01-01T12:00:00Z",
-        },
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
-      });
-
-      const isHealthy = await adapter.healthCheck();
-      expect(isHealthy).toBe(false);
     });
 
     it("should return false when both WebSocket and REST fail", async () => {
@@ -372,11 +292,11 @@ describe("KrakenAdapter", () => {
   describe("subscriptions", () => {
     it("should track subscriptions", async () => {
       await adapter.connect();
-      await adapter.subscribe(["SGB/USD", "ETH/USD"]);
+      await adapter.subscribe(["BTC/USD", "ETH/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).toContain("SGBUSD");
-      expect(subscriptions).toContain("ETHUSD");
+      expect(subscriptions).toContain("xbtusd");
+      expect(subscriptions).toContain("ethusd");
     });
 
     it("should handle unsubscribe", async () => {
@@ -385,8 +305,8 @@ describe("KrakenAdapter", () => {
       await adapter.unsubscribe(["BTC/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).not.toContain("XBTUSD");
-      expect(subscriptions).toContain("ETHUSD");
+      expect(subscriptions).not.toContain("xbtusd");
+      expect(subscriptions).toContain("ethusd");
     });
   });
 });

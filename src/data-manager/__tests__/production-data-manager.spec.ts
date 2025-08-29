@@ -1,367 +1,552 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ProductionDataManagerService } from "../production-data-manager";
-import { DataSource, PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
+import { ProductionDataManager } from "../production-data-manager";
+import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
+import { DataValidator } from "../validation/data-validator";
+import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
 import { FeedCategory } from "@/types/feed-category.enum";
+import { PriceUpdate } from "@/interfaces/data-source.interface";
+import { ExchangeAdapter } from "@/interfaces/exchange-adapter.interface";
 
-// Mock DataSource implementation for testing
-class MockDataSource implements DataSource {
-  id: string;
-  type: "websocket" | "rest";
-  priority: number;
-  category: FeedCategory;
+// Mock adapter for testing
+class MockExchangeAdapter extends ExchangeAdapter {
+  readonly exchangeName = "mock-exchange";
+  readonly category = FeedCategory.Crypto;
+  readonly capabilities = {
+    supportsWebSocket: true,
+    supportsREST: true,
+    supportsVolume: true,
+    supportsOrderBook: false,
+    supportedCategories: [FeedCategory.Crypto],
+  };
 
   private connected = false;
-  private latency = 50;
-  private priceUpdateCallback?: (update: PriceUpdate) => void;
-  private connectionChangeCallback?: (connected: boolean) => void;
-  private subscribedSymbols: string[] = [];
+  private priceCallback?: (update: PriceUpdate) => void;
 
-  constructor(id: string, type: "websocket" | "rest" = "websocket", category: FeedCategory = FeedCategory.Crypto) {
-    this.id = id;
-    this.type = type;
-    this.priority = 1;
-    this.category = category;
+  async connect(): Promise<void> {
+    this.connected = true;
+  }
+
+  async disconnect(): Promise<void> {
+    this.connected = false;
   }
 
   isConnected(): boolean {
     return this.connected;
   }
 
-  getLatency(): number {
-    return this.latency;
+  normalizePriceData(rawData: any): PriceUpdate {
+    return {
+      symbol: "BTC/USD",
+      price: rawData.price || 50000,
+      timestamp: Date.now(),
+      source: this.exchangeName,
+      confidence: 0.9,
+    };
+  }
+
+  normalizeVolumeData(rawData: any): any {
+    return {
+      symbol: "BTC/USD",
+      volume: rawData.volume || 1000,
+      timestamp: Date.now(),
+      source: this.exchangeName,
+    };
+  }
+
+  validateResponse(rawData: any): boolean {
+    return rawData && typeof rawData.price === "number";
   }
 
   async subscribe(symbols: string[]): Promise<void> {
-    this.subscribedSymbols.push(...symbols);
+    // Mock subscription
   }
 
   async unsubscribe(symbols: string[]): Promise<void> {
-    this.subscribedSymbols = this.subscribedSymbols.filter(s => !symbols.includes(s));
+    // Mock unsubscription
   }
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
-    this.priceUpdateCallback = callback;
+    this.priceCallback = callback;
   }
 
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.connectionChangeCallback = callback;
+  validateSymbol(feedSymbol: string): boolean {
+    return feedSymbol.includes("/");
   }
 
-  // Test helper methods
-  simulateConnection(connected: boolean): void {
-    this.connected = connected;
-    if (this.connectionChangeCallback) {
-      this.connectionChangeCallback(connected);
+  // Helper method to simulate price updates
+  simulatePriceUpdate(price: number) {
+    if (this.priceCallback) {
+      this.priceCallback({
+        symbol: "BTC/USD",
+        price,
+        timestamp: Date.now(),
+        source: this.exchangeName,
+        confidence: 0.9,
+      });
     }
-  }
-
-  simulatePriceUpdate(update: PriceUpdate): void {
-    if (this.priceUpdateCallback && this.connected) {
-      this.priceUpdateCallback(update);
-    }
-  }
-
-  setLatency(latency: number): void {
-    this.latency = latency;
-  }
-
-  getSubscribedSymbols(): string[] {
-    return [...this.subscribedSymbols];
   }
 }
 
-describe("ProductionDataManagerService", () => {
-  let service: ProductionDataManagerService;
+describe("ProductionDataManager", () => {
+  let dataManager: ProductionDataManager;
+  let adapterRegistry: jest.Mocked<ExchangeAdapterRegistry>;
+  let dataValidator: jest.Mocked<DataValidator>;
+  let mockAdapter: MockExchangeAdapter;
   let module: TestingModule;
 
+  const mockFeedId: EnhancedFeedId = {
+    category: FeedCategory.Crypto,
+    name: "BTC/USD",
+  };
+
   beforeEach(async () => {
+    mockAdapter = new MockExchangeAdapter();
+
+    const mockAdapterRegistry = {
+      findBestAdapter: jest.fn(),
+      getByCategory: jest.fn(),
+      get: jest.fn(),
+      register: jest.fn(),
+      setActive: jest.fn(),
+      updateHealthStatus: jest.fn(),
+      getStats: jest.fn(),
+    };
+
+    const mockDataValidator = {
+      validateUpdate: jest.fn(),
+      validateBatch: jest.fn(),
+      getValidationStats: jest.fn(),
+    };
+
     module = await Test.createTestingModule({
-      providers: [ProductionDataManagerService],
+      providers: [
+        ProductionDataManager,
+        {
+          provide: ExchangeAdapterRegistry,
+          useValue: mockAdapterRegistry,
+        },
+        {
+          provide: DataValidator,
+          useValue: mockDataValidator,
+        },
+      ],
     }).compile();
 
-    service = module.get<ProductionDataManagerService>(ProductionDataManagerService);
+    dataManager = module.get<ProductionDataManager>(ProductionDataManager);
+    adapterRegistry = module.get(ExchangeAdapterRegistry);
+    dataValidator = module.get(DataValidator);
+
+    // Setup default mock behaviors
+    adapterRegistry.findBestAdapter.mockReturnValue(mockAdapter);
+    adapterRegistry.getByCategory.mockReturnValue([mockAdapter]);
+    dataValidator.validateUpdate.mockResolvedValue({
+      isValid: true,
+      errors: [],
+      confidence: 0.9,
+      adjustedUpdate: undefined,
+    });
   });
 
   afterEach(async () => {
     await module.close();
   });
 
-  describe("Data Source Management", () => {
-    it("should add a data source successfully", async () => {
-      const mockSource = new MockDataSource("test-source-1");
-
-      await service.addDataSource(mockSource);
-
-      const connectedSources = service.getConnectedSources();
-      expect(connectedSources).toHaveLength(0); // Not connected yet
+  describe("initialization", () => {
+    it("should initialize successfully", async () => {
+      await dataManager.onModuleInit();
+      expect(dataManager.isInitialized()).toBe(true);
     });
 
-    it("should remove a data source successfully", async () => {
-      const mockSource = new MockDataSource("test-source-1");
-
-      await service.addDataSource(mockSource);
-      await service.removeDataSource("test-source-1");
-
-      const connectedSources = service.getConnectedSources();
-      expect(connectedSources).toHaveLength(0);
-    });
-
-    it("should track connected sources correctly", async () => {
-      const mockSource1 = new MockDataSource("test-source-1");
-      const mockSource2 = new MockDataSource("test-source-2");
-
-      await service.addDataSource(mockSource1);
-      await service.addDataSource(mockSource2);
-
-      // Simulate connections
-      mockSource1.simulateConnection(true);
-      mockSource2.simulateConnection(true);
-
-      const connectedSources = service.getConnectedSources();
-      expect(connectedSources).toHaveLength(2);
-      expect(connectedSources.map(s => s.id)).toContain("test-source-1");
-      expect(connectedSources.map(s => s.id)).toContain("test-source-2");
+    it("should cleanup on destroy", async () => {
+      await dataManager.onModuleInit();
+      await dataManager.onModuleDestroy();
+      expect(dataManager.isInitialized()).toBe(false);
     });
   });
 
-  describe("Feed Subscription Management", () => {
-    it("should subscribe to a feed successfully", async () => {
-      const mockSource = new MockDataSource("test-source-1", "websocket", FeedCategory.Crypto);
-      await service.addDataSource(mockSource);
-      mockSource.simulateConnection(true);
-
-      const feedId: EnhancedFeedId = {
-        category: FeedCategory.Crypto,
-        name: "BTC/USD",
-      };
-
-      await service.subscribeToFeed(feedId);
-
-      expect(mockSource.getSubscribedSymbols()).toContain("BTC/USD");
+  describe("connection management", () => {
+    beforeEach(async () => {
+      await dataManager.onModuleInit();
     });
 
-    it("should unsubscribe from a feed successfully", async () => {
-      const mockSource = new MockDataSource("test-source-1", "websocket", FeedCategory.Crypto);
-      await service.addDataSource(mockSource);
-      mockSource.simulateConnection(true);
+    it("should connect to data sources for feed", async () => {
+      await dataManager.connectToFeed(mockFeedId);
 
-      const feedId: EnhancedFeedId = {
-        category: FeedCategory.Crypto,
-        name: "BTC/USD",
-      };
-
-      await service.subscribeToFeed(feedId);
-      await service.unsubscribeFromFeed(feedId);
-
-      expect(mockSource.getSubscribedSymbols()).not.toContain("BTC/USD");
+      expect(adapterRegistry.findBestAdapter).toHaveBeenCalledWith("BTC/USD", FeedCategory.Crypto);
+      expect(mockAdapter.isConnected()).toBe(true);
     });
 
-    it("should throw error when no connected sources available", async () => {
-      const feedId: EnhancedFeedId = {
-        category: FeedCategory.Crypto,
-        name: "BTC/USD",
-      };
+    it("should handle connection failures gracefully", async () => {
+      const failingAdapter = new MockExchangeAdapter();
+      jest.spyOn(failingAdapter, "connect").mockRejectedValue(new Error("Connection failed"));
+      adapterRegistry.findBestAdapter.mockReturnValue(failingAdapter);
 
-      await expect(service.subscribeToFeed(feedId)).rejects.toThrow("No connected data sources available");
+      await expect(dataManager.connectToFeed(mockFeedId)).rejects.toThrow("Connection failed");
+    });
+
+    it("should disconnect from feed sources", async () => {
+      await dataManager.connectToFeed(mockFeedId);
+      expect(mockAdapter.isConnected()).toBe(true);
+
+      await dataManager.disconnectFromFeed(mockFeedId);
+      expect(mockAdapter.isConnected()).toBe(false);
+    });
+
+    it("should track connection status", async () => {
+      expect(dataManager.isConnectedToFeed(mockFeedId)).toBe(false);
+
+      await dataManager.connectToFeed(mockFeedId);
+      expect(dataManager.isConnectedToFeed(mockFeedId)).toBe(true);
+
+      await dataManager.disconnectFromFeed(mockFeedId);
+      expect(dataManager.isConnectedToFeed(mockFeedId)).toBe(false);
     });
   });
 
-  describe("Real-time Data Processing", () => {
-    it("should process price updates immediately", done => {
-      const mockSource = new MockDataSource("test-source-1");
-      const priceUpdate: PriceUpdate = {
-        symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now(),
-        source: "test-source-1",
-        confidence: 0.95,
-      };
-
-      service.on("priceUpdate", (update: PriceUpdate) => {
-        expect(update).toEqual(priceUpdate);
-        done();
-      });
-
-      service.processUpdateImmediately(priceUpdate);
+  describe("data subscription", () => {
+    beforeEach(async () => {
+      await dataManager.onModuleInit();
+      await dataManager.connectToFeed(mockFeedId);
     });
 
-    it("should reject stale data", () => {
-      const staleUpdate: PriceUpdate = {
-        symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now() - 5000, // 5 seconds old
-        source: "test-source-1",
-        confidence: 0.95,
-      };
+    it("should subscribe to price updates", async () => {
+      const callback = jest.fn();
+      const unsubscribe = dataManager.subscribeToPriceUpdates(mockFeedId, callback);
 
-      const eventSpy = jest.fn();
-      service.on("priceUpdate", eventSpy);
-
-      service.processUpdateImmediately(staleUpdate);
-
-      expect(eventSpy).not.toHaveBeenCalled();
-    });
-
-    it("should prioritize real-time data", () => {
-      expect(service.prioritizeRealTimeData()).toBe(true);
-    });
-  });
-
-  describe("Connection Health Monitoring", () => {
-    it("should return correct connection health", async () => {
-      const mockSource1 = new MockDataSource("test-source-1");
-      const mockSource2 = new MockDataSource("test-source-2");
-
-      await service.addDataSource(mockSource1);
-      await service.addDataSource(mockSource2);
-
-      mockSource1.simulateConnection(true);
-      mockSource2.simulateConnection(false);
-
-      const health = await service.getConnectionHealth();
-
-      expect(health.totalSources).toBe(2);
-      expect(health.connectedSources).toBe(1);
-      expect(health.failedSources).toHaveLength(1);
-    });
-
-    it("should track data freshness correctly", async () => {
-      const mockSource = new MockDataSource("test-source-1", "websocket", FeedCategory.Crypto);
-      await service.addDataSource(mockSource);
-      mockSource.simulateConnection(true);
-
-      const feedId: EnhancedFeedId = {
-        category: FeedCategory.Crypto,
-        name: "BTC/USD",
-      };
-
-      await service.subscribeToFeed(feedId);
+      expect(typeof unsubscribe).toBe("function");
 
       // Simulate price update
-      const priceUpdate: PriceUpdate = {
+      mockAdapter.simulatePriceUpdate(51000);
+
+      // Wait for async processing
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          symbol: "BTC/USD",
+          price: 51000,
+          source: "mock-exchange",
+        })
+      );
+
+      // Cleanup
+      unsubscribe();
+    });
+
+    it("should validate price updates before forwarding", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      // Mock validation failure
+      dataValidator.validateUpdate.mockResolvedValueOnce({
+        isValid: false,
+        errors: [{ type: "RANGE_ERROR" as any, message: "Invalid price", severity: "critical" as const }],
+        confidence: 0,
+        adjustedUpdate: undefined,
+      });
+
+      mockAdapter.simulatePriceUpdate(-100); // Invalid negative price
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(dataValidator.validateUpdate).toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled(); // Should not forward invalid data
+    });
+
+    it("should handle multiple subscribers", async () => {
+      const callback1 = jest.fn();
+      const callback2 = jest.fn();
+
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback1);
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback2);
+
+      mockAdapter.simulatePriceUpdate(52000);
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(callback1).toHaveBeenCalled();
+      expect(callback2).toHaveBeenCalled();
+    });
+
+    it("should unsubscribe properly", async () => {
+      const callback = jest.fn();
+      const unsubscribe = dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      mockAdapter.simulatePriceUpdate(53000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+
+      mockAdapter.simulatePriceUpdate(54000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(callback).toHaveBeenCalledTimes(1); // Should not be called again
+    });
+  });
+
+  describe("health monitoring", () => {
+    beforeEach(async () => {
+      await dataManager.onModuleInit();
+      await dataManager.connectToFeed(mockFeedId);
+    });
+
+    it("should monitor connection health", async () => {
+      const healthStatus = await dataManager.getConnectionHealth(mockFeedId);
+
+      expect(healthStatus).toBeDefined();
+      expect(healthStatus.isHealthy).toBe(true);
+      expect(healthStatus.connectedSources).toBeGreaterThan(0);
+      expect(healthStatus.totalSources).toBeGreaterThan(0);
+    });
+
+    it("should detect unhealthy connections", async () => {
+      // Simulate connection failure
+      await mockAdapter.disconnect();
+
+      const healthStatus = await dataManager.getConnectionHealth(mockFeedId);
+
+      expect(healthStatus.isHealthy).toBe(false);
+      expect(healthStatus.connectedSources).toBe(0);
+    });
+
+    it("should track latency metrics", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      mockAdapter.simulatePriceUpdate(55000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const metrics = dataManager.getLatencyMetrics(mockFeedId);
+
+      expect(metrics).toBeDefined();
+      expect(metrics.averageLatency).toBeGreaterThanOrEqual(0);
+      expect(metrics.maxLatency).toBeGreaterThanOrEqual(0);
+      expect(metrics.minLatency).toBeGreaterThanOrEqual(0);
+      expect(metrics.sampleCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe("failover management", () => {
+    let primaryAdapter: MockExchangeAdapter;
+    let backupAdapter: MockExchangeAdapter;
+
+    beforeEach(async () => {
+      primaryAdapter = new MockExchangeAdapter();
+      backupAdapter = new MockExchangeAdapter();
+      (backupAdapter as any).exchangeName = "backup-exchange";
+
+      adapterRegistry.getByCategory.mockReturnValue([primaryAdapter, backupAdapter]);
+      adapterRegistry.findBestAdapter.mockReturnValue(primaryAdapter);
+
+      await dataManager.onModuleInit();
+      await dataManager.connectToFeed(mockFeedId);
+    });
+
+    it("should failover to backup source when primary fails", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      // Primary adapter working
+      primaryAdapter.simulatePriceUpdate(56000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ source: "mock-exchange" }));
+
+      // Simulate primary adapter failure
+      await primaryAdapter.disconnect();
+      adapterRegistry.updateHealthStatus.mockImplementation((name, status) => {
+        if (name === "mock-exchange") {
+          adapterRegistry.findBestAdapter.mockReturnValue(backupAdapter);
+        }
+      });
+
+      // Trigger failover check
+      await dataManager.checkAndHandleFailover(mockFeedId);
+
+      // Backup adapter should now be active
+      backupAdapter.simulatePriceUpdate(57000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ source: "backup-exchange" }));
+    });
+
+    it("should measure failover time", async () => {
+      const startTime = Date.now();
+
+      // Simulate primary failure
+      await primaryAdapter.disconnect();
+
+      // Trigger failover
+      await dataManager.checkAndHandleFailover(mockFeedId);
+
+      const failoverTime = Date.now() - startTime;
+
+      // Should failover quickly (within 100ms requirement)
+      expect(failoverTime).toBeLessThan(100);
+    });
+  });
+
+  describe("data quality monitoring", () => {
+    beforeEach(async () => {
+      await dataManager.onModuleInit();
+      await dataManager.connectToFeed(mockFeedId);
+    });
+
+    it("should track data quality metrics", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      // Simulate some price updates
+      mockAdapter.simulatePriceUpdate(58000);
+      mockAdapter.simulatePriceUpdate(58100);
+      mockAdapter.simulatePriceUpdate(58200);
+
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      const qualityMetrics = dataManager.getDataQualityMetrics(mockFeedId);
+
+      expect(qualityMetrics).toBeDefined();
+      expect(qualityMetrics.validationRate).toBeGreaterThan(0);
+      expect(qualityMetrics.averageConfidence).toBeGreaterThan(0);
+      expect(qualityMetrics.totalUpdates).toBeGreaterThan(0);
+    });
+
+    it("should detect data staleness", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      // Simulate old price update
+      const staleUpdate: PriceUpdate = {
         symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now(),
-        source: "test-source-1",
-        confidence: 0.95,
+        price: 59000,
+        timestamp: Date.now() - 5000, // 5 seconds old
+        source: "mock-exchange",
+        confidence: 0.9,
       };
 
-      mockSource.simulatePriceUpdate(priceUpdate);
+      // Mock validation to detect staleness
+      dataValidator.validateUpdate.mockResolvedValueOnce({
+        isValid: false,
+        errors: [{ type: "STALENESS_ERROR" as any, message: "Data too old", severity: "critical" as const }],
+        confidence: 0,
+        adjustedUpdate: undefined,
+      });
 
-      // Wait a bit and check freshness
-      await new Promise(resolve => setTimeout(resolve, 100));
+      if (mockAdapter.priceCallback) {
+        mockAdapter.priceCallback(staleUpdate);
+      }
 
-      const freshness = await service.getDataFreshness(feedId);
-      expect(freshness).toBeGreaterThan(0);
-      expect(freshness).toBeLessThan(1000); // Should be less than 1 second
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      expect(callback).not.toHaveBeenCalled(); // Stale data should be rejected
     });
   });
 
-  describe("Event Handling", () => {
-    it("should emit sourceAdded event when source is added", done => {
-      const mockSource = new MockDataSource("test-source-1");
+  describe("configuration management", () => {
+    it("should update configuration", () => {
+      const newConfig = {
+        maxStalenessMs: 3000,
+        failoverTimeoutMs: 200,
+        healthCheckIntervalMs: 5000,
+      };
 
-      service.on("sourceAdded", (sourceId: string) => {
-        expect(sourceId).toBe("test-source-1");
-        done();
-      });
+      dataManager.updateConfig(newConfig);
+      const currentConfig = dataManager.getConfig();
 
-      service.addDataSource(mockSource);
+      expect(currentConfig.maxStalenessMs).toBe(3000);
+      expect(currentConfig.failoverTimeoutMs).toBe(200);
+      expect(currentConfig.healthCheckIntervalMs).toBe(5000);
     });
 
-    it("should emit sourceRemoved event when source is removed", async () => {
-      const mockSource = new MockDataSource("test-source-1");
-      await service.addDataSource(mockSource);
+    it("should use default configuration values", () => {
+      const config = dataManager.getConfig();
 
-      const eventPromise = new Promise<string>(resolve => {
-        service.on("sourceRemoved", (sourceId: string) => {
-          resolve(sourceId);
-        });
-      });
-
-      await service.removeDataSource("test-source-1");
-
-      const sourceId = await eventPromise;
-      expect(sourceId).toBe("test-source-1");
-    });
-
-    it("should emit sourceConnected event when source connects", done => {
-      const mockSource = new MockDataSource("test-source-1");
-
-      service.on("sourceConnected", (sourceId: string) => {
-        expect(sourceId).toBe("test-source-1");
-        done();
-      });
-
-      service.addDataSource(mockSource).then(() => {
-        mockSource.simulateConnection(true);
-      });
-    });
-
-    it("should emit sourceDisconnected event when source disconnects", async () => {
-      const mockSource = new MockDataSource("test-source-1");
-      await service.addDataSource(mockSource);
-      mockSource.simulateConnection(true);
-
-      const eventPromise = new Promise<string>(resolve => {
-        service.on("sourceDisconnected", (sourceId: string) => {
-          resolve(sourceId);
-        });
-      });
-
-      mockSource.simulateConnection(false);
-
-      const sourceId = await eventPromise;
-      expect(sourceId).toBe("test-source-1");
+      expect(config.maxStalenessMs).toBe(2000);
+      expect(config.failoverTimeoutMs).toBe(100);
+      expect(config.healthCheckIntervalMs).toBe(10000);
+      expect(config.maxRetries).toBe(3);
+      expect(config.retryDelayMs).toBe(1000);
     });
   });
 
-  describe("Error Handling", () => {
-    it("should handle source addition errors gracefully", async () => {
-      const mockSource = new MockDataSource("test-source-1");
-
-      // Mock an error in the source setup
-      jest.spyOn(mockSource, "onPriceUpdate").mockImplementation(() => {
-        throw new Error("Setup failed");
-      });
-
-      await expect(service.addDataSource(mockSource)).rejects.toThrow("Setup failed");
+  describe("error handling", () => {
+    beforeEach(async () => {
+      await dataManager.onModuleInit();
     });
 
-    it("should handle source removal errors gracefully", async () => {
-      const mockSource = new MockDataSource("test-source-1");
-      await service.addDataSource(mockSource);
+    it("should handle adapter not found gracefully", async () => {
+      adapterRegistry.findBestAdapter.mockReturnValue(undefined);
 
-      // Mock an error in unsubscribe
-      jest.spyOn(mockSource, "unsubscribe").mockRejectedValue(new Error("Unsubscribe failed"));
+      await expect(dataManager.connectToFeed(mockFeedId)).rejects.toThrow("No suitable adapter found for feed BTC/USD");
+    });
 
-      // Should not throw, but log the error
-      await expect(service.removeDataSource("test-source-1")).resolves.not.toThrow();
+    it("should handle validation errors gracefully", async () => {
+      await dataManager.connectToFeed(mockFeedId);
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      // Mock validation error
+      dataValidator.validateUpdate.mockRejectedValue(new Error("Validation service error"));
+
+      mockAdapter.simulatePriceUpdate(60000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Should not crash, but also not forward the update
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it("should retry failed operations", async () => {
+      const failingAdapter = new MockExchangeAdapter();
+      let attempts = 0;
+      jest.spyOn(failingAdapter, "connect").mockImplementation(() => {
+        attempts++;
+        if (attempts < 3) {
+          return Promise.reject(new Error("Connection failed"));
+        }
+        return Promise.resolve();
+      });
+
+      adapterRegistry.findBestAdapter.mockReturnValue(failingAdapter);
+
+      await dataManager.connectToFeed(mockFeedId);
+      expect(attempts).toBe(3); // Should have retried
+      expect(failingAdapter.isConnected()).toBe(true);
     });
   });
 
-  describe("Configuration Compliance", () => {
-    it("should enforce maximum data age of 2000ms", () => {
-      expect(service.maxDataAge).toBe(2000);
+  describe("performance metrics", () => {
+    beforeEach(async () => {
+      await dataManager.onModuleInit();
+      await dataManager.connectToFeed(mockFeedId);
     });
 
-    it("should enforce maximum cache TTL of 1000ms", () => {
-      expect(service.maxCacheTTL).toBe(1000);
+    it("should track throughput metrics", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
+
+      // Simulate multiple price updates
+      for (let i = 0; i < 10; i++) {
+        mockAdapter.simulatePriceUpdate(50000 + i * 100);
+        await new Promise(resolve => setTimeout(resolve, 1));
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 20));
+
+      const throughputMetrics = dataManager.getThroughputMetrics(mockFeedId);
+
+      expect(throughputMetrics).toBeDefined();
+      expect(throughputMetrics.updatesPerSecond).toBeGreaterThan(0);
+      expect(throughputMetrics.totalUpdates).toBe(10);
     });
 
-    it("should have correct data freshness policy", () => {
-      // Access private property for testing
-      const policy = (service as any).dataFreshnessPolicy;
+    it("should measure processing latency", async () => {
+      const callback = jest.fn();
+      dataManager.subscribeToPriceUpdates(mockFeedId, callback);
 
-      expect(policy.rejectStaleData).toBe(true);
-      expect(policy.staleThresholdMs).toBe(2000);
-      expect(policy.realTimePriority).toBe(true);
-      expect(policy.cacheBypassOnFreshData).toBe(true);
-      expect(policy.immediateProcessing).toBe(true);
-      expect(policy.streamingConnectionPreferred).toBe(true);
-      expect(policy.preciseTimestamps).toBe(true);
-      expect(policy.votingRoundTracking).toBe(true);
+      mockAdapter.simulatePriceUpdate(61000);
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const latencyMetrics = dataManager.getLatencyMetrics(mockFeedId);
+
+      expect(latencyMetrics.averageLatency).toBeLessThan(100); // Should be fast
     });
   });
 });

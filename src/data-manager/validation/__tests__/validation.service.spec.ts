@@ -1,429 +1,552 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationService } from "../validation.service";
-import { DataValidator, ValidationResult } from "../data-validator";
-import { PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
+import { DataValidator } from "../data-validator";
+import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
 import { FeedCategory } from "@/types/feed-category.enum";
-
-// Mock DataValidator
-const mockValidator = {
-  validateUpdate: jest.fn(),
-  validateBatch: jest.fn(),
-};
+import { PriceUpdate } from "@/interfaces/data-source.interface";
 
 describe("ValidationService", () => {
   let service: ValidationService;
+  let dataValidator: jest.Mocked<DataValidator>;
   let module: TestingModule;
 
+  const mockFeedId: EnhancedFeedId = {
+    category: FeedCategory.Crypto,
+    name: "BTC/USD",
+  };
+
   beforeEach(async () => {
-    jest.clearAllMocks();
+    const mockDataValidator = {
+      validateUpdate: jest.fn(),
+      validateBatch: jest.fn(),
+      getValidationStats: jest.fn(),
+    };
 
     module = await Test.createTestingModule({
       providers: [
+        ValidationService,
         {
-          provide: ValidationService,
-          useFactory: () => new ValidationService(mockValidator as any),
+          provide: DataValidator,
+          useValue: mockDataValidator,
         },
       ],
     }).compile();
 
     service = module.get<ValidationService>(ValidationService);
+    dataValidator = module.get(DataValidator);
   });
 
   afterEach(async () => {
     await module.close();
   });
 
-  const createValidUpdate = (): PriceUpdate => ({
-    symbol: "BTC/USD",
-    price: 50000,
-    timestamp: Date.now(),
-    source: "binance",
-    confidence: 0.95,
-  });
+  describe("single update validation", () => {
+    it("should validate a single price update", async () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
 
-  const createValidFeedId = (): EnhancedFeedId => ({
-    category: FeedCategory.Crypto,
-    name: "BTC/USD",
-  });
+      const mockValidationResult = {
+        isValid: true,
+        errors: [],
+        confidence: 0.9,
+        adjustedUpdate: undefined,
+      };
 
-  const createValidResult = (): ValidationResult => ({
-    isValid: true,
-    errors: [],
-    confidence: 0.95,
-    adjustedUpdate: createValidUpdate(),
-  });
+      dataValidator.validateUpdate.mockResolvedValue(mockValidationResult);
 
-  describe("Real-time Validation", () => {
-    it("should validate update in real-time", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-      const expectedResult = createValidResult();
+      const result = await service.validatePriceUpdate(mockFeedId, update);
 
-      mockValidator.validateUpdate.mockResolvedValue(expectedResult);
-
-      const result = await service.validateRealTime(update, feedId);
-
-      expect(result).toEqual(expectedResult);
-      expect(mockValidator.validateUpdate).toHaveBeenCalledWith(
+      expect(result).toEqual(mockValidationResult);
+      expect(dataValidator.validateUpdate).toHaveBeenCalledWith(
         update,
         expect.objectContaining({
-          feedId,
-          historicalPrices: expect.any(Array),
-          crossSourcePrices: expect.any(Array),
-        }),
-        undefined
-      );
-    });
-
-    it("should use cached results when available", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-      const expectedResult = createValidResult();
-
-      mockValidator.validateUpdate.mockResolvedValue(expectedResult);
-
-      // First call
-      await service.validateRealTime(update, feedId);
-
-      // Second call with same parameters
-      const result = await service.validateRealTime(update, feedId);
-
-      expect(result).toEqual(expectedResult);
-      expect(mockValidator.validateUpdate).toHaveBeenCalledTimes(1); // Should use cache
-    });
-
-    it("should update historical data after validation", async () => {
-      const update1 = createValidUpdate();
-      const update2 = { ...createValidUpdate(), timestamp: Date.now() + 1000 };
-      const feedId = createValidFeedId();
-
-      mockValidator.validateUpdate.mockResolvedValue(createValidResult());
-
-      await service.validateRealTime(update1, feedId);
-      await service.validateRealTime(update2, feedId);
-
-      // Second validation should have historical data from first update
-      expect(mockValidator.validateUpdate).toHaveBeenCalledTimes(2);
-
-      const secondCallContext = mockValidator.validateUpdate.mock.calls[1][1];
-      expect(secondCallContext.historicalPrices).toContainEqual(expect.objectContaining({ source: update1.source }));
-    });
-
-    it("should emit validation events", done => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-      const expectedResult = createValidResult();
-
-      mockValidator.validateUpdate.mockResolvedValue(expectedResult);
-
-      service.on("validationPassed", event => {
-        expect(event.update).toEqual(update);
-        expect(event.feedId).toEqual(feedId);
-        expect(event.result).toEqual(expectedResult);
-        done();
-      });
-
-      service.validateRealTime(update, feedId);
-    });
-
-    it("should emit validation failed events", done => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-      const failedResult: ValidationResult = {
-        isValid: false,
-        errors: [{ type: "format_error" as any, message: "Test error", severity: "high" }],
-        confidence: 0.1,
-      };
-
-      mockValidator.validateUpdate.mockResolvedValue(failedResult);
-
-      service.on("validationFailed", event => {
-        expect(event.update).toEqual(update);
-        expect(event.feedId).toEqual(feedId);
-        expect(event.result).toEqual(failedResult);
-        done();
-      });
-
-      service.validateRealTime(update, feedId);
-    });
-
-    it("should emit critical error events", done => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-      const criticalResult: ValidationResult = {
-        isValid: false,
-        errors: [{ type: "format_error" as any, message: "Critical error", severity: "critical" }],
-        confidence: 0,
-      };
-
-      mockValidator.validateUpdate.mockResolvedValue(criticalResult);
-
-      service.on("criticalValidationError", event => {
-        expect(event.update).toEqual(update);
-        expect(event.feedId).toEqual(feedId);
-        expect(event.error.severity).toBe("critical");
-        done();
-      });
-
-      service.validateRealTime(update, feedId);
-    });
-
-    it("should handle validation errors gracefully", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-
-      mockValidator.validateUpdate.mockRejectedValue(new Error("Validation failed"));
-
-      const result = await service.validateRealTime(update, feedId);
-
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContainEqual(
-        expect.objectContaining({
-          message: expect.stringContaining("Validation service error"),
-          severity: "critical",
+          feedId: mockFeedId,
         })
       );
     });
 
-    it("should skip validation when disabled", async () => {
-      const disabledService = new ValidationService(mockValidator as any, {
-        enableRealTimeValidation: false,
-      });
+    it("should build validation context with historical data", async () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
 
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
+      // Add some historical data
+      const historicalUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 49800,
+        timestamp: Date.now() - 5000,
+        source: "coinbase",
+        confidence: 0.85,
+      };
 
-      const result = await disabledService.validateRealTime(update, feedId);
+      await service.addHistoricalData(mockFeedId, historicalUpdate);
 
-      expect(result.isValid).toBe(true);
-      expect(mockValidator.validateUpdate).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("Batch Validation", () => {
-    it("should validate multiple updates", async () => {
-      const updates = [
-        createValidUpdate(),
-        { ...createValidUpdate(), source: "coinbase" },
-        { ...createValidUpdate(), source: "kraken" },
-      ];
-      const feedId = createValidFeedId();
-
-      const mockResults = new Map([
-        ["binance-BTC/USD-" + updates[0].timestamp, createValidResult()],
-        ["coinbase-BTC/USD-" + updates[1].timestamp, createValidResult()],
-        ["kraken-BTC/USD-" + updates[2].timestamp, createValidResult()],
-      ]);
-
-      mockValidator.validateBatch.mockResolvedValue(mockResults);
-
-      const results = await service.validateBatch(updates, feedId);
-
-      expect(results.size).toBe(3);
-      expect(mockValidator.validateBatch).toHaveBeenCalledWith(updates, expect.objectContaining({ feedId }), undefined);
-    });
-
-    it("should emit batch validation completed event", done => {
-      const updates = [createValidUpdate(), createValidUpdate()];
-      const feedId = createValidFeedId();
-
-      mockValidator.validateBatch.mockResolvedValue(new Map());
-
-      service.on("batchValidationCompleted", event => {
-        expect(event.feedId).toEqual(feedId);
-        expect(event.totalUpdates).toBe(2);
-        done();
-      });
-
-      service.validateBatch(updates, feedId);
-    });
-
-    it("should skip batch validation when disabled", async () => {
-      const disabledService = new ValidationService(mockValidator as any, {
-        enableBatchValidation: false,
-      });
-
-      const updates = [createValidUpdate()];
-      const feedId = createValidFeedId();
-
-      const results = await disabledService.validateBatch(updates, feedId);
-
-      expect(results.size).toBe(1);
-      expect(mockValidator.validateBatch).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("Valid Updates Filtering", () => {
-    it("should filter valid updates from batch results", () => {
-      const updates = [
-        createValidUpdate(),
-        { ...createValidUpdate(), source: "coinbase" },
-        { ...createValidUpdate(), source: "kraken" },
-      ];
-
-      const validationResults = new Map([
-        ["binance-BTC/USD-" + updates[0].timestamp, { isValid: true, adjustedUpdate: updates[0] } as ValidationResult],
-        [
-          "coinbase-BTC/USD-" + updates[1].timestamp,
-          { isValid: false, adjustedUpdate: updates[1] } as ValidationResult,
-        ],
-        ["kraken-BTC/USD-" + updates[2].timestamp, { isValid: true, adjustedUpdate: updates[2] } as ValidationResult],
-      ]);
-
-      const validUpdates = service.filterValidUpdates(updates, validationResults);
-
-      expect(validUpdates).toHaveLength(2);
-      expect(validUpdates).toContainEqual(updates[0]);
-      expect(validUpdates).toContainEqual(updates[2]);
-      expect(validUpdates).not.toContainEqual(updates[1]);
-    });
-
-    it("should handle missing validation results", () => {
-      const updates = [createValidUpdate()];
-      const validationResults = new Map();
-
-      const validUpdates = service.filterValidUpdates(updates, validationResults);
-
-      expect(validUpdates).toHaveLength(0);
-    });
-  });
-
-  describe("Statistics", () => {
-    it("should track validation statistics", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-
-      mockValidator.validateUpdate.mockResolvedValue(createValidResult());
-
-      await service.validateRealTime(update, feedId);
-
-      const stats = service.getValidationStatistics();
-
-      expect(stats.totalValidations).toBe(1);
-      expect(stats.validUpdates).toBe(1);
-      expect(stats.invalidUpdates).toBe(0);
-      expect(stats.validationRate).toBe(1);
-    });
-
-    it("should track failed validations", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-
-      mockValidator.validateUpdate.mockResolvedValue({
-        isValid: false,
+      dataValidator.validateUpdate.mockResolvedValue({
+        isValid: true,
         errors: [],
-        confidence: 0,
+        confidence: 0.9,
+        adjustedUpdate: undefined,
       });
 
-      await service.validateRealTime(update, feedId);
+      await service.validatePriceUpdate(mockFeedId, update);
 
-      const stats = service.getValidationStatistics();
-
-      expect(stats.totalValidations).toBe(1);
-      expect(stats.validUpdates).toBe(0);
-      expect(stats.invalidUpdates).toBe(1);
-      expect(stats.validationRate).toBe(0);
+      expect(dataValidator.validateUpdate).toHaveBeenCalledWith(
+        update,
+        expect.objectContaining({
+          feedId: mockFeedId,
+          historicalPrices: expect.arrayContaining([historicalUpdate]),
+        })
+      );
     });
 
-    it("should calculate average validation time", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
+    it("should include cross-source data in validation context", async () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
 
-      mockValidator.validateUpdate.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 10));
-        return createValidResult();
+      const crossSourceUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50100,
+        timestamp: Date.now() - 1000,
+        source: "coinbase",
+        confidence: 0.85,
+      };
+
+      service.addCrossSourceData(mockFeedId, crossSourceUpdate);
+
+      dataValidator.validateUpdate.mockResolvedValue({
+        isValid: true,
+        errors: [],
+        confidence: 0.9,
+        adjustedUpdate: undefined,
       });
 
-      await service.validateRealTime(update, feedId);
+      await service.validatePriceUpdate(mockFeedId, update);
 
-      const stats = service.getValidationStatistics();
+      expect(dataValidator.validateUpdate).toHaveBeenCalledWith(
+        update,
+        expect.objectContaining({
+          feedId: mockFeedId,
+          crossSourcePrices: expect.arrayContaining([crossSourceUpdate]),
+        })
+      );
+    });
 
-      expect(stats.averageValidationTime).toBeGreaterThan(0);
+    it("should handle validation errors gracefully", async () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
+
+      dataValidator.validateUpdate.mockRejectedValue(new Error("Validation failed"));
+
+      const result = await service.validatePriceUpdate(mockFeedId, update);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0].message).toContain("Validation failed");
     });
   });
 
-  describe("Cache Management", () => {
-    it("should clear validation cache", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
+  describe("batch validation", () => {
+    it("should validate multiple updates", async () => {
+      const updates: PriceUpdate[] = [
+        {
+          symbol: "BTC/USD",
+          price: 50000,
+          timestamp: Date.now(),
+          source: "binance",
+          confidence: 0.9,
+        },
+        {
+          symbol: "BTC/USD",
+          price: 50100,
+          timestamp: Date.now() - 500,
+          source: "coinbase",
+          confidence: 0.85,
+        },
+      ];
 
-      mockValidator.validateUpdate.mockResolvedValue(createValidResult());
+      const mockBatchResults = new Map([
+        [updates[0], { isValid: true, errors: [], confidence: 0.9 }],
+        [updates[1], { isValid: true, errors: [], confidence: 0.85 }],
+      ]);
 
-      // Populate cache
-      await service.validateRealTime(update, feedId);
+      dataValidator.validateBatch.mockResolvedValue(mockBatchResults);
 
-      let stats = service.getValidationStatistics();
-      expect(stats.cacheSize).toBeGreaterThan(0);
+      const results = await service.validateBatch(mockFeedId, updates);
 
-      // Clear cache
-      service.clearCache();
+      expect(results.size).toBe(2);
+      expect(dataValidator.validateBatch).toHaveBeenCalledWith(
+        updates,
+        expect.objectContaining({
+          feedId: mockFeedId,
+        })
+      );
+    });
 
-      stats = service.getValidationStatistics();
-      expect(stats.cacheSize).toBe(0);
+    it("should handle empty batch", async () => {
+      const updates: PriceUpdate[] = [];
+
+      const results = await service.validateBatch(mockFeedId, updates);
+
+      expect(results.size).toBe(0);
+      expect(dataValidator.validateBatch).not.toHaveBeenCalled();
+    });
+
+    it("should filter valid updates from batch", async () => {
+      const updates: PriceUpdate[] = [
+        {
+          symbol: "BTC/USD",
+          price: 50000,
+          timestamp: Date.now(),
+          source: "binance",
+          confidence: 0.9,
+        },
+        {
+          symbol: "BTC/USD",
+          price: -100, // Invalid
+          timestamp: Date.now() - 500,
+          source: "coinbase",
+          confidence: 0.85,
+        },
+      ];
+
+      const mockBatchResults = new Map([
+        [updates[0], { isValid: true, errors: [], confidence: 0.9 }],
+        [updates[1], { isValid: false, errors: [{ type: "RANGE_ERROR", message: "Invalid price" }], confidence: 0 }],
+      ]);
+
+      dataValidator.validateBatch.mockResolvedValue(mockBatchResults);
+
+      const validUpdates = await service.getValidUpdatesFromBatch(mockFeedId, updates);
+
+      expect(validUpdates).toHaveLength(1);
+      expect(validUpdates[0]).toEqual(updates[0]);
+    });
+  });
+
+  describe("historical data management", () => {
+    it("should maintain historical data within time window", async () => {
+      const now = Date.now();
+      const recentUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: now - 1000, // 1 second ago
+        source: "binance",
+        confidence: 0.9,
+      };
+
+      const oldUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 49000,
+        timestamp: now - 10000, // 10 seconds ago
+        source: "coinbase",
+        confidence: 0.85,
+      };
+
+      await service.addHistoricalData(mockFeedId, recentUpdate);
+      await service.addHistoricalData(mockFeedId, oldUpdate);
+
+      const historicalData = service.getHistoricalData(mockFeedId);
+
+      // Should only contain recent data (within 5 second window by default)
+      expect(historicalData).toHaveLength(1);
+      expect(historicalData[0]).toEqual(recentUpdate);
+    });
+
+    it("should limit historical data size", async () => {
+      const updates: PriceUpdate[] = [];
+      const now = Date.now();
+
+      // Add more updates than the limit
+      for (let i = 0; i < 150; i++) {
+        const update: PriceUpdate = {
+          symbol: "BTC/USD",
+          price: 50000 + i,
+          timestamp: now - i * 100, // Spread over time
+          source: "binance",
+          confidence: 0.9,
+        };
+        updates.push(update);
+        await service.addHistoricalData(mockFeedId, update);
+      }
+
+      const historicalData = service.getHistoricalData(mockFeedId);
+
+      // Should be limited to max size (100 by default)
+      expect(historicalData.length).toBeLessThanOrEqual(100);
     });
 
     it("should clear historical data", async () => {
-      const update = createValidUpdate();
-      const feedId = createValidFeedId();
-
-      mockValidator.validateUpdate.mockResolvedValue(createValidResult());
-
-      // Populate historical data
-      await service.validateRealTime(update, feedId);
-
-      let stats = service.getValidationStatistics();
-      expect(stats.historicalDataSize).toBeGreaterThan(0);
-
-      // Clear historical data
-      service.clearHistoricalData();
-
-      stats = service.getValidationStatistics();
-      expect(stats.historicalDataSize).toBe(0);
-    });
-  });
-
-  describe("Configuration", () => {
-    it("should use custom configuration", () => {
-      const customConfig = {
-        validationCacheSize: 500,
-        validationCacheTTL: 10000,
-        historicalDataWindow: 100,
-        crossSourceWindow: 20000,
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
       };
 
-      const customService = new ValidationService(mockValidator as any, customConfig);
+      await service.addHistoricalData(mockFeedId, update);
+      expect(service.getHistoricalData(mockFeedId)).toHaveLength(1);
 
-      // Configuration is private, but we can test its effects
-      expect(customService).toBeDefined();
-    });
-
-    it("should use default configuration when none provided", () => {
-      const defaultService = new ValidationService(mockValidator as any);
-
-      expect(defaultService).toBeDefined();
+      service.clearHistoricalData(mockFeedId);
+      expect(service.getHistoricalData(mockFeedId)).toHaveLength(0);
     });
   });
 
-  describe("Cross-Source Price Management", () => {
-    it("should maintain cross-source prices within time window", async () => {
-      const feedId = createValidFeedId();
+  describe("cross-source data management", () => {
+    it("should maintain cross-source data", () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
 
-      // Add old update
-      const oldUpdate = { ...createValidUpdate(), timestamp: Date.now() - 15000 }; // 15 seconds old
-      mockValidator.validateUpdate.mockResolvedValue(createValidResult());
-      await service.validateRealTime(oldUpdate, feedId);
+      service.addCrossSourceData(mockFeedId, update);
 
-      // Add recent update
-      const recentUpdate = { ...createValidUpdate(), timestamp: Date.now() - 1000 }; // 1 second old
-      await service.validateRealTime(recentUpdate, feedId);
+      const crossSourceData = service.getCrossSourceData(mockFeedId);
+      expect(crossSourceData).toHaveLength(1);
+      expect(crossSourceData[0]).toEqual(update);
+    });
 
-      // The validation context should only include recent cross-source prices
-      const lastCallContext = mockValidator.validateUpdate.mock.calls[1][1];
-      const crossSourceTimestamps = lastCallContext.crossSourcePrices.map((p: PriceUpdate) => p.timestamp);
+    it("should filter out stale cross-source data", () => {
+      const now = Date.now();
+      const freshUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: now - 1000, // 1 second ago
+        source: "binance",
+        confidence: 0.9,
+      };
 
-      // Should not include very old prices (depends on crossSourceWindow config)
-      expect(crossSourceTimestamps.every((ts: number) => Date.now() - ts < 15000)).toBe(true);
+      const staleUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 49000,
+        timestamp: now - 10000, // 10 seconds ago
+        source: "coinbase",
+        confidence: 0.85,
+      };
+
+      service.addCrossSourceData(mockFeedId, freshUpdate);
+      service.addCrossSourceData(mockFeedId, staleUpdate);
+
+      const crossSourceData = service.getCrossSourceData(mockFeedId);
+
+      // Should only contain fresh data
+      expect(crossSourceData).toHaveLength(1);
+      expect(crossSourceData[0]).toEqual(freshUpdate);
+    });
+
+    it("should clear cross-source data", () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
+
+      service.addCrossSourceData(mockFeedId, update);
+      expect(service.getCrossSourceData(mockFeedId)).toHaveLength(1);
+
+      service.clearCrossSourceData(mockFeedId);
+      expect(service.getCrossSourceData(mockFeedId)).toHaveLength(0);
+    });
+  });
+
+  describe("consensus data management", () => {
+    it("should set and get consensus median", () => {
+      const consensusMedian = 50000;
+
+      service.setConsensusMedian(mockFeedId, consensusMedian);
+
+      const retrievedMedian = service.getConsensusMedian(mockFeedId);
+      expect(retrievedMedian).toBe(consensusMedian);
+    });
+
+    it("should clear consensus data", () => {
+      service.setConsensusMedian(mockFeedId, 50000);
+      expect(service.getConsensusMedian(mockFeedId)).toBe(50000);
+
+      service.clearConsensusData(mockFeedId);
+      expect(service.getConsensusMedian(mockFeedId)).toBeUndefined();
+    });
+  });
+
+  describe("validation statistics", () => {
+    it("should track validation statistics", async () => {
+      const updates: PriceUpdate[] = [
+        {
+          symbol: "BTC/USD",
+          price: 50000,
+          timestamp: Date.now(),
+          source: "binance",
+          confidence: 0.9,
+        },
+        {
+          symbol: "BTC/USD",
+          price: -100, // Invalid
+          timestamp: Date.now() - 500,
+          source: "coinbase",
+          confidence: 0.85,
+        },
+      ];
+
+      const mockBatchResults = new Map([
+        [updates[0], { isValid: true, errors: [], confidence: 0.9 }],
+        [updates[1], { isValid: false, errors: [{ type: "RANGE_ERROR", message: "Invalid price" }], confidence: 0 }],
+      ]);
+
+      dataValidator.validateBatch.mockResolvedValue(mockBatchResults);
+      dataValidator.getValidationStats.mockReturnValue({
+        total: 2,
+        valid: 1,
+        invalid: 1,
+        validationRate: 0.5,
+        averageConfidence: 0.45,
+      });
+
+      await service.validateBatch(mockFeedId, updates);
+
+      const stats = service.getValidationStatistics(mockFeedId);
+
+      expect(stats.total).toBe(2);
+      expect(stats.valid).toBe(1);
+      expect(stats.invalid).toBe(1);
+      expect(stats.validationRate).toBe(0.5);
+      expect(stats.averageConfidence).toBe(0.45);
+    });
+
+    it("should reset validation statistics", async () => {
+      const update: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "binance",
+        confidence: 0.9,
+      };
+
+      dataValidator.validateUpdate.mockResolvedValue({
+        isValid: true,
+        errors: [],
+        confidence: 0.9,
+        adjustedUpdate: undefined,
+      });
+
+      await service.validatePriceUpdate(mockFeedId, update);
+
+      service.resetValidationStatistics(mockFeedId);
+
+      const stats = service.getValidationStatistics(mockFeedId);
+      expect(stats.total).toBe(0);
+      expect(stats.valid).toBe(0);
+      expect(stats.invalid).toBe(0);
+    });
+  });
+
+  describe("configuration management", () => {
+    it("should update validation configuration", () => {
+      const newConfig = {
+        maxAge: 3000,
+        historicalDataWindow: 10000,
+        maxHistoricalSize: 200,
+        crossSourceDataWindow: 8000,
+      };
+
+      service.updateConfig(newConfig);
+      const currentConfig = service.getConfig();
+
+      expect(currentConfig.maxAge).toBe(3000);
+      expect(currentConfig.historicalDataWindow).toBe(10000);
+      expect(currentConfig.maxHistoricalSize).toBe(200);
+      expect(currentConfig.crossSourceDataWindow).toBe(8000);
+    });
+
+    it("should use default configuration values", () => {
+      const config = service.getConfig();
+
+      expect(config.maxAge).toBe(2000);
+      expect(config.historicalDataWindow).toBe(5000);
+      expect(config.maxHistoricalSize).toBe(100);
+      expect(config.crossSourceDataWindow).toBe(5000);
+    });
+  });
+
+  describe("performance", () => {
+    it("should handle high-frequency validation", async () => {
+      const updates: PriceUpdate[] = [];
+      const now = Date.now();
+
+      // Generate many updates
+      for (let i = 0; i < 1000; i++) {
+        updates.push({
+          symbol: "BTC/USD",
+          price: 50000 + Math.random() * 1000,
+          timestamp: now - i,
+          source: `source-${i % 10}`,
+          confidence: 0.9,
+        });
+      }
+
+      dataValidator.validateUpdate.mockResolvedValue({
+        isValid: true,
+        errors: [],
+        confidence: 0.9,
+        adjustedUpdate: undefined,
+      });
+
+      const startTime = performance.now();
+
+      // Validate all updates
+      const promises = updates.map(update => service.validatePriceUpdate(mockFeedId, update));
+      await Promise.all(promises);
+
+      const endTime = performance.now();
+      const totalTime = endTime - startTime;
+
+      // Should handle high frequency validation efficiently
+      expect(totalTime).toBeLessThan(1000); // Less than 1 second for 1000 validations
+    });
+
+    it("should efficiently manage memory with large datasets", async () => {
+      const updates: PriceUpdate[] = [];
+      const now = Date.now();
+
+      // Add many historical updates
+      for (let i = 0; i < 10000; i++) {
+        const update: PriceUpdate = {
+          symbol: "BTC/USD",
+          price: 50000 + i,
+          timestamp: now - i * 10, // Spread over time
+          source: "binance",
+          confidence: 0.9,
+        };
+        await service.addHistoricalData(mockFeedId, update);
+      }
+
+      const historicalData = service.getHistoricalData(mockFeedId);
+
+      // Should limit memory usage by capping historical data size
+      expect(historicalData.length).toBeLessThanOrEqual(100);
     });
   });
 });
