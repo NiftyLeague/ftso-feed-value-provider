@@ -6,26 +6,54 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
 import { LogLevel, Logger, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "@/app.module";
+import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
 
 // Global application instance for graceful shutdown
 let app: any = null;
 const logger = new Logger("Bootstrap");
+const enhancedLogger = new EnhancedLoggerService("Bootstrap");
 
 async function bootstrap() {
+  const operationId = `bootstrap_${Date.now()}`;
+  enhancedLogger.startPerformanceTimer(operationId, "application_bootstrap", "Bootstrap");
+
   try {
-    logger.log("Starting Production FTSO Feed Value Provider...");
+    enhancedLogger.logCriticalOperation("application_startup", "Bootstrap", {
+      nodeVersion: process.version,
+      platform: process.platform,
+      pid: process.pid,
+      environment: process.env.NODE_ENV || "development",
+      timestamp: Date.now(),
+    });
 
     // Validate critical environment variables
     await validateEnvironment();
 
     // Configure logging levels
     const logLevels = getLogLevels();
-    logger.log(`Log level configured: ${process.env.LOG_LEVEL || "log"}`);
+    enhancedLogger.log(`Log level configured: ${process.env.LOG_LEVEL || "log"}`, {
+      component: "Bootstrap",
+      operation: "configure_logging",
+      metadata: {
+        logLevel: process.env.LOG_LEVEL || "log",
+        enableFileLogging: process.env.ENABLE_FILE_LOGGING,
+        enablePerformanceLogging: process.env.ENABLE_PERFORMANCE_LOGGING,
+        enableDebugLogging: process.env.ENABLE_DEBUG_LOGGING,
+      },
+    });
 
     // Create NestJS application
+    const appCreationStart = performance.now();
     app = await NestFactory.create(AppModule, {
       logger: logLevels,
       abortOnError: false, // Allow graceful error handling during startup
+    });
+    const appCreationTime = performance.now() - appCreationStart;
+
+    enhancedLogger.log(`NestJS application created in ${appCreationTime.toFixed(2)}ms`, {
+      component: "Bootstrap",
+      operation: "create_nestjs_app",
+      duration: appCreationTime,
     });
 
     // Configure security middleware
@@ -41,6 +69,11 @@ async function bootstrap() {
         },
       })
     );
+
+    enhancedLogger.log("Security middleware configured", {
+      component: "Bootstrap",
+      operation: "configure_security",
+    });
 
     // Configure global validation pipe
     app.useGlobalPipes(
@@ -65,26 +98,69 @@ async function bootstrap() {
     // Start the HTTP server
     const PORT = process.env.VALUE_PROVIDER_CLIENT_PORT ? parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT) : 3101;
 
+    const serverStartTime = performance.now();
     await app.listen(PORT, "0.0.0.0");
+    const serverStartDuration = performance.now() - serverStartTime;
 
-    logger.log(`✅ Production FTSO Feed Value Provider started successfully`);
-    logger.log(`🌐 Server listening on: http://localhost:${PORT}`);
-    logger.log(`📚 API Documentation: http://localhost:${PORT}${basePath}/api-doc`);
-    logger.log(`🏥 Health Check: http://localhost:${PORT}${basePath}/health`);
+    enhancedLogger.logCriticalOperation(
+      "http_server_started",
+      "Bootstrap",
+      {
+        port: PORT,
+        host: "0.0.0.0",
+        basePath,
+        startupTime: serverStartDuration,
+      },
+      true
+    );
 
     // Wait for application to be fully initialized
     await waitForApplicationReady();
 
-    logger.log("🚀 Application is ready to serve requests");
+    enhancedLogger.logCriticalOperation(
+      "application_startup",
+      "Bootstrap",
+      {
+        status: "completed",
+        port: PORT,
+        basePath,
+        readyToServe: true,
+      },
+      true
+    );
+
+    enhancedLogger.endPerformanceTimer(operationId, true, {
+      port: PORT,
+      basePath,
+      environment: process.env.NODE_ENV || "development",
+    });
   } catch (error) {
-    logger.error("❌ Failed to start application:", error);
+    enhancedLogger.error(error, {
+      component: "Bootstrap",
+      operation: "application_startup",
+      severity: "critical",
+      metadata: {
+        phase: "bootstrap",
+        environment: process.env.NODE_ENV || "development",
+      },
+    });
+
+    enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
 
     // Attempt graceful cleanup
     if (app) {
       try {
         await app.close();
+        enhancedLogger.log("Application cleanup completed during startup failure", {
+          component: "Bootstrap",
+          operation: "cleanup_on_failure",
+        });
       } catch (closeError) {
-        logger.error("Error during cleanup:", closeError);
+        enhancedLogger.error(closeError, {
+          component: "Bootstrap",
+          operation: "cleanup_on_failure",
+          severity: "high",
+        });
       }
     }
 

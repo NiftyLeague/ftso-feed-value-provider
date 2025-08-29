@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventEmitter } from "events";
+import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
@@ -39,6 +40,7 @@ export interface PriceSubscription {
 @Injectable()
 export class RealTimeAggregationService extends EventEmitter implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RealTimeAggregationService.name);
+  private readonly enhancedLogger = new EnhancedLoggerService("RealTimeAggregation");
 
   private readonly config: RealTimeAggregationConfig = {
     cacheTTLMs: 1000, // 1-second TTL maximum for real-time requirements
@@ -64,6 +66,7 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
 
   // Performance tracking
   private readonly performanceMetrics = new Map<string, number[]>();
+  private readonly operationTimers = new Map<string, number>();
   private aggregationInterval?: NodeJS.Timeout;
   private cacheCleanupInterval?: NodeJS.Timeout;
 
@@ -88,15 +91,36 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
    * Implements 1-second TTL caching for maximum freshness
    */
   async getAggregatedPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice | null> {
-    const startTime = performance.now();
+    const operationId = `aggregate_${feedId.name}_${Date.now()}`;
     const feedKey = this.getFeedKey(feedId);
+
+    this.enhancedLogger.startPerformanceTimer(operationId, "get_aggregated_price", "RealTimeAggregation", {
+      feedId: feedId.name,
+      category: feedId.category,
+    });
 
     try {
       // Check cache first (with 1-second TTL)
       const cachedEntry = this.getCachedPrice(feedKey);
       if (cachedEntry) {
         this.recordCacheHit();
-        this.recordPerformance(feedKey, performance.now() - startTime);
+
+        this.enhancedLogger.debug(`Cache hit for ${feedId.name}`, {
+          component: "RealTimeAggregation",
+          operation: "cache_lookup",
+          symbol: feedId.name,
+          metadata: {
+            cacheAge: Date.now() - cachedEntry.timestamp,
+            price: cachedEntry.value.price,
+            sources: cachedEntry.sources.length,
+          },
+        });
+
+        this.enhancedLogger.endPerformanceTimer(operationId, true, {
+          cacheHit: true,
+          price: cachedEntry.value.price,
+        });
+
         return cachedEntry.value;
       }
 
@@ -105,7 +129,14 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
       // Get active price updates for this feed
       const updates = this.activePriceUpdates.get(feedKey) || [];
       if (updates.length === 0) {
-        this.recordPerformance(feedKey, performance.now() - startTime);
+        this.enhancedLogger.warn(`No price updates available for ${feedId.name}`, {
+          component: "RealTimeAggregation",
+          operation: "get_aggregated_price",
+          symbol: feedId.name,
+          metadata: { availableUpdates: 0 },
+        });
+
+        this.enhancedLogger.endPerformanceTimer(operationId, false, { error: "no_updates_available" });
         return null;
       }
 
@@ -115,25 +146,56 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
       // Cache the result with 1-second TTL
       this.setCachedPrice(feedKey, aggregatedPrice);
 
-      // Record performance metrics
-      const responseTime = performance.now() - startTime;
-      this.recordPerformance(feedKey, responseTime);
+      // Log successful aggregation
+      this.enhancedLogger.logAggregation(
+        feedId.name,
+        updates.length,
+        aggregatedPrice.price,
+        aggregatedPrice.confidence,
+        aggregatedPrice.consensusScore || 0
+      );
+
+      const startTime = this.operationTimers.get(operationId);
+      const responseTime = startTime ? performance.now() - startTime : 0;
 
       // Log performance warning if exceeding target
       if (responseTime > this.config.performanceTargetMs) {
-        this.logger.warn(
-          `Aggregation for ${feedId.name} took ${responseTime.toFixed(2)}ms, exceeding target of ${this.config.performanceTargetMs}ms`
-        );
+        this.enhancedLogger.warn(`Aggregation performance threshold exceeded`, {
+          component: "RealTimeAggregation",
+          operation: "get_aggregated_price",
+          symbol: feedId.name,
+          metadata: {
+            responseTime: responseTime.toFixed(2),
+            target: this.config.performanceTargetMs,
+            sourceCount: updates.length,
+            price: aggregatedPrice.price,
+          },
+        });
       }
+
+      this.enhancedLogger.endPerformanceTimer(operationId, true, {
+        price: aggregatedPrice.price,
+        sourceCount: updates.length,
+        confidence: aggregatedPrice.confidence,
+      });
 
       return aggregatedPrice;
     } catch (error) {
-      this.logger.error(`Error aggregating price for ${feedId.name}:`, error);
+      this.enhancedLogger.error(error, {
+        component: "RealTimeAggregation",
+        operation: "get_aggregated_price",
+        symbol: feedId.name,
+        severity: "high",
+        metadata: {
+          feedKey,
+          availableUpdates: this.activePriceUpdates.get(feedKey)?.length || 0,
+        },
+      });
 
       // Emit error event for error handling services
       this.emit("error", error);
 
-      this.recordPerformance(feedKey, performance.now() - startTime);
+      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
       return null;
     }
   }
@@ -168,7 +230,7 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
     this.invalidateCache(feedKey);
 
     // Notify subscribers of new data
-    this.notifySubscribers(feedId, feedKey);
+    void this.notifySubscribers(feedId, feedKey);
 
     this.logger.debug(
       `Added price update for ${feedId.name} from ${update.source}: ${update.price} (${freshUpdates.length} total sources)`
@@ -323,12 +385,28 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
    * This method is called by the ProductionIntegrationService
    */
   async processPriceUpdate(update: PriceUpdate): Promise<void> {
+    const operationId = `process_update_${update.symbol}_${Date.now()}`;
+    this.enhancedLogger.startPerformanceTimer(operationId, "process_price_update", "RealTimeAggregation", {
+      symbol: update.symbol,
+      source: update.source,
+      price: update.price,
+    });
+
     try {
       // Convert symbol to EnhancedFeedId
       const feedId: EnhancedFeedId = {
         category: this.determineFeedCategory(update.symbol),
         name: update.symbol,
       };
+
+      // Log the incoming price update
+      this.enhancedLogger.logPriceUpdate(
+        update.symbol,
+        update.source,
+        update.price,
+        update.timestamp,
+        update.confidence
+      );
 
       // Add the price update to our active data
       this.addPriceUpdate(feedId, update);
@@ -337,19 +415,69 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
       const aggregatedPrice = await this.getAggregatedPrice(feedId);
 
       if (aggregatedPrice) {
+        // Log successful aggregation
+        this.enhancedLogger.logDataFlow("RealTimeAggregation", "AggregatedPriceEvent", "AggregatedPrice", 1, {
+          symbol: update.symbol,
+          originalPrice: update.price,
+          aggregatedPrice: aggregatedPrice.price,
+          sourceCount: aggregatedPrice.sources.length,
+        });
+
         // Emit aggregated price event for other services
         this.emit("aggregatedPrice", aggregatedPrice);
 
-        this.logger.debug(
-          `Processed price update for ${update.symbol}: ${update.price} -> aggregated: ${aggregatedPrice.price}`
-        );
+        this.enhancedLogger.debug(`Price update processed successfully`, {
+          component: "RealTimeAggregation",
+          operation: "process_price_update",
+          symbol: update.symbol,
+          sourceId: update.source,
+          metadata: {
+            originalPrice: update.price,
+            aggregatedPrice: aggregatedPrice.price,
+            priceChange: aggregatedPrice.price - update.price,
+            sourceCount: aggregatedPrice.sources.length,
+            confidence: aggregatedPrice.confidence,
+          },
+        });
+
+        this.enhancedLogger.endPerformanceTimer(operationId, true, {
+          aggregatedPrice: aggregatedPrice.price,
+          sourceCount: aggregatedPrice.sources.length,
+        });
+      } else {
+        this.enhancedLogger.warn(`Failed to generate aggregated price for ${update.symbol}`, {
+          component: "RealTimeAggregation",
+          operation: "process_price_update",
+          symbol: update.symbol,
+          sourceId: update.source,
+          metadata: {
+            originalPrice: update.price,
+            confidence: update.confidence,
+          },
+        });
+
+        this.enhancedLogger.endPerformanceTimer(operationId, false, {
+          error: "no_aggregated_price_generated",
+        });
       }
     } catch (error) {
-      this.logger.error(`Error processing price update for ${update.symbol}:`, error);
+      this.enhancedLogger.error(error, {
+        component: "RealTimeAggregation",
+        operation: "process_price_update",
+        symbol: update.symbol,
+        sourceId: update.source,
+        severity: "high",
+        metadata: {
+          price: update.price,
+          confidence: update.confidence,
+          timestamp: update.timestamp,
+        },
+      });
 
       // Emit error event for error handling services
       this.emit("error", error);
 
+      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
       throw error;
     }
   }

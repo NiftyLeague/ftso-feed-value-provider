@@ -14,6 +14,211 @@ Provider system.
 - **Example**: `LOG_LEVEL=debug`
 - **Required**: No
 
+## Enhanced Logging Configuration
+
+### ENABLE_FILE_LOGGING
+
+- **Description**: Enable file-based logging to disk
+- **Type**: Boolean
+- **Default**: `false`
+- **Valid Values**: `true`, `false`
+- **Example**: `ENABLE_FILE_LOGGING=true`
+- **Required**: No
+
+### LOG_DIRECTORY
+
+- **Description**: Directory path for log files
+- **Type**: String
+- **Default**: `./logs`
+- **Example**: `LOG_DIRECTORY=/var/log/ftso-provider`
+- **Required**: No
+
+### MAX_LOG_FILE_SIZE
+
+- **Description**: Maximum size per log file before rotation
+- **Type**: String
+- **Default**: `10MB`
+- **Example**: `MAX_LOG_FILE_SIZE=50MB`
+- **Required**: No
+
+### MAX_LOG_FILES
+
+- **Description**: Number of rotated log files to retain
+- **Type**: Integer
+- **Default**: `5`
+- **Example**: `MAX_LOG_FILES=10`
+- **Required**: No
+
+### ENABLE_PERFORMANCE_LOGGING
+
+- **Description**: Enable performance tracking and timing logs
+- **Type**: Boolean
+- **Default**: `true`
+- **Valid Values**: `true`, `false`
+- **Example**: `ENABLE_PERFORMANCE_LOGGING=true`
+- **Required**: No
+
+### PERFORMANCE_LOG_THRESHOLD
+
+- **Description**: Log operations slower than this threshold (milliseconds)
+- **Type**: Integer
+- **Default**: `100`
+- **Example**: `PERFORMANCE_LOG_THRESHOLD=50`
+- **Required**: No
+
+### ENABLE_DEBUG_LOGGING
+
+- **Description**: Enable detailed debug logging
+- **Type**: Boolean
+- **Default**: `false`
+- **Valid Values**: `true`, `false`
+- **Example**: `ENABLE_DEBUG_LOGGING=true`
+- **Required**: No
+
+### DEBUG_LOG_LEVEL
+
+- **Description**: Debug logging verbosity level
+- **Type**: String
+- **Default**: `debug`
+- **Valid Values**: `verbose`, `debug`, `log`
+- **Example**: `DEBUG_LOG_LEVEL=verbose`
+- **Required**: No
+
+### ERROR_LOG_RETENTION_DAYS
+
+- **Description**: Number of days to retain error logs
+- **Type**: Integer
+- **Default**: `30`
+- **Example**: `ERROR_LOG_RETENTION_DAYS=90`
+- **Required**: No
+
+### MAX_ERROR_HISTORY_SIZE
+
+- **Description**: Maximum number of error entries to keep in memory
+- **Type**: Integer
+- **Default**: `1000`
+- **Example**: `MAX_ERROR_HISTORY_SIZE=5000`
+- **Required**: No
+
+### ENABLE_AUDIT_LOGGING
+
+- **Description**: Enable audit trail logging for critical operations
+- **Type**: Boolean
+- **Default**: `true`
+- **Valid Values**: `true`, `false`
+- **Example**: `ENABLE_AUDIT_LOGGING=true`
+- **Required**: No
+
+### AUDIT_LOG_CRITICAL_OPERATIONS
+
+- **Description**: Log all critical system operations to audit trail
+- **Type**: Boolean
+- **Default**: `true`
+- **Valid Values**: `true`, `false`
+- **Example**: `AUDIT_LOG_CRITICAL_OPERATIONS=true`
+- **Required**: No
+
+### LOG_FORMAT
+
+- **Description**: Format for log output
+- **Type**: String
+- **Default**: `json`
+- **Valid Values**: `json`, `text`
+- **Example**: `LOG_FORMAT=json`
+- **Required**: No
+
+### INCLUDE_TIMESTAMP
+
+- **Description**: Include timestamps in log entries
+- **Type**: Boolean
+- **Default**: `true`
+- **Valid Values**: `true`, `false`
+- **Example**: `INCLUDE_TIMESTAMP=true`
+- **Required**: No
+
+### INCLUDE_CONTEXT
+
+- **Description**: Include contextual information in log entries
+- **Type**: Boolean
+- **Default**: `true`
+- **Valid Values**: `true`, `false`
+- **Example**: `INCLUDE_CONTEXT=true`
+- **Required**: No
+
+### INCLUDE_STACK_TRACE
+
+- **Description**: Include stack traces in error log entries
+- **Type**: Boolean
+- **Default**: `true`
+- **Valid Values**: `true`, `false`
+- **Example**: `INCLUDE_STACK_TRACE=true`
+- **Required**: No
+
+## Component-Specific Log Levels
+
+### LOG_LEVEL_PRODUCTION_INTEGRATION
+
+- **Description**: Log level for Production Integration Service
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_PRODUCTION_INTEGRATION=debug`
+- **Required**: No
+
+### LOG_LEVEL_DATA_MANAGER
+
+- **Description**: Log level for Production Data Manager Service
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_DATA_MANAGER=debug`
+- **Required**: No
+
+### LOG_LEVEL_AGGREGATION
+
+- **Description**: Log level for Real-time Aggregation Service
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_AGGREGATION=debug`
+- **Required**: No
+
+### LOG_LEVEL_ERROR_HANDLER
+
+- **Description**: Log level for Hybrid Error Handler Service
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_ERROR_HANDLER=debug`
+- **Required**: No
+
+### LOG_LEVEL_PERFORMANCE_MONITOR
+
+- **Description**: Log level for Performance Monitor Service
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_PERFORMANCE_MONITOR=debug`
+- **Required**: No
+
+### LOG_LEVEL_ALERTING
+
+- **Description**: Log level for Alerting Service
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_ALERTING=debug`
+- **Required**: No
+
+### LOG_LEVEL_BOOTSTRAP
+
+- **Description**: Log level for Bootstrap process
+- **Type**: String
+- **Default**: `log`
+- **Valid Values**: `error`, `warn`, `log`, `debug`, `verbose`
+- **Example**: `LOG_LEVEL_BOOTSTRAP=debug`
+- **Required**: No
+
 ### VALUE_PROVIDER_CLIENT_PORT
 
 - **Description**: Port number for the HTTP server
@@ -332,6 +537,24 @@ NODE_ENV=development
 USE_PRODUCTION_INTEGRATION=false
 MONITORING_ENABLED=true
 CACHE_TTL_MS=1000
+
+# Enhanced Logging for Development
+ENABLE_FILE_LOGGING=true
+LOG_DIRECTORY=./logs
+ENABLE_PERFORMANCE_LOGGING=true
+PERFORMANCE_LOG_THRESHOLD=50
+ENABLE_DEBUG_LOGGING=true
+DEBUG_LOG_LEVEL=verbose
+ENABLE_AUDIT_LOGGING=true
+LOG_FORMAT=json
+INCLUDE_CONTEXT=true
+INCLUDE_STACK_TRACE=true
+
+# Component-specific debug levels
+LOG_LEVEL_PRODUCTION_INTEGRATION=debug
+LOG_LEVEL_DATA_MANAGER=debug
+LOG_LEVEL_AGGREGATION=debug
+LOG_LEVEL_ERROR_HANDLER=debug
 ```
 
 ### Production (.env.production)
@@ -341,6 +564,23 @@ LOG_LEVEL=warn
 VALUE_PROVIDER_CLIENT_PORT=3101
 NODE_ENV=production
 USE_PRODUCTION_INTEGRATION=true
+
+# Enhanced Logging for Production
+ENABLE_FILE_LOGGING=true
+LOG_DIRECTORY=/var/log/ftso-provider
+MAX_LOG_FILE_SIZE=50MB
+MAX_LOG_FILES=10
+ENABLE_PERFORMANCE_LOGGING=true
+PERFORMANCE_LOG_THRESHOLD=100
+ENABLE_DEBUG_LOGGING=false
+ERROR_LOG_RETENTION_DAYS=90
+MAX_ERROR_HISTORY_SIZE=5000
+ENABLE_AUDIT_LOGGING=true
+AUDIT_LOG_CRITICAL_OPERATIONS=true
+LOG_FORMAT=json
+INCLUDE_TIMESTAMP=true
+INCLUDE_CONTEXT=true
+INCLUDE_STACK_TRACE=true
 
 # Alerting
 ALERT_EMAIL_ENABLED=true

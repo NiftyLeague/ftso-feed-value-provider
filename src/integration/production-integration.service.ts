@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventEmitter } from "events";
+import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 
 // Core components
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
@@ -42,6 +43,7 @@ import { FeedCategory } from "@/types/feed-category.enum";
 @Injectable()
 export class ProductionIntegrationService extends EventEmitter implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ProductionIntegrationService.name);
+  private readonly enhancedLogger = new EnhancedLoggerService("ProductionIntegration");
   private isInitialized = false;
   private shutdownInProgress = false;
 
@@ -107,8 +109,14 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
   }
 
   async onModuleInit(): Promise<void> {
+    const operationId = `init_${Date.now()}`;
+    this.enhancedLogger.startPerformanceTimer(operationId, "module_initialization", "ProductionIntegration");
+
     try {
-      this.logger.log("Initializing Production FTSO Provider Integration...");
+      this.enhancedLogger.logCriticalOperation("module_initialization", "ProductionIntegration", {
+        phase: "starting",
+        timestamp: Date.now(),
+      });
 
       // Step 1: Register exchange adapters
       await this.registerExchangeAdapters();
@@ -129,11 +137,38 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
       await this.subscribeToFeeds();
 
       this.isInitialized = true;
-      this.logger.log("Production FTSO Provider Integration initialized successfully");
 
+      this.enhancedLogger.logCriticalOperation(
+        "module_initialization",
+        "ProductionIntegration",
+        {
+          phase: "completed",
+          timestamp: Date.now(),
+          initialized: true,
+        },
+        true
+      );
+
+      this.enhancedLogger.endPerformanceTimer(operationId, true, { initialized: true });
       this.emit("initialized");
     } catch (error) {
-      this.logger.error("Failed to initialize Production FTSO Provider Integration:", error);
+      this.enhancedLogger.logCriticalOperation(
+        "module_initialization",
+        "ProductionIntegration",
+        {
+          phase: "failed",
+          timestamp: Date.now(),
+          error: error.message,
+        },
+        false
+      );
+
+      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
+      this.enhancedLogger.error(error, {
+        component: "ProductionIntegration",
+        operation: "module_initialization",
+        severity: "critical",
+      });
       throw error;
     }
   }
@@ -256,10 +291,10 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
 
   // Private initialization methods
   private async registerExchangeAdapters(): Promise<void> {
-    this.logger.log("Registering exchange adapters...");
+    const operationId = `register_adapters_${Date.now()}`;
+    this.enhancedLogger.startPerformanceTimer(operationId, "register_exchange_adapters", "ProductionIntegration");
 
     try {
-      // Check if adapters are already registered to avoid duplicate registration
       const adaptersToRegister = [
         { name: "binance", adapter: new BinanceAdapter() },
         { name: "coinbase", adapter: new CoinbaseAdapter() },
@@ -268,21 +303,59 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
         { name: "okx", adapter: new OkxAdapter() },
       ];
 
+      let registeredCount = 0;
+      let skippedCount = 0;
+
       for (const { name, adapter } of adaptersToRegister) {
         try {
           this.adapterRegistry.register(name, adapter);
+          registeredCount++;
+
+          this.enhancedLogger.log(`Exchange adapter registered: ${name}`, {
+            component: "ProductionIntegration",
+            operation: "adapter_registration",
+            sourceId: name,
+            metadata: { adapterType: adapter.constructor.name },
+          });
         } catch (error) {
           if (error.message.includes("already registered")) {
-            this.logger.debug(`Adapter ${name} already registered, skipping`);
+            skippedCount++;
+            this.enhancedLogger.debug(`Adapter ${name} already registered, skipping`, {
+              component: "ProductionIntegration",
+              operation: "adapter_registration",
+              sourceId: name,
+            });
           } else {
+            this.enhancedLogger.error(error, {
+              component: "ProductionIntegration",
+              operation: "adapter_registration",
+              sourceId: name,
+              severity: "high",
+            });
             throw error;
           }
         }
       }
 
-      this.logger.log("Exchange adapter registration completed");
+      this.enhancedLogger.logCriticalOperation(
+        "register_exchange_adapters",
+        "ProductionIntegration",
+        {
+          totalAdapters: adaptersToRegister.length,
+          registeredCount,
+          skippedCount,
+        },
+        true
+      );
+
+      this.enhancedLogger.endPerformanceTimer(operationId, true, { registeredCount, skippedCount });
     } catch (error) {
-      this.logger.error("Failed to register exchange adapters:", error);
+      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
+      this.enhancedLogger.error(error, {
+        component: "ProductionIntegration",
+        operation: "register_exchange_adapters",
+        severity: "critical",
+      });
       throw error;
     }
   }

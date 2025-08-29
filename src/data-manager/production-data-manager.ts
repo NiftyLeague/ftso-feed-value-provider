@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
+import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 import { EnhancedFeedId } from "@/types";
 import { DataSource, PriceUpdate } from "@/interfaces";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
@@ -26,6 +27,7 @@ interface SourceSubscription {
 @Injectable()
 export class ProductionDataManagerService extends EventEmitter implements ProductionDataManager, RealTimeDataManager {
   private readonly logger = new Logger(ProductionDataManagerService.name);
+  private readonly enhancedLogger = new EnhancedLoggerService("ProductionDataManager");
 
   // Data sources management
   private dataSources = new Map<string, DataSource>();
@@ -67,12 +69,27 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
 
   // Failover and recovery methods
   async triggerSourceFailover(sourceId: string, reason: string): Promise<boolean> {
+    const operationId = `failover_${sourceId}_${Date.now()}`;
+    this.enhancedLogger.startPerformanceTimer(operationId, "source_failover", "ProductionDataManager", {
+      sourceId,
+      reason,
+    });
+
     try {
-      this.logger.warn(`Triggering failover for source ${sourceId}: ${reason}`);
+      this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
+        reason,
+        phase: "starting",
+      });
 
       const source = this.dataSources.get(sourceId);
       if (!source) {
-        this.logger.error(`Cannot failover unknown source: ${sourceId}`);
+        this.enhancedLogger.error(`Cannot failover unknown source: ${sourceId}`, {
+          component: "ProductionDataManager",
+          operation: "source_failover",
+          sourceId,
+          severity: "high",
+        });
+        this.enhancedLogger.endPerformanceTimer(operationId, false, { error: "source_not_found" });
         return false;
       }
 
@@ -84,27 +101,42 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
 
       // Attempt reconnection for WebSocket sources
       if (source.type === "websocket" && "attemptReconnection" in source) {
-        this.logger.log(`Attempting reconnection for WebSocket source ${sourceId}`);
+        this.enhancedLogger.logConnection(sourceId, "reconnecting", {
+          sourceType: source.type,
+          reason,
+        });
 
         try {
           const reconnected = await (source as any).attemptReconnection();
           if (reconnected) {
-            this.logger.log(`Reconnection successful for ${sourceId}`);
+            this.enhancedLogger.logConnection(sourceId, "connected", {
+              recoveryMethod: "websocket_reconnection",
+            });
+
             if (metrics) {
               metrics.isHealthy = true;
               metrics.reconnectAttempts = 0;
             }
+
+            this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "websocket_reconnection", true);
+            this.enhancedLogger.endPerformanceTimer(operationId, true, { recoveryMethod: "websocket_reconnection" });
             this.emit("sourceRecovered", sourceId);
             return true;
           }
         } catch (reconnectError) {
-          this.logger.error(`Reconnection failed for ${sourceId}:`, reconnectError);
+          this.enhancedLogger.error(reconnectError, {
+            component: "ProductionDataManager",
+            operation: "websocket_reconnection",
+            sourceId,
+            severity: "medium",
+          });
         }
       }
 
       // Try REST fallback for subscribed symbols
       const subscriptions = this.subscriptions.get(sourceId) || [];
       let restFallbackSuccess = false;
+      let processedSymbols = 0;
 
       for (const subscription of subscriptions) {
         for (const symbol of subscription.symbols) {
@@ -114,25 +146,65 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
               if (restUpdate) {
                 this.processUpdateImmediately(restUpdate);
                 restFallbackSuccess = true;
+                processedSymbols++;
+
+                this.enhancedLogger.logPriceUpdate(
+                  symbol,
+                  sourceId,
+                  restUpdate.price,
+                  restUpdate.timestamp,
+                  restUpdate.confidence
+                );
               }
             }
           } catch (restError) {
-            this.logger.error(`REST fallback failed for ${sourceId} symbol ${symbol}:`, restError);
+            this.enhancedLogger.error(restError, {
+              component: "ProductionDataManager",
+              operation: "rest_fallback",
+              sourceId,
+              symbol,
+              severity: "medium",
+            });
           }
         }
       }
 
       if (restFallbackSuccess) {
-        this.logger.log(`REST fallback activated for ${sourceId}`);
+        this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "rest_fallback", true, {
+          processedSymbols,
+          totalSubscriptions: subscriptions.length,
+        });
+
+        this.enhancedLogger.endPerformanceTimer(operationId, true, {
+          recoveryMethod: "rest_fallback",
+          processedSymbols,
+        });
+
         this.emit("restFallbackActivated", sourceId);
         return true;
       }
+
+      // Failover unsuccessful
+      this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
+        reason: "no_recovery_method_successful",
+      });
+
+      this.enhancedLogger.endPerformanceTimer(operationId, false, {
+        error: "no_recovery_method_successful",
+      });
 
       // Emit failover event for external handling
       this.emit("sourceFailover", sourceId, reason);
       return false;
     } catch (error) {
-      this.logger.error(`Error during failover for ${sourceId}:`, error);
+      this.enhancedLogger.error(error, {
+        component: "ProductionDataManager",
+        operation: "source_failover",
+        sourceId,
+        severity: "high",
+      });
+
+      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
       return false;
     }
   }
@@ -423,15 +495,40 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
     // Validate data freshness
     const age = Date.now() - update.timestamp;
     if (age > this.maxDataAge) {
-      this.logger.warn(`Rejecting stale data from ${update.source}: age ${age}ms`);
+      this.enhancedLogger.warn(`Rejecting stale data from ${update.source}: age ${age}ms`, {
+        component: "ProductionDataManager",
+        operation: "process_update",
+        sourceId: update.source,
+        symbol: update.symbol,
+        metadata: {
+          age,
+          maxDataAge: this.maxDataAge,
+          price: update.price,
+          confidence: update.confidence,
+        },
+      });
       return;
     }
 
     // Update subscription timestamp
     this.updateSubscriptionTimestamp(update);
 
+    // Log the price update with enhanced context
+    this.enhancedLogger.logPriceUpdate(update.symbol, update.source, update.price, update.timestamp, update.confidence);
+
     // Emit for immediate processing
-    this.logger.debug(`Emitting priceUpdate event for ${update.symbol} from ${update.source}`);
+    this.enhancedLogger.debug(`Emitting priceUpdate event for ${update.symbol} from ${update.source}`, {
+      component: "ProductionDataManager",
+      operation: "emit_price_update",
+      sourceId: update.source,
+      symbol: update.symbol,
+      metadata: {
+        price: update.price,
+        confidence: update.confidence,
+        age,
+      },
+    });
+
     this.emit("priceUpdate", update);
   }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
+import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 import { EnhancedFeedId } from "@/types";
 import { FeedCategory } from "@/types/feed-category.enum";
 import { PriceUpdate } from "@/interfaces";
@@ -64,6 +65,7 @@ export interface TierFailoverConfig {
 @Injectable()
 export class HybridErrorHandlerService extends EventEmitter {
   private readonly logger = new Logger(HybridErrorHandlerService.name);
+  private readonly enhancedLogger = new EnhancedLoggerService("HybridErrorHandler");
 
   private errorHistory = new Map<string, DataSourceError[]>();
   private tierStatus = new Map<string, { tier: DataSourceTier; isHealthy: boolean; lastError?: number }>();
@@ -111,8 +113,12 @@ export class HybridErrorHandlerService extends EventEmitter {
     feedId: EnhancedFeedId,
     context?: any
   ): Promise<ErrorResponse> {
-    const startTime = Date.now();
-    this.logger.warn(`Handling Tier 1 custom adapter error for ${sourceId}:`, error.message);
+    const operationId = `handle_tier1_error_${sourceId}_${Date.now()}`;
+    this.enhancedLogger.startPerformanceTimer(operationId, "handle_custom_adapter_error", "HybridErrorHandler", {
+      sourceId,
+      feedId: feedId.name,
+      errorType: error.constructor.name,
+    });
 
     const classification = this.classifyError(error, context);
 
@@ -128,29 +134,106 @@ export class HybridErrorHandlerService extends EventEmitter {
       recoverable: this.isRecoverable(classification),
     };
 
-    // Record error first
-    this.recordError(dataSourceError);
+    try {
+      // Enhanced error logging with detailed context
+      this.enhancedLogger.error(error, {
+        component: "HybridErrorHandler",
+        operation: "handle_custom_adapter_error",
+        sourceId,
+        feedId: feedId.name,
+        errorType: classification,
+        severity: "high",
+        metadata: {
+          tier: "TIER_1_CUSTOM",
+          classification,
+          recoverable: dataSourceError.recoverable,
+          context,
+        },
+      });
 
-    // Now determine severity based on updated history
-    dataSourceError.severity = this.determineSeverity(classification, sourceId);
+      // Record error first
+      this.recordError(dataSourceError);
 
-    // Update the recorded error with correct severity
-    const history = this.errorHistory.get(sourceId) || [];
-    if (history.length > 0) {
-      history[history.length - 1].severity = dataSourceError.severity;
+      // Now determine severity based on updated history
+      dataSourceError.severity = this.determineSeverity(classification, sourceId);
+
+      // Update the recorded error with correct severity
+      const history = this.errorHistory.get(sourceId) || [];
+      if (history.length > 0) {
+        history[history.length - 1].severity = dataSourceError.severity;
+      }
+
+      // Log error classification and severity determination
+      this.enhancedLogger.log(`Error classified and severity determined`, {
+        component: "HybridErrorHandler",
+        operation: "error_classification",
+        sourceId,
+        feedId: feedId.name,
+        metadata: {
+          classification,
+          severity: dataSourceError.severity,
+          recoverable: dataSourceError.recoverable,
+          errorHistoryCount: history.length,
+        },
+      });
+
+      // Determine response strategy
+      const response = await this.determineErrorResponse(dataSourceError);
+
+      // Log the chosen response strategy
+      this.enhancedLogger.log(`Error response strategy determined`, {
+        component: "HybridErrorHandler",
+        operation: "response_strategy",
+        sourceId,
+        feedId: feedId.name,
+        metadata: {
+          strategy: response.strategy,
+          action: response.action,
+          estimatedRecoveryTime: response.estimatedRecoveryTime,
+          fallbackSources: response.fallbackSources.length,
+          degradationLevel: response.degradationLevel,
+        },
+      });
+
+      // Execute response strategy
+      await this.executeErrorResponse(response, dataSourceError);
+
+      // Log successful error handling
+      this.enhancedLogger.logErrorRecovery(sourceId, classification, response.strategy, true, {
+        feedId: feedId.name,
+        tier: "TIER_1_CUSTOM",
+        responseAction: response.action,
+        fallbackSourceCount: response.fallbackSources.length,
+      });
+
+      this.enhancedLogger.endPerformanceTimer(operationId, true, {
+        strategy: response.strategy,
+        severity: dataSourceError.severity,
+        recoverable: dataSourceError.recoverable,
+      });
+
+      this.emit("tier1ErrorHandled", sourceId, dataSourceError, response);
+      return response;
+    } catch (handlingError) {
+      this.enhancedLogger.error(handlingError, {
+        component: "HybridErrorHandler",
+        operation: "handle_custom_adapter_error",
+        sourceId,
+        feedId: feedId.name,
+        severity: "critical",
+        metadata: {
+          originalError: error.message,
+          originalClassification: classification,
+        },
+      });
+
+      this.enhancedLogger.endPerformanceTimer(operationId, false, {
+        error: handlingError.message,
+        originalError: error.message,
+      });
+
+      throw handlingError;
     }
-
-    // Determine response strategy
-    const response = await this.determineErrorResponse(dataSourceError);
-
-    // Execute response strategy
-    await this.executeErrorResponse(response, dataSourceError);
-
-    const responseTime = Date.now() - startTime;
-    this.logger.log(`Tier 1 error handling completed in ${responseTime}ms for ${sourceId}`);
-
-    this.emit("tier1ErrorHandled", sourceId, dataSourceError, response);
-    return response;
   }
 
   /**

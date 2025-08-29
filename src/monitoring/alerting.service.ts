@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
+import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 import {
   Alert,
   AlertRule,
@@ -13,6 +14,7 @@ import axios from "axios";
 @Injectable()
 export class AlertingService {
   private readonly logger = new Logger(AlertingService.name);
+  private readonly enhancedLogger = new EnhancedLoggerService("AlertingService");
   private alerts: Map<string, Alert> = new Map();
   private activeAlerts: Map<string, Alert> = new Map();
   private alertCooldowns: Map<string, number> = new Map();
@@ -53,12 +55,33 @@ export class AlertingService {
     // Check cooldown period
     const lastAlertTime = this.alertCooldowns.get(rule.id);
     if (lastAlertTime && now - lastAlertTime < rule.cooldown) {
+      this.enhancedLogger.debug(`Alert suppressed due to cooldown period`, {
+        component: "AlertingService",
+        operation: "trigger_alert",
+        metadata: {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          cooldownRemaining: rule.cooldown - (now - lastAlertTime),
+          value,
+          threshold: rule.threshold,
+        },
+      });
       return; // Still in cooldown period
     }
 
     // Check rate limiting
     if (!this.checkRateLimit(rule.id)) {
-      this.logger.warn(`Alert rate limit exceeded for rule ${rule.id}`);
+      this.enhancedLogger.warn(`Alert rate limit exceeded for rule ${rule.id}`, {
+        component: "AlertingService",
+        operation: "trigger_alert",
+        metadata: {
+          ruleId: rule.id,
+          ruleName: rule.name,
+          maxAlertsPerHour: this.config.alerting.maxAlertsPerHour,
+          value,
+          threshold: rule.threshold,
+        },
+      });
       return;
     }
 
@@ -77,16 +100,40 @@ export class AlertingService {
     this.activeAlerts.set(rule.id, alert);
     this.alertCooldowns.set(rule.id, now);
 
+    // Enhanced alert logging with detailed context
+    this.enhancedLogger.logCriticalOperation("alert_triggered", "AlertingService", {
+      alertId,
+      ruleId: rule.id,
+      ruleName: rule.name,
+      severity: rule.severity,
+      metric: rule.metric,
+      value,
+      threshold: rule.threshold,
+      operator: rule.operator,
+      message: alert.message,
+      metadata,
+    });
+
     // Log alert
     this.logAlert(alert);
 
     // Deliver alert through configured channels
     await this.deliverAlert(alert, rule);
 
-    this.logger.warn(`Alert triggered: ${rule.name} - ${alert.message}`, {
-      alertId,
-      ruleId: rule.id,
+    this.enhancedLogger.warn(`Alert triggered and delivered`, {
+      component: "AlertingService",
+      operation: "trigger_alert",
       severity: rule.severity,
+      metadata: {
+        alertId,
+        ruleId: rule.id,
+        ruleName: rule.name,
+        severity: rule.severity,
+        metric: rule.metric,
+        value,
+        threshold: rule.threshold,
+        deliveryChannels: rule.actions.length,
+      },
     });
   }
 

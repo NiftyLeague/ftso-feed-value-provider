@@ -1,11 +1,13 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
 import { EventEmitter } from "events";
+import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
 import * as os from "os";
 
 @Injectable()
 export class PerformanceMonitorService extends EventEmitter {
   private readonly logger = new Logger(PerformanceMonitorService.name);
+  private readonly enhancedLogger = new EnhancedLoggerService("PerformanceMonitor");
   private performanceHistory: PerformanceMetrics[] = [];
   private healthHistory: HealthMetrics[] = [];
   private connectionStatus: Map<string, boolean> = new Map();
@@ -35,11 +37,31 @@ export class PerformanceMonitorService extends EventEmitter {
 
     this.responseTimeHistory.set(endpoint, history);
 
-    // Log slow responses
+    // Enhanced logging for response latency
+    const context: LogContext = {
+      component: "PerformanceMonitor",
+      operation: "track_response_latency",
+      metadata: {
+        endpoint,
+        latency,
+        threshold: this.config.performanceThresholds.maxResponseLatency,
+        measurementCount: history.length,
+      },
+    };
+
+    // Log slow responses with detailed context
     if (latency > this.config.performanceThresholds.maxResponseLatency) {
-      this.logger.warn(
-        `Slow response detected for ${endpoint}: ${latency}ms > ${this.config.performanceThresholds.maxResponseLatency}ms`
-      );
+      this.enhancedLogger.warn(`Response latency threshold exceeded for ${endpoint}`, {
+        ...context,
+        severity: "medium",
+        metadata: {
+          ...context.metadata,
+          exceedsThresholdBy: latency - this.config.performanceThresholds.maxResponseLatency,
+          averageLatency: history.reduce((sum, lat) => sum + lat, 0) / history.length,
+        },
+      });
+    } else {
+      this.enhancedLogger.debug(`Response latency tracked for ${endpoint}: ${latency}ms`, context);
     }
   }
 
@@ -381,9 +403,36 @@ export class PerformanceMonitorService extends EventEmitter {
       this.trackResponseLatency(`${source}:${symbol}`, latency);
       this.trackDataFreshness(symbol, latency);
 
-      this.logger.debug(`Recorded price update: ${source}:${symbol} latency=${latency}ms`);
+      // Enhanced logging for price update recording
+      this.enhancedLogger.logPriceUpdate(
+        symbol,
+        source,
+        update.price || 0,
+        update.timestamp || Date.now(),
+        update.confidence || 0
+      );
+
+      this.enhancedLogger.debug(`Price update performance recorded`, {
+        component: "PerformanceMonitor",
+        operation: "record_price_update",
+        sourceId: source,
+        symbol,
+        metadata: {
+          latency,
+          price: update.price,
+          confidence: update.confidence,
+          timestamp: update.timestamp,
+        },
+      });
     } catch (error) {
-      this.logger.error("Error recording price update:", error);
+      this.enhancedLogger.error(error, {
+        component: "PerformanceMonitor",
+        operation: "record_price_update",
+        severity: "medium",
+        metadata: {
+          updateData: update,
+        },
+      });
     }
   }
 
