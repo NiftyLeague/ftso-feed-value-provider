@@ -28,7 +28,6 @@ export async function retry<T>(
   let backoffMs = initialBackOffMs;
   while (attempt <= maxRetries) {
     try {
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       return await action();
     } catch (e) {
       const error = asError(e);

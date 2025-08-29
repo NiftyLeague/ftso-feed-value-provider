@@ -66,11 +66,10 @@ export class ConnectionRecoveryService extends EventEmitter {
 
   constructor(
     private readonly circuitBreaker: CircuitBreakerService,
-    private readonly failoverManager: FailoverManager,
-    config?: Partial<ConnectionRecoveryConfig>
+    private readonly failoverManager: FailoverManager
   ) {
     super();
-    this.config = { ...this.defaultConfig, ...config };
+    this.config = { ...this.defaultConfig };
     this.startHealthMonitoring();
     this.setupEventHandlers();
   }
@@ -394,7 +393,7 @@ export class ConnectionRecoveryService extends EventEmitter {
       this.handleConnectionRestored(sourceId);
     } else if (!connected && previousState) {
       // Connection lost
-      this.handleConnectionLost(sourceId);
+      void this.handleConnectionLost(sourceId);
     }
   }
 
@@ -562,6 +561,29 @@ export class ConnectionRecoveryService extends EventEmitter {
           this.emit("sourceUnhealthy", sourceId);
         }
       }
+    }
+  }
+
+  /**
+   * Handle disconnection event
+   */
+  async handleDisconnection(sourceId: string): Promise<void> {
+    try {
+      this.logger.warn(`Handling disconnection for source: ${sourceId}`);
+
+      const health = this.connectionHealth.get(sourceId);
+      if (health) {
+        health.isConnected = false;
+        health.isHealthy = false;
+        health.lastDisconnected = Date.now();
+      }
+
+      // Trigger failover
+      await this.triggerFailover(sourceId, "Disconnection detected");
+
+      this.emit("disconnectionHandled", sourceId);
+    } catch (error) {
+      this.logger.error(`Error handling disconnection for ${sourceId}:`, error);
     }
   }
 

@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
+import { EventEmitter } from "events";
 import {
   AccuracyMetrics,
   QualityScore,
@@ -8,13 +9,15 @@ import {
 } from "./interfaces/monitoring.interfaces";
 
 @Injectable()
-export class AccuracyMonitorService {
+export class AccuracyMonitorService extends EventEmitter {
   private readonly logger = new Logger(AccuracyMonitorService.name);
   private accuracyHistory: Map<string, AccuracyMetrics[]> = new Map();
   private qualityScores: Map<string, QualityScore> = new Map();
   private consensusData: Map<string, ConsensusData> = new Map();
 
-  constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {}
+  constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
+    super();
+  }
 
   /**
    * Track consensus deviation for a feed value
@@ -259,6 +262,83 @@ export class AccuracyMonitorService {
       this.accuracyHistory.clear();
       this.qualityScores.clear();
       this.consensusData.clear();
+    }
+  }
+
+  /**
+   * Record aggregated price for accuracy monitoring
+   */
+  recordPrice(aggregatedPrice: any): void {
+    try {
+      const feedId = aggregatedPrice.symbol || "unknown";
+
+      // For now, we'll use a mock consensus median since we don't have historical data
+      // In a real implementation, this would compare against actual consensus
+      const mockConsensusMedian = aggregatedPrice.price * (1 + (Math.random() - 0.5) * 0.01); // ±0.5% variation
+
+      const metrics = this.trackConsensusDeviation(
+        feedId,
+        aggregatedPrice.price,
+        mockConsensusMedian,
+        aggregatedPrice.votingRound
+      );
+
+      // Check if we should emit an accuracy alert
+      if (metrics.consensusDeviation > this.config.accuracyThresholds.maxConsensusDeviation) {
+        const alert = {
+          type: "accuracy_alert",
+          feedId,
+          deviation: metrics.consensusDeviation,
+          threshold: this.config.accuracyThresholds.maxConsensusDeviation,
+          timestamp: Date.now(),
+          severity: "warning",
+          message: `High consensus deviation for ${feedId}: ${metrics.consensusDeviation.toFixed(4)}%`,
+        };
+
+        this.emit("accuracyAlert", alert);
+      }
+
+      this.logger.debug(`Recorded price for accuracy monitoring: ${feedId} = ${aggregatedPrice.price}`);
+    } catch (error) {
+      this.logger.error("Error recording price for accuracy monitoring:", error);
+    }
+  }
+
+  /**
+   * Emit accuracy alert event
+   */
+  emit(event: "accuracyAlert", alert: any): boolean;
+  emit(event: string | symbol, ...args: any[]): boolean {
+    return super.emit(event, ...args);
+  }
+
+  /**
+   * Listen for accuracy alert events
+   */
+  on(event: "accuracyAlert", callback: (alert: any) => void): this;
+  on(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(event, listener);
+  }
+
+  /**
+   * Stop the accuracy monitoring service and cleanup resources
+   */
+  async stop(): Promise<void> {
+    try {
+      this.logger.log("Stopping accuracy monitoring service...");
+
+      // Clear all monitoring data
+      this.accuracyHistory.clear();
+      this.qualityScores.clear();
+      this.consensusData.clear();
+
+      // Remove all event listeners
+      this.removeAllListeners();
+
+      this.logger.log("Accuracy monitoring service stopped successfully");
+    } catch (error) {
+      this.logger.error("Error stopping accuracy monitoring service:", error);
+      throw error;
     }
   }
 }

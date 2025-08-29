@@ -94,11 +94,10 @@ export class HybridErrorHandlerService extends EventEmitter {
   constructor(
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly connectionRecovery: ConnectionRecoveryService,
-    private readonly ccxtAdapter: CcxtMultiExchangeAdapter,
-    config?: Partial<TierFailoverConfig>
+    private readonly ccxtAdapter: CcxtMultiExchangeAdapter
   ) {
     super();
-    this.config = { ...this.defaultConfig, ...config };
+    this.config = { ...this.defaultConfig };
     this.initializeErrorClassifications();
     this.startRecoveryMonitoring();
   }
@@ -810,6 +809,56 @@ export class HybridErrorHandlerService extends EventEmitter {
     } catch (error) {
       // Source still not recovered
       this.logger.debug(`Source ${sourceId} recovery check failed:`, error.message);
+    }
+  }
+
+  /**
+   * Handle generic error with context
+   */
+  handleError(error: Error, context?: { sourceId?: string; component?: string }): void {
+    try {
+      const sourceId = context?.sourceId || "unknown";
+      const component = context?.component || "unknown";
+
+      this.logger.error(`Handling error from ${component}:${sourceId}:`, error);
+
+      // Classify the error
+      const classification = this.classifyError(error, context);
+
+      // Create error record
+      const dataSourceError: DataSourceError = {
+        sourceId,
+        tier: this.getTierForSource(sourceId),
+        classification,
+        error,
+        timestamp: Date.now(),
+        severity: "medium",
+        recoverable: this.isRecoverable(classification),
+      };
+
+      // Record the error
+      this.recordError(dataSourceError);
+
+      this.emit("errorHandled", sourceId, dataSourceError);
+    } catch (handlingError) {
+      this.logger.error("Error in error handling:", handlingError);
+    }
+  }
+
+  /**
+   * Record failure for circuit breaker integration
+   */
+  recordFailure(sourceId: string): void {
+    try {
+      this.circuitBreaker
+        .execute(sourceId, async () => {
+          throw new Error("Simulated failure for circuit breaker");
+        })
+        .catch(() => {
+          // Expected to fail - this is just to record the failure
+        });
+    } catch (error) {
+      this.logger.debug(`Recorded failure for ${sourceId}`);
     }
   }
 

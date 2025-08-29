@@ -7,7 +7,7 @@ import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
 import { FeedCategory } from "@/types/feed-category.enum";
 import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
 import { CcxtFeed } from "@/data-feeds/ccxt-provider-service";
-import { Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
   tradesLimit?: number; // CCXT trades limit (default: 1000)
@@ -34,6 +34,7 @@ export interface ExchangePriceData {
   volume?: number;
 }
 
+@Injectable()
 export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
   readonly exchangeName = "ccxt-multi-exchange";
   readonly category = FeedCategory.Crypto;
@@ -63,15 +64,14 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     name: "USDT/USD",
   };
 
-  constructor(config?: CcxtMultiExchangeConfig) {
-    super(config);
+  constructor() {
+    super();
     this.adapterConfig = {
       tradesLimit: 1000,
       lambda: 0.00005,
       retryBackoffMs: 10000,
       enableUsdtConversion: true,
       tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
-      ...config,
     };
     this.ccxtFeed = new CcxtFeed();
   }

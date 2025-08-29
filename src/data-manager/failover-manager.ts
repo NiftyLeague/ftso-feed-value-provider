@@ -46,9 +46,9 @@ export class FailoverManager extends EventEmitter {
 
   private config: FailoverConfig;
 
-  constructor(config?: Partial<FailoverConfig>) {
+  constructor() {
     super();
-    this.config = { ...this.defaultConfig, ...config };
+    this.config = { ...this.defaultConfig };
     this.startHealthMonitoring();
   }
 

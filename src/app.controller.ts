@@ -38,9 +38,9 @@ export class FtsoProviderController {
 
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
+    private readonly errorHandler: ApiErrorHandlerService,
     private readonly cacheService: RealTimeCacheService,
-    private readonly aggregationService: RealTimeAggregationService,
-    private readonly errorHandler: ApiErrorHandlerService
+    private readonly aggregationService: RealTimeAggregationService
   ) {}
 
   @Post("feed-values/:votingRoundId")

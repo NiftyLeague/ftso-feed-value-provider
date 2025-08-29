@@ -39,10 +39,10 @@ export class ValidationService extends EventEmitter {
   // Cleanup interval
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(validator?: DataValidator, config?: Partial<ValidationServiceConfig>) {
+  constructor(validator: DataValidator) {
     super();
 
-    this.validator = validator || new DataValidator();
+    this.validator = validator;
     this.config = {
       enableRealTimeValidation: true,
       enableBatchValidation: true,
@@ -50,7 +50,6 @@ export class ValidationService extends EventEmitter {
       validationCacheTTL: 5000, // 5 seconds
       historicalDataWindow: 50, // Keep last 50 prices
       crossSourceWindow: 10000, // 10 seconds
-      ...config,
     };
 
     this.setupCleanupInterval();

@@ -3,22 +3,49 @@ import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.d
 import { BaseDataFeed } from "@/data-feeds/base-feed";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
+import { ProductionIntegrationService } from "@/integration/production-integration.service";
+import { EnhancedFeedId } from "@/types";
 
 @Injectable()
 export class FtsoProviderService {
   private readonly logger = new Logger(FtsoProviderService.name);
+  private integrationService?: ProductionIntegrationService;
 
   constructor(
-    private readonly dataFeed: BaseDataFeed,
+    private readonly dataFeed: BaseDataFeed | null,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService
   ) {}
+
+  // Method to set the integration service (called by the factory)
+  setIntegrationService(integrationService: ProductionIntegrationService): void {
+    this.integrationService = integrationService;
+    this.logger.log("Production integration service connected");
+  }
 
   async getValue(feed: FeedId): Promise<FeedValueData> {
     const startTime = performance.now();
 
     try {
-      // Check cache first for real-time data
+      // Use production integration service if available
+      if (this.integrationService) {
+        const enhancedFeedId: EnhancedFeedId = {
+          category: feed.category,
+          name: feed.name,
+        };
+
+        const aggregatedPrice = await this.integrationService.getCurrentPrice(enhancedFeedId);
+
+        const responseTime = performance.now() - startTime;
+        this.logger.debug(`Production integration for ${feed.name}: ${responseTime.toFixed(2)}ms`);
+
+        return {
+          feed,
+          value: aggregatedPrice.price,
+        };
+      }
+
+      // Legacy mode: Check cache first for real-time data
       const cachedPrice = this.cacheService.getPrice(feed);
 
       if (cachedPrice && this.isFreshData(cachedPrice.timestamp)) {
@@ -52,19 +79,27 @@ export class FtsoProviderService {
         };
       }
 
-      // Fallback to base data feed
-      const result = await this.dataFeed.getValue(feed);
-      const responseTime = performance.now() - startTime;
+      // Fallback to base data feed (legacy mode only)
+      if (this.dataFeed) {
+        const result = await this.dataFeed.getValue(feed);
+        const responseTime = performance.now() - startTime;
 
-      this.logger.debug(`Fallback data feed for ${feed.name}: ${responseTime.toFixed(2)}ms`);
+        this.logger.debug(`Fallback data feed for ${feed.name}: ${responseTime.toFixed(2)}ms`);
 
-      return result;
+        return result;
+      }
+
+      throw new Error(`No data source available for feed ${feed.name}`);
     } catch (error) {
       const responseTime = performance.now() - startTime;
       this.logger.error(`Error getting value for ${feed.name} (${responseTime.toFixed(2)}ms):`, error);
 
-      // Final fallback to base data feed
-      return this.dataFeed.getValue(feed);
+      // Final fallback to base data feed (legacy mode only)
+      if (this.dataFeed) {
+        return this.dataFeed.getValue(feed);
+      }
+
+      throw error;
     }
   }
 
@@ -72,7 +107,27 @@ export class FtsoProviderService {
     const startTime = performance.now();
 
     try {
-      // Process feeds in parallel for better performance
+      // Use production integration service if available
+      if (this.integrationService) {
+        const enhancedFeedIds: EnhancedFeedId[] = feeds.map(feed => ({
+          category: feed.category,
+          name: feed.name,
+        }));
+
+        const aggregatedPrices = await this.integrationService.getCurrentPrices(enhancedFeedIds);
+
+        const results: FeedValueData[] = aggregatedPrices.map((price, index) => ({
+          feed: feeds[index],
+          value: price.price,
+        }));
+
+        const responseTime = performance.now() - startTime;
+        this.logger.debug(`Production integration for ${feeds.length} feeds: ${responseTime.toFixed(2)}ms`);
+
+        return results;
+      }
+
+      // Legacy mode: Process feeds in parallel for better performance
       const promises = feeds.map(feed => this.getValue(feed));
       const results = await Promise.all(promises);
 
@@ -84,8 +139,12 @@ export class FtsoProviderService {
       const responseTime = performance.now() - startTime;
       this.logger.error(`Error getting multiple values (${responseTime.toFixed(2)}ms):`, error);
 
-      // Fallback to base data feed
-      return this.dataFeed.getValues(feeds);
+      // Fallback to base data feed (legacy mode only)
+      if (this.dataFeed) {
+        return this.dataFeed.getValues(feeds);
+      }
+
+      throw error;
     }
   }
 
@@ -93,22 +152,33 @@ export class FtsoProviderService {
     const startTime = performance.now();
 
     try {
-      // Use existing CCXT volume processing with USDT conversion
-      const results = await this.dataFeed.getVolumes(feeds, volumeWindow);
+      // For now, use existing CCXT volume processing with USDT conversion
+      // In production integration mode, this would be handled by the integration service
+      if (this.dataFeed) {
+        const results = await this.dataFeed.getVolumes(feeds, volumeWindow);
 
-      const responseTime = performance.now() - startTime;
-      this.logger.debug(
-        `Got volumes for ${feeds.length} feeds (${volumeWindow}s window) in ${responseTime.toFixed(2)}ms`
-      );
-
-      // Log performance warning if exceeding target
-      if (responseTime > 100) {
-        this.logger.warn(
-          `Volume processing took ${responseTime.toFixed(2)}ms, exceeding 100ms target for ${feeds.length} feeds`
+        const responseTime = performance.now() - startTime;
+        this.logger.debug(
+          `Got volumes for ${feeds.length} feeds (${volumeWindow}s window) in ${responseTime.toFixed(2)}ms`
         );
+
+        // Log performance warning if exceeding target
+        if (responseTime > 100) {
+          this.logger.warn(
+            `Volume processing took ${responseTime.toFixed(2)}ms, exceeding 100ms target for ${feeds.length} feeds`
+          );
+        }
+
+        return results;
       }
 
-      return results;
+      // Production integration mode - return empty volumes for now
+      // This would be implemented with proper volume aggregation in the integration service
+      this.logger.warn("Volume data not yet implemented in production integration mode");
+      return feeds.map(feed => ({
+        feed,
+        volumes: [],
+      }));
     } catch (error) {
       const responseTime = performance.now() - startTime;
       this.logger.error(`Error getting volumes (${responseTime.toFixed(2)}ms):`, error);
@@ -143,6 +213,16 @@ export class FtsoProviderService {
     details: any;
   }> {
     try {
+      // Use production integration health check if available
+      if (this.integrationService) {
+        const systemHealth = await this.integrationService.getSystemHealth();
+        return {
+          status: systemHealth.status,
+          details: systemHealth,
+        };
+      }
+
+      // Legacy mode health check
       const cacheStats = this.cacheService.getStats();
       const aggregationStats = this.aggregationService.getCacheStats();
 

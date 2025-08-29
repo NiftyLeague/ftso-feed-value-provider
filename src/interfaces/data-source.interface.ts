@@ -27,4 +27,5 @@ export interface DataSource {
   unsubscribe(symbols: string[]): Promise<void>;
   onPriceUpdate(callback: (update: PriceUpdate) => void): void;
   onConnectionChange(callback: (connected: boolean) => void): void;
+  onError?(callback: (error: Error) => void): void;
 }

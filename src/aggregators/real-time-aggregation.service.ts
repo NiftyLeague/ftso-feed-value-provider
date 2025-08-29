@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { EventEmitter } from "events";
 import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
@@ -36,7 +37,7 @@ export interface PriceSubscription {
 }
 
 @Injectable()
-export class RealTimeAggregationService implements OnModuleInit, OnModuleDestroy {
+export class RealTimeAggregationService extends EventEmitter implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RealTimeAggregationService.name);
 
   private readonly config: RealTimeAggregationConfig = {
@@ -66,7 +67,9 @@ export class RealTimeAggregationService implements OnModuleInit, OnModuleDestroy
   private aggregationInterval?: NodeJS.Timeout;
   private cacheCleanupInterval?: NodeJS.Timeout;
 
-  constructor(private readonly consensusAggregator: ConsensusAggregator) {}
+  constructor(private readonly consensusAggregator: ConsensusAggregator) {
+    super();
+  }
 
   async onModuleInit() {
     this.startRealTimeAggregation();
@@ -126,6 +129,10 @@ export class RealTimeAggregationService implements OnModuleInit, OnModuleDestroy
       return aggregatedPrice;
     } catch (error) {
       this.logger.error(`Error aggregating price for ${feedId.name}:`, error);
+
+      // Emit error event for error handling services
+      this.emit("error", error);
+
       this.recordPerformance(feedKey, performance.now() - startTime);
       return null;
     }
@@ -309,6 +316,60 @@ export class RealTimeAggregationService implements OnModuleInit, OnModuleDestroy
       (total, subscriptions) => total + subscriptions.length,
       0
     );
+  }
+
+  /**
+   * Process price update and trigger aggregation
+   * This method is called by the ProductionIntegrationService
+   */
+  async processPriceUpdate(update: PriceUpdate): Promise<void> {
+    try {
+      // Convert symbol to EnhancedFeedId
+      const feedId: EnhancedFeedId = {
+        category: this.determineFeedCategory(update.symbol),
+        name: update.symbol,
+      };
+
+      // Add the price update to our active data
+      this.addPriceUpdate(feedId, update);
+
+      // Get fresh aggregated price
+      const aggregatedPrice = await this.getAggregatedPrice(feedId);
+
+      if (aggregatedPrice) {
+        // Emit aggregated price event for other services
+        this.emit("aggregatedPrice", aggregatedPrice);
+
+        this.logger.debug(
+          `Processed price update for ${update.symbol}: ${update.price} -> aggregated: ${aggregatedPrice.price}`
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Error processing price update for ${update.symbol}:`, error);
+
+      // Emit error event for error handling services
+      this.emit("error", error);
+
+      throw error;
+    }
+  }
+
+  /**
+   * Emit aggregated price event
+   */
+  emit(event: "aggregatedPrice", price: AggregatedPrice): boolean;
+  emit(event: "error", error: Error): boolean;
+  emit(event: string | symbol, ...args: any[]): boolean {
+    return super.emit(event, ...args);
+  }
+
+  /**
+   * Listen for aggregated price events
+   */
+  on(event: "aggregatedPrice", callback: (price: AggregatedPrice) => void): this;
+  on(event: "error", callback: (error: Error) => void): this;
+  on(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(event, listener);
   }
 
   // Private methods
@@ -504,5 +565,19 @@ export class RealTimeAggregationService implements OnModuleInit, OnModuleDestroy
     if (cleanedFeeds > 0) {
       this.logger.debug(`Cleaned up stale updates for ${cleanedFeeds} feeds`);
     }
+  }
+
+  /**
+   * Determine feed category from symbol
+   */
+  private determineFeedCategory(symbol: string): any {
+    // Import FeedCategory enum
+    const { FeedCategory } = require("@/types/feed-category.enum");
+
+    // Simple heuristic - in production this would use proper configuration
+    if (symbol.includes("USD") || symbol.includes("BTC") || symbol.includes("ETH")) {
+      return FeedCategory.Crypto;
+    }
+    return FeedCategory.Crypto; // Default to crypto for now
   }
 }

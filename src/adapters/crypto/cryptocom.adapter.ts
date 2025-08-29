@@ -92,14 +92,25 @@ export class CryptocomAdapter extends ExchangeAdapter {
         this.wsConnection.onerror = error => {
           this.isConnectedFlag = false;
           this.stopPingInterval();
+          const connectionError = new Error(`Crypto.com WebSocket connection failed: ${error}`);
+          this.onErrorCallback?.(connectionError);
           this.onConnectionChangeCallback?.(false);
-          reject(new Error(`Crypto.com WebSocket connection failed: ${error}`));
+          reject(connectionError);
         };
 
-        this.wsConnection.onclose = () => {
+        this.wsConnection.onclose = event => {
           this.isConnectedFlag = false;
           this.stopPingInterval();
           this.onConnectionChangeCallback?.(false);
+
+          // Emit error if close was unexpected (only if event has code property)
+          if (event && typeof event.code === "number" && event.code !== 1000) {
+            // 1000 is normal closure
+            const closeError = new Error(
+              `Crypto.com WebSocket closed unexpectedly: ${event.code} - ${event.reason || "Unknown reason"}`
+            );
+            this.onErrorCallback?.(closeError);
+          }
         };
 
         this.wsConnection.onmessage = event => {
@@ -126,7 +137,8 @@ export class CryptocomAdapter extends ExchangeAdapter {
               });
             }
           } catch (error) {
-            console.error("Error processing Crypto.com message:", error);
+            const parseError = new Error(`Error processing Crypto.com message: ${error}`);
+            this.onErrorCallback?.(parseError);
           }
         };
       } catch (error) {
@@ -297,6 +309,7 @@ export class CryptocomAdapter extends ExchangeAdapter {
   // Event handlers
   private onPriceUpdateCallback?: (update: PriceUpdate) => void;
   private onConnectionChangeCallback?: (connected: boolean) => void;
+  private onErrorCallback?: (error: Error) => void;
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
     this.onPriceUpdateCallback = callback;
@@ -304,6 +317,10 @@ export class CryptocomAdapter extends ExchangeAdapter {
 
   onConnectionChange(callback: (connected: boolean) => void): void {
     this.onConnectionChangeCallback = callback;
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.onErrorCallback = callback;
   }
 
   // Helper method to convert exchange symbol back to normalized format

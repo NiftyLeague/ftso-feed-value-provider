@@ -474,6 +474,97 @@ export class AlertingService {
   }
 
   /**
+   * Send alert directly (used by integration service)
+   */
+  async sendAlert(alert: any): Promise<void> {
+    try {
+      // Create a temporary rule for direct alert sending
+      const tempRule: AlertRule = {
+        id: `temp_rule_${Date.now()}`,
+        name: alert.type || "Direct Alert",
+        description: alert.message || "Direct alert message",
+        metric: alert.type || "direct_alert",
+        threshold: 0,
+        operator: "gt",
+        severity: this.mapSeverity(alert.severity),
+        duration: 0,
+        actions: [AlertAction.LOG, AlertAction.EMAIL, AlertAction.WEBHOOK],
+        enabled: true,
+        cooldown: 0,
+      };
+
+      const formattedAlert: Alert = {
+        id: alert.id || `alert_${Date.now()}`,
+        ruleId: tempRule.id,
+        severity: this.mapSeverity(alert.severity),
+        message: alert.message || "Alert triggered",
+        timestamp: alert.timestamp || Date.now(),
+        resolved: false,
+        metadata: { ...alert },
+      };
+
+      // Store and deliver the alert
+      this.alerts.set(formattedAlert.id, formattedAlert);
+      await this.deliverAlert(formattedAlert, tempRule);
+
+      this.logger.log(`Direct alert sent: ${formattedAlert.message}`);
+    } catch (error) {
+      this.logger.error("Error sending direct alert:", error);
+    }
+  }
+
+  /**
+   * Stop the alerting service and cleanup resources
+   */
+  async stop(): Promise<void> {
+    try {
+      this.logger.log("Stopping alerting service...");
+
+      // Clear all active alerts
+      this.activeAlerts.clear();
+
+      // Clear cooldowns
+      this.alertCooldowns.clear();
+
+      // Clear alert counts
+      this.alertCounts.clear();
+
+      // Close email transporter if it exists
+      if (this.emailTransporter) {
+        this.emailTransporter.close();
+        this.emailTransporter = undefined;
+      }
+
+      this.logger.log("Alerting service stopped successfully");
+    } catch (error) {
+      this.logger.error("Error stopping alerting service:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Map string severity to AlertSeverity enum
+   */
+  private mapSeverity(severity: string | AlertSeverity): AlertSeverity {
+    if (typeof severity === "string") {
+      switch (severity.toLowerCase()) {
+        case "info":
+          return AlertSeverity.INFO;
+        case "warning":
+        case "warn":
+          return AlertSeverity.WARNING;
+        case "error":
+          return AlertSeverity.ERROR;
+        case "critical":
+          return AlertSeverity.CRITICAL;
+        default:
+          return AlertSeverity.INFO;
+      }
+    }
+    return severity;
+  }
+
+  /**
    * Test alert delivery (for testing purposes)
    */
   async testAlertDelivery(severity: AlertSeverity = AlertSeverity.INFO): Promise<void> {

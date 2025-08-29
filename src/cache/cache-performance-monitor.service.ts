@@ -32,10 +32,9 @@ export class CachePerformanceMonitorService {
   private lastRequestCount = 0;
   private lastRequestTime = Date.now();
 
-  constructor(
-    private readonly cacheService: RealTimeCacheService,
-    private readonly monitoringIntervalMs: number = 5000 // 5 seconds
-  ) {
+  private readonly monitoringIntervalMs = 5000; // 5 seconds
+
+  constructor(private readonly cacheService: RealTimeCacheService) {
     this.startMonitoring();
   }
 

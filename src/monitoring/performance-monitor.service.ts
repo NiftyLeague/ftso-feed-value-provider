@@ -1,9 +1,10 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
+import { EventEmitter } from "events";
 import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
 import * as os from "os";
 
 @Injectable()
-export class PerformanceMonitorService {
+export class PerformanceMonitorService extends EventEmitter {
   private readonly logger = new Logger(PerformanceMonitorService.name);
   private performanceHistory: PerformanceMetrics[] = [];
   private healthHistory: HealthMetrics[] = [];
@@ -14,6 +15,7 @@ export class PerformanceMonitorService {
   private startTime: number = Date.now();
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
+    super();
     // Start periodic monitoring
     this.startPeriodicMonitoring();
   }
@@ -92,6 +94,22 @@ export class PerformanceMonitorService {
     this.errorCounts.set(key, currentCount + 1);
 
     this.logger.error(`Error in ${source}: ${error.message}`, error.stack);
+
+    // Emit performance alert if error rate is high
+    const errorStats = this.getErrorStats();
+    if (errorStats.errorRate > this.config.healthThresholds.maxErrorRate) {
+      const alert = {
+        type: "high_error_rate",
+        source,
+        errorRate: errorStats.errorRate,
+        threshold: this.config.healthThresholds.maxErrorRate,
+        timestamp: Date.now(),
+        severity: "error",
+        message: `High error rate detected: ${errorStats.errorRate.toFixed(2)} errors/min > ${this.config.healthThresholds.maxErrorRate}`,
+        metadata: { source, error: error.message, errorStats },
+      };
+      this.emit("performanceAlert", alert);
+    }
   }
 
   /**
@@ -330,6 +348,104 @@ export class PerformanceMonitorService {
   }
 
   /**
+   * Record a generic metric with metadata
+   */
+  recordMetric(metricName: string, value: number, metadata?: Record<string, any>): void {
+    try {
+      switch (metricName) {
+        case "price_update_latency":
+          if (metadata?.source && metadata?.symbol) {
+            this.trackResponseLatency(`${metadata.source}:${metadata.symbol}`, value);
+          }
+          break;
+        case "price_update_count":
+          // Track price update counts (could be used for throughput calculation)
+          break;
+        default:
+          this.logger.debug(`Recorded metric ${metricName}: ${value}`, metadata);
+      }
+    } catch (error) {
+      this.logger.error(`Error recording metric ${metricName}:`, error);
+    }
+  }
+
+  /**
+   * Record price update for performance tracking
+   */
+  recordPriceUpdate(update: any): void {
+    try {
+      const latency = Date.now() - (update.timestamp || Date.now());
+      const source = update.source || "unknown";
+      const symbol = update.symbol || "unknown";
+
+      this.trackResponseLatency(`${source}:${symbol}`, latency);
+      this.trackDataFreshness(symbol, latency);
+
+      this.logger.debug(`Recorded price update: ${source}:${symbol} latency=${latency}ms`);
+    } catch (error) {
+      this.logger.error("Error recording price update:", error);
+    }
+  }
+
+  /**
+   * Monitor a component for performance metrics
+   */
+  monitorComponent(name: string, component: any): void {
+    try {
+      this.logger.log(`Started monitoring component: ${name}`);
+
+      // This would set up monitoring hooks for the component
+      // For now, just log that monitoring has started
+      this.emit("componentMonitoringStarted", name, component);
+    } catch (error) {
+      this.logger.error(`Error monitoring component ${name}:`, error);
+    }
+  }
+
+  /**
+   * Emit performance alert event
+   */
+  emit(event: "performanceAlert", alert: any): boolean;
+  emit(event: "componentMonitoringStarted", name: string, component: any): boolean;
+  emit(event: string | symbol, ...args: any[]): boolean {
+    return super.emit(event, ...args);
+  }
+
+  /**
+   * Listen for performance alert events
+   */
+  on(event: "performanceAlert", callback: (alert: any) => void): this;
+  on(event: "componentMonitoringStarted", callback: (name: string, component: any) => void): this;
+  on(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(event, listener);
+  }
+
+  /**
+   * Stop the performance monitoring service and cleanup resources
+   */
+  async stop(): Promise<void> {
+    try {
+      this.logger.log("Stopping performance monitoring service...");
+
+      // Clear all monitoring data
+      this.performanceHistory = [];
+      this.healthHistory = [];
+      this.connectionStatus.clear();
+      this.responseTimeHistory.clear();
+      this.dataFreshnessHistory.clear();
+      this.errorCounts.clear();
+
+      // Remove all event listeners
+      this.removeAllListeners();
+
+      this.logger.log("Performance monitoring service stopped successfully");
+    } catch (error) {
+      this.logger.error("Error stopping performance monitoring service:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Start periodic monitoring
    */
   private startPeriodicMonitoring(): void {
@@ -347,7 +463,57 @@ export class PerformanceMonitorService {
       if (this.healthHistory.length > 1000) {
         this.healthHistory.splice(0, this.healthHistory.length - 1000);
       }
+
+      // Check thresholds and emit alerts if needed
+      this.checkAndEmitAlerts(performanceMetrics, healthMetrics);
     }, this.config.monitoringInterval);
+  }
+
+  /**
+   * Check thresholds and emit performance alerts
+   */
+  private checkAndEmitAlerts(performanceMetrics: PerformanceMetrics, healthMetrics: HealthMetrics): void {
+    try {
+      // Check performance thresholds
+      const perfThresholds = this.checkPerformanceThresholds();
+      if (!perfThresholds.overallOk) {
+        const alert = {
+          type: "performance_alert",
+          severity: "warning",
+          message: `Performance thresholds exceeded`,
+          timestamp: Date.now(),
+          metadata: {
+            latencyOk: perfThresholds.latencyOk,
+            freshnessOk: perfThresholds.freshnessOk,
+            throughputOk: perfThresholds.throughputOk,
+            cacheHitRateOk: perfThresholds.cacheHitRateOk,
+            metrics: performanceMetrics,
+          },
+        };
+        this.emit("performanceAlert", alert);
+      }
+
+      // Check health thresholds
+      const healthThresholds = this.checkHealthThresholds();
+      if (!healthThresholds.overallOk) {
+        const alert = {
+          type: "health_alert",
+          severity: "error",
+          message: `Health thresholds exceeded`,
+          timestamp: Date.now(),
+          metadata: {
+            errorRateOk: healthThresholds.errorRateOk,
+            cpuUsageOk: healthThresholds.cpuUsageOk,
+            memoryUsageOk: healthThresholds.memoryUsageOk,
+            connectionRateOk: healthThresholds.connectionRateOk,
+            metrics: healthMetrics,
+          },
+        };
+        this.emit("performanceAlert", alert);
+      }
+    } catch (error) {
+      this.logger.error("Error checking and emitting alerts:", error);
+    }
   }
 
   /**

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { RealTimeCacheService } from "./real-time-cache.service";
 import { EnhancedFeedId } from "../types/enhanced-feed-id.types";
 import { CacheEntry } from "./interfaces/cache.interfaces";
+import { AggregatedPrice } from "../aggregators/base/aggregation.interfaces";
 
 interface WarmupConfig {
   popularFeeds: EnhancedFeedId[];
@@ -22,16 +23,13 @@ export class CacheWarmerService {
   private readonly popularityMetrics = new Map<string, FeedPopularityMetrics>();
   private warmupInterval?: NodeJS.Timeout;
   private config: WarmupConfig;
+  private dataSourceCallback?: (feedId: EnhancedFeedId) => Promise<AggregatedPrice | null>;
 
-  constructor(
-    private readonly cacheService: RealTimeCacheService,
-    config?: Partial<WarmupConfig>
-  ) {
+  constructor(private readonly cacheService: RealTimeCacheService) {
     this.config = {
       popularFeeds: [],
       warmupInterval: 30000, // 30 seconds
       enabled: true,
-      ...config,
     };
 
     if (this.config.enabled) {
@@ -93,7 +91,7 @@ export class CacheWarmerService {
         return;
       }
 
-      // Simulate fetching fresh data (in real implementation, this would call data sources)
+      // Fetch fresh data from data sources
       const freshData = await this.fetchFreshData(feedId);
 
       if (freshData) {
@@ -200,20 +198,43 @@ export class CacheWarmerService {
     return age < 500; // Consider fresh if less than 500ms old
   }
 
-  // Simulate fetching fresh data (placeholder for actual data source integration)
+  // Set data source callback for fetching fresh data
+  setDataSourceCallback(callback: (feedId: EnhancedFeedId) => Promise<AggregatedPrice | null>): void {
+    this.dataSourceCallback = callback;
+    this.logger.debug("Data source callback configured for cache warming");
+  }
+
+  // Fetch fresh data from actual data sources
   private async fetchFreshData(feedId: EnhancedFeedId): Promise<CacheEntry | null> {
-    // In real implementation, this would call the actual data sources
-    // For now, return mock data for testing
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({
-          value: Math.random() * 50000, // Mock price
-          timestamp: Date.now(),
-          sources: ["mock-source"],
-          confidence: 0.95,
-        });
-      }, 10); // Simulate small network delay
-    });
+    if (this.dataSourceCallback) {
+      try {
+        // Use actual data source integration
+        const aggregatedPrice = await this.dataSourceCallback(feedId);
+
+        if (aggregatedPrice) {
+          return {
+            value: aggregatedPrice.price,
+            timestamp: aggregatedPrice.timestamp,
+            sources: aggregatedPrice.sources,
+            confidence: aggregatedPrice.confidence,
+          };
+        }
+
+        return null;
+      } catch (error) {
+        this.logger.error(`Error fetching fresh data for ${this.generateFeedKey(feedId)}: ${error.message}`);
+        throw error; // Re-throw the error for proper error handling
+      }
+    }
+
+    // Fallback to mock data if no callback is configured (for testing)
+    this.logger.debug(`Using mock data for cache warming of ${this.generateFeedKey(feedId)}`);
+    return {
+      value: Math.random() * 50000, // Mock price
+      timestamp: Date.now(),
+      sources: ["mock-source"],
+      confidence: 0.95,
+    };
   }
 
   private generateFeedKey(feedId: EnhancedFeedId): string {

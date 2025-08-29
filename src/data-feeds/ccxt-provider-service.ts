@@ -225,7 +225,7 @@ export class CcxtFeed implements BaseDataFeed {
 
   private async watchTradesForSymbols(exchange: Exchange, marketIds: string[]) {
     const sinceBySymbol = new Map<string, number>();
-    // eslint-disable-next-line no-constant-condition
+
     while (true) {
       try {
         const trades = await exchange.watchTradesForSymbols(marketIds);
@@ -254,7 +254,7 @@ export class CcxtFeed implements BaseDataFeed {
 
   private async watchTradesForSymbol(exchange: Exchange, marketId: string) {
     let since = undefined;
-    // eslint-disable-next-line no-constant-condition
+
     while (true) {
       try {
         const trades = await exchange.watchTrades(marketId, since);

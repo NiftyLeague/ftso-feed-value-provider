@@ -66,8 +66,8 @@ export class ConsensusAggregator implements PriceAggregator {
     consensusWeight: 0.3, // 30% weight for consensus alignment
   };
 
-  constructor(config?: Partial<ConsensusAggregatorConfig>) {
-    this.config = { ...this.defaultConfig, ...config };
+  constructor() {
+    this.config = { ...this.defaultConfig };
   }
 
   /**

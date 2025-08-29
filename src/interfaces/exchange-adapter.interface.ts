@@ -44,6 +44,10 @@ export abstract class ExchangeAdapter {
   abstract unsubscribe(symbols: string[]): Promise<void>;
   abstract onPriceUpdate(callback: (update: PriceUpdate) => void): void;
 
+  // Optional event handlers for enhanced integration
+  onConnectionChange?(callback: (connected: boolean) => void): void;
+  onError?(callback: (error: Error) => void): void;
+
   // Symbol mapping - override if exchange needs symbol transformation
   getSymbolMapping(feedSymbol: string): string {
     return feedSymbol;

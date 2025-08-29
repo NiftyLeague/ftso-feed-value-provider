@@ -22,13 +22,12 @@ export class RealTimeCacheService implements RealTimeCache {
     evictions: 0,
   };
 
-  constructor(config?: Partial<CacheConfig>) {
+  constructor() {
     this.config = {
       maxTTL: 1000, // 1 second maximum TTL as per requirement 6.2
       maxEntries: 10000,
       evictionPolicy: "LRU",
       memoryLimit: 100 * 1024 * 1024, // 100MB
-      ...config,
     };
 
     // Start cleanup interval for expired entries
@@ -143,13 +142,11 @@ export class RealTimeCacheService implements RealTimeCache {
 
   // Cache invalidation on new price updates (requirement 6.5)
   invalidateOnPriceUpdate(feedId: EnhancedFeedId): void {
-    const priceKey = this.generatePriceKey(feedId);
-    this.invalidate(priceKey);
-
-    // Also invalidate current voting round cache
+    // Only invalidate voting round cache, not the current price
+    // The current price will be updated with the new value
     this.invalidateFeedCache(feedId);
 
-    this.logger.debug(`Invalidated cache for feed: ${feedId.category}/${feedId.name}`);
+    this.logger.debug(`Invalidated voting round cache for feed: ${feedId.category}/${feedId.name}`);
   }
 
   private generatePriceKey(feedId: EnhancedFeedId): string {

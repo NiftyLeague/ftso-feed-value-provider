@@ -188,4 +188,124 @@ describe("ConfigService", () => {
       expect(config.ccxtParameters.retryBackoffMs).toBe(10000);
     });
   });
+
+  describe("environment configuration", () => {
+    it("should load environment configuration with defaults", () => {
+      const envConfig = service.getEnvironmentConfig();
+
+      expect(envConfig.port).toBe(3101);
+      expect(envConfig.logLevel).toBe("log");
+      expect(envConfig.medianDecay).toBe(0.00005);
+      expect(envConfig.tradesHistorySize).toBe(1000);
+      expect(envConfig.useProductionIntegration).toBe(true);
+    });
+
+    it("should provide alerting configuration", () => {
+      const alertingConfig = service.getAlertingConfig();
+
+      expect(alertingConfig).toHaveProperty("email");
+      expect(alertingConfig).toHaveProperty("webhook");
+      expect(alertingConfig).toHaveProperty("maxAlertsPerHour");
+      expect(alertingConfig).toHaveProperty("alertRetentionDays");
+    });
+
+    it("should provide cache configuration", () => {
+      const cacheConfig = service.getCacheConfig();
+
+      expect(cacheConfig).toHaveProperty("ttlMs");
+      expect(cacheConfig).toHaveProperty("maxEntries");
+      expect(cacheConfig).toHaveProperty("warmupInterval");
+    });
+
+    it("should provide monitoring configuration", () => {
+      const monitoringConfig = service.getMonitoringConfig();
+
+      expect(monitoringConfig).toHaveProperty("enabled");
+      expect(monitoringConfig).toHaveProperty("metricsPort");
+      expect(monitoringConfig).toHaveProperty("healthCheckInterval");
+    });
+
+    it("should provide error handling configuration", () => {
+      const errorConfig = service.getErrorHandlingConfig();
+
+      expect(errorConfig).toHaveProperty("maxRetries");
+      expect(errorConfig).toHaveProperty("retryDelayMs");
+      expect(errorConfig).toHaveProperty("circuitBreakerThreshold");
+      expect(errorConfig).toHaveProperty("circuitBreakerTimeout");
+    });
+  });
+
+  describe("configuration validation", () => {
+    it("should validate current configuration", () => {
+      const validation = service.validateCurrentConfiguration();
+
+      expect(validation).toHaveProperty("overall");
+      expect(validation).toHaveProperty("environment");
+      expect(validation).toHaveProperty("feeds");
+
+      expect(validation.overall).toHaveProperty("isValid");
+      expect(validation.overall).toHaveProperty("criticalErrors");
+      expect(validation.overall).toHaveProperty("warnings");
+    });
+
+    it("should provide configuration status", () => {
+      const status = service.getConfigurationStatus();
+
+      expect(status).toHaveProperty("environment");
+      expect(status).toHaveProperty("feeds");
+      expect(status).toHaveProperty("adapters");
+
+      expect(status.feeds).toHaveProperty("count");
+      expect(status.feeds).toHaveProperty("hotReloadEnabled");
+      expect(status.feeds).toHaveProperty("filePath");
+    });
+  });
+
+  describe("hot reload functionality", () => {
+    it("should enable and disable feed configuration hot reload", () => {
+      // Test enabling hot reload
+      service.enableFeedConfigurationHotReload();
+
+      const status = service.getConfigurationStatus();
+      expect(status.feeds.hotReloadEnabled).toBe(true);
+
+      // Test disabling hot reload
+      service.disableFeedConfigurationHotReload();
+
+      const statusAfterDisable = service.getConfigurationStatus();
+      expect(statusAfterDisable.feeds.hotReloadEnabled).toBe(false);
+    });
+
+    it("should reload feed configurations", () => {
+      const initialCount = service.getFeedConfigurations().length;
+
+      // This should not throw an error
+      expect(() => service.reloadFeedConfigurations()).not.toThrow();
+
+      const finalCount = service.getFeedConfigurations().length;
+      expect(finalCount).toBe(initialCount);
+    });
+
+    it("should reload environment configuration", () => {
+      const initialConfig = service.getEnvironmentConfig();
+
+      // This should not throw an error
+      expect(() => service.reloadEnvironmentConfiguration()).not.toThrow();
+
+      const finalConfig = service.getEnvironmentConfig();
+      expect(finalConfig.port).toBe(initialConfig.port);
+    });
+  });
+
+  describe("exchange API keys", () => {
+    it("should return empty object when no API keys are configured", () => {
+      const apiKeys = service.getExchangeApiKeys();
+      expect(typeof apiKeys).toBe("object");
+    });
+
+    it("should return undefined for non-existent exchange API key", () => {
+      const apiKey = service.getExchangeApiKey("non-existent-exchange");
+      expect(apiKey).toBeUndefined();
+    });
+  });
 });

@@ -250,12 +250,13 @@ describe("ProductionDataManagerService", () => {
   });
 
   describe("Error Handling", () => {
-    it("should handle getCurrentPrice not implemented error", async () => {
-      await expect(dataManager.getCurrentPrice(mockFeedId)).rejects.toThrow("getCurrentPrice not yet implemented");
+    it("should handle getCurrentPrice with no data available", async () => {
+      await expect(dataManager.getCurrentPrice(mockFeedId)).rejects.toThrow("No data available for feed BTC/USD");
     });
 
-    it("should handle getCurrentPrices not implemented error", async () => {
-      await expect(dataManager.getCurrentPrices([mockFeedId])).rejects.toThrow("getCurrentPrices not yet implemented");
+    it("should handle getCurrentPrices with no data available", async () => {
+      const result = await dataManager.getCurrentPrices([mockFeedId]);
+      expect(result).toEqual([]); // Should return empty array when no data is available
     });
   });
 });

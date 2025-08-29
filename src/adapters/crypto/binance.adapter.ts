@@ -96,18 +96,32 @@ export class BinanceAdapter extends ExchangeAdapter {
         this.wsConnection.onopen = () => {
           this.isConnectedFlag = true;
           this.startPingInterval();
+          this.onConnectionChangeCallback?.(true);
           resolve();
         };
 
         this.wsConnection.onerror = error => {
           this.isConnectedFlag = false;
           this.stopPingInterval();
-          reject(new Error(`Binance WebSocket connection failed: ${error}`));
+          const connectionError = new Error(`Binance WebSocket connection failed: ${error}`);
+          this.onErrorCallback?.(connectionError);
+          this.onConnectionChangeCallback?.(false);
+          reject(connectionError);
         };
 
-        this.wsConnection.onclose = () => {
+        this.wsConnection.onclose = event => {
           this.isConnectedFlag = false;
           this.stopPingInterval();
+          this.onConnectionChangeCallback?.(false);
+
+          // Emit error if close was unexpected (only if event has code property)
+          if (event && typeof event.code === "number" && event.code !== 1000) {
+            // 1000 is normal closure
+            const closeError = new Error(
+              `Binance WebSocket closed unexpectedly: ${event.code} - ${event.reason || "Unknown reason"}`
+            );
+            this.onErrorCallback?.(closeError);
+          }
         };
 
         this.wsConnection.onmessage = event => {
@@ -127,7 +141,8 @@ export class BinanceAdapter extends ExchangeAdapter {
               this.onPriceUpdateCallback?.(priceUpdate);
             }
           } catch (error) {
-            console.error("Error processing Binance message:", error);
+            const parseError = new Error(`Error processing Binance message: ${error}`);
+            this.onErrorCallback?.(parseError);
           }
         };
       } catch (error) {
@@ -259,9 +274,19 @@ export class BinanceAdapter extends ExchangeAdapter {
 
   // Event handlers
   private onPriceUpdateCallback?: (update: PriceUpdate) => void;
+  private onConnectionChangeCallback?: (connected: boolean) => void;
+  private onErrorCallback?: (error: Error) => void;
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
     this.onPriceUpdateCallback = callback;
+  }
+
+  onConnectionChange(callback: (connected: boolean) => void): void {
+    this.onConnectionChangeCallback = callback;
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.onErrorCallback = callback;
   }
 
   // Simple method to convert exchange symbol back to normalized format
