@@ -7,8 +7,8 @@
  * about any issues or warnings.
  *
  * Usage:
- *   npx ts-node src/config/validate-config.ts
- *   npm run validate-config
+ *   pnpm exec ts-node src/config/validate-config.ts
+ *   pnpm validate-config
  *
  * Requirements: 5.1, 5.2
  */

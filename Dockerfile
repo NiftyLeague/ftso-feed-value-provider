@@ -1,12 +1,12 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
-COPY package.json yarn.lock ./
-RUN --mount=type=cache,target=/root/.cache/yarn \
-    yarn install --frozen-lockfile
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm \
+    corepack enable && pnpm install --frozen-lockfile
 COPY . .
-RUN yarn build
-RUN yarn install --production --frozen-lockfile \
-    && yarn cache clean
+RUN pnpm build
+RUN pnpm install --production --frozen-lockfile \
+    && pnpm store prune
 
 FROM node:22-alpine AS release
 WORKDIR /app

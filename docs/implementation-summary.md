@@ -212,8 +212,8 @@ The implementation is now production-ready with:
 ### Start the Server
 
 ```bash
-npm run build
-npm run start
+pnpm build
+pnpm start
 ```
 
 ### API Documentation

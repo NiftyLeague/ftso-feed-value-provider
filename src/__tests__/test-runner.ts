@@ -403,7 +403,7 @@ async function main(): Promise<void> {
     console.log(`
 FTSO Provider Test Runner
 
-Usage: npm run test:comprehensive [options]
+Usage: pnpm test:comprehensive [options]
 
 Options:
   --help, -h     Show this help message
@@ -411,9 +411,9 @@ Options:
   --suite        Run only specific test suite by name
 
 Examples:
-  npm run test:comprehensive
-  npm run test:comprehensive -- --category performance
-  npm run test:comprehensive -- --suite "Load Testing"
+  pnpm test:comprehensive
+  pnpm test:comprehensive -- --category performance
+  pnpm test:comprehensive -- --suite "Load Testing"
     `);
     return;
   }

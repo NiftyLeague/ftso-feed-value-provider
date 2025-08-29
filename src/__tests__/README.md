@@ -147,35 +147,35 @@ Scenarios**:
 
 ```bash
 # Run all tests (comprehensive suite)
-npm run test:comprehensive
+pnpm test:comprehensive
 
 # Run specific test categories
-npm run test:unit
-npm run test:integration
-npm run test:performance
-npm run test:accuracy
+pnpm test:unit
+pnpm test:integration
+pnpm test:performance
+pnpm test:accuracy
 ```
 
 ### Individual Test Suites
 
 ```bash
 # Performance tests
-npm run test:load          # Load testing
-npm run test:latency       # Latency testing
-npm run test:endurance     # Endurance testing
+pnpm test:load          # Load testing
+pnpm test:latency       # Latency testing
+pnpm test:endurance     # Endurance testing
 
 # Accuracy tests
-npm run test:backtesting   # Historical accuracy validation
+pnpm test:backtesting   # Historical accuracy validation
 ```
 
 ### Advanced Usage
 
 ```bash
 # Run specific test suite
-npm run test:comprehensive -- --suite "Load Testing"
+pnpm test:comprehensive -- --suite "Load Testing"
 
 # Run with custom category
-npm run test:comprehensive -- --category performance
+pnpm test:comprehensive -- --category performance
 ```
 
 ## Test Configuration
@@ -238,13 +238,13 @@ The test suite is designed for CI/CD integration:
 
 ```bash
 # Run with debug output
-npm run test:debug
+pnpm test:debug
 
 # Run specific failing test
 jest --testNamePattern="specific test name" --verbose
 
 # Memory profiling
-node --inspect --expose-gc npm run test:endurance
+node --inspect --expose-gc pnpm test:endurance
 ```
 
 ## Contributing

@@ -2,7 +2,8 @@
 
 ## Problem
 
-Jest worker processes were failing to exit gracefully due to resource leaks, specifically:
+Jest worker processes were failing to exit gracefully due to resource leaks,
+specifically:
 
 - Unclosed timers (`setTimeout`, `setInterval`)
 - WebSocket connections not properly cleaned up
@@ -10,7 +11,8 @@ Jest worker processes were failing to exit gracefully due to resource leaks, spe
 
 ## Root Cause
 
-Several services in the codebase use timers and intervals for background operations:
+Several services in the codebase use timers and intervals for background
+operations:
 
 - `FailoverManager` - health monitoring intervals
 - `ValidationService` - cleanup intervals
@@ -18,13 +20,15 @@ Several services in the codebase use timers and intervals for background operati
 - `PerformanceMonitorService` - periodic monitoring
 - `WebSocketConnectionManager` - ping/reconnect timers
 
-These resources were not being properly cleaned up in tests, causing Jest workers to hang.
+These resources were not being properly cleaned up in tests, causing Jest
+workers to hang.
 
 ## Solution
 
 ### 1. Enhanced Test Setup (`src/__tests__/test-setup.ts`)
 
-- **Timer Tracking**: Override global `setTimeout` and `setInterval` to track all active timers
+- **Timer Tracking**: Override global `setTimeout` and `setInterval` to track
+  all active timers
 - **Automatic Cleanup**: Clear all tracked timers in `afterEach` hooks
 - **Console Suppression**: Suppress expected error logs during tests
 
@@ -102,11 +106,14 @@ afterEach(async () => {
 
 ## Best Practices Going Forward
 
-1. **Always Clean Up Resources**: Ensure services with timers/intervals have `destroy()` methods
+1. **Always Clean Up Resources**: Ensure services with timers/intervals have
+   `destroy()` methods
 2. **Use Test Teardown**: Add `afterEach` cleanup in tests that create services
-3. **Monitor Open Handles**: Run tests with `--detectOpenHandles` to catch leaks early
+3. **Monitor Open Handles**: Run tests with `--detectOpenHandles` to catch leaks
+   early
 4. **Avoid Force Exit**: Let Jest exit naturally after proper cleanup
-5. **Track Background Processes**: Be aware of any code that creates timers, intervals, or connections
+5. **Track Background Processes**: Be aware of any code that creates timers,
+   intervals, or connections
 
 ## Files Modified
 
@@ -117,4 +124,5 @@ afterEach(async () => {
 - `package.json` - Removed duplicate Jest config
 - Various test files - Added proper service cleanup in teardown hooks
 
-This comprehensive solution ensures that all Jest tests exit cleanly and prevents resource leaks that could cause hanging processes.
+This comprehensive solution ensures that all Jest tests exit cleanly and
+prevents resource leaks that could cause hanging processes.
