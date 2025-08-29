@@ -1,84 +1,63 @@
-export interface MetricsCollector {
-  recordLatency(operation: string, duration: number): void;
-  recordAccuracy(feedId: string, deviation: number): void;
-  recordError(component: string, error: Error): void;
-  recordConnectionStatus(source: string, connected: boolean): void;
-  getMetrics(): Promise<SystemMetrics>;
-}
-
-export interface SystemMetrics {
-  accuracy: AccuracyMetrics;
-  performance: PerformanceMetrics;
-  health: HealthMetrics;
-  operational: OperationalMetrics;
-}
-
 export interface AccuracyMetrics {
-  consensusDeviation: number;
-  accuracyRate: number;
-  qualityScore: number;
-  sourceReliability: Map<string, number>;
+  consensusDeviation: number; // Percentage deviation from consensus median
+  accuracyRate: number; // Percentage of values within 0.5% of consensus
+  qualityScore: number; // Overall quality score (0-100)
+  timestamp: number;
+  feedId: string;
+  votingRound?: number;
 }
 
 export interface PerformanceMetrics {
-  responseLatency: number;
-  dataFreshness: number;
-  throughput: number;
-  cacheHitRate: number;
+  responseLatency: number; // Response time in milliseconds
+  dataFreshness: number; // Age of data in milliseconds
+  throughput: number; // Requests per second
+  cacheHitRate: number; // Cache hit percentage
+  timestamp: number;
 }
 
 export interface HealthMetrics {
-  connectionStatus: Map<string, boolean>;
-  errorRates: Map<string, number>;
-  resourceUsage: ResourceUsage;
-  uptime: number;
-}
-
-export interface OperationalMetrics {
-  criticalOperations: number;
-  providerLatency: Map<string, number>;
-  componentHealth: Map<string, boolean>;
-  troubleshootingInfo: TroubleshootingInfo[];
-}
-
-export interface ResourceUsage {
-  cpu: number;
-  memory: number;
-  network: number;
-}
-
-export interface TroubleshootingInfo {
+  connectionStatus: Map<string, boolean>; // Exchange connection status
+  errorRate: number; // Errors per minute
+  cpuUsage: number; // CPU usage percentage
+  memoryUsage: number; // Memory usage percentage
+  uptime: number; // Uptime in milliseconds
   timestamp: number;
-  component: string;
-  error: string;
-  context: Record<string, any>;
 }
 
-export enum AlertSeverity {
-  INFO = "info",
-  WARNING = "warning",
-  ERROR = "error",
-  CRITICAL = "critical",
+export interface QualityScore {
+  accuracy: number; // 0-100 based on consensus alignment
+  latency: number; // 0-100 based on response time
+  coverage: number; // 0-100 based on source availability
+  reliability: number; // 0-100 based on historical uptime
+  overall: number; // Weighted average of all components
 }
 
-export enum AlertAction {
-  LOG = "log",
-  EMAIL = "email",
-  SLACK = "slack",
-  PAGERDUTY = "pagerduty",
+export interface ConsensusData {
+  median: number;
+  deviation: number;
+  sourceCount: number;
+  timestamp: number;
 }
 
-export interface AlertRule {
-  metric: string;
-  threshold: number;
-  severity: AlertSeverity;
-  duration: number;
-  action: AlertAction;
+export interface AccuracyThresholds {
+  maxConsensusDeviation: number; // 0.5% for FTSO requirement
+  minAccuracyRate: number; // 80% target
+  minQualityScore: number; // Minimum acceptable quality
 }
 
-export interface AlertManager {
-  addRule(rule: AlertRule): void;
-  removeRule(ruleId: string): void;
-  checkRules(metrics: SystemMetrics): void;
-  sendAlert(severity: AlertSeverity, message: string, action: AlertAction): void;
+export interface MonitoringConfig {
+  accuracyThresholds: AccuracyThresholds;
+  performanceThresholds: {
+    maxResponseLatency: number; // 100ms target
+    maxDataAge: number; // 2000ms target
+    minThroughput: number;
+    minCacheHitRate: number;
+  };
+  healthThresholds: {
+    maxErrorRate: number;
+    maxCpuUsage: number;
+    maxMemoryUsage: number;
+    minConnectionRate: number;
+  };
+  monitoringInterval: number; // Monitoring frequency in ms
 }
