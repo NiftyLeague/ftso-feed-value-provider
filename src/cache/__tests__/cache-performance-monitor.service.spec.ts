@@ -7,7 +7,7 @@ describe("CachePerformanceMonitorService", () => {
 
   beforeEach(() => {
     cacheService = new RealTimeCacheService();
-    performanceMonitor = new CachePerformanceMonitorService(cacheService, 100); // Short interval for testing
+    performanceMonitor = new CachePerformanceMonitorService(cacheService); // Short interval for testing
   });
 
   afterEach(() => {

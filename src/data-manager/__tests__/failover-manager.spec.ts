@@ -80,7 +80,7 @@ describe("FailoverManager", () => {
       providers: [
         {
           provide: FailoverManager,
-          useFactory: () => new FailoverManager(testConfig),
+          useFactory: () => new FailoverManager(),
         },
       ],
     }).compile();
@@ -498,7 +498,7 @@ describe("FailoverManager", () => {
 
     it("should merge provided configuration with defaults", () => {
       const customConfig = { maxFailoverTime: 50 };
-      const customManager = new FailoverManager(customConfig);
+      const customManager = new FailoverManager();
 
       const config = (customManager as any).config;
 

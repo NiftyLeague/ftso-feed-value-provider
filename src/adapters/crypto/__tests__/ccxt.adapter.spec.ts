@@ -91,7 +91,7 @@ describe("CcxtMultiExchangeAdapter", () => {
         tier1Exchanges: ["binance", "coinbase"],
       };
 
-      const customAdapter = new CcxtMultiExchangeAdapter(customConfig);
+      const customAdapter = new CcxtMultiExchangeAdapter();
       const config = customAdapter.getConfig();
 
       expect(config.tradesLimit).toBe(2000);
@@ -335,7 +335,7 @@ describe("CcxtMultiExchangeAdapter", () => {
         enableUsdtConversion: false,
       };
 
-      const adapterWithoutConversion = new CcxtMultiExchangeAdapter(configWithoutConversion);
+      const adapterWithoutConversion = new CcxtMultiExchangeAdapter();
 
       const result = await adapterWithoutConversion.convertUsdtToUsd(1000);
 

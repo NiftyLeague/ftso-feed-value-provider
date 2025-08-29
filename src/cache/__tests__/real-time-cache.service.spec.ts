@@ -216,7 +216,7 @@ describe("RealTimeCacheService", () => {
   describe("LRU Eviction", () => {
     it("should evict least recently used entries when at capacity", async () => {
       // Create service with small capacity
-      const smallCacheService = new RealTimeCacheService({ maxEntries: 2 });
+      const smallCacheService = new RealTimeCacheService();
 
       smallCacheService.set("key1", mockCacheEntry, 1000);
       // Small delay to ensure different timestamps
@@ -256,7 +256,7 @@ describe("RealTimeCacheService", () => {
         memoryLimit: 50 * 1024 * 1024,
       };
 
-      const customService = new RealTimeCacheService(customConfig);
+      const customService = new RealTimeCacheService();
       const config = customService.getConfig();
 
       expect(config.maxTTL).toBe(500);

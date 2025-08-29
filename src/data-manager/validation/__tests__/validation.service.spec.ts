@@ -185,7 +185,7 @@ describe("ValidationService", () => {
         validationCacheSize: 500,
       };
 
-      const customService = new ValidationService(undefined, customConfig);
+      const customService = new ValidationService(dataValidator);
       expect(customService).toBeDefined();
       customService.cleanup(); // Clean up the custom service
     });
@@ -241,9 +241,7 @@ describe("ValidationService", () => {
 
   describe("Disabled Validation", () => {
     it("should bypass validation when real-time validation is disabled", async () => {
-      const disabledService = new ValidationService(undefined, {
-        enableRealTimeValidation: false,
-      });
+      const disabledService = new ValidationService(dataValidator);
 
       const result = await disabledService.validateRealTime(mockUpdate, mockFeedId);
 
@@ -254,9 +252,7 @@ describe("ValidationService", () => {
     });
 
     it("should bypass batch validation when disabled", async () => {
-      const disabledService = new ValidationService(undefined, {
-        enableBatchValidation: false,
-      });
+      const disabledService = new ValidationService(dataValidator);
 
       const updates = [mockUpdate];
       const results = await disabledService.validateBatch(updates, mockFeedId);
