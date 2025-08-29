@@ -1,0 +1,429 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { EventEmitter } from "events";
+
+export enum CircuitBreakerState {
+  CLOSED = "closed", // Normal operation
+  OPEN = "open", // Circuit is open, requests fail fast
+  HALF_OPEN = "half_open", // Testing if service has recovered
+}
+
+export interface CircuitBreakerConfig {
+  failureThreshold: number; // Number of failures before opening circuit
+  recoveryTimeout: number; // Time to wait before attempting recovery (ms)
+  successThreshold: number; // Number of successes needed to close circuit in half-open state
+  timeout: number; // Request timeout (ms)
+  monitoringWindow: number; // Time window for failure counting (ms)
+}
+
+export interface CircuitBreakerStats {
+  state: CircuitBreakerState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime?: number;
+  lastSuccessTime?: number;
+  totalRequests: number;
+  totalFailures: number;
+  totalSuccesses: number;
+  uptime: number;
+}
+
+export interface CircuitBreakerMetrics {
+  requestCount: number;
+  failureRate: number;
+  averageResponseTime: number;
+  lastStateChange: number;
+}
+
+@Injectable()
+export class CircuitBreakerService extends EventEmitter {
+  private readonly logger = new Logger(CircuitBreakerService.name);
+
+  private circuits = new Map<string, CircuitBreakerState>();
+  private configs = new Map<string, CircuitBreakerConfig>();
+  private stats = new Map<string, CircuitBreakerStats>();
+  private timers = new Map<string, NodeJS.Timeout>();
+  private requestHistory = new Map<string, Array<{ timestamp: number; success: boolean; responseTime: number }>>();
+
+  private readonly defaultConfig: CircuitBreakerConfig = {
+    failureThreshold: 5, // Open after 5 failures
+    recoveryTimeout: 60000, // Wait 60 seconds before trying again
+    successThreshold: 3, // Need 3 successes to close circuit
+    timeout: 5000, // 5 second timeout
+    monitoringWindow: 300000, // 5 minute monitoring window
+  };
+
+  /**
+   * Register a new circuit breaker for a service
+   */
+  registerCircuit(serviceId: string, config?: Partial<CircuitBreakerConfig>): void {
+    this.logger.log(`Registering circuit breaker for service: ${serviceId}`);
+
+    const fullConfig = { ...this.defaultConfig, ...config };
+    this.configs.set(serviceId, fullConfig);
+    this.circuits.set(serviceId, CircuitBreakerState.CLOSED);
+    this.requestHistory.set(serviceId, []);
+
+    this.stats.set(serviceId, {
+      state: CircuitBreakerState.CLOSED,
+      failureCount: 0,
+      successCount: 0,
+      totalRequests: 0,
+      totalFailures: 0,
+      totalSuccesses: 0,
+      uptime: Date.now(),
+    });
+
+    this.emit("circuitRegistered", serviceId, fullConfig);
+  }
+
+  /**
+   * Execute a request through the circuit breaker
+   */
+  async execute<T>(serviceId: string, operation: () => Promise<T>): Promise<T> {
+    const state = this.circuits.get(serviceId);
+    const config = this.configs.get(serviceId);
+    const stats = this.stats.get(serviceId);
+
+    if (!state || !config || !stats) {
+      throw new Error(`Circuit breaker not registered for service: ${serviceId}`);
+    }
+
+    stats.totalRequests++;
+
+    // Check if circuit is open
+    if (state === CircuitBreakerState.OPEN) {
+      const timeSinceLastFailure = Date.now() - (stats.lastFailureTime || 0);
+
+      if (timeSinceLastFailure < config.recoveryTimeout) {
+        const error = new Error(`Circuit breaker is OPEN for service: ${serviceId}`);
+        this.recordFailure(serviceId, 0);
+        throw error;
+      } else {
+        // Transition to half-open state
+        this.transitionToHalfOpen(serviceId);
+      }
+    }
+
+    // Execute the operation with timeout
+    const startTime = Date.now();
+    try {
+      const result = await Promise.race([
+        operation(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Operation timeout for ${serviceId}`)), config.timeout)
+        ),
+      ]);
+
+      const responseTime = Date.now() - startTime;
+      this.recordSuccess(serviceId, responseTime);
+      return result;
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      this.recordFailure(serviceId, responseTime);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current state of a circuit breaker
+   */
+  getState(serviceId: string): CircuitBreakerState | undefined {
+    return this.circuits.get(serviceId);
+  }
+
+  /**
+   * Get statistics for a circuit breaker
+   */
+  getStats(serviceId: string): CircuitBreakerStats | undefined {
+    return this.stats.get(serviceId);
+  }
+
+  /**
+   * Get metrics for a circuit breaker
+   */
+  getMetrics(serviceId: string): CircuitBreakerMetrics | undefined {
+    const history = this.requestHistory.get(serviceId);
+    const stats = this.stats.get(serviceId);
+
+    if (!history || !stats) {
+      return undefined;
+    }
+
+    const now = Date.now();
+    const config = this.configs.get(serviceId);
+    const windowStart = now - (config?.monitoringWindow || this.defaultConfig.monitoringWindow);
+
+    // Filter requests within monitoring window
+    const recentRequests = history.filter(req => req.timestamp >= windowStart);
+
+    if (recentRequests.length === 0) {
+      return {
+        requestCount: 0,
+        failureRate: 0,
+        averageResponseTime: 0,
+        lastStateChange: stats.uptime,
+      };
+    }
+
+    const failures = recentRequests.filter(req => !req.success);
+    const totalResponseTime = recentRequests.reduce((sum, req) => sum + req.responseTime, 0);
+
+    return {
+      requestCount: recentRequests.length,
+      failureRate: failures.length / recentRequests.length,
+      averageResponseTime: totalResponseTime / recentRequests.length,
+      lastStateChange: stats.uptime,
+    };
+  }
+
+  /**
+   * Manually open a circuit breaker
+   */
+  openCircuit(serviceId: string, reason?: string): void {
+    this.logger.warn(`Manually opening circuit for ${serviceId}: ${reason || "Manual trigger"}`);
+    this.transitionToOpen(serviceId);
+  }
+
+  /**
+   * Manually close a circuit breaker
+   */
+  closeCircuit(serviceId: string, reason?: string): void {
+    this.logger.log(`Manually closing circuit for ${serviceId}: ${reason || "Manual trigger"}`);
+    this.transitionToClosed(serviceId);
+  }
+
+  /**
+   * Reset circuit breaker statistics
+   */
+  resetStats(serviceId: string): void {
+    const stats = this.stats.get(serviceId);
+    if (stats) {
+      stats.failureCount = 0;
+      stats.successCount = 0;
+      stats.totalRequests = 0;
+      stats.totalFailures = 0;
+      stats.totalSuccesses = 0;
+      stats.lastFailureTime = undefined;
+      stats.lastSuccessTime = undefined;
+    }
+
+    this.requestHistory.set(serviceId, []);
+    this.logger.log(`Reset statistics for circuit breaker: ${serviceId}`);
+  }
+
+  /**
+   * Get all circuit breaker states
+   */
+  getAllStates(): Map<string, CircuitBreakerState> {
+    return new Map(this.circuits);
+  }
+
+  /**
+   * Get health summary for all circuits
+   */
+  getHealthSummary(): {
+    total: number;
+    closed: number;
+    open: number;
+    halfOpen: number;
+    healthyPercentage: number;
+  } {
+    const states = Array.from(this.circuits.values());
+    const total = states.length;
+    const closed = states.filter(s => s === CircuitBreakerState.CLOSED).length;
+    const open = states.filter(s => s === CircuitBreakerState.OPEN).length;
+    const halfOpen = states.filter(s => s === CircuitBreakerState.HALF_OPEN).length;
+
+    return {
+      total,
+      closed,
+      open,
+      halfOpen,
+      healthyPercentage: total > 0 ? (closed / total) * 100 : 0,
+    };
+  }
+
+  /**
+   * Unregister a circuit breaker
+   */
+  unregisterCircuit(serviceId: string): void {
+    this.logger.log(`Unregistering circuit breaker for service: ${serviceId}`);
+
+    // Clear any pending timers
+    const timer = this.timers.get(serviceId);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(serviceId);
+    }
+
+    // Clean up all data
+    this.circuits.delete(serviceId);
+    this.configs.delete(serviceId);
+    this.stats.delete(serviceId);
+    this.requestHistory.delete(serviceId);
+
+    this.emit("circuitUnregistered", serviceId);
+  }
+
+  private recordSuccess(serviceId: string, responseTime: number): void {
+    const stats = this.stats.get(serviceId);
+    const config = this.configs.get(serviceId);
+    const history = this.requestHistory.get(serviceId);
+
+    if (!stats || !config || !history) return;
+
+    stats.successCount++;
+    stats.totalSuccesses++;
+    stats.lastSuccessTime = Date.now();
+
+    // Add to history
+    history.push({
+      timestamp: Date.now(),
+      success: true,
+      responseTime,
+    });
+
+    // Clean old history
+    this.cleanHistory(serviceId);
+
+    const currentState = this.circuits.get(serviceId);
+
+    if (currentState === CircuitBreakerState.HALF_OPEN) {
+      if (stats.successCount >= config.successThreshold) {
+        this.transitionToClosed(serviceId);
+      }
+    } else if (currentState === CircuitBreakerState.CLOSED) {
+      // Reset failure count on success
+      stats.failureCount = 0;
+    }
+
+    this.emit("requestSuccess", serviceId, responseTime);
+  }
+
+  private recordFailure(serviceId: string, responseTime: number): void {
+    const stats = this.stats.get(serviceId);
+    const config = this.configs.get(serviceId);
+    const history = this.requestHistory.get(serviceId);
+
+    if (!stats || !config || !history) return;
+
+    stats.failureCount++;
+    stats.totalFailures++;
+    stats.lastFailureTime = Date.now();
+
+    // Add to history
+    history.push({
+      timestamp: Date.now(),
+      success: false,
+      responseTime,
+    });
+
+    // Clean old history
+    this.cleanHistory(serviceId);
+
+    const currentState = this.circuits.get(serviceId);
+
+    if (currentState === CircuitBreakerState.HALF_OPEN) {
+      // Any failure in half-open state opens the circuit
+      this.transitionToOpen(serviceId);
+    } else if (currentState === CircuitBreakerState.CLOSED) {
+      // Check if we should open the circuit
+      if (stats.failureCount >= config.failureThreshold) {
+        this.transitionToOpen(serviceId);
+      }
+    }
+
+    this.emit("requestFailure", serviceId, responseTime);
+  }
+
+  private transitionToClosed(serviceId: string): void {
+    this.circuits.set(serviceId, CircuitBreakerState.CLOSED);
+    const stats = this.stats.get(serviceId);
+
+    if (stats) {
+      stats.state = CircuitBreakerState.CLOSED;
+      stats.failureCount = 0;
+      stats.successCount = 0;
+    }
+
+    // Clear any recovery timer
+    const timer = this.timers.get(serviceId);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(serviceId);
+    }
+
+    this.logger.log(`Circuit breaker CLOSED for service: ${serviceId}`);
+    this.emit("circuitClosed", serviceId);
+  }
+
+  private transitionToOpen(serviceId: string): void {
+    this.circuits.set(serviceId, CircuitBreakerState.OPEN);
+    const stats = this.stats.get(serviceId);
+    const config = this.configs.get(serviceId);
+
+    if (stats) {
+      stats.state = CircuitBreakerState.OPEN;
+      stats.successCount = 0;
+    }
+
+    if (config) {
+      // Schedule transition to half-open
+      const timer = setTimeout(() => {
+        this.transitionToHalfOpen(serviceId);
+      }, config.recoveryTimeout);
+
+      this.timers.set(serviceId, timer);
+    }
+
+    this.logger.warn(`Circuit breaker OPENED for service: ${serviceId}`);
+    this.emit("circuitOpened", serviceId);
+  }
+
+  private transitionToHalfOpen(serviceId: string): void {
+    this.circuits.set(serviceId, CircuitBreakerState.HALF_OPEN);
+    const stats = this.stats.get(serviceId);
+
+    if (stats) {
+      stats.state = CircuitBreakerState.HALF_OPEN;
+      stats.successCount = 0;
+      stats.failureCount = 0;
+    }
+
+    this.logger.log(`Circuit breaker HALF-OPEN for service: ${serviceId}`);
+    this.emit("circuitHalfOpen", serviceId);
+  }
+
+  private cleanHistory(serviceId: string): void {
+    const history = this.requestHistory.get(serviceId);
+    const config = this.configs.get(serviceId);
+
+    if (!history || !config) return;
+
+    const cutoff = Date.now() - config.monitoringWindow;
+    const filteredHistory = history.filter(req => req.timestamp >= cutoff);
+
+    // Keep only recent history to prevent memory leaks
+    if (filteredHistory.length > 1000) {
+      filteredHistory.splice(0, filteredHistory.length - 1000);
+    }
+
+    this.requestHistory.set(serviceId, filteredHistory);
+  }
+
+  /**
+   * Cleanup method
+   */
+  destroy(): void {
+    // Clear all timers
+    for (const timer of this.timers.values()) {
+      clearTimeout(timer);
+    }
+
+    this.circuits.clear();
+    this.configs.clear();
+    this.stats.clear();
+    this.timers.clear();
+    this.requestHistory.clear();
+  }
+}
