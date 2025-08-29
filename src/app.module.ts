@@ -32,8 +32,8 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     ConfigModule,
     CacheModule,
     AggregatorsModule,
-    // Production integration module
-    IntegrationModule,
+    // Conditionally import production integration module
+    ...(process.env.USE_PRODUCTION_INTEGRATION !== "false" ? [IntegrationModule] : []),
   ],
   controllers: [FtsoProviderController],
   providers: [
@@ -58,15 +58,15 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     {
       provide: "FTSO_PROVIDER_SERVICE",
       useFactory: async (
-        integrationService: ProductionIntegrationService,
         cacheService: RealTimeCacheService,
-        aggregationService: RealTimeAggregationService
+        aggregationService: RealTimeAggregationService,
+        integrationService?: ProductionIntegrationService
       ) => {
         try {
           // Check if we should use production integration or legacy mode
           const useProduction = process.env.USE_PRODUCTION_INTEGRATION !== "false";
 
-          if (useProduction) {
+          if (useProduction && integrationService) {
             // Use production integration service with injected services
             const service = new FtsoProviderService(
               null, // No legacy data feed needed
@@ -102,7 +102,11 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
           throw error;
         }
       },
-      inject: [ProductionIntegrationService, RealTimeCacheService, RealTimeAggregationService],
+      inject: [
+        RealTimeCacheService,
+        RealTimeAggregationService,
+        { token: ProductionIntegrationService, optional: true },
+      ],
     },
 
     // Provide the service for direct injection (for health checks)

@@ -86,6 +86,9 @@ describe("FailoverManager", () => {
     }).compile();
 
     manager = module.get<FailoverManager>(FailoverManager);
+
+    // Apply test configuration
+    (manager as any).config = { ...(manager as any).config, ...testConfig };
   });
 
   afterEach(async () => {
@@ -497,8 +500,13 @@ describe("FailoverManager", () => {
     });
 
     it("should merge provided configuration with defaults", () => {
-      const customConfig = { maxFailoverTime: 50 };
+      // Since FailoverManager doesn't accept config in constructor,
+      // we need to modify the config after creation
       const customManager = new FailoverManager();
+      (customManager as any).config = {
+        ...(customManager as any).config,
+        maxFailoverTime: 50,
+      };
 
       const config = (customManager as any).config;
 

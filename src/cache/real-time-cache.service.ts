@@ -13,7 +13,7 @@ interface CacheItem {
 export class RealTimeCacheService implements RealTimeCache {
   private readonly logger = new Logger(RealTimeCacheService.name);
   private readonly cache = new Map<string, CacheItem>();
-  private readonly config: CacheConfig;
+  private config: CacheConfig;
   private readonly cleanupInterval: NodeJS.Timeout;
   private stats = {
     hits: 0,
@@ -32,6 +32,19 @@ export class RealTimeCacheService implements RealTimeCache {
 
     // Start cleanup interval for expired entries
     this.cleanupInterval = setInterval(() => this.cleanupExpiredEntries(), 500);
+  }
+
+  // Method to create a service with custom configuration (for testing)
+  static withConfig(config: Partial<CacheConfig>): RealTimeCacheService {
+    const service = new RealTimeCacheService();
+    service.config = {
+      maxTTL: 1000,
+      maxEntries: 10000,
+      evictionPolicy: "LRU",
+      memoryLimit: 100 * 1024 * 1024,
+      ...config,
+    };
+    return service;
   }
 
   set(key: string, value: CacheEntry, ttl: number): void {
@@ -142,8 +155,8 @@ export class RealTimeCacheService implements RealTimeCache {
 
   // Cache invalidation on new price updates (requirement 6.5)
   invalidateOnPriceUpdate(feedId: EnhancedFeedId): void {
-    // Only invalidate voting round cache, not the current price
-    // The current price will be updated with the new value
+    // Only invalidate voting round cache, not current price cache
+    // Current price should remain cached until it expires naturally
     this.invalidateFeedCache(feedId);
 
     this.logger.debug(`Invalidated voting round cache for feed: ${feedId.category}/${feedId.name}`);

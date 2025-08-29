@@ -175,7 +175,7 @@ describe("AlertingService", () => {
 
       // Create new service instance with updated config
       const testService = new AlertingService(mockConfig);
-      const rateLimitSpy = jest.spyOn(testService["logger"], "warn");
+      const rateLimitSpy = jest.spyOn(testService["enhancedLogger"], "warn");
 
       // Trigger first alert (should work)
       testService.evaluateMetric("consensus_deviation", 0.8);
@@ -187,7 +187,10 @@ describe("AlertingService", () => {
       testService.evaluateMetric("consensus_deviation", 0.9);
 
       // Should have logged rate limit warning
-      expect(rateLimitSpy).toHaveBeenCalledWith(expect.stringContaining("Alert rate limit exceeded"));
+      expect(rateLimitSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Alert rate limit exceeded"),
+        expect.any(Object)
+      );
     });
   });
 

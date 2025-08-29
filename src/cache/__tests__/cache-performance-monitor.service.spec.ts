@@ -96,8 +96,8 @@ describe("CachePerformanceMonitorService", () => {
 
   describe("Memory Usage Tracking", () => {
     it("should track memory usage history", async () => {
-      // Wait for at least one monitoring cycle
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Manually trigger metrics collection
+      performanceMonitor.triggerCollection();
 
       const history = performanceMonitor.getMemoryUsageHistory(1); // Last 1 minute
       expect(history.length).toBeGreaterThan(0);
@@ -200,8 +200,8 @@ describe("CachePerformanceMonitorService", () => {
 
   describe("Monitoring Process", () => {
     it("should collect metrics automatically", async () => {
-      // Wait for monitoring cycles
-      await new Promise(resolve => setTimeout(resolve, 250));
+      // Manually trigger metrics collection
+      performanceMonitor.triggerCollection();
 
       const history = performanceMonitor.getMemoryUsageHistory(1);
       expect(history.length).toBeGreaterThan(0);
@@ -215,8 +215,8 @@ describe("CachePerformanceMonitorService", () => {
         cacheService.get(`nonexistent${i}`); // All misses
       }
 
-      // Wait for monitoring cycle
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Trigger metrics collection to check performance
+      performanceMonitor.triggerCollection();
 
       expect(logSpy).toHaveBeenCalledWith("Cache performance degraded", expect.any(Object));
 

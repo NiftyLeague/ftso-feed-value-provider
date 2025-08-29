@@ -76,6 +76,20 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     this.ccxtFeed = new CcxtFeed();
   }
 
+  // Method to create an adapter with custom configuration (for testing)
+  static withConfig(config: Partial<CcxtMultiExchangeConfig>): CcxtMultiExchangeAdapter {
+    const adapter = new CcxtMultiExchangeAdapter();
+    adapter.adapterConfig = {
+      tradesLimit: 1000,
+      lambda: 0.00005,
+      retryBackoffMs: 10000,
+      enableUsdtConversion: true,
+      tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
+      ...config,
+    };
+    return adapter;
+  }
+
   async connect(): Promise<void> {
     if (this.isInitialized) {
       return;
@@ -326,7 +340,9 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
       const usdtToUsdPrice = await this.getCcxtPrice(this.usdtToUsdFeedId);
       return usdtPrice * usdtToUsdPrice.price;
     } catch (error) {
-      this.logger.warn(`Failed to convert USDT to USD, using USDT price as-is:`, error);
+      if (this.logger && typeof this.logger.warn === "function") {
+        this.logger.warn(`Failed to convert USDT to USD, using USDT price as-is:`, error);
+      }
       return usdtPrice; // Fallback to original price
     }
   }

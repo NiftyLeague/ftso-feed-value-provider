@@ -154,7 +154,15 @@ describe("FtsoProviderController - Production API Endpoints", () => {
       const result = await controller.getCurrentFeedValues(request);
 
       expect(result).toEqual({
-        data: [{ feed: mockFeedId, value: 50000 }],
+        data: [
+          {
+            feed: mockFeedId,
+            value: 50000,
+            source: "aggregated",
+            timestamp: expect.any(Number),
+            confidence: 0.95,
+          },
+        ],
       });
       expect(cacheService.setPrice).toHaveBeenCalledWith(mockFeedId, {
         value: 50000,
@@ -177,7 +185,15 @@ describe("FtsoProviderController - Production API Endpoints", () => {
       const result = await controller.getCurrentFeedValues(request);
 
       expect(result).toEqual({
-        data: [{ feed: mockFeedId, value: 49500 }],
+        data: [
+          {
+            feed: mockFeedId,
+            value: 49500,
+            source: "cache",
+            timestamp: expect.any(Number),
+            confidence: 0.9,
+          },
+        ],
       });
       expect(aggregationService.getAggregatedPrice).not.toHaveBeenCalled();
     });
@@ -191,7 +207,15 @@ describe("FtsoProviderController - Production API Endpoints", () => {
       const result = await controller.getCurrentFeedValues(request);
 
       expect(result).toEqual({
-        data: [mockFeedValue],
+        data: [
+          {
+            feed: mockFeedId,
+            value: 50000,
+            source: "fallback",
+            timestamp: expect.any(Number),
+            confidence: 0.8,
+          },
+        ],
       });
       expect(providerService.getValue).toHaveBeenCalledWith(mockFeedId);
     });
@@ -376,6 +400,9 @@ describe("FtsoProviderController - Production API Endpoints", () => {
       expect(result.data[0]).toEqual({
         feed: mockFeedId,
         value: 50000,
+        source: "fallback_error",
+        timestamp: expect.any(Number),
+        confidence: 0.6,
       });
     });
 

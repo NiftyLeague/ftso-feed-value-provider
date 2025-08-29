@@ -110,12 +110,23 @@ describe("RealTimeCacheService", () => {
       expect(result).toEqual(mockCacheEntry);
     });
 
-    it("should invalidate price cache on update", () => {
+    it("should invalidate voting round cache on price update but keep price cache", () => {
       service.setPrice(mockFeedId, mockCacheEntry);
       expect(service.getPrice(mockFeedId)).toEqual(mockCacheEntry);
 
+      // Set voting round cache
+      service.setForVotingRound(mockFeedId, 123, mockCacheEntry);
+      expect(service.getForVotingRound(mockFeedId, 123)).toEqual({
+        ...mockCacheEntry,
+        votingRound: 123,
+      });
+
       service.invalidateOnPriceUpdate(mockFeedId);
-      expect(service.getPrice(mockFeedId)).toBeNull();
+
+      // Price cache should remain (not invalidated)
+      expect(service.getPrice(mockFeedId)).toEqual(mockCacheEntry);
+      // Voting round cache should be invalidated
+      expect(service.getForVotingRound(mockFeedId, 123)).toBeNull();
     });
 
     it("should use maximum TTL for price data", () => {
@@ -216,7 +227,7 @@ describe("RealTimeCacheService", () => {
   describe("LRU Eviction", () => {
     it("should evict least recently used entries when at capacity", async () => {
       // Create service with small capacity
-      const smallCacheService = new RealTimeCacheService();
+      const smallCacheService = RealTimeCacheService.withConfig({ maxEntries: 2 });
 
       smallCacheService.set("key1", mockCacheEntry, 1000);
       // Small delay to ensure different timestamps
@@ -256,7 +267,7 @@ describe("RealTimeCacheService", () => {
         memoryLimit: 50 * 1024 * 1024,
       };
 
-      const customService = new RealTimeCacheService();
+      const customService = RealTimeCacheService.withConfig(customConfig);
       const config = customService.getConfig();
 
       expect(config.maxTTL).toBe(500);

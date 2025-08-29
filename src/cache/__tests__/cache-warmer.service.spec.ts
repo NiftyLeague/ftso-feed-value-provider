@@ -27,7 +27,9 @@ describe("CacheWarmerService", () => {
 
   beforeEach(() => {
     cacheService = new RealTimeCacheService();
-    warmerService = new CacheWarmerService(cacheService); // Disable auto-warmup for tests
+    warmerService = new CacheWarmerService(cacheService);
+    warmerService.stopWarmupProcess(); // Disable auto-warmup for tests
+    (warmerService as any).config.enabled = false; // Set enabled to false for tests
   });
 
   afterEach(() => {
@@ -235,6 +237,11 @@ describe("CacheWarmerService", () => {
       const spy = jest.spyOn(CacheWarmerService.prototype, "warmPopularFeeds").mockResolvedValue();
 
       const autoWarmerService = new CacheWarmerService(cacheService);
+      // Set a shorter interval for testing
+      (autoWarmerService as any).config.warmupInterval = 50;
+      // Restart the warmup process with the new interval
+      autoWarmerService.stopWarmupProcess();
+      (autoWarmerService as any).startWarmupProcess();
 
       // Wait for at least one interval
       await new Promise(resolve => setTimeout(resolve, 100));

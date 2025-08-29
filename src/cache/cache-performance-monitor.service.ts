@@ -161,6 +161,11 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
     this.logger.debug(`Started cache performance monitoring with ${this.monitoringIntervalMs}ms interval`);
   }
 
+  // Manually trigger metrics collection (for testing)
+  triggerCollection(): void {
+    this.collectMetrics();
+  }
+
   // Collect current metrics
   private collectMetrics(): void {
     const cacheStats = this.cacheService.getStats();

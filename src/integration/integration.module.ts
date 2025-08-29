@@ -69,8 +69,14 @@ import { StartupValidationService } from "./startup-validation.service";
     CcxtMultiExchangeAdapter,
 
     // Validation
-    ValidationService,
     DataValidator,
+    {
+      provide: ValidationService,
+      useFactory: (validator: DataValidator) => {
+        return new ValidationService(validator);
+      },
+      inject: [DataValidator],
+    },
 
     // Factory for creating the integrated FTSO provider service
     {

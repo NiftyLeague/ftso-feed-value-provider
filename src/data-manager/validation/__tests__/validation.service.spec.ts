@@ -241,7 +241,9 @@ describe("ValidationService", () => {
 
   describe("Disabled Validation", () => {
     it("should bypass validation when real-time validation is disabled", async () => {
-      const disabledService = new ValidationService(dataValidator);
+      const disabledService = new ValidationService(dataValidator, {
+        enableRealTimeValidation: false,
+      });
 
       const result = await disabledService.validateRealTime(mockUpdate, mockFeedId);
 
@@ -252,7 +254,9 @@ describe("ValidationService", () => {
     });
 
     it("should bypass batch validation when disabled", async () => {
-      const disabledService = new ValidationService(dataValidator);
+      const disabledService = new ValidationService(dataValidator, {
+        enableBatchValidation: false,
+      });
 
       const updates = [mockUpdate];
       const results = await disabledService.validateBatch(updates, mockFeedId);
