@@ -169,7 +169,7 @@ async function bootstrap() {
 }
 
 async function validateEnvironment(): Promise<void> {
-  const requiredEnvVars = ["VALUE_PROVIDER_CLIENT_PORT", "USE_PRODUCTION_INTEGRATION"];
+  const requiredEnvVars = ["VALUE_PROVIDER_CLIENT_PORT"];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 

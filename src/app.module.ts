@@ -2,12 +2,6 @@ import { Module } from "@nestjs/common";
 import { FtsoProviderService } from "@/app.service";
 import { FtsoProviderController } from "@/app.controller";
 
-// Legacy data feeds (for backward compatibility)
-import { CcxtFeed } from "@/data-feeds/ccxt-provider-service";
-import { RandomFeed } from "@/data-feeds/random-feed";
-import { BaseDataFeed } from "@/data-feeds/base-feed";
-import { FixedFeed } from "@/data-feeds/fixed-feed";
-
 // Production integration
 import { IntegrationModule } from "@/integration/integration.module";
 import { ProductionIntegrationService } from "@/integration/production-integration.service";
@@ -32,8 +26,8 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     ConfigModule,
     CacheModule,
     AggregatorsModule,
-    // Conditionally import production integration module
-    ...(process.env.USE_PRODUCTION_INTEGRATION !== "false" ? [IntegrationModule] : []),
+    // Always use production integration
+    IntegrationModule,
   ],
   controllers: [FtsoProviderController],
   providers: [
@@ -60,53 +54,23 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
       useFactory: async (
         cacheService: RealTimeCacheService,
         aggregationService: RealTimeAggregationService,
-        integrationService?: ProductionIntegrationService
+        integrationService: ProductionIntegrationService
       ) => {
         try {
-          // Check if we should use production integration or legacy mode
-          const useProduction = process.env.USE_PRODUCTION_INTEGRATION !== "false";
+          // Always use production integration service
+          const service = new FtsoProviderService(cacheService, aggregationService);
 
-          if (useProduction && integrationService) {
-            // Use production integration service with injected services
-            const service = new FtsoProviderService(
-              null, // No legacy data feed needed
-              cacheService,
-              aggregationService
-            );
+          // Wire the integration service to the provider service
+          service.setIntegrationService(integrationService);
 
-            // Wire the integration service to the provider service
-            service.setIntegrationService(integrationService);
-
-            console.log("✅ FTSO Provider Service initialized in production mode");
-            return service;
-          } else {
-            // Legacy mode for backward compatibility
-            let dataFeed: BaseDataFeed;
-
-            if (process.env.VALUE_PROVIDER_IMPL == "fixed") {
-              dataFeed = new FixedFeed();
-            } else if (process.env.VALUE_PROVIDER_IMPL == "random") {
-              dataFeed = new RandomFeed();
-            } else {
-              const ccxtFeed = new CcxtFeed();
-              await ccxtFeed.start();
-              dataFeed = ccxtFeed;
-            }
-
-            const service = new FtsoProviderService(dataFeed, cacheService, aggregationService);
-            console.log("✅ FTSO Provider Service initialized in legacy mode");
-            return service;
-          }
+          console.log("✅ FTSO Provider Service initialized in production mode");
+          return service;
         } catch (error) {
           console.error("❌ Failed to initialize FTSO Provider Service:", error);
           throw error;
         }
       },
-      inject: [
-        RealTimeCacheService,
-        RealTimeAggregationService,
-        { token: ProductionIntegrationService, optional: true },
-      ],
+      inject: [RealTimeCacheService, RealTimeAggregationService, ProductionIntegrationService],
     },
 
     // Provide the service for direct injection (for health checks)

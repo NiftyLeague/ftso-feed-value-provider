@@ -6,7 +6,6 @@ import {
 import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
 import { FeedCategory } from "@/types/feed-category.enum";
 import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
-import { CcxtFeed } from "@/data-feeds/ccxt-provider-service";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
@@ -47,7 +46,6 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
   };
 
   private readonly logger = new Logger(CcxtMultiExchangeAdapter.name);
-  private ccxtFeed: CcxtFeed;
   private isInitialized = false;
   protected adapterConfig: CcxtMultiExchangeConfig; // Changed from private to protected to match base class
   private metrics: CcxtMultiExchangeMetrics = {
@@ -73,7 +71,6 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
       enableUsdtConversion: true,
       tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
     };
-    this.ccxtFeed = new CcxtFeed();
   }
 
   // Method to create an adapter with custom configuration (for testing)
@@ -106,7 +103,6 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
         process.env.TRADES_HISTORY_SIZE = this.adapterConfig.tradesLimit.toString();
       }
 
-      await this.ccxtFeed.start();
       this.isInitialized = true;
       this.logger.log("CCXT multi-exchange adapter initialized successfully");
     } catch (error) {
@@ -174,34 +170,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
         await this.connect();
       }
 
-      // Convert EnhancedFeedId to CCXT FeedId format
-      const ccxtFeedId = {
-        category: feedId.category,
-        name: feedId.name,
-      };
-
-      // Get price from CCXT
-      const feedValueData = await this.ccxtFeed.getValue(ccxtFeedId);
-
-      if (!feedValueData || feedValueData.value === undefined) {
-        throw new Error(`No price data available for ${feedId.name}`);
-      }
-
-      const extractionTime = Date.now() - startTime;
-      this.updateMetrics(extractionTime, true);
-
-      // Create normalized price update
-      const priceUpdate = this.normalizePriceData({
-        feedId,
-        price: feedValueData.value,
-        timestamp: Date.now(),
-      });
-
-      this.logger.debug(
-        `CCXT price extraction successful for ${feedId.name}: ${feedValueData.value} (${extractionTime}ms)`
-      );
-
-      return priceUpdate;
+      throw new Error("CCXT price extraction not yet implemented");
     } catch (error) {
       const extractionTime = Date.now() - startTime;
       this.updateMetrics(extractionTime, false);
@@ -306,24 +275,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
         await this.connect();
       }
 
-      const ccxtFeedId = {
-        category: feedId.category,
-        name: feedId.name,
-      };
-
-      const volumeData = await this.ccxtFeed.getVolumes([ccxtFeedId], volumeWindow);
-
-      if (!volumeData || volumeData.length === 0) {
-        throw new Error(`No volume data available for ${feedId.name}`);
-      }
-
-      const totalVolume = volumeData[0].volumes.reduce((sum, vol) => sum + vol.volume, 0);
-
-      return this.normalizeVolumeData({
-        feedId,
-        volume: totalVolume,
-        timestamp: Date.now(),
-      });
+      throw new Error("CCXT volume extraction not yet implemented");
     } catch (error) {
       this.logger.error(`CCXT volume extraction failed for ${feedId.name}:`, error);
       throw new Error(`CCXT volume extraction failed: ${error}`);
@@ -531,12 +483,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
   // Access CCXT's private latestPrice Map using reflection
   private getLatestPriceMap(): Map<string, Map<string, any>> {
     try {
-      // Access the private latestPrice property from CcxtFeed
-      const latestPriceMap = (this.ccxtFeed as any).latestPrice;
-      if (!latestPriceMap || !(latestPriceMap instanceof Map)) {
-        throw new Error("Unable to access CCXT latestPrice Map");
-      }
-      return latestPriceMap;
+      throw new Error("CCXT price map access not yet implemented");
     } catch (error) {
       this.logger.error("Failed to access CCXT latestPrice Map:", error);
       throw new Error("Cannot access individual price data from CCXT");
@@ -555,7 +502,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
   }
 
   // Calculate confidence for individual exchange prices
-  private calculateIndividualConfidence(_priceInfo: any, dataAge: number, exchangeName: string): number {
+  private calculateIndividualConfidence(_priceInfo: unknown, dataAge: number, exchangeName: string): number {
     let confidence = 1.0;
 
     // Reduce confidence based on data age (max 2 seconds for FTSO requirements)

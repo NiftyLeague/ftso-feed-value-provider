@@ -88,7 +88,7 @@ export class HealthCheckController {
           },
           provider: {
             status: integrationHealth.status, // Use integration status as proxy
-            mode: process.env.USE_PRODUCTION_INTEGRATION === "true" ? "production" : "legacy",
+            mode: "production", // Always production mode
           },
         },
         startup: {
@@ -184,7 +184,7 @@ export class HealthCheckController {
       // Get configuration status
       const configStatus = {
         environment: process.env.NODE_ENV || "development",
-        productionMode: process.env.USE_PRODUCTION_INTEGRATION === "true",
+        productionMode: true, // Always production mode
         logLevel: process.env.LOG_LEVEL || "log",
         port: process.env.VALUE_PROVIDER_CLIENT_PORT || "3101",
         monitoringEnabled: process.env.MONITORING_ENABLED === "true",
@@ -206,7 +206,7 @@ export class HealthCheckController {
           },
           provider: {
             status: systemHealth.status, // Use integration status as proxy
-            mode: process.env.USE_PRODUCTION_INTEGRATION === "true" ? "production" : "legacy",
+            mode: "production", // Always production mode
           },
         },
         system: systemInfo,

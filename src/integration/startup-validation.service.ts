@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ProductionIntegrationService } from "./production-integration.service";
-import { FtsoProviderService } from "@/app.service";
 import { ConfigService } from "@/config/config.service";
 
 interface StartupValidationResult {
@@ -127,7 +126,7 @@ export class StartupValidationService implements OnModuleInit {
   }
 
   private validateEnvironmentVariables(result: StartupValidationResult): void {
-    const requiredVars = ["VALUE_PROVIDER_CLIENT_PORT", "USE_PRODUCTION_INTEGRATION", "NODE_ENV"];
+    const requiredVars = ["VALUE_PROVIDER_CLIENT_PORT", "NODE_ENV"];
 
     const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
@@ -141,20 +140,12 @@ export class StartupValidationService implements OnModuleInit {
       result.errors.push(`Invalid port number: ${process.env.VALUE_PROVIDER_CLIENT_PORT}`);
     }
 
-    // Check for API keys if in production mode
-    if (process.env.USE_PRODUCTION_INTEGRATION === "true") {
-      const exchangeKeys = [
-        "BINANCE_API_KEY",
-        "COINBASE_API_KEY",
-        "KRAKEN_API_KEY",
-        "OKX_API_KEY",
-        "CRYPTOCOM_API_KEY",
-      ];
+    // Check for API keys (always in production mode)
+    const exchangeKeys = ["BINANCE_API_KEY", "COINBASE_API_KEY", "KRAKEN_API_KEY", "OKX_API_KEY", "CRYPTOCOM_API_KEY"];
 
-      const missingKeys = exchangeKeys.filter(key => !process.env[key]);
-      if (missingKeys.length === exchangeKeys.length) {
-        result.warnings.push("No exchange API keys configured - may limit data availability");
-      }
+    const missingKeys = exchangeKeys.filter(key => !process.env[key]);
+    if (missingKeys.length === exchangeKeys.length) {
+      result.warnings.push("No exchange API keys configured - may limit data availability");
     }
 
     result.validatedServices.push("Environment Variables");

@@ -1032,7 +1032,7 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
         });
       }
 
-      // Check for low consensus score (legacy alert)
+      // Check for low consensus score
       if (aggregatedPrice.consensusScore < 0.7) {
         const alert = {
           type: "low_consensus",

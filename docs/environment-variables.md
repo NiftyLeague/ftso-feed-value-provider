@@ -245,26 +245,6 @@ Provider system.
 - **Example**: `NODE_ENV=production`
 - **Required**: No
 
-## Provider Implementation Settings
-
-### VALUE_PROVIDER_IMPL
-
-- **Description**: Specifies which data provider implementation to use
-- **Type**: String
-- **Default**: `""` (uses CCXT provider)
-- **Valid Values**: `""`, `fixed`, `random`
-- **Example**: `VALUE_PROVIDER_IMPL=fixed`
-- **Required**: No
-
-### USE_PRODUCTION_INTEGRATION
-
-- **Description**: Whether to use production integration services
-- **Type**: Boolean
-- **Default**: `true`
-- **Valid Values**: `true`, `false`
-- **Example**: `USE_PRODUCTION_INTEGRATION=true`
-- **Required**: No
-
 ## Data Processing Settings
 
 ### MEDIAN_DECAY
@@ -283,17 +263,6 @@ Provider system.
 - **Default**: `1000`
 - **Valid Range**: 1-10000
 - **Example**: `TRADES_HISTORY_SIZE=1000`
-- **Required**: No
-
-## Network and Testing Settings
-
-### NETWORK
-
-- **Description**: Network environment for configuration selection
-- **Type**: String
-- **Default**: `mainnet`
-- **Valid Values**: `mainnet`, `testnet`, `local-test`
-- **Example**: `NETWORK=mainnet`
 - **Required**: No
 
 ## Email Alerting Configuration
@@ -534,7 +503,7 @@ etc.
 LOG_LEVEL=debug
 VALUE_PROVIDER_CLIENT_PORT=3101
 NODE_ENV=development
-USE_PRODUCTION_INTEGRATION=false
+# Production integration is always enabled
 MONITORING_ENABLED=true
 CACHE_TTL_MS=1000
 
@@ -563,7 +532,7 @@ LOG_LEVEL_ERROR_HANDLER=debug
 LOG_LEVEL=warn
 VALUE_PROVIDER_CLIENT_PORT=3101
 NODE_ENV=production
-USE_PRODUCTION_INTEGRATION=true
+# Production integration is always enabled
 
 # Enhanced Logging for Production
 ENABLE_FILE_LOGGING=true
@@ -612,8 +581,7 @@ CACHE_MAX_ENTRIES=50000
 ```bash
 LOG_LEVEL=error
 NODE_ENV=test
-NETWORK=local-test
-USE_PRODUCTION_INTEGRATION=false
+# Production integration is always enabled
 MONITORING_ENABLED=false
 ALERT_EMAIL_ENABLED=false
 ALERT_WEBHOOK_ENABLED=false

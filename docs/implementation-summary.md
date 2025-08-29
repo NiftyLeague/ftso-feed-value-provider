@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document summarizes the implementation of Task 7: "Enhance API endpoints for production requirements" which upgraded the FTSO Feed Value Provider from a basic example to a production-ready system.
+This document summarizes the implementation of Task 7: "Enhance API endpoints
+for production requirements" which upgraded the FTSO Feed Value Provider from a
+basic example to a production-ready system.
 
 ## Naming Changes
 
@@ -14,7 +16,8 @@ This document summarizes the implementation of Task 7: "Enhance API endpoints fo
 
 ### API Documentation:
 
-- Title: "Simple Feed Value Provider API interface" → "Production FTSO Feed Value Provider API"
+- Title: "Simple Feed Value Provider API interface" → "Production FTSO Feed
+  Value Provider API"
 - Description: Enhanced to reflect production-grade features
 
 ## Key Components Implemented
@@ -162,7 +165,6 @@ This document summarizes the implementation of Task 7: "Enhance API endpoints fo
 
 ### Environment Variables
 
-- `VALUE_PROVIDER_IMPL`: Data feed implementation (fixed/random/ccxt)
 - `VALUE_PROVIDER_CLIENT_PORT`: Server port (default: 3101)
 - `VALUE_PROVIDER_CLIENT_BASE_PATH`: API base path
 - `LOG_LEVEL`: Logging level (debug/warn/log)
@@ -250,4 +252,5 @@ This implementation fully satisfies all requirements from Task 7:
 - Created API response time monitoring (target <100ms)
 - Wrote integration tests for all API endpoints
 
-The system is now ready for production deployment with enterprise-grade reliability, performance, and monitoring capabilities.
+The system is now ready for production deployment with enterprise-grade
+reliability, performance, and monitoring capabilities.

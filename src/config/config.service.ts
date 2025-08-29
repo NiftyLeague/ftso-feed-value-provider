@@ -33,16 +33,12 @@ export interface EnvironmentConfig {
   basePath: string;
   nodeEnv: string;
 
-  // Provider implementation settings
-  valueProviderImpl: string;
+  // Provider implementation settings (production only)
   useProductionIntegration: boolean;
 
   // Data processing settings
   medianDecay: number;
   tradesHistorySize: number;
-
-  // Network and testing settings
-  network: string;
 
   // Alerting configuration
   alerting: {
@@ -135,16 +131,14 @@ export class ConfigService {
       basePath: process.env.VALUE_PROVIDER_CLIENT_BASE_PATH || "",
       nodeEnv: process.env.NODE_ENV || "development",
 
-      // Provider implementation settings
-      valueProviderImpl: process.env.VALUE_PROVIDER_IMPL || "",
-      useProductionIntegration: process.env.USE_PRODUCTION_INTEGRATION !== "false",
+      // Provider implementation settings (production only)
+      useProductionIntegration: true, // Always use production integration
 
       // Data processing settings
       medianDecay: this.parseFloatWithDefault(process.env.MEDIAN_DECAY, 0.00005),
       tradesHistorySize: this.parseIntWithDefault(process.env.TRADES_HISTORY_SIZE, 1000),
 
-      // Network and testing settings
-      network: process.env.NETWORK || "mainnet",
+      // Testing settings (no network configuration needed)
 
       // Alerting configuration
       alerting: {
@@ -324,13 +318,7 @@ export class ConfigService {
       );
     }
 
-    // Validate provider implementation
-    const validProviderImpls = ["", "fixed", "random"];
-    if (!validProviderImpls.includes(config.valueProviderImpl)) {
-      result.invalidValues.push(
-        `VALUE_PROVIDER_IMPL: "${config.valueProviderImpl}" is not valid. Must be one of: ${validProviderImpls.join(", ")}`
-      );
-    }
+    // Production integration is always enabled - no validation needed
 
     // Validate numeric ranges
     if (config.medianDecay <= 0 || config.medianDecay > 1) {
@@ -741,7 +729,7 @@ export class ConfigService {
     const configurations: FeedConfiguration[] = [];
 
     // Handle both array format (current feeds.json) and object format with feeds array
-    const feedsArray = Array.isArray(feedsJson) ? feedsJson : (feedsJson as any)?.feeds || [];
+    const feedsArray = Array.isArray(feedsJson) ? feedsJson : (feedsJson as unknown)?.feeds || [];
 
     if (Array.isArray(feedsArray)) {
       for (const feedData of feedsArray) {
