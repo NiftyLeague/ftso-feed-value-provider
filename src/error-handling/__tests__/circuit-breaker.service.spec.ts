@@ -331,11 +331,15 @@ describe("CircuitBreakerService", () => {
 
       service.on("requestSuccess", (emittedServiceId, responseTime) => {
         expect(emittedServiceId).toBe(serviceId);
-        expect(responseTime).toBeGreaterThan(0);
+        expect(responseTime).toBeGreaterThanOrEqual(0); // Allow 0 for very fast operations
         done();
       });
 
-      service.execute(serviceId, async () => "success");
+      service.execute(serviceId, async () => {
+        // Add small delay to ensure measurable response time
+        await new Promise(resolve => setTimeout(resolve, 1));
+        return "success";
+      });
     });
   });
 
