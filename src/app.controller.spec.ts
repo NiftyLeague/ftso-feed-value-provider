@@ -8,7 +8,7 @@ import { ApiErrorHandlerService } from "./error-handling/api-error-handler.servi
 import { RateLimitGuard } from "./guards/rate-limit.guard";
 import { RateLimiterService } from "./middleware/rate-limiter.service";
 import { ApiMonitorService } from "./monitoring/api-monitor.service";
-import { FeedCategory } from "./types/feed-category.enum";
+import { FeedCategory } from "./types";
 
 describe("FtsoProviderController - Production API Endpoints", () => {
   let controller: FtsoProviderController;

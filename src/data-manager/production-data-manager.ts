@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
+import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
 import { EnhancedFeedId } from "@/types";
 import { DataSource, PriceUpdate } from "@/interfaces";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
@@ -469,7 +469,7 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
   async getDataFreshness(feedId: EnhancedFeedId): Promise<number> {
     let mostRecentUpdate = 0;
 
-    for (const [sourceId, subscriptions] of this.subscriptions.entries()) {
+    for (const [, subscriptions] of this.subscriptions.entries()) {
       const subscription = subscriptions.find(
         sub => sub.feedId.name === feedId.name && sub.feedId.category === feedId.category
       );
@@ -762,7 +762,7 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
   private setupHealthMonitoring(): void {
     // Run health checks every 30 seconds
     this.healthMonitorInterval = setInterval(() => {
-      this.performHealthCheck();
+      void this.performHealthCheck();
     }, 30000);
   }
 

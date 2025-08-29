@@ -8,8 +8,7 @@ import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
 import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
 import { AlertingService } from "@/monitoring/alerting.service";
 import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 import { PriceUpdate } from "@/interfaces";
 
 describe("Service Wiring Integration", () => {

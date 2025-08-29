@@ -2,8 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ProductionDataManagerService } from "../production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { DataValidator } from "../validation/data-validator";
-import { FeedCategory } from "@/types/feed-category.enum";
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 import { ExchangeAdapter } from "@/interfaces/exchange-adapter.interface";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 

@@ -1,7 +1,6 @@
 import { CacheWarmerService } from "../cache-warmer.service";
 import { RealTimeCacheService } from "../real-time-cache.service";
-import { EnhancedFeedId } from "../../types/enhanced-feed-id.types";
-import { FeedCategory } from "../../types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 import { CacheEntry } from "../interfaces/cache.interfaces";
 
 describe("CacheWarmerService", () => {

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { DataValidator, ValidationResult, ValidationContext, ValidationError } from "./data-validator";
+import { DataValidator, ValidationResult, ValidationContext } from "./data-validator";
 import { PriceUpdate } from "@/interfaces";
 import { EnhancedFeedId } from "@/types";
 import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
@@ -266,7 +266,7 @@ export class ValidationService extends EventEmitter {
     );
   }
 
-  private getConsensusMedian(feedId: EnhancedFeedId): number | undefined {
+  private getConsensusMedian(_feedId: EnhancedFeedId): number | undefined {
     // This would be implemented when consensus data is available
     // For now, return undefined
     return undefined;

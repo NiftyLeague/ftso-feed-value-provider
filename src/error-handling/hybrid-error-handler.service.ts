@@ -1,12 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
+import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
 import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
 import { PriceUpdate } from "@/interfaces";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
-import { CcxtMultiExchangeAdapter, ExchangePriceData } from "@/adapters/crypto/ccxt.adapter";
+import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
 
 export enum DataSourceTier {
   TIER_1_CUSTOM = 1, // Custom adapters (Binance, Coinbase, Kraken, OKX, Crypto.com)
@@ -709,7 +708,7 @@ export class HybridErrorHandlerService extends EventEmitter {
     this.emit("ccxtBackupActivated", error.feedId, error.sourceId);
   }
 
-  private async executeTierFallbackStrategy(error: DataSourceError, response: ErrorResponse): Promise<void> {
+  private async executeTierFallbackStrategy(error: DataSourceError, _response: ErrorResponse): Promise<void> {
     if (!error.feedId) return;
 
     this.logger.log(`Executing tier fallback for ${error.sourceId} on feed ${error.feedId.name}`);
@@ -719,7 +718,7 @@ export class HybridErrorHandlerService extends EventEmitter {
     this.emit("tierFallbackExecuted", error.feedId, error.sourceId);
   }
 
-  private async executeGracefulDegradationStrategy(error: DataSourceError, response: ErrorResponse): Promise<void> {
+  private async executeGracefulDegradationStrategy(error: DataSourceError, _response: ErrorResponse): Promise<void> {
     if (!error.feedId) return;
 
     this.logger.warn(`Implementing graceful degradation for ${error.sourceId} on feed ${error.feedId.name}`);
@@ -810,9 +809,9 @@ export class HybridErrorHandlerService extends EventEmitter {
   }
 
   private async getSameTierHealthySources(
-    feedId: EnhancedFeedId,
-    tier: DataSourceTier,
-    excludeSource: string
+    _feedId: EnhancedFeedId,
+    _tier: DataSourceTier,
+    _excludeSource: string
   ): Promise<string[]> {
     // This would be implemented based on the actual source registry
     // For now, return empty array as placeholder
@@ -867,7 +866,7 @@ export class HybridErrorHandlerService extends EventEmitter {
 
         // If enough time has passed, attempt to check if source has recovered
         if (timeSinceError > this.config.recoveryCheckInterval) {
-          this.checkSourceRecovery(sourceId);
+          void this.checkSourceRecovery(sourceId);
         }
       }
     }
@@ -940,7 +939,7 @@ export class HybridErrorHandlerService extends EventEmitter {
         .catch(() => {
           // Expected to fail - this is just to record the failure
         });
-    } catch (error) {
+    } catch {
       this.logger.debug(`Recorded failure for ${sourceId}`);
     }
   }

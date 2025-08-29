@@ -1,11 +1,14 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { HybridErrorHandlerService, DataSourceTier, ErrorClassification } from "../hybrid-error-handler.service";
-import { CircuitBreakerService } from "../circuit-breaker.service";
-import { ConnectionRecoveryService } from "../connection-recovery.service";
+import {
+  HybridErrorHandlerService,
+  DataSourceTier,
+  ErrorClassification,
+} from "@/error-handling/hybrid-error-handler.service";
+import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
+import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
 import { FailoverManager } from "@/data-manager/failover-manager";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 
 describe("Hybrid Error Handling Integration", () => {
   let hybridErrorHandler: HybridErrorHandlerService;
@@ -316,7 +319,7 @@ describe("Hybrid Error Handling Integration", () => {
         });
       });
 
-      hybridErrorHandler.handleCustomAdapterError(sourceId, error, testFeedId);
+      void hybridErrorHandler.handleCustomAdapterError(sourceId, error, testFeedId);
     });
 
     it("should emit tier failover events", done => {
@@ -328,7 +331,7 @@ describe("Hybrid Error Handling Integration", () => {
         done();
       });
 
-      hybridErrorHandler.implementTierFailover(testFeedId, failedSources);
+      void hybridErrorHandler.implementTierFailover(testFeedId, failedSources);
     });
   });
 

@@ -1,7 +1,6 @@
 import { RealTimeCacheService } from "../real-time-cache.service";
 import { CacheEntry } from "../interfaces/cache.interfaces";
-import { EnhancedFeedId } from "../../types/enhanced-feed-id.types";
-import { FeedCategory } from "../../types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 
 describe("RealTimeCacheService", () => {
   let service: RealTimeCacheService;

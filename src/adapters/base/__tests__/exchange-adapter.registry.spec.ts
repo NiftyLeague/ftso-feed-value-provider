@@ -1,6 +1,6 @@
 import { ExchangeAdapterRegistry } from "../exchange-adapter.registry";
 import { ExchangeAdapter, ExchangeCapabilities } from "@/interfaces/exchange-adapter.interface";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
 
 // Mock adapter for testing

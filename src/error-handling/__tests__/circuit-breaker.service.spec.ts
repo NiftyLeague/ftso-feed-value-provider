@@ -335,7 +335,7 @@ describe("CircuitBreakerService", () => {
         done();
       });
 
-      service.execute(serviceId, async () => {
+      void service.execute(serviceId, async () => {
         // Add small delay to ensure measurable response time
         await new Promise(resolve => setTimeout(resolve, 1));
         return "success";

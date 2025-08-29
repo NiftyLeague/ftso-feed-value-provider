@@ -4,7 +4,7 @@ import {
   ExchangeConnectionConfig,
 } from "@/interfaces/exchange-adapter.interface";
 import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 
 export interface BinanceTickerData {
   e: "24hrTicker"; // Event type

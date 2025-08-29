@@ -2,8 +2,7 @@ import { HybridErrorHandlerService, DataSourceTier, ErrorClassification } from "
 import { CircuitBreakerService } from "../circuit-breaker.service";
 import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 
 // Mock implementations
 const mockCircuitBreaker = {
@@ -149,7 +148,7 @@ describe("HybridErrorHandlerService", () => {
         done();
       });
 
-      service.handleCustomAdapterError("binance-adapter", error, testFeedId);
+      void service.handleCustomAdapterError("binance-adapter", error, testFeedId);
     });
 
     it("should record error history for Tier 1 sources", async () => {
@@ -208,7 +207,7 @@ describe("HybridErrorHandlerService", () => {
         done();
       });
 
-      service.handleCcxtExchangeError("kucoin", error, testFeedId);
+      void service.handleCcxtExchangeError("kucoin", error, testFeedId);
     });
   });
 
@@ -246,7 +245,7 @@ describe("HybridErrorHandlerService", () => {
         done();
       });
 
-      service.implementTierFailover(testFeedId, failedSources);
+      void service.implementTierFailover(testFeedId, failedSources);
     });
   });
 
@@ -336,7 +335,7 @@ describe("HybridErrorHandlerService", () => {
         done();
       });
 
-      service.implementTierFailover(testFeedId, failedSources);
+      void service.implementTierFailover(testFeedId, failedSources);
     });
   });
 
@@ -394,7 +393,7 @@ describe("HybridErrorHandlerService", () => {
       });
 
       // Simulate error and then recovery
-      service.handleCustomAdapterError("binance-adapter", error, testFeedId).then(() => {
+      void service.handleCustomAdapterError("binance-adapter", error, testFeedId).then(() => {
         // Mock successful circuit breaker execution for recovery
         mockCircuitBreaker.execute.mockResolvedValue(true);
 

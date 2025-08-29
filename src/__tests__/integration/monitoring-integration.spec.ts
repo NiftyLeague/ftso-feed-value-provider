@@ -1,5 +1,4 @@
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 
 // Mock monitoring services

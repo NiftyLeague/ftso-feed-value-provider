@@ -19,7 +19,7 @@ export default async function globalTeardown() {
     for (let i = 1; i <= (highestTimeoutId as number); i++) {
       try {
         clearTimeout(i as any);
-      } catch (e) {
+      } catch {
         // Ignore errors for invalid timer IDs
       }
     }
@@ -31,11 +31,11 @@ export default async function globalTeardown() {
     for (let i = 1; i <= (highestIntervalId as number); i++) {
       try {
         clearInterval(i as any);
-      } catch (e) {
+      } catch {
         // Ignore errors for invalid interval IDs
       }
     }
-  } catch (e) {
+  } catch {
     // Ignore any errors during cleanup
   }
 

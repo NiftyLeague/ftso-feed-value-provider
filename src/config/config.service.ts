@@ -1,8 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { readFileSync, watchFile, unwatchFile } from "fs";
 import { join } from "path";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 
 export interface AdapterMapping {
   [exchange: string]: {
@@ -17,13 +16,23 @@ export interface FeedConfiguration {
   sources: {
     exchange: string;
     symbol: string;
-    priority: number;
-    weight: number;
   }[];
 }
 
 export interface ProductionFeedConfig {
   feeds: FeedConfiguration[];
+}
+
+// Raw JSON structure from feeds.json - matches the actual file format
+export interface RawFeedData {
+  feed: {
+    category: number;
+    name: string;
+  };
+  sources: {
+    exchange: string;
+    symbol: string;
+  }[];
 }
 
 export interface EnvironmentConfig {
@@ -587,7 +596,7 @@ export class ConfigService {
       this.logger.log(`Loading feed configurations from ${this.feedsFilePath}`);
 
       const feedsData = readFileSync(this.feedsFilePath, "utf8");
-      const feedsJson = JSON.parse(feedsData);
+      const feedsJson = JSON.parse(feedsData) as RawFeedData[];
 
       // Validate the JSON structure
       const validation = this.validateFeedConfigurationStructure(feedsJson);
@@ -619,8 +628,8 @@ export class ConfigService {
         this.logger.error(`feeds.json file not found at ${this.feedsFilePath}`);
       }
 
-      this.logger.warn("Falling back to default feed configurations");
-      this.feedConfigurations = this.getDefaultFeedConfigurations();
+      this.logger.error("No feed configurations available - feeds.json is required");
+      this.feedConfigurations = [];
     }
   }
 
@@ -628,7 +637,7 @@ export class ConfigService {
    * Validate feed configuration JSON structure
    * Requirements: 5.1, 5.2
    */
-  private validateFeedConfigurationStructure(feedsJson: any): ConfigValidationResult {
+  private validateFeedConfigurationStructure(feedsJson: RawFeedData[]): ConfigValidationResult {
     const result: ConfigValidationResult = {
       isValid: true,
       errors: [],
@@ -675,14 +684,6 @@ export class ConfigService {
           if (typeof source.symbol !== "string" || !source.symbol.trim()) {
             result.errors.push(`${sourcePrefix}: symbol must be a non-empty string`);
           }
-
-          // Check for optional fields with correct types
-          if (source.priority !== undefined && typeof source.priority !== "number") {
-            result.warnings.push(`${sourcePrefix}: priority should be a number`);
-          }
-          if (source.weight !== undefined && typeof source.weight !== "number") {
-            result.warnings.push(`${sourcePrefix}: weight should be a number`);
-          }
         });
       }
     });
@@ -725,73 +726,26 @@ export class ConfigService {
    * Parse feed configurations from feeds.json format
    * Requirements: 5.1, 5.2
    */
-  private parseFeedConfigurations(feedsJson: unknown): FeedConfiguration[] {
+  private parseFeedConfigurations(feedsJson: RawFeedData[]): FeedConfiguration[] {
     const configurations: FeedConfiguration[] = [];
 
-    // Handle both array format (current feeds.json) and object format with feeds array
-    const feedsArray = Array.isArray(feedsJson) ? feedsJson : (feedsJson as unknown)?.feeds || [];
+    for (const feedData of feedsJson) {
+      try {
+        const config: FeedConfiguration = {
+          feed: {
+            category: feedData.feed.category,
+            name: feedData.feed.name,
+          },
+          sources: feedData.sources,
+        };
 
-    if (Array.isArray(feedsArray)) {
-      for (const feedData of feedsArray) {
-        try {
-          const config: FeedConfiguration = {
-            feed: {
-              category: feedData.feed?.category || FeedCategory.Crypto,
-              name: feedData.feed?.name || feedData.name,
-            },
-            sources: feedData.sources || [],
-          };
-
-          // Add default priority and weight if not specified
-          config.sources = config.sources.map(source => ({
-            exchange: source.exchange,
-            symbol: source.symbol,
-            priority: source.priority || 1,
-            weight: source.weight || 1.0 / config.sources.length, // Equal weight by default
-          }));
-
-          configurations.push(config);
-        } catch (error) {
-          this.logger.error(
-            `Failed to parse feed configuration for ${feedData.feed?.name || feedData.name || "unknown"}:`,
-            error
-          );
-        }
+        configurations.push(config);
+      } catch (error) {
+        this.logger.error(`Failed to parse feed configuration for ${feedData.feed.name}:`, error);
       }
-    } else {
-      this.logger.warn("feeds.json does not contain a valid array of feed configurations");
     }
 
     return configurations;
-  }
-
-  /**
-   * Get default feed configurations for common crypto pairs
-   * Requirements: 5.1, 5.2
-   */
-  private getDefaultFeedConfigurations(): FeedConfiguration[] {
-    return [
-      {
-        feed: { category: FeedCategory.Crypto, name: "BTC/USD" },
-        sources: [
-          { exchange: "binance", symbol: "BTCUSDT", priority: 1, weight: 0.25 },
-          { exchange: "coinbase", symbol: "BTC-USD", priority: 1, weight: 0.25 },
-          { exchange: "kraken", symbol: "XBTUSD", priority: 1, weight: 0.2 },
-          { exchange: "okx", symbol: "BTC-USDT", priority: 1, weight: 0.15 },
-          { exchange: "cryptocom", symbol: "BTC_USDT", priority: 1, weight: 0.15 },
-        ],
-      },
-      {
-        feed: { category: FeedCategory.Crypto, name: "ETH/USD" },
-        sources: [
-          { exchange: "binance", symbol: "ETHUSDT", priority: 1, weight: 0.25 },
-          { exchange: "coinbase", symbol: "ETH-USD", priority: 1, weight: 0.25 },
-          { exchange: "kraken", symbol: "ETHUSD", priority: 1, weight: 0.2 },
-          { exchange: "okx", symbol: "ETH-USDT", priority: 1, weight: 0.15 },
-          { exchange: "cryptocom", symbol: "ETH_USDT", priority: 1, weight: 0.15 },
-        ],
-      },
-    ];
   }
 
   /**

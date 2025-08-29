@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RealTimeCache, CacheEntry, CacheStats, CacheConfig } from "./interfaces/cache.interfaces";
-import { EnhancedFeedId } from "../types/enhanced-feed-id.types";
+import { EnhancedFeedId } from "@/types";
 
 interface CacheItem {
   entry: CacheEntry;

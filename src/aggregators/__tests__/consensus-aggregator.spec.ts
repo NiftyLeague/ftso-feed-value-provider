@@ -1,6 +1,5 @@
-import { ConsensusAggregator, ExchangeTier } from "../consensus-aggregator";
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { ConsensusAggregator } from "../consensus-aggregator";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 
 describe("ConsensusAggregator", () => {

@@ -361,7 +361,7 @@ export class DataValidator {
   private validateConsensusAlignment(
     update: PriceUpdate,
     context: ValidationContext,
-    config: ValidationConfig
+    _config: ValidationConfig
   ): ValidationError[] {
     const errors: ValidationError[] = [];
 

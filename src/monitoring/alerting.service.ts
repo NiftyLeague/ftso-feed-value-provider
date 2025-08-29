@@ -1,11 +1,11 @@
 import { Injectable, Logger, Inject } from "@nestjs/common";
-import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
+import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
 import {
   Alert,
   AlertRule,
   AlertSeverity,
   AlertAction,
-  AlertingConfig,
+  // AlertingConfig,
   MonitoringConfig,
 } from "./interfaces/monitoring.interfaces";
 import * as nodemailer from "nodemailer";
@@ -37,7 +37,7 @@ export class AlertingService {
       const shouldTrigger = this.evaluateRule(rule, value);
 
       if (shouldTrigger) {
-        this.triggerAlert(rule, value, metadata);
+        void this.triggerAlert(rule, value, metadata);
       } else {
         this.resolveAlert(rule.id);
       }
@@ -272,8 +272,8 @@ export class AlertingService {
    * Check rate limiting
    */
   private checkRateLimit(ruleId: string): boolean {
-    const now = Date.now();
-    const hourAgo = now - 3600000; // 1 hour ago
+    // const now = Date.now();
+    // const hourAgo = now - 3600000; // 1 hour ago
 
     // Clean old counts
     const currentCount = this.alertCounts.get(ruleId) || 0;

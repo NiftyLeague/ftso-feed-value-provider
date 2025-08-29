@@ -1,10 +1,11 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
+import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { EnhancedFeedId } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
 import { ConsensusAggregator } from "./consensus-aggregator";
+import { ConfigService } from "@/config/config.service";
 
 export interface CacheEntry {
   value: AggregatedPrice;
@@ -70,7 +71,10 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
   private aggregationInterval?: NodeJS.Timeout;
   private cacheCleanupInterval?: NodeJS.Timeout;
 
-  constructor(private readonly consensusAggregator: ConsensusAggregator) {
+  constructor(
+    private readonly consensusAggregator: ConsensusAggregator,
+    private readonly configService: ConfigService
+  ) {
     super();
   }
 
@@ -397,11 +401,12 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
     });
 
     try {
-      // Convert symbol to EnhancedFeedId
-      const feedId: EnhancedFeedId = {
-        category: this.determineFeedCategory(update.symbol),
-        name: update.symbol,
-      };
+      // Get feed ID from configuration
+      const feedId = this.getFeedIdFromSymbol(update.symbol);
+      if (!feedId) {
+        this.logger.warn(`Unknown feed symbol: ${update.symbol}`);
+        return;
+      }
 
       // Log the incoming price update
       this.enhancedLogger.logPriceUpdate(
@@ -700,16 +705,11 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
   }
 
   /**
-   * Determine feed category from symbol
+   * Get feed ID from symbol using configuration
    */
-  private determineFeedCategory(symbol: string): any {
-    // Import FeedCategory enum
-    const { FeedCategory } = require("@/types/feed-category.enum");
-
-    // Simple heuristic - in production this would use proper configuration
-    if (symbol.includes("USD") || symbol.includes("BTC") || symbol.includes("ETH")) {
-      return FeedCategory.Crypto;
-    }
-    return FeedCategory.Crypto; // Default to crypto for now
+  private getFeedIdFromSymbol(symbol: string): EnhancedFeedId | null {
+    const feedConfigs = this.configService.getFeedConfigurations();
+    const config = feedConfigs.find(config => config.feed.name === symbol);
+    return config ? config.feed : null;
   }
 }

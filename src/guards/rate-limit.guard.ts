@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from "@nestjs/common";
-import { RateLimiterService } from "../middleware/rate-limiter.service";
-import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
+import { RateLimiterService } from "@/middleware/rate-limiter.service";
+import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {

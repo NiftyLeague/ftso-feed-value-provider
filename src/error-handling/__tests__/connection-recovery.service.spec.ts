@@ -3,8 +3,7 @@ import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CircuitBreakerService } from "../circuit-breaker.service";
 import { FailoverManager } from "@/data-manager/failover-manager";
 import { DataSource } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 
 // Mock DataSource implementation
 class MockDataSource implements DataSource {
@@ -229,7 +228,7 @@ describe("ConnectionRecoveryService", () => {
         done();
       });
 
-      service.triggerFailover("source1", "Test failover");
+      void service.triggerFailover("source1", "Test failover");
     });
   });
 

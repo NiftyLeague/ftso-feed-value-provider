@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
+import { EnhancedFeedId } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import {
   AggregatedPrice,
@@ -9,6 +9,11 @@ import {
   ValidationConfig,
 } from "./base/aggregation.interfaces";
 
+export enum ExchangeTier {
+  CUSTOM_ADAPTER = 1, // Top exchanges with custom adapters
+  CCXT_INDIVIDUAL = 2, // CCXT exchanges returning individual prices
+}
+
 export interface ExchangePriceData {
   exchange: string;
   price: number;
@@ -17,11 +22,6 @@ export interface ExchangePriceData {
   volume?: number;
   tier: ExchangeTier;
   weight: number;
-}
-
-export enum ExchangeTier {
-  CUSTOM_ADAPTER = 1, // Top exchanges with custom adapters
-  CCXT_INDIVIDUAL = 2, // CCXT exchanges returning individual prices
 }
 
 export interface WeightedPricePoint {
@@ -375,7 +375,7 @@ export class ConsensusAggregator implements PriceAggregator {
   /**
    * Get quality metrics for aggregated price
    */
-  async getQualityMetrics(feedId: EnhancedFeedId): Promise<QualityMetrics> {
+  async getQualityMetrics(_feedId: EnhancedFeedId): Promise<QualityMetrics> {
     // This would typically be implemented with historical data tracking
     // For now, return basic metrics structure
     return {

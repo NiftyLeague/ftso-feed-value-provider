@@ -1,4 +1,4 @@
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
+import { EnhancedFeedId } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 
 export interface AggregatedPrice {

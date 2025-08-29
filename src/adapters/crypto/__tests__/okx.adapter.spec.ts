@@ -1,5 +1,5 @@
 import { OkxAdapter, OkxTickerData } from "../okx.adapter";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 
 // Mock WebSocket
 class MockWebSocket {

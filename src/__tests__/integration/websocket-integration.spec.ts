@@ -1,5 +1,5 @@
 import { PriceUpdate } from "@/interfaces/data-source.interface";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 
 // Mock WebSocket for integration testing
 class MockWebSocket {

@@ -4,8 +4,7 @@ import {
   ExchangeConnectionConfig,
 } from "@/interfaces/exchange-adapter.interface";
 import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
-import { FeedCategory } from "@/types/feed-category.enum";
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
+import { FeedCategory, EnhancedFeedId } from "@/types";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
@@ -269,7 +268,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
   }
 
   // Volume data method
-  async getVolumeData(feedId: EnhancedFeedId, volumeWindow: number): Promise<VolumeUpdate> {
+  async getVolumeData(feedId: EnhancedFeedId, _volumeWindow: number): Promise<VolumeUpdate> {
     try {
       if (!this.isInitialized) {
         await this.connect();

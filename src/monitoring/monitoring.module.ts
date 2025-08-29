@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
 import { AlertingService } from "./alerting.service";
-import { MonitoringConfig } from "./interfaces/monitoring.interfaces";
+// import { MonitoringConfig } from "./interfaces/monitoring.interfaces";
 
 @Module({
   providers: [

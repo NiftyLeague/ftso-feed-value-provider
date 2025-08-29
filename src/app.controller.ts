@@ -24,7 +24,7 @@ import {
 } from "@/dto/provider-requests.dto";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-import { isValidFeedId } from "@/types/enhanced-feed-id.types";
+import { isValidFeedId } from "@/types";
 import { ResponseTimeInterceptor } from "./interceptors/response-time.interceptor";
 import { RateLimitGuard } from "./guards/rate-limit.guard";
 import { ApiErrorHandlerService } from "./error-handling/api-error-handler.service";
@@ -434,7 +434,6 @@ export class FtsoProviderController {
   }
 
   private async getRealTimeFeedValues(feeds: any[]): Promise<any[]> {
-    const results = [];
     const startTime = performance.now();
 
     // Process feeds in parallel for better performance

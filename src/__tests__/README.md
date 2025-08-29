@@ -24,7 +24,7 @@ reliability requirements for production deployment.
 
 ### 2. Integration Tests
 
-#### WebSocket Integration (`src/adapters/__tests__/websocket-integration.spec.ts`)
+#### WebSocket Integration (`src/__tests__/integration/websocket-integration.spec.ts`)
 
 **Purpose**: Test real-time data flow and connection management **Coverage**:
 
@@ -39,7 +39,7 @@ reliability requirements for production deployment.
 - Automatic failover within 100ms (Requirement 3.2)
 - Support for 50+ concurrent connections (Requirement 4.1)
 
-#### API Integration (`src/api/__tests__/api-integration.spec.ts`)
+#### API Integration (`src/__tests__/integration/api-integration.spec.ts`)
 
 **Purpose**: Test API endpoints with real data sources **Coverage**:
 
@@ -55,7 +55,7 @@ reliability requirements for production deployment.
 - Rate limiting and security headers
 - Data consistency across requests
 
-#### Monitoring Integration (`src/monitoring/__tests__/monitoring-integration.spec.ts`)
+#### Monitoring Integration (`src/__tests__/integration/monitoring-integration.spec.ts`)
 
 **Purpose**: Test monitoring and alerting systems **Coverage**:
 

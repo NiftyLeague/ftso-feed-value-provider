@@ -123,28 +123,28 @@ const TEST_SUITES: TestSuite[] = [
   // Integration Tests
   {
     name: "WebSocket Integration",
-    pattern: "src/adapters/__tests__/websocket-integration.spec.ts",
+    pattern: "src/__tests__/integration/websocket-integration.spec.ts",
     timeout: 120000,
     description: "Tests for real-time WebSocket connections and data flow",
     category: "integration",
   },
   {
     name: "API Integration",
-    pattern: "src/api/__tests__/api-integration.spec.ts",
+    pattern: "src/__tests__/integration/api-integration.spec.ts",
     timeout: 120000,
     description: "Tests for API endpoints with real data sources",
     category: "integration",
   },
   {
     name: "Monitoring Integration",
-    pattern: "src/monitoring/__tests__/monitoring-integration.spec.ts",
+    pattern: "src/__tests__/integration/monitoring-integration.spec.ts",
     timeout: 120000,
     description: "Tests for integrated monitoring system functionality",
     category: "integration",
   },
   {
     name: "Error Handling Integration",
-    pattern: "src/error-handling/__tests__/hybrid-error-integration.spec.ts",
+    pattern: "src/__tests__/integration/hybrid-error-integration.spec.ts",
     timeout: 120000,
     description: "Tests for integrated error handling across system components",
     category: "integration",
@@ -274,10 +274,10 @@ class TestRunner {
       if (stats) {
         console.log(`   📊 ${stats.passed}/${stats.total} tests passed`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
-      const output = error.stdout || "";
-      const errorOutput = error.stderr || error.message;
+      const output = (error as any)?.stdout || "";
+      const errorOutput = (error as any)?.stderr || (error as Error)?.message || "Unknown error";
 
       this.results.push({
         suite,

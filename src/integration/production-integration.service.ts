@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
+import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
 
 // Core components
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
@@ -38,7 +38,6 @@ import { DataSourceFactory } from "./data-source.factory";
 import { EnhancedFeedId } from "@/types";
 import { DataSource, PriceUpdate } from "@/interfaces";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-import { FeedCategory } from "@/types/feed-category.enum";
 
 @Injectable()
 export class ProductionIntegrationService extends EventEmitter implements OnModuleInit, OnModuleDestroy {
@@ -720,10 +719,11 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
       this.recordPerformanceMetrics(update);
 
       // Track feed access for cache warming
-      const feedId: EnhancedFeedId = {
-        category: this.determineFeedCategory(update.symbol),
-        name: update.symbol,
-      };
+      const feedId = this.getFeedIdFromSymbol(update.symbol);
+      if (!feedId) {
+        this.logger.warn(`Unknown feed symbol: ${update.symbol}`);
+        return;
+      }
       this.cacheWarmerService.trackFeedAccess(feedId);
 
       // Process through aggregation service
@@ -749,10 +749,11 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
   private handleAggregatedPrice(aggregatedPrice: AggregatedPrice): void {
     try {
       // Cache the aggregated price
-      const feedId: EnhancedFeedId = {
-        category: this.determineFeedCategory(aggregatedPrice.symbol),
-        name: aggregatedPrice.symbol,
-      };
+      const feedId = this.getFeedIdFromSymbol(aggregatedPrice.symbol);
+      if (!feedId) {
+        this.logger.warn(`Unknown feed symbol: ${aggregatedPrice.symbol}`);
+        return;
+      }
 
       // Set price in cache with automatic invalidation
       this.cacheService.setPrice(feedId, {
@@ -822,12 +823,10 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
     return tier1Exchanges.includes(exchangeName) ? 1 : 2;
   }
 
-  private determineFeedCategory(symbol: string): FeedCategory {
-    // Simple heuristic - in production this would use proper configuration
-    if (symbol.includes("USD") || symbol.includes("BTC") || symbol.includes("ETH")) {
-      return FeedCategory.Crypto;
-    }
-    return FeedCategory.Crypto; // Default to crypto for now
+  private getFeedIdFromSymbol(symbol: string): EnhancedFeedId | null {
+    const feedConfigs = this.configService.getFeedConfigurations();
+    const config = feedConfigs.find(config => config.feed.name === symbol);
+    return config ? config.feed : null;
   }
 
   private isFreshData(timestamp: number): boolean {
@@ -892,7 +891,7 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
   private handleSourceDisconnection(sourceId: string): void {
     try {
       // Trigger connection recovery
-      this.connectionRecovery.handleDisconnection(sourceId);
+      void this.connectionRecovery.handleDisconnection(sourceId);
 
       // Record failure for error handler
       this.errorHandler.recordFailure(sourceId);
@@ -1005,10 +1004,11 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
       this.accuracyMonitor.recordPrice(aggregatedPrice);
 
       // Get the latest accuracy metrics for this feed
-      const feedId: EnhancedFeedId = {
-        category: this.determineFeedCategory(aggregatedPrice.symbol),
-        name: aggregatedPrice.symbol,
-      };
+      const feedId = this.getFeedIdFromSymbol(aggregatedPrice.symbol);
+      if (!feedId) {
+        this.logger.warn(`Unknown feed symbol: ${aggregatedPrice.symbol}`);
+        return;
+      }
 
       const accuracyMetrics = this.accuracyMonitor.getAccuracyMetrics(feedId.name);
       if (accuracyMetrics) {
@@ -1081,7 +1081,7 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
     }
   }
 
-  private getPrimarySourcesForFeed(feedId: any): string[] {
+  private getPrimarySourcesForFeed(_feedId: any): string[] {
     // Get primary (Tier 1) sources for the feed
     const tier1Exchanges = ["binance", "coinbase", "kraken", "okx", "cryptocom"];
     const connectedSources = this.dataManager.getConnectedSources();
@@ -1089,7 +1089,7 @@ export class ProductionIntegrationService extends EventEmitter implements OnModu
     return connectedSources.filter(source => tier1Exchanges.includes(source.id)).map(source => source.id);
   }
 
-  private getBackupSourcesForFeed(feedId: any): string[] {
+  private getBackupSourcesForFeed(_feedId: any): string[] {
     // Get backup (Tier 2) sources for the feed
     const tier1Exchanges = ["binance", "coinbase", "kraken", "okx", "cryptocom"];
     const connectedSources = this.dataManager.getConnectedSources();

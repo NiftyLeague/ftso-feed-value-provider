@@ -130,7 +130,7 @@ export class RateLimiterService {
     let activeClients = 0;
     let blockedRequests = 0;
 
-    for (const [clientId, client] of this.clients) {
+    for (const [, client] of this.clients) {
       totalRequests += client.totalRequests;
 
       // Count active clients (those with requests in current window)

@@ -1,10 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
 import { ConsensusAggregator } from "../consensus-aggregator";
-import { EnhancedFeedId } from "@/types/enhanced-feed-id.types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
-import { AggregatedPrice } from "../base/aggregation.interfaces";
+import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 describe("RealTimeAggregationService Performance Tests", () => {
   let service: RealTimeAggregationService;

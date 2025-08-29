@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 
 // Mock API server for testing
 class MockApiServer {

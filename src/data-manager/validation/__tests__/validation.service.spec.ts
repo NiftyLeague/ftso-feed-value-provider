@@ -2,8 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationService } from "../validation.service";
 import { DataValidator, ValidationResult } from "../data-validator";
 import { PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { EnhancedFeedId, FeedCategory } from "@/types";
 
 describe("ValidationService", () => {
   let service: ValidationService;

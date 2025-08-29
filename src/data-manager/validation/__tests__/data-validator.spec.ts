@@ -1,8 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DataValidator, ValidationErrorType, ValidationContext } from "../data-validator";
 import { PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 
 describe("DataValidator", () => {
   let validator: DataValidator;

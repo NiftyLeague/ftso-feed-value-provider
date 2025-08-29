@@ -1,8 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RealTimeCacheService } from "./real-time-cache.service";
-import { EnhancedFeedId } from "../types/enhanced-feed-id.types";
+import { EnhancedFeedId } from "@/types";
 import { CacheEntry } from "./interfaces/cache.interfaces";
-import { AggregatedPrice } from "../aggregators/base/aggregation.interfaces";
+import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 interface WarmupConfig {
   popularFeeds: EnhancedFeedId[];

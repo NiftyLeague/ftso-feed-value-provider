@@ -167,7 +167,7 @@ export class FailoverManager extends EventEmitter {
       ([, group]) => group.activeSources.includes(failedSourceId) || group.primarySources.includes(failedSourceId)
     );
 
-    for (const [groupKey, group] of affectedGroups) {
+    for (const [, group] of affectedGroups) {
       await this.performGroupFailover(group, failedSourceId, reason);
     }
   }
@@ -276,7 +276,7 @@ export class FailoverManager extends EventEmitter {
     this.logger.log(`Source ${sourceId} has recovered`);
 
     // Find groups where this source should be restored
-    for (const [groupKey, group] of this.failoverGroups.entries()) {
+    for (const [, group] of this.failoverGroups.entries()) {
       if (group.failedSources.includes(sourceId)) {
         // Remove from failed sources
         group.failedSources = group.failedSources.filter(id => id !== sourceId);

@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 import { PriceUpdate, VolumeUpdate } from "./data-source.interface";
 
 export interface ExchangeConnectionConfig {

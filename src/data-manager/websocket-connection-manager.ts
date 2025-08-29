@@ -199,7 +199,7 @@ export class WebSocketConnectionManager extends EventEmitter {
       const message = data.toString();
       const parsedData = JSON.parse(message);
       this.emit("message", connectionId, parsedData);
-    } catch (error) {
+    } catch {
       // If not JSON, emit raw data
       this.emit("message", connectionId, data);
     }

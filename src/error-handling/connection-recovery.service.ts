@@ -505,7 +505,7 @@ export class ConnectionRecoveryService extends EventEmitter {
     }
   }
 
-  private getActivatedBackupSources(failedSourceId: string): string[] {
+  private getActivatedBackupSources(_failedSourceId: string): string[] {
     // This would be implemented based on the failover manager's response
     // For now, return empty array as placeholder
     return [];

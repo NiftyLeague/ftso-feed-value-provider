@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/types/feed-category.enum";
+import { FeedCategory } from "@/types";
 
 export interface PriceUpdate {
   symbol: string;
