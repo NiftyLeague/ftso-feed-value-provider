@@ -268,19 +268,7 @@ export class ConfigService {
     const apiKeys: Record<string, { apiKey?: string; secret?: string; passphrase?: string; sandbox?: boolean }> = {};
 
     // Common exchange patterns
-    const exchanges = [
-      "binance",
-      "coinbase",
-      "kraken",
-      "okx",
-      "cryptocom",
-      "bitget",
-      "bybit",
-      "kucoin",
-      "gate",
-      "mexc",
-      "htx",
-    ];
+    const exchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
 
     for (const exchange of exchanges) {
       const upperExchange = exchange.toUpperCase();
@@ -443,16 +431,19 @@ export class ConfigService {
       okx: { hasCustomAdapter: true, adapterClass: "OkxAdapter" },
 
       // All other Crypto Exchanges use CCXT (Tier 2)
+      binanceus: { hasCustomAdapter: false, ccxtId: "binanceus" },
+      bingx: { hasCustomAdapter: false, ccxtId: "bingx" },
+      bitfinex: { hasCustomAdapter: false, ccxtId: "bitfinex" },
+      bitget: { hasCustomAdapter: false, ccxtId: "bitget" },
       bitmart: { hasCustomAdapter: false, ccxtId: "bitmart" },
+      bitrue: { hasCustomAdapter: false, ccxtId: "bitrue" },
+      bitstamp: { hasCustomAdapter: false, ccxtId: "bitstamp" },
       bybit: { hasCustomAdapter: false, ccxtId: "bybit" },
       gate: { hasCustomAdapter: false, ccxtId: "gate" },
-      kucoin: { hasCustomAdapter: false, ccxtId: "kucoin" },
-      probit: { hasCustomAdapter: false, ccxtId: "probit" },
-      mexc: { hasCustomAdapter: false, ccxtId: "mexc" },
       htx: { hasCustomAdapter: false, ccxtId: "htx" },
-      bitget: { hasCustomAdapter: false, ccxtId: "bitget" },
-      bitfinex: { hasCustomAdapter: false, ccxtId: "bitfinex" },
-      bitstamp: { hasCustomAdapter: false, ccxtId: "bitstamp" },
+      kucoin: { hasCustomAdapter: false, ccxtId: "kucoin" },
+      mexc: { hasCustomAdapter: false, ccxtId: "mexc" },
+      probit: { hasCustomAdapter: false, ccxtId: "probit" },
       // Add more exchanges as needed - they'll automatically use CCXT
     };
   }

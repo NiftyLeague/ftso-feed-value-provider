@@ -7,6 +7,7 @@ import { RealTimeAggregationService } from "./aggregators/real-time-aggregation.
 import { ApiErrorHandlerService } from "./error-handling/api-error-handler.service";
 import { RateLimitGuard } from "./guards/rate-limit.guard";
 import { RateLimiterService } from "./middleware/rate-limiter.service";
+import { ApiMonitorService } from "./monitoring/api-monitor.service";
 import { FeedCategory } from "./types/feed-category.enum";
 
 describe("FtsoProviderController - Production API Endpoints", () => {
@@ -86,6 +87,37 @@ describe("FtsoProviderController - Production API Endpoints", () => {
         {
           provide: RateLimiterService,
           useValue: mockRateLimiterService,
+        },
+        {
+          provide: ApiMonitorService,
+          useValue: {
+            recordApiRequest: jest.fn(),
+            getApiHealthMetrics: jest.fn().mockReturnValue({
+              totalRequests: 0,
+              requestsPerMinute: 0,
+              averageResponseTime: 0,
+              errorRate: 0,
+              slowRequestRate: 0,
+              criticalRequestRate: 0,
+              topEndpoints: [],
+              recentErrors: [],
+            }),
+            getAllEndpointStats: jest.fn().mockReturnValue([]),
+            getPerformanceMetrics: jest.fn().mockReturnValue({
+              requestCount: 0,
+              averageResponseTime: 0,
+              errorRate: 0,
+              throughput: 0,
+              responseTimes: [],
+            }),
+            getErrorAnalysis: jest.fn().mockReturnValue({
+              totalErrors: 0,
+              errorsByStatusCode: {},
+              errorsByEndpoint: {},
+              recentErrorTrends: [],
+            }),
+            getMetricsCount: jest.fn().mockReturnValue(0),
+          },
         },
       ],
     }).compile();

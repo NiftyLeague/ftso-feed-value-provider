@@ -24,6 +24,7 @@ import { RateLimitGuard } from "@/guards/rate-limit.guard";
 import { ResponseTimeInterceptor } from "@/interceptors/response-time.interceptor";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
+import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.
     },
     RateLimitGuard,
     ResponseTimeInterceptor,
+    ApiMonitorService,
 
     // Main FTSO provider service factory
     {
