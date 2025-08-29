@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
 import * as os from "os";
 
@@ -13,7 +13,7 @@ export class PerformanceMonitorService {
   private errorCounts: Map<string, number> = new Map();
   private startTime: number = Date.now();
 
-  constructor(private readonly config: MonitoringConfig) {
+  constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
     // Start periodic monitoring
     this.startPeriodicMonitoring();
   }

@@ -60,4 +60,66 @@ export interface MonitoringConfig {
     minConnectionRate: number;
   };
   monitoringInterval: number; // Monitoring frequency in ms
+  alerting: AlertingConfig;
+}
+
+export enum AlertSeverity {
+  INFO = "info",
+  WARNING = "warning",
+  ERROR = "error",
+  CRITICAL = "critical",
+}
+
+export enum AlertAction {
+  LOG = "log",
+  EMAIL = "email",
+  WEBHOOK = "webhook",
+}
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  description: string;
+  metric: string;
+  threshold: number;
+  operator: "gt" | "lt" | "eq" | "gte" | "lte";
+  severity: AlertSeverity;
+  duration: number; // Duration in ms before triggering
+  actions: AlertAction[];
+  enabled: boolean;
+  cooldown: number; // Cooldown period in ms
+}
+
+export interface Alert {
+  id: string;
+  ruleId: string;
+  severity: AlertSeverity;
+  message: string;
+  timestamp: number;
+  resolved: boolean;
+  resolvedAt?: number;
+  metadata: Record<string, any>;
+}
+
+export interface AlertingConfig {
+  rules: AlertRule[];
+  deliveryConfig: {
+    email?: {
+      enabled: boolean;
+      smtpHost: string;
+      smtpPort: number;
+      username: string;
+      password: string;
+      from: string;
+      to: string[];
+    };
+    webhook?: {
+      enabled: boolean;
+      url: string;
+      headers?: Record<string, string>;
+      timeout: number;
+    };
+  };
+  maxAlertsPerHour: number;
+  alertRetention: number; // Days to keep alerts
 }

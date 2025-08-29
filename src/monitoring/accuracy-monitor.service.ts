@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import {
   AccuracyMetrics,
   QualityScore,
@@ -14,7 +14,7 @@ export class AccuracyMonitorService {
   private qualityScores: Map<string, QualityScore> = new Map();
   private consensusData: Map<string, ConsensusData> = new Map();
 
-  constructor(private readonly config: MonitoringConfig) {}
+  constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {}
 
   /**
    * Track consensus deviation for a feed value
