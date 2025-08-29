@@ -1,0 +1,143 @@
+import { Injectable, Logger, HttpException, HttpStatus } from "@nestjs/common";
+
+export interface ApiErrorResponse {
+  error: string;
+  code: number;
+  message: string;
+  timestamp: number;
+  requestId: string;
+  details?: any;
+}
+
+export enum ApiErrorCodes {
+  // Client errors (4xxx)
+  INVALID_FEED_REQUEST = 4000,
+  INVALID_FEED_CATEGORY = 4001,
+  INVALID_FEED_NAME = 4002,
+  INVALID_VOTING_ROUND = 4003,
+  INVALID_TIME_WINDOW = 4004,
+  FEED_NOT_FOUND = 4041,
+  RATE_LIMIT_EXCEEDED = 4291,
+
+  // Server errors (5xxx)
+  INTERNAL_ERROR = 5001,
+  DATA_SOURCE_UNAVAILABLE = 5021,
+  SERVICE_UNAVAILABLE = 5031,
+  AGGREGATION_FAILED = 5041,
+  CACHE_ERROR = 5051,
+}
+
+@Injectable()
+export class ApiErrorHandlerService {
+  private readonly logger = new Logger(ApiErrorHandlerService.name);
+
+  createErrorResponse(errorCode: ApiErrorCodes, message: string, requestId: string, details?: any): ApiErrorResponse {
+    return {
+      error: ApiErrorCodes[errorCode],
+      code: errorCode,
+      message,
+      timestamp: Date.now(),
+      requestId,
+      details,
+    };
+  }
+
+  handleValidationError(message: string, requestId: string, details?: any): HttpException {
+    const errorResponse = this.createErrorResponse(ApiErrorCodes.INVALID_FEED_REQUEST, message, requestId, details);
+
+    this.logger.warn(`Validation error: ${message}`, { requestId, details });
+
+    return new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
+  }
+
+  handleFeedNotFoundError(feedId: any, requestId: string): HttpException {
+    const errorResponse = this.createErrorResponse(
+      ApiErrorCodes.FEED_NOT_FOUND,
+      `Feed not found: ${JSON.stringify(feedId)}`,
+      requestId,
+      { feedId }
+    );
+
+    this.logger.warn(`Feed not found: ${JSON.stringify(feedId)}`, { requestId });
+
+    return new HttpException(errorResponse, HttpStatus.NOT_FOUND);
+  }
+
+  handleDataSourceError(error: Error, requestId: string): HttpException {
+    const errorResponse = this.createErrorResponse(
+      ApiErrorCodes.DATA_SOURCE_UNAVAILABLE,
+      "Data source temporarily unavailable",
+      requestId,
+      { originalError: error.message }
+    );
+
+    this.logger.error(`Data source error: ${error.message}`, error.stack, { requestId });
+
+    return new HttpException(errorResponse, HttpStatus.BAD_GATEWAY);
+  }
+
+  handleAggregationError(error: Error, requestId: string): HttpException {
+    const errorResponse = this.createErrorResponse(
+      ApiErrorCodes.AGGREGATION_FAILED,
+      "Price aggregation failed",
+      requestId,
+      { originalError: error.message }
+    );
+
+    this.logger.error(`Aggregation error: ${error.message}`, error.stack, { requestId });
+
+    return new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  handleCacheError(error: Error, requestId: string): HttpException {
+    const errorResponse = this.createErrorResponse(ApiErrorCodes.CACHE_ERROR, "Cache operation failed", requestId, {
+      originalError: error.message,
+    });
+
+    this.logger.error(`Cache error: ${error.message}`, error.stack, { requestId });
+
+    return new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  handleInternalError(error: Error, requestId: string): HttpException {
+    const errorResponse = this.createErrorResponse(ApiErrorCodes.INTERNAL_ERROR, "Internal server error", requestId, {
+      originalError: error.message,
+    });
+
+    this.logger.error(`Internal error: ${error.message}`, error.stack, { requestId });
+
+    return new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  handleRateLimitError(requestId: string): HttpException {
+    const errorResponse = this.createErrorResponse(ApiErrorCodes.RATE_LIMIT_EXCEEDED, "Rate limit exceeded", requestId);
+
+    this.logger.warn(`Rate limit exceeded`, { requestId });
+
+    return new HttpException(errorResponse, HttpStatus.TOO_MANY_REQUESTS);
+  }
+
+  generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  logPerformanceWarning(operation: string, responseTime: number, target: number, requestId?: string): void {
+    if (responseTime > target) {
+      this.logger.warn(`Performance warning: ${operation} took ${responseTime.toFixed(2)}ms (target: ${target}ms)`, {
+        requestId,
+        responseTime,
+        target,
+      });
+    }
+  }
+
+  logApiCall(method: string, url: string, responseTime: number, statusCode: number, requestId?: string): void {
+    this.logger.log(`${method} ${url} - ${statusCode} - ${responseTime.toFixed(2)}ms`, {
+      requestId,
+      method,
+      url,
+      responseTime,
+      statusCode,
+    });
+  }
+}
