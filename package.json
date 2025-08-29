@@ -17,7 +17,16 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:comprehensive": "ts-node src/__tests__/test-runner.ts",
+    "test:unit": "ts-node src/__tests__/test-runner.ts -- --category unit",
+    "test:integration": "ts-node src/__tests__/test-runner.ts -- --category integration",
+    "test:performance": "ts-node src/__tests__/test-runner.ts -- --category performance",
+    "test:accuracy": "ts-node src/__tests__/test-runner.ts -- --category accuracy",
+    "test:load": "jest --testPathPattern=\"load-testing.spec.ts\" --testTimeout=300000 --maxWorkers=1",
+    "test:latency": "jest --testPathPattern=\"latency-testing.spec.ts\" --testTimeout=180000 --maxWorkers=1",
+    "test:endurance": "jest --testPathPattern=\"endurance-testing.spec.ts\" --testTimeout=1800000 --maxWorkers=1",
+    "test:backtesting": "jest --testPathPattern=\"backtesting-framework.spec.ts\" --testTimeout=300000 --maxWorkers=1"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",
