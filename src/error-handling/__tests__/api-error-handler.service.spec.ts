@@ -1,428 +1,245 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ApiErrorHandlerService } from "../api-error-handler.service";
-import { Logger } from "@nestjs/common";
+import { HttpException, HttpStatus } from "@nestjs/common";
+import { ApiErrorHandlerService, ApiErrorCodes } from "../api-error-handler.service";
 
 describe("ApiErrorHandlerService", () => {
   let service: ApiErrorHandlerService;
-  let logger: jest.Mocked<Logger>;
-  let module: TestingModule;
 
   beforeEach(async () => {
-    const mockLogger = {
-      error: jest.fn(),
-      warn: jest.fn(),
-      log: jest.fn(),
-      debug: jest.fn(),
-    };
+    // Mock console methods to suppress expected error logs during tests
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
 
-    module = await Test.createTestingModule({
-      providers: [
-        ApiErrorHandlerService,
-        {
-          provide: Logger,
-          useValue: mockLogger,
-        },
-      ],
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ApiErrorHandlerService],
     }).compile();
 
     service = module.get<ApiErrorHandlerService>(ApiErrorHandlerService);
-    logger = module.get(Logger);
   });
 
-  afterEach(async () => {
-    await module.close();
+  afterEach(() => {
+    // Restore console methods after each test
+    jest.restoreAllMocks();
   });
 
-  describe("handleApiError", () => {
-    it("should handle validation errors", () => {
-      const error = new Error("Invalid feed ID");
-      const context = { feedId: "invalid", endpoint: "/feed-values" };
+  describe("Error Response Creation", () => {
+    it("should create error response with correct structure", () => {
+      const requestId = "test-request-id";
+      const message = "Test error message";
+      const details = { field: "value" };
 
-      const response = service.handleApiError(error, context);
+      const response = service.createErrorResponse(ApiErrorCodes.INVALID_FEED_REQUEST, message, requestId, details);
 
-      expect(response.error).toBe("Validation Error");
-      expect(response.code).toBe(4001);
-      expect(response.message).toContain("Invalid feed ID");
-      expect(response.statusCode).toBe(400);
-      expect(logger.warn).toHaveBeenCalled();
+      expect(response).toEqual({
+        error: "INVALID_FEED_REQUEST",
+        code: ApiErrorCodes.INVALID_FEED_REQUEST,
+        message,
+        timestamp: expect.any(Number),
+        requestId,
+        details,
+      });
     });
 
-    it("should handle not found errors", () => {
-      const error = new Error("Feed not found");
-      const context = { feedId: "BTC/USD", endpoint: "/feed-values" };
+    it("should create error response without details", () => {
+      const requestId = "test-request-id";
+      const message = "Test error message";
 
-      const response = service.handleApiError(error, context);
+      const response = service.createErrorResponse(ApiErrorCodes.INTERNAL_ERROR, message, requestId);
 
-      expect(response.error).toBe("Not Found");
-      expect(response.code).toBe(4041);
-      expect(response.message).toContain("Feed not found");
-      expect(response.statusCode).toBe(404);
-      expect(logger.warn).toHaveBeenCalled();
-    });
-
-    it("should handle rate limit errors", () => {
-      const error = new Error("Rate limit exceeded");
-      const context = { clientIp: "192.168.1.1", endpoint: "/feed-values" };
-
-      const response = service.handleApiError(error, context);
-
-      expect(response.error).toBe("Rate Limit Exceeded");
-      expect(response.code).toBe(4291);
-      expect(response.message).toContain("Rate limit exceeded");
-      expect(response.statusCode).toBe(429);
-      expect(logger.warn).toHaveBeenCalled();
-    });
-
-    it("should handle timeout errors", () => {
-      const error = new Error("Request timeout");
-      const context = { endpoint: "/feed-values", timeout: 5000 };
-
-      const response = service.handleApiError(error, context);
-
-      expect(response.error).toBe("Request Timeout");
-      expect(response.code).toBe(4081);
-      expect(response.message).toContain("Request timeout");
-      expect(response.statusCode).toBe(408);
-      expect(logger.error).toHaveBeenCalled();
-    });
-
-    it("should handle internal server errors", () => {
-      const error = new Error("Database connection failed");
-      const context = { endpoint: "/feed-values" };
-
-      const response = service.handleApiError(error, context);
-
-      expect(response.error).toBe("Internal Server Error");
-      expect(response.code).toBe(5001);
-      expect(response.message).toContain("An internal error occurred");
-      expect(response.statusCode).toBe(500);
-      expect(logger.error).toHaveBeenCalled();
-    });
-
-    it("should handle service unavailable errors", () => {
-      const error = new Error("All data sources unavailable");
-      const context = { endpoint: "/feed-values" };
-
-      const response = service.handleApiError(error, context);
-
-      expect(response.error).toBe("Service Unavailable");
-      expect(response.code).toBe(5031);
-      expect(response.message).toContain("Service temporarily unavailable");
-      expect(response.statusCode).toBe(503);
-      expect(logger.error).toHaveBeenCalled();
-    });
-
-    it("should include request ID in response", () => {
-      const error = new Error("Test error");
-      const context = { requestId: "req-123", endpoint: "/feed-values" };
-
-      const response = service.handleApiError(error, context);
-
-      expect(response.requestId).toBe("req-123");
-    });
-
-    it("should generate request ID if not provided", () => {
-      const error = new Error("Test error");
-      const context = { endpoint: "/feed-values" };
-
-      const response = service.handleApiError(error, context);
-
-      expect(response.requestId).toBeDefined();
-      expect(typeof response.requestId).toBe("string");
-      expect(response.requestId.length).toBeGreaterThan(0);
-    });
-
-    it("should include timestamp in response", () => {
-      const error = new Error("Test error");
-      const context = { endpoint: "/feed-values" };
-
-      const beforeTime = Date.now();
-      const response = service.handleApiError(error, context);
-      const afterTime = Date.now();
-
-      expect(response.timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(response.timestamp).toBeLessThanOrEqual(afterTime);
+      expect(response.details).toBeUndefined();
     });
   });
 
-  describe("error classification", () => {
-    it("should classify validation errors correctly", () => {
-      const validationErrors = [
-        "Invalid feed category",
-        "Invalid feed name",
-        "Invalid voting round",
-        "Invalid time window",
-        "Missing required parameter",
-      ];
+  describe("Validation Error Handling", () => {
+    it("should handle validation errors correctly", () => {
+      const message = "Invalid feed request";
+      const requestId = "test-request-id";
+      const details = { field: "feedId" };
 
-      validationErrors.forEach(errorMessage => {
-        const error = new Error(errorMessage);
-        const response = service.handleApiError(error, { endpoint: "/test" });
-        expect(response.statusCode).toBe(400);
-        expect(response.error).toBe("Validation Error");
-      });
-    });
+      const exception = service.handleValidationError(message, requestId, details);
 
-    it("should classify not found errors correctly", () => {
-      const notFoundErrors = ["Feed not found", "Voting round not found", "Data not available", "Resource not found"];
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.BAD_REQUEST);
 
-      notFoundErrors.forEach(errorMessage => {
-        const error = new Error(errorMessage);
-        const response = service.handleApiError(error, { endpoint: "/test" });
-        expect(response.statusCode).toBe(404);
-        expect(response.error).toBe("Not Found");
-      });
-    });
-
-    it("should classify rate limit errors correctly", () => {
-      const rateLimitErrors = ["Rate limit exceeded", "Too many requests", "Request quota exceeded"];
-
-      rateLimitErrors.forEach(errorMessage => {
-        const error = new Error(errorMessage);
-        const response = service.handleApiError(error, { endpoint: "/test" });
-        expect(response.statusCode).toBe(429);
-        expect(response.error).toBe("Rate Limit Exceeded");
-      });
-    });
-
-    it("should classify timeout errors correctly", () => {
-      const timeoutErrors = ["Request timeout", "Connection timeout", "Operation timed out"];
-
-      timeoutErrors.forEach(errorMessage => {
-        const error = new Error(errorMessage);
-        const response = service.handleApiError(error, { endpoint: "/test" });
-        expect(response.statusCode).toBe(408);
-        expect(response.error).toBe("Request Timeout");
-      });
-    });
-
-    it("should classify service unavailable errors correctly", () => {
-      const serviceUnavailableErrors = [
-        "All data sources unavailable",
-        "Service temporarily unavailable",
-        "Maintenance mode",
-      ];
-
-      serviceUnavailableErrors.forEach(errorMessage => {
-        const error = new Error(errorMessage);
-        const response = service.handleApiError(error, { endpoint: "/test" });
-        expect(response.statusCode).toBe(503);
-        expect(response.error).toBe("Service Unavailable");
-      });
-    });
-
-    it("should default to internal server error for unknown errors", () => {
-      const unknownErrors = ["Unexpected error", "Something went wrong", "Unknown failure"];
-
-      unknownErrors.forEach(errorMessage => {
-        const error = new Error(errorMessage);
-        const response = service.handleApiError(error, { endpoint: "/test" });
-        expect(response.statusCode).toBe(500);
-        expect(response.error).toBe("Internal Server Error");
-      });
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("INVALID_FEED_REQUEST");
+      expect(response.code).toBe(ApiErrorCodes.INVALID_FEED_REQUEST);
+      expect(response.message).toBe(message);
+      expect(response.requestId).toBe(requestId);
+      expect(response.details).toEqual(details);
     });
   });
 
-  describe("error context handling", () => {
-    it("should include feed information in context", () => {
-      const error = new Error("Feed validation failed");
-      const context = {
-        feedId: "BTC/USD",
-        feedCategory: "crypto",
-        endpoint: "/feed-values",
-      };
+  describe("Feed Not Found Error Handling", () => {
+    it("should handle feed not found errors correctly", () => {
+      const feedId = { category: "crypto", name: "BTC/USD" };
+      const requestId = "test-request-id";
 
-      const response = service.handleApiError(error, context);
+      const exception = service.handleFeedNotFoundError(feedId, requestId);
 
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining("BTC/USD"),
-        expect.objectContaining({
-          feedId: "BTC/USD",
-          feedCategory: "crypto",
-        })
-      );
-    });
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
 
-    it("should include client information in context", () => {
-      const error = new Error("Rate limit exceeded");
-      const context = {
-        clientIp: "192.168.1.1",
-        userAgent: "TestClient/1.0",
-        endpoint: "/feed-values",
-      };
-
-      const response = service.handleApiError(error, context);
-
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          clientIp: "192.168.1.1",
-          userAgent: "TestClient/1.0",
-        })
-      );
-    });
-
-    it("should include timing information in context", () => {
-      const error = new Error("Request timeout");
-      const context = {
-        startTime: Date.now() - 5000,
-        timeout: 3000,
-        endpoint: "/feed-values",
-      };
-
-      const response = service.handleApiError(error, context);
-
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          startTime: context.startTime,
-          timeout: 3000,
-        })
-      );
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("FEED_NOT_FOUND");
+      expect(response.code).toBe(ApiErrorCodes.FEED_NOT_FOUND);
+      expect(response.details.feedId).toEqual(feedId);
     });
   });
 
-  describe("error metrics", () => {
-    it("should track error counts by type", () => {
-      const errors = [
-        new Error("Invalid feed ID"),
-        new Error("Feed not found"),
-        new Error("Rate limit exceeded"),
-        new Error("Invalid feed ID"), // Duplicate
-      ];
+  describe("Data Source Error Handling", () => {
+    it("should handle data source errors correctly", () => {
+      const error = new Error("Connection failed");
+      const requestId = "test-request-id";
 
-      errors.forEach(error => {
-        service.handleApiError(error, { endpoint: "/test" });
+      const exception = service.handleDataSourceError(error, requestId);
+
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.BAD_GATEWAY);
+
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("DATA_SOURCE_UNAVAILABLE");
+      expect(response.code).toBe(ApiErrorCodes.DATA_SOURCE_UNAVAILABLE);
+      expect(response.details.originalError).toBe(error.message);
+    });
+  });
+
+  describe("Aggregation Error Handling", () => {
+    it("should handle aggregation errors correctly", () => {
+      const error = new Error("Aggregation failed");
+      const requestId = "test-request-id";
+
+      const exception = service.handleAggregationError(error, requestId);
+
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("AGGREGATION_FAILED");
+      expect(response.code).toBe(ApiErrorCodes.AGGREGATION_FAILED);
+      expect(response.details.originalError).toBe(error.message);
+    });
+  });
+
+  describe("Cache Error Handling", () => {
+    it("should handle cache errors correctly", () => {
+      const error = new Error("Cache operation failed");
+      const requestId = "test-request-id";
+
+      const exception = service.handleCacheError(error, requestId);
+
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("CACHE_ERROR");
+      expect(response.code).toBe(ApiErrorCodes.CACHE_ERROR);
+      expect(response.details.originalError).toBe(error.message);
+    });
+  });
+
+  describe("Internal Error Handling", () => {
+    it("should handle internal errors correctly", () => {
+      const error = new Error("Internal server error");
+      const requestId = "test-request-id";
+
+      const exception = service.handleInternalError(error, requestId);
+
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("INTERNAL_ERROR");
+      expect(response.code).toBe(ApiErrorCodes.INTERNAL_ERROR);
+      expect(response.details.originalError).toBe(error.message);
+    });
+  });
+
+  describe("Rate Limit Error Handling", () => {
+    it("should handle rate limit errors correctly", () => {
+      const requestId = "test-request-id";
+
+      const exception = service.handleRateLimitError(requestId);
+
+      expect(exception).toBeInstanceOf(HttpException);
+      expect(exception.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+
+      const response = exception.getResponse() as any;
+      expect(response.error).toBe("RATE_LIMIT_EXCEEDED");
+      expect(response.code).toBe(ApiErrorCodes.RATE_LIMIT_EXCEEDED);
+    });
+  });
+
+  describe("Request ID Generation", () => {
+    it("should generate unique request IDs", () => {
+      const id1 = service.generateRequestId();
+      const id2 = service.generateRequestId();
+
+      expect(id1).toMatch(/^req_\d+_[a-z0-9]+$/);
+      expect(id2).toMatch(/^req_\d+_[a-z0-9]+$/);
+      expect(id1).not.toBe(id2);
+    });
+  });
+
+  describe("Performance Logging", () => {
+    it("should log performance warnings when response time exceeds target", () => {
+      const loggerSpy = jest.spyOn(service["logger"], "warn").mockImplementation();
+
+      service.logPerformanceWarning("test-operation", 150, 100, "test-request-id");
+
+      expect(loggerSpy).toHaveBeenCalledWith("Performance warning: test-operation took 150.00ms (target: 100ms)", {
+        requestId: "test-request-id",
+        responseTime: 150,
+        target: 100,
       });
 
-      const metrics = service.getErrorMetrics();
-
-      expect(metrics.totalErrors).toBe(4);
-      expect(metrics.errorsByType["Validation Error"]).toBe(2);
-      expect(metrics.errorsByType["Not Found"]).toBe(1);
-      expect(metrics.errorsByType["Rate Limit Exceeded"]).toBe(1);
+      loggerSpy.mockRestore();
     });
 
-    it("should track error counts by endpoint", () => {
-      const errors = [
-        { error: new Error("Test error"), endpoint: "/feed-values" },
-        { error: new Error("Test error"), endpoint: "/volumes" },
-        { error: new Error("Test error"), endpoint: "/feed-values" }, // Duplicate
-      ];
+    it("should not log performance warnings when response time is within target", () => {
+      const loggerSpy = jest.spyOn(service["logger"], "warn").mockImplementation();
 
-      errors.forEach(({ error, endpoint }) => {
-        service.handleApiError(error, { endpoint });
+      service.logPerformanceWarning("test-operation", 50, 100, "test-request-id");
+
+      expect(loggerSpy).not.toHaveBeenCalled();
+
+      loggerSpy.mockRestore();
+    });
+  });
+
+  describe("API Call Logging", () => {
+    it("should log API calls correctly", () => {
+      const loggerSpy = jest.spyOn(service["logger"], "log").mockImplementation();
+
+      service.logApiCall("GET", "/api/feeds", 45.5, 200, "test-request-id");
+
+      expect(loggerSpy).toHaveBeenCalledWith("GET /api/feeds - 200 - 45.50ms", {
+        requestId: "test-request-id",
+        method: "GET",
+        url: "/api/feeds",
+        responseTime: 45.5,
+        statusCode: 200,
       });
 
-      const metrics = service.getErrorMetrics();
-
-      expect(metrics.errorsByEndpoint["/feed-values"]).toBe(2);
-      expect(metrics.errorsByEndpoint["/volumes"]).toBe(1);
-    });
-
-    it("should track error rates over time", () => {
-      const error = new Error("Test error");
-
-      // Generate errors over time
-      for (let i = 0; i < 10; i++) {
-        service.handleApiError(error, { endpoint: "/test" });
-      }
-
-      const metrics = service.getErrorMetrics();
-
-      expect(metrics.totalErrors).toBe(10);
-      expect(metrics.errorRate).toBeGreaterThan(0);
-    });
-
-    it("should reset error metrics", () => {
-      const error = new Error("Test error");
-      service.handleApiError(error, { endpoint: "/test" });
-
-      let metrics = service.getErrorMetrics();
-      expect(metrics.totalErrors).toBe(1);
-
-      service.resetErrorMetrics();
-
-      metrics = service.getErrorMetrics();
-      expect(metrics.totalErrors).toBe(0);
-      expect(Object.keys(metrics.errorsByType)).toHaveLength(0);
-      expect(Object.keys(metrics.errorsByEndpoint)).toHaveLength(0);
+      loggerSpy.mockRestore();
     });
   });
 
-  describe("configuration", () => {
-    it("should update configuration", () => {
-      const newConfig = {
-        includeStackTrace: true,
-        logLevel: "debug" as const,
-        maxErrorHistory: 500,
-      };
-
-      service.updateConfig(newConfig);
-      const currentConfig = service.getConfig();
-
-      expect(currentConfig.includeStackTrace).toBe(true);
-      expect(currentConfig.logLevel).toBe("debug");
-      expect(currentConfig.maxErrorHistory).toBe(500);
-    });
-
-    it("should use default configuration values", () => {
-      const config = service.getConfig();
-
-      expect(config.includeStackTrace).toBe(false);
-      expect(config.logLevel).toBe("error");
-      expect(config.maxErrorHistory).toBe(1000);
-    });
-
-    it("should include stack trace when configured", () => {
-      service.updateConfig({ includeStackTrace: true });
-
-      const error = new Error("Test error with stack");
-      const response = service.handleApiError(error, { endpoint: "/test" });
-
-      expect(response.details).toBeDefined();
-      expect(response.details.stack).toBeDefined();
-    });
-
-    it("should exclude stack trace by default", () => {
-      const error = new Error("Test error without stack");
-      const response = service.handleApiError(error, { endpoint: "/test" });
-
-      expect(response.details?.stack).toBeUndefined();
-    });
-  });
-
-  describe("performance", () => {
-    it("should handle high-frequency errors efficiently", () => {
-      const startTime = performance.now();
-
-      // Generate many errors
-      for (let i = 0; i < 1000; i++) {
-        const error = new Error(`Error ${i}`);
-        service.handleApiError(error, { endpoint: "/test" });
-      }
-
-      const endTime = performance.now();
-      const totalTime = endTime - startTime;
-
-      // Should handle errors quickly
-      expect(totalTime).toBeLessThan(1000); // Less than 1 second for 1000 errors
-    });
-
-    it("should limit error history to prevent memory leaks", () => {
-      service.updateConfig({ maxErrorHistory: 10 });
-
-      // Generate more errors than the limit
-      for (let i = 0; i < 20; i++) {
-        const error = new Error(`Error ${i}`);
-        service.handleApiError(error, { endpoint: "/test" });
-      }
-
-      const metrics = service.getErrorMetrics();
-
-      // Should not exceed the configured limit
-      expect(metrics.totalErrors).toBe(20); // Total count should be accurate
-      // But internal history should be limited (implementation detail)
+  describe("Error Code Enum", () => {
+    it("should have correct error code values", () => {
+      expect(ApiErrorCodes.INVALID_FEED_REQUEST).toBe(4000);
+      expect(ApiErrorCodes.INVALID_FEED_CATEGORY).toBe(4001);
+      expect(ApiErrorCodes.INVALID_FEED_NAME).toBe(4002);
+      expect(ApiErrorCodes.INVALID_VOTING_ROUND).toBe(4003);
+      expect(ApiErrorCodes.INVALID_TIME_WINDOW).toBe(4004);
+      expect(ApiErrorCodes.FEED_NOT_FOUND).toBe(4041);
+      expect(ApiErrorCodes.RATE_LIMIT_EXCEEDED).toBe(4291);
+      expect(ApiErrorCodes.INTERNAL_ERROR).toBe(5001);
+      expect(ApiErrorCodes.DATA_SOURCE_UNAVAILABLE).toBe(5021);
+      expect(ApiErrorCodes.SERVICE_UNAVAILABLE).toBe(5031);
+      expect(ApiErrorCodes.AGGREGATION_FAILED).toBe(5041);
+      expect(ApiErrorCodes.CACHE_ERROR).toBe(5051);
     });
   });
 });

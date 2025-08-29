@@ -97,6 +97,11 @@ describe("FtsoProviderController - Production API Endpoints", () => {
     errorHandler = module.get(ApiErrorHandlerService);
   });
 
+  afterEach(() => {
+    // Restore console methods after each test
+    jest.restoreAllMocks();
+  });
+
   describe("getCurrentFeedValues", () => {
     it("should return current feed values with real-time data", async () => {
       // Mock cache miss to force real-time aggregation

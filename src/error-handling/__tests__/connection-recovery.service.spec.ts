@@ -74,6 +74,11 @@ describe("ConnectionRecoveryService", () => {
   let failoverManager: FailoverManager;
 
   beforeEach(async () => {
+    // Mock console methods to suppress expected error logs during tests
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
     // Create mock instances
     const mockCircuitBreaker = {
       registerCircuit: jest.fn(),
@@ -120,6 +125,8 @@ describe("ConnectionRecoveryService", () => {
     if (failoverManager && failoverManager.destroy) {
       failoverManager.destroy();
     }
+    // Restore console methods after each test
+    jest.restoreAllMocks();
   });
 
   describe("Data Source Registration", () => {

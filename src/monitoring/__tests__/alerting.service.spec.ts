@@ -98,6 +98,15 @@ describe("AlertingService", () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Clean up any intervals or timers that might be running
+    if (service) {
+      // Force cleanup of any internal timers
+      (service as any).destroy?.();
+    }
+    jest.clearAllMocks();
+  });
+
   it("should be defined", () => {
     expect(service).toBeDefined();
   });

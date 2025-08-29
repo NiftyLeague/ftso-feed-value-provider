@@ -71,6 +71,11 @@ describe("FailoverManager", () => {
   };
 
   beforeEach(async () => {
+    // Mock console methods to suppress expected error logs during tests
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
     module = await Test.createTestingModule({
       providers: [
         {
@@ -81,6 +86,18 @@ describe("FailoverManager", () => {
     }).compile();
 
     manager = module.get<FailoverManager>(FailoverManager);
+  });
+
+  afterEach(async () => {
+    // Clean up the manager and close the module
+    if (manager) {
+      manager.destroy();
+    }
+    if (module) {
+      await module.close();
+    }
+    // Restore console methods after each test
+    jest.restoreAllMocks();
   });
 
   afterEach(async () => {
@@ -319,7 +336,7 @@ describe("FailoverManager", () => {
       manager.configureFailoverGroup(feedId, ["binance", "coinbase"], ["kraken"]);
     });
 
-    it.skip("should handle source recovery correctly", async () => {
+    it("should handle source recovery correctly", async () => {
       // First trigger failover
       await manager.triggerFailover("binance", "Connection lost");
 
@@ -341,8 +358,9 @@ describe("FailoverManager", () => {
 
       // Simulate recovery by reconnecting multiple times to exceed recovery threshold
       for (let i = 0; i < testConfig.recoveryThreshold! + 1; i++) {
-        mockSources[0].simulateConnection(false);
         mockSources[0].simulateConnection(true);
+        // Add small delay to ensure proper processing
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
       await recoveryPromise;

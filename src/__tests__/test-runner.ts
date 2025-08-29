@@ -20,26 +20,103 @@ interface TestSuite {
 }
 
 const TEST_SUITES: TestSuite[] = [
-  // Unit Tests
+  // Unit Tests - Core Application
   {
-    name: "Exchange Adapters",
-    pattern: "src/adapters/**/*.spec.ts",
+    name: "App Controller",
+    pattern: "src/app.controller.spec.ts",
     timeout: 30000,
-    description: "Tests for individual exchange adapter implementations",
+    description: "Tests for main application controller",
     category: "unit",
   },
+
+  // Unit Tests - Exchange Adapters
   {
-    name: "Aggregation Logic",
-    pattern: "src/aggregators/**/*.spec.ts",
+    name: "Crypto Exchange Adapters",
+    pattern: "src/adapters/crypto/__tests__",
+    timeout: 30000,
+    description: "Tests for individual crypto exchange adapter implementations",
+    category: "unit",
+  },
+
+  // Unit Tests - Aggregation Logic
+  {
+    name: "Consensus Aggregator",
+    pattern: "src/aggregators/__tests__/consensus-aggregator.spec.ts",
     timeout: 30000,
     description: "Tests for consensus aggregation algorithms",
     category: "unit",
   },
   {
+    name: "Real-time Aggregation Service",
+    pattern: "src/aggregators/__tests__/real-time-aggregation.service.spec.ts",
+    timeout: 30000,
+    description: "Tests for real-time data aggregation service",
+    category: "unit",
+  },
+
+  // Unit Tests - Cache Services
+  {
+    name: "Cache Services",
+    pattern: "src/cache/__tests__",
+    timeout: 30000,
+    description: "Tests for caching services and performance monitoring",
+    category: "unit",
+  },
+
+  // Unit Tests - Configuration
+  {
+    name: "Configuration Service",
+    pattern: "src/config/__tests__/config.service.spec.ts",
+    timeout: 30000,
+    description: "Tests for configuration management",
+    category: "unit",
+  },
+
+  // Unit Tests - Data Management
+  {
+    name: "Data Manager Services",
+    pattern: "src/data-manager/__tests__/*.spec.ts",
+    timeout: 30000,
+    description: "Tests for data management and failover systems",
+    category: "unit",
+  },
+  {
     name: "Data Validation",
-    pattern: "src/data-manager/validation/**/*.spec.ts",
+    pattern: "src/data-manager/validation/__tests__/*.spec.ts",
     timeout: 30000,
     description: "Tests for data validation and quality checks",
+    category: "unit",
+  },
+
+  // Unit Tests - Error Handling
+  {
+    name: "Error Handling Services",
+    pattern: "src/error-handling/__tests__/*.spec.ts",
+    timeout: 30000,
+    description: "Tests for error handling, circuit breakers, and recovery",
+    category: "unit",
+  },
+
+  // Unit Tests - Monitoring
+  {
+    name: "Monitoring Services",
+    pattern: "src/monitoring/__tests__/accuracy-monitor.service.spec.ts",
+    timeout: 30000,
+    description: "Tests for accuracy monitoring service",
+    category: "unit",
+  },
+  {
+    name: "Performance Monitor",
+    pattern: "src/monitoring/__tests__/performance-monitor.service.spec.ts",
+    timeout: 30000,
+    description: "Tests for performance monitoring service",
+    category: "unit",
+  },
+  {
+    name: "Alerting Service",
+    pattern: "src/monitoring/__tests__/alerting.service.spec.ts",
+    timeout: 30000,
+    description: "Tests for alerting and notification systems",
     category: "unit",
   },
 
@@ -58,6 +135,29 @@ const TEST_SUITES: TestSuite[] = [
     description: "Tests for API endpoints with real data sources",
     category: "integration",
   },
+  {
+    name: "Monitoring Integration",
+    pattern: "src/monitoring/__tests__/monitoring-integration.spec.ts",
+    timeout: 120000,
+    description: "Tests for integrated monitoring system functionality",
+    category: "integration",
+  },
+  {
+    name: "Error Handling Integration",
+    pattern: "src/error-handling/__tests__/hybrid-error-integration.spec.ts",
+    timeout: 120000,
+    description: "Tests for integrated error handling across system components",
+    category: "integration",
+  },
+
+  // Accuracy Tests
+  {
+    name: "Backtesting Framework",
+    pattern: "src/__tests__/accuracy/backtesting-framework.spec.ts",
+    timeout: 300000,
+    description: "Historical accuracy validation using backtesting",
+    category: "accuracy",
+  },
 
   // Performance Tests
   {
@@ -75,20 +175,18 @@ const TEST_SUITES: TestSuite[] = [
     category: "performance",
   },
   {
+    name: "Real-time Aggregation Performance",
+    pattern: "src/aggregators/__tests__/real-time-aggregation.performance.spec.ts",
+    timeout: 300000,
+    description: "Performance tests for real-time aggregation under load",
+    category: "performance",
+  },
+  {
     name: "Endurance Testing",
     pattern: "src/__tests__/performance/endurance-testing.spec.ts",
     timeout: 1800000, // 30 minutes
     description: "Long-term stability and resource usage tests",
     category: "performance",
-  },
-
-  // Accuracy Tests
-  {
-    name: "Backtesting Framework",
-    pattern: "src/__tests__/accuracy/backtesting-framework.spec.ts",
-    timeout: 300000,
-    description: "Historical accuracy validation using backtesting",
-    category: "accuracy",
   },
 ];
 
@@ -145,12 +243,12 @@ class TestRunner {
       // Construct Jest command
       const jestCommand = [
         "npx jest",
-        `--testPathPattern="${suite.pattern}"`,
+        suite.pattern.includes("*") ? suite.pattern : `"${suite.pattern}"`,
         `--testTimeout=${suite.timeout}`,
         "--verbose",
         "--detectOpenHandles",
-        "--forceExit",
         "--maxWorkers=1", // Run tests sequentially for performance tests
+        "--silent", // Suppress console output from tests
       ].join(" ");
 
       console.log(`   Command: ${jestCommand}`);

@@ -26,6 +26,7 @@ export interface ConnectionHealth {
   connectedSources: number;
   averageLatency: number;
   failedSources: string[];
+  healthScore: number;
 }
 
 export interface RealTimeDataManager {

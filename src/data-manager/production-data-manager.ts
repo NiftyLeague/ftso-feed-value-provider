@@ -58,10 +58,26 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
 
   // Active reconnection timers
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
+  private healthMonitorInterval?: NodeJS.Timeout;
 
   constructor() {
     super();
     this.setupHealthMonitoring();
+  }
+
+  // Cleanup method for tests
+  cleanup(): void {
+    // Clear all reconnection timers
+    for (const timer of this.reconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.reconnectTimers.clear();
+
+    // Clear health monitoring interval
+    if (this.healthMonitorInterval) {
+      clearInterval(this.healthMonitorInterval);
+      this.healthMonitorInterval = undefined;
+    }
   }
 
   // Connection management methods
@@ -210,11 +226,15 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
       }
     }
 
+    // Calculate health score as percentage of healthy sources
+    const healthScore = totalSources > 0 ? (healthySources / totalSources) * 100 : 0;
+
     return {
       totalSources,
       connectedSources,
       averageLatency: healthySources > 0 ? totalLatency / healthySources : 0,
       failedSources,
+      healthScore,
     };
   }
 
@@ -391,7 +411,7 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
 
   private setupHealthMonitoring(): void {
     // Run health checks every 30 seconds
-    setInterval(() => {
+    this.healthMonitorInterval = setInterval(() => {
       this.performHealthCheck();
     }, 30000);
   }

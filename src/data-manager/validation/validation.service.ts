@@ -36,6 +36,9 @@ export class ValidationService extends EventEmitter {
     averageValidationTime: 0,
   };
 
+  // Cleanup interval
+  private cleanupInterval?: NodeJS.Timeout;
+
   constructor(validator?: DataValidator, config?: Partial<ValidationServiceConfig>) {
     super();
 
@@ -51,6 +54,14 @@ export class ValidationService extends EventEmitter {
     };
 
     this.setupCleanupInterval();
+  }
+
+  // Cleanup method for tests
+  cleanup(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
+    }
   }
 
   // Real-time validation for individual price updates
@@ -352,7 +363,7 @@ export class ValidationService extends EventEmitter {
 
   private setupCleanupInterval(): void {
     // Clean up cache and historical data every 5 minutes
-    setInterval(
+    this.cleanupInterval = setInterval(
       () => {
         this.cleanupCache();
         this.cleanupHistoricalData();

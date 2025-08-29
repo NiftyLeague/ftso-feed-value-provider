@@ -284,9 +284,9 @@ describe("Monitoring Integration Tests", () => {
     it("should monitor accuracy rate and alert when below threshold", async () => {
       const alertSpy = jest.spyOn(alertingService, "sendAlert");
 
-      // Simulate low accuracy rate
+      // Simulate low accuracy rate - deterministic 70% accuracy rate
       for (let i = 0; i < 100; i++) {
-        const isAccurate = Math.random() > 0.3; // 70% accuracy rate
+        const isAccurate = i < 70; // Exactly 70% accuracy rate
         accuracyMonitor.recordAccuracyCheck(mockFeedId, isAccurate);
       }
 

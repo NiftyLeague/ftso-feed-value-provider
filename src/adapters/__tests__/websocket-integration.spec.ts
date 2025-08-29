@@ -146,7 +146,11 @@ class MockExchangeAdapter {
 
   simulateConnectionFailure() {
     if (this.ws) {
-      this.ws.simulateError(new Error("Connection failed"));
+      try {
+        this.ws.simulateError(new Error("Connection failed"));
+      } catch (error) {
+        // Suppress error output during testing
+      }
     }
   }
 
@@ -179,6 +183,11 @@ describe("WebSocket Integration Tests", () => {
 
     // Mock global WebSocket
     (global as any).WebSocket = MockWebSocket;
+  });
+
+  afterEach(async () => {
+    // Ensure all adapters are properly disconnected
+    await Promise.allSettled([binanceAdapter.disconnect(), coinbaseAdapter.disconnect(), krakenAdapter.disconnect()]);
   });
 
   describe("Multi-Exchange WebSocket Connections", () => {
@@ -317,8 +326,16 @@ describe("WebSocket Integration Tests", () => {
   });
 
   describe("Connection Recovery and Failover", () => {
+    let originalConsoleError: typeof console.error;
+
     beforeEach(async () => {
+      originalConsoleError = console.error;
+      console.error = jest.fn(); // Mock console.error to suppress expected error messages
       await Promise.all([binanceAdapter.connect(), coinbaseAdapter.connect()]);
+    });
+
+    afterEach(() => {
+      console.error = originalConsoleError;
     });
 
     it("should automatically reconnect after connection loss", async () => {
@@ -462,6 +479,17 @@ describe("WebSocket Integration Tests", () => {
   });
 
   describe("Error Handling and Resilience", () => {
+    let originalConsoleError: typeof console.error;
+
+    beforeEach(() => {
+      originalConsoleError = console.error;
+      console.error = jest.fn(); // Mock console.error to suppress expected error messages
+    });
+
+    afterEach(() => {
+      console.error = originalConsoleError;
+    });
+
     it("should handle connection errors gracefully", async () => {
       const originalConnect = binanceAdapter.connect;
       jest.spyOn(binanceAdapter, "connect").mockRejectedValue(new Error("Connection failed"));

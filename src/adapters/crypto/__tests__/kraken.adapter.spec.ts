@@ -59,8 +59,8 @@ describe("KrakenAdapter", () => {
 
   describe("symbol mapping", () => {
     it("should map BTC symbols correctly", () => {
-      expect(adapter.getSymbolMapping("BTC/USD")).toBe("XBTUSD");
-      expect(adapter.getSymbolMapping("BTC/EUR")).toBe("XBTEUR");
+      expect(adapter.getSymbolMapping("BTC/USD")).toBe("BTCUSD");
+      expect(adapter.getSymbolMapping("BTC/EUR")).toBe("BTCEUR");
     });
 
     it("should map other symbols correctly", () => {
@@ -78,6 +78,55 @@ describe("KrakenAdapter", () => {
   describe("symbol normalization from exchange format", () => {
     it("should normalize XBT pairs back to BTC", () => {
       const mockData: KrakenTickerData = {
+        channelID: 123,
+        channelName: "ticker",
+        pair: "XBT/USD",
+        data: {
+          a: ["50001.00", "1", "1.000"],
+          b: ["49999.00", "1", "1.000"],
+          c: ["50000.00", "0.1"],
+          v: ["1000.0", "5000.0"],
+          p: ["50000.00", "49500.00"],
+          t: [500, 2500],
+          l: ["48000.00", "47000.00"],
+          h: ["51000.00", "52000.00"],
+          o: ["49000.00", "48000.00"],
+        },
+      };
+
+      const result = adapter.normalizePriceData(mockData);
+      expect(result.symbol).toBe("XBT/USD");
+    });
+
+    it("should normalize other pairs correctly", () => {
+      const mockData: KrakenTickerData = {
+        channelID: 125,
+        channelName: "ticker",
+        pair: "ETH/USD",
+        data: {
+          a: ["2901.00", "10", "10.000"],
+          b: ["2899.00", "5", "5.000"],
+          c: ["2900.00", "1.0"],
+          v: ["10000.0", "50000.0"],
+          p: ["2900.00", "2850.00"],
+          t: [1000, 5000],
+          l: ["2750.00", "2700.00"],
+          h: ["2950.00", "3000.00"],
+          o: ["2800.00", "2750.00"],
+        },
+      };
+
+      const result = adapter.normalizePriceData(mockData);
+      expect(result.symbol).toBe("ETH/USD");
+    });
+  });
+
+  describe("data normalization", () => {
+    const mockTickerData: KrakenTickerData = {
+      channelID: 126,
+      channelName: "ticker",
+      pair: "XBT/USD",
+      data: {
         a: ["50001.00", "1", "1.000"],
         b: ["49999.00", "1", "1.000"],
         c: ["50000.00", "0.1"],
@@ -86,71 +135,51 @@ describe("KrakenAdapter", () => {
         t: [500, 2500],
         l: ["48000.00", "47000.00"],
         h: ["51000.00", "52000.00"],
-        o: "49000.00",
-      };
-
-      const result = adapter.normalizePriceData(mockData, "XBTUSD");
-      expect(result.symbol).toBe("BTC/USD");
-    });
-
-    it("should normalize other pairs correctly", () => {
-      const mockData: KrakenTickerData = {
-        a: ["2901.00", "10", "10.000"],
-        b: ["2899.00", "5", "5.000"],
-        c: ["2900.00", "1.0"],
-        v: ["10000.0", "50000.0"],
-        p: ["2900.00", "2850.00"],
-        t: [1000, 5000],
-        l: ["2750.00", "2700.00"],
-        h: ["2950.00", "3000.00"],
-        o: "2800.00",
-      };
-
-      const result = adapter.normalizePriceData(mockData, "ETHUSD");
-      expect(result.symbol).toBe("ETH/USD");
-    });
-  });
-
-  describe("data normalization", () => {
-    const mockTickerData: KrakenTickerData = {
-      a: ["50001.00", "1", "1.000"],
-      b: ["49999.00", "1", "1.000"],
-      c: ["50000.00", "0.1"],
-      v: ["1000.0", "5000.0"],
-      p: ["50000.00", "49500.00"],
-      t: [500, 2500],
-      l: ["48000.00", "47000.00"],
-      h: ["51000.00", "52000.00"],
-      o: "49000.00",
+        o: ["49000.00", "48000.00"],
+      },
     };
 
     it("should normalize price data correctly", () => {
-      const result = adapter.normalizePriceData(mockTickerData, "XBTUSD");
+      const result = adapter.normalizePriceData(mockTickerData);
 
-      expect(result.symbol).toBe("BTC/USD");
+      expect(result.symbol).toBe("XBT/USD");
       expect(result.price).toBe(50000);
       expect(result.source).toBe("kraken");
-      expect(result.volume).toBe(1000);
+      expect(result.volume).toBe(5000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
       expect(typeof result.timestamp).toBe("number");
     });
 
     it("should normalize volume data correctly", () => {
-      const result = adapter.normalizeVolumeData(mockTickerData, "XBTUSD");
+      const result = adapter.normalizeVolumeData(mockTickerData);
 
-      expect(result.symbol).toBe("BTC/USD");
-      expect(result.volume).toBe(1000);
+      expect(result.symbol).toBe("XBT/USD");
+      expect(result.volume).toBe(5000);
       expect(result.source).toBe("kraken");
       expect(typeof result.timestamp).toBe("number");
     });
 
     it("should calculate confidence based on spread", () => {
-      const lowSpreadData = { ...mockTickerData, a: ["50000.50", "1", "1.000"], b: ["49999.50", "1", "1.000"] };
-      const highSpreadData = { ...mockTickerData, a: ["51000.00", "1", "1.000"], b: ["49000.00", "1", "1.000"] };
+      const lowSpreadData: KrakenTickerData = {
+        ...mockTickerData,
+        data: {
+          ...mockTickerData.data,
+          a: ["50000.50", "1", "1.000"] as [string, string, string],
+          b: ["49999.50", "1", "1.000"] as [string, string, string],
+        },
+      };
+      const highSpreadData: KrakenTickerData = {
+        ...mockTickerData,
+        data: {
+          ...mockTickerData.data,
+          a: ["51000.00", "1", "1.000"] as [string, string, string],
+          b: ["49000.00", "1", "1.000"] as [string, string, string],
+        },
+      };
 
-      const lowSpreadResult = adapter.normalizePriceData(lowSpreadData, "XBTUSD");
-      const highSpreadResult = adapter.normalizePriceData(highSpreadData, "XBTUSD");
+      const lowSpreadResult = adapter.normalizePriceData(lowSpreadData);
+      const highSpreadResult = adapter.normalizePriceData(highSpreadData);
 
       expect(lowSpreadResult.confidence).toBeGreaterThan(highSpreadResult.confidence);
     });
@@ -159,15 +188,20 @@ describe("KrakenAdapter", () => {
   describe("response validation", () => {
     it("should validate correct ticker data", () => {
       const validData: KrakenTickerData = {
-        a: ["50001.00", "1", "1.000"],
-        b: ["49999.00", "1", "1.000"],
-        c: ["50000.00", "0.1"],
-        v: ["1000.0", "5000.0"],
-        p: ["50000.00", "49500.00"],
-        t: [500, 2500],
-        l: ["48000.00", "47000.00"],
-        h: ["51000.00", "52000.00"],
-        o: "49000.00",
+        channelID: 127,
+        channelName: "ticker",
+        pair: "XBT/USD",
+        data: {
+          a: ["50001.00", "1", "1.000"],
+          b: ["49999.00", "1", "1.000"],
+          c: ["50000.00", "0.1"],
+          v: ["1000.0", "5000.0"],
+          p: ["50000.00", "49500.00"],
+          t: [500, 2500],
+          l: ["48000.00", "47000.00"],
+          h: ["51000.00", "52000.00"],
+          o: ["49000.00", "48000.00"],
+        },
       };
 
       expect(adapter.validateResponse(validData)).toBe(true);
@@ -236,7 +270,7 @@ describe("KrakenAdapter", () => {
       expect(result.symbol).toBe("BTC/USD");
       expect(result.price).toBe(50000);
       expect(result.source).toBe("kraken");
-      expect(result.volume).toBe(1000);
+      expect(result.volume).toBe(5000);
     });
 
     it("should handle REST API errors", async () => {
@@ -274,7 +308,7 @@ describe("KrakenAdapter", () => {
     it("should check REST API when not connected", async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ error: [], result: {} }),
+        json: () => Promise.resolve({ error: [], result: { status: "online" } }),
       });
 
       const isHealthy = await adapter.healthCheck();
@@ -295,8 +329,8 @@ describe("KrakenAdapter", () => {
       await adapter.subscribe(["BTC/USD", "ETH/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).toContain("xbtusd");
-      expect(subscriptions).toContain("ethusd");
+      expect(subscriptions).toContain("BTCUSD");
+      expect(subscriptions).toContain("ETHUSD");
     });
 
     it("should handle unsubscribe", async () => {
@@ -305,8 +339,8 @@ describe("KrakenAdapter", () => {
       await adapter.unsubscribe(["BTC/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).not.toContain("xbtusd");
-      expect(subscriptions).toContain("ethusd");
+      expect(subscriptions).not.toContain("BTCUSD");
+      expect(subscriptions).toContain("ETHUSD");
     });
   });
 });

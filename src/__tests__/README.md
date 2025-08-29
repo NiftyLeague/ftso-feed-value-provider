@@ -1,15 +1,16 @@
 # FTSO Provider Test Suite
 
-This directory contains the comprehensive test suite for the FTSO (Flare Time Series Oracle) Provider, designed to validate accuracy, performance, and reliability requirements for production deployment.
+This directory contains the comprehensive test suite for the FTSO (Flare Time
+Series Oracle) Provider, designed to validate accuracy, performance, and
+reliability requirements for production deployment.
 
 ## Test Categories
 
 ### 1. Unit Tests (`src/adapters/**/*.spec.ts`, `src/aggregators/**/*.spec.ts`, etc.)
 
-**Purpose**: Test individual components in isolation
-**Coverage**:
+**Purpose**: Test individual components in isolation **Coverage**:
 
-- Exchange adapter implementations (Binance, Coinbase, Kraken, OKX)
+- Exchange adapter implementations (Binance, Coinbase, Crypto.com, Kraken, OKX)
 - Data normalization and validation logic
 - Aggregation algorithms and consensus mechanisms
 - Error handling and recovery systems
@@ -25,8 +26,7 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### WebSocket Integration (`src/adapters/__tests__/websocket-integration.spec.ts`)
 
-**Purpose**: Test real-time data flow and connection management
-**Coverage**:
+**Purpose**: Test real-time data flow and connection management **Coverage**:
 
 - Multi-exchange WebSocket connections
 - Real-time price update processing
@@ -41,8 +41,7 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### API Integration (`src/api/__tests__/api-integration.spec.ts`)
 
-**Purpose**: Test API endpoints with real data sources
-**Coverage**:
+**Purpose**: Test API endpoints with real data sources **Coverage**:
 
 - Feed value retrieval endpoints
 - Historical data queries
@@ -58,8 +57,7 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### Monitoring Integration (`src/monitoring/__tests__/monitoring-integration.spec.ts`)
 
-**Purpose**: Test monitoring and alerting systems
-**Coverage**:
+**Purpose**: Test monitoring and alerting systems **Coverage**:
 
 - Performance metric collection
 - Accuracy monitoring and deviation detection
@@ -76,8 +74,8 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### Load Testing (`src/__tests__/performance/load-testing.spec.ts`)
 
-**Purpose**: Validate system performance under high request volumes
-**Test Scenarios**:
+**Purpose**: Validate system performance under high request volumes **Test
+Scenarios**:
 
 - 1000+ concurrent requests
 - Sustained load (100 RPS for 10 minutes)
@@ -93,8 +91,7 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### Latency Testing (`src/__tests__/performance/latency-testing.spec.ts`)
 
-**Purpose**: Ensure response times meet <100ms requirement
-**Test Scenarios**:
+**Purpose**: Ensure response times meet <100ms requirement **Test Scenarios**:
 
 - Single request latency measurement
 - Concurrent load latency impact
@@ -110,8 +107,8 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### Endurance Testing (`src/__tests__/performance/endurance-testing.spec.ts`)
 
-**Purpose**: Validate long-term stability and resource management
-**Test Scenarios**:
+**Purpose**: Validate long-term stability and resource management **Test
+Scenarios**:
 
 - 30-minute continuous operation
 - Memory usage over extended periods
@@ -129,8 +126,8 @@ This directory contains the comprehensive test suite for the FTSO (Flare Time Se
 
 #### Backtesting Framework (`src/__tests__/accuracy/backtesting-framework.spec.ts`)
 
-**Purpose**: Validate historical accuracy using backtesting methodology
-**Test Scenarios**:
+**Purpose**: Validate historical accuracy using backtesting methodology **Test
+Scenarios**:
 
 - Historical data accuracy validation
 - Consensus alignment over time periods

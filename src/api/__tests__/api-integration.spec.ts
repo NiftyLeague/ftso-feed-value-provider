@@ -111,7 +111,7 @@ class MockApiServer {
     }
 
     // Check if voting round exists (mock check)
-    if (parseInt(votingRoundId) > 999999) {
+    if (parseInt(votingRoundId) >= 999999) {
       return {
         status: 404,
         body: {

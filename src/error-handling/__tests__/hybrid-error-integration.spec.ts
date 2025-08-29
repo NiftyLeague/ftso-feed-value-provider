@@ -20,6 +20,11 @@ describe("Hybrid Error Handling Integration", () => {
   };
 
   beforeEach(async () => {
+    // Mock console methods to suppress expected error logs during tests
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
     // Create mock instances
     const mockCircuitBreaker = {
       registerCircuit: jest.fn(),
@@ -55,13 +60,13 @@ describe("Hybrid Error Handling Integration", () => {
         deactivatedSources: ["failed-source"],
         degradationLevel: "none",
       }),
-      implementGracefulDegradation: jest.fn().mockResolvedValue(),
+      implementGracefulDegradation: jest.fn().mockResolvedValue(undefined),
       destroy: jest.fn(),
     };
 
     const mockCcxtAdapter = {
       getCcxtPrice: jest.fn(),
-      getAvailableTier2Exchanges: jest.fn().mockReturnValue(["bitmart", "bybit", "gate"]),
+      getAvailableTier2Exchanges: jest.fn().mockReturnValue(["binance", "bitmart", "bybit", "gate"]),
       canProvideTier2Data: jest.fn().mockReturnValue(true),
     };
 
@@ -103,6 +108,8 @@ describe("Hybrid Error Handling Integration", () => {
     if (failoverManager && failoverManager.destroy) {
       failoverManager.destroy();
     }
+    // Restore console methods after each test
+    jest.restoreAllMocks();
   });
 
   describe("Complete Tier 1 to Tier 2 Failover Flow", () => {

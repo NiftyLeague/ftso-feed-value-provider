@@ -116,6 +116,8 @@ export class HybridErrorHandlerService extends EventEmitter {
     this.logger.warn(`Handling Tier 1 custom adapter error for ${sourceId}:`, error.message);
 
     const classification = this.classifyError(error, context);
+
+    // Create initial error record
     const dataSourceError: DataSourceError = {
       sourceId,
       tier: DataSourceTier.TIER_1_CUSTOM,
@@ -123,12 +125,21 @@ export class HybridErrorHandlerService extends EventEmitter {
       error,
       timestamp: Date.now(),
       feedId,
-      severity: this.determineSeverity(classification, sourceId),
+      severity: "low", // Will be updated after recording
       recoverable: this.isRecoverable(classification),
     };
 
-    // Record error
+    // Record error first
     this.recordError(dataSourceError);
+
+    // Now determine severity based on updated history
+    dataSourceError.severity = this.determineSeverity(classification, sourceId);
+
+    // Update the recorded error with correct severity
+    const history = this.errorHistory.get(sourceId) || [];
+    if (history.length > 0) {
+      history[history.length - 1].severity = dataSourceError.severity;
+    }
 
     // Determine response strategy
     const response = await this.determineErrorResponse(dataSourceError);
@@ -156,6 +167,8 @@ export class HybridErrorHandlerService extends EventEmitter {
     this.logger.warn(`Handling Tier 2 CCXT exchange error for ${exchangeId}:`, error.message);
 
     const classification = this.classifyError(error, context);
+
+    // Create initial error record
     const dataSourceError: DataSourceError = {
       sourceId: exchangeId,
       tier: DataSourceTier.TIER_2_CCXT,
@@ -163,12 +176,21 @@ export class HybridErrorHandlerService extends EventEmitter {
       error,
       timestamp: Date.now(),
       feedId,
-      severity: this.determineSeverity(classification, exchangeId),
+      severity: "low", // Will be updated after recording
       recoverable: this.isRecoverable(classification),
     };
 
-    // Record error
+    // Record error first
     this.recordError(dataSourceError);
+
+    // Now determine severity based on updated history
+    dataSourceError.severity = this.determineSeverity(classification, exchangeId);
+
+    // Update the recorded error with correct severity
+    const history = this.errorHistory.get(exchangeId) || [];
+    if (history.length > 0) {
+      history[history.length - 1].severity = dataSourceError.severity;
+    }
 
     // Determine response strategy (different for Tier 2)
     const response = await this.determineTier2ErrorResponse(dataSourceError);
@@ -361,13 +383,19 @@ export class HybridErrorHandlerService extends EventEmitter {
   // Private helper methods
 
   private classifyError(error: Error, context?: any): ErrorClassification {
-    const message = error.message.toLowerCase();
+    const message = (error?.message || error?.toString() || "unknown error").toLowerCase();
 
     if (message.includes("timeout") || message.includes("timed out")) {
       return ErrorClassification.TIMEOUT_ERROR;
     }
 
-    if (message.includes("connection") || message.includes("network") || message.includes("econnrefused")) {
+    if (
+      message.includes("connection") ||
+      message.includes("network") ||
+      message.includes("econnrefused") ||
+      message.includes("disconnected") ||
+      message.includes("websocket")
+    ) {
       return ErrorClassification.CONNECTION_ERROR;
     }
 
@@ -624,6 +652,12 @@ export class HybridErrorHandlerService extends EventEmitter {
       // Check if CCXT can provide individual prices for the same exchanges
       const availableTier2Exchanges = this.ccxtAdapter.getAvailableTier2Exchanges(feedId);
 
+      // Ensure we have a valid array
+      if (!Array.isArray(availableTier2Exchanges)) {
+        this.logger.warn(`No available Tier 2 exchanges for ${feedId.name}`);
+        return [];
+      }
+
       // Map failed Tier 1 sources to their CCXT equivalents
       const ccxtBackupSources: string[] = [];
 
@@ -649,6 +683,9 @@ export class HybridErrorHandlerService extends EventEmitter {
     const feedKey = this.getFeedKey(feedId);
 
     this.ccxtBackupActive.set(feedKey, true);
+
+    // Increment the backup activation counter
+    this.stats.ccxtBackupActivations++;
 
     this.logger.log(
       `CCXT backup activated for ${feedId.name}: ${backupSources.join(", ")} replacing ${failedSources.join(", ")}`

@@ -37,8 +37,16 @@ describe("HybridErrorHandlerService", () => {
   };
 
   beforeEach(async () => {
+    // Mock console methods to suppress expected error logs during tests
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => {});
+
     // Reset mocks
     jest.clearAllMocks();
+
+    // Set default mock return values
+    mockCcxtAdapter.getAvailableTier2Exchanges.mockReturnValue(["binance", "coinbase", "bitmart", "bybit", "gate"]);
 
     // Create service instance directly with mocks
     service = new HybridErrorHandlerService(
@@ -56,6 +64,8 @@ describe("HybridErrorHandlerService", () => {
     if (service) {
       service.destroy();
     }
+    // Restore console methods after each test
+    jest.restoreAllMocks();
   });
 
   describe("Error Classification", () => {
@@ -319,9 +329,10 @@ describe("HybridErrorHandlerService", () => {
       const failedSources = ["binance-adapter"];
       mockCcxtAdapter.getAvailableTier2Exchanges.mockReturnValue(["binance"]);
 
-      service.on("ccxtBackupActivated", (feedId, failedSource) => {
+      service.on("ccxtBackupActivated", (feedId, failedSourcesArray, backupSources) => {
         expect(feedId).toEqual(testFeedId);
-        expect(failedSource).toBe("binance-adapter");
+        expect(failedSourcesArray).toEqual(["binance-adapter"]);
+        expect(backupSources).toEqual(["ccxt-binance"]);
         done();
       });
 
@@ -393,6 +404,11 @@ describe("HybridErrorHandlerService", () => {
     });
 
     it("should update recovery statistics on successful recovery", async () => {
+      // First create an error to establish tier status
+      const error = new Error("Connection error");
+      await service.handleCustomAdapterError("test-source", error, testFeedId);
+
+      // Mock successful circuit breaker execution for recovery
       mockCircuitBreaker.execute.mockResolvedValue(true);
 
       await (service as any).checkSourceRecovery("test-source");

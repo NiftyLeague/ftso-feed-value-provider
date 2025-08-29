@@ -245,8 +245,8 @@ describe("CoinbaseAdapter", () => {
       await adapter.subscribe(["BTC/USD", "ETH/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).toContain("btc-usd");
-      expect(subscriptions).toContain("eth-usd");
+      expect(subscriptions).toContain("BTC-USD");
+      expect(subscriptions).toContain("ETH-USD");
     });
 
     it("should handle unsubscribe", async () => {
@@ -255,8 +255,8 @@ describe("CoinbaseAdapter", () => {
       await adapter.unsubscribe(["BTC/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).not.toContain("btc-usd");
-      expect(subscriptions).toContain("eth-usd");
+      expect(subscriptions).not.toContain("BTC-USD");
+      expect(subscriptions).toContain("ETH-USD");
     });
   });
 });
