@@ -1,6 +1,10 @@
 import { Module } from "@nestjs/common";
 import { FtsoProviderService } from "@/app.service";
-import { FtsoProviderController } from "@/app.controller";
+
+// New focused controllers
+import { FeedController } from "@/controllers/feed.controller";
+import { HealthController } from "@/controllers/health.controller";
+import { MetricsController } from "@/controllers/metrics.controller";
 
 // Production integration
 import { IntegrationModule } from "@/integration/integration.module";
@@ -29,7 +33,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     // Always use production integration
     IntegrationModule,
   ],
-  controllers: [FtsoProviderController],
+  controllers: [FeedController, HealthController, MetricsController],
   providers: [
     // API middleware and guards
     ApiErrorHandlerService,

@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { ProductionIntegrationService } from "./production-integration.service";
-import { HealthCheckController } from "./health-check.controller";
 
 // Core modules
 import { CacheModule } from "@/cache/cache.module";
@@ -38,7 +37,7 @@ import { StartupValidationService } from "./startup-validation.service";
 
 @Module({
   imports: [CacheModule, AggregatorsModule, MonitoringModule],
-  controllers: [HealthCheckController],
+  controllers: [],
   providers: [
     // Core integration service
     ProductionIntegrationService,

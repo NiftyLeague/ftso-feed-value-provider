@@ -10,8 +10,6 @@ import {
   Query,
   HttpException,
   HttpStatus,
-  UseInterceptors,
-  UseGuards,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { FtsoProviderService } from "@/app.service";
@@ -21,21 +19,21 @@ import {
   FeedVolumesResponse,
   RoundFeedValuesResponse,
   VolumesRequest,
+  FeedValueData,
+  FeedVolumeData,
 } from "@/dto/provider-requests.dto";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { isValidFeedId } from "@/types";
-import { ResponseTimeInterceptor } from "./interceptors/response-time.interceptor";
-import { RateLimitGuard } from "./guards/rate-limit.guard";
-import { ApiErrorHandlerService } from "./error-handling/api-error-handler.service";
-import { ApiMonitorService } from "./monitoring/api-monitor.service";
+import { FeedId } from "@/dto/provider-requests.dto";
 
-@ApiTags("Production FTSO Feed Value Provider API")
+import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
+import { ApiMonitorService } from "../monitoring/api-monitor.service";
+
+@ApiTags("FTSO Feed Values")
 @Controller()
-@UseInterceptors(ResponseTimeInterceptor)
-@UseGuards(RateLimitGuard)
-export class FtsoProviderController {
-  private logger = new Logger(FtsoProviderController.name);
+export class FeedController {
+  private logger = new Logger(FeedController.name);
 
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
@@ -97,7 +95,7 @@ export class FtsoProviderController {
 
       // Get fresh data for any missing feeds
       const missingFeeds = body.feeds.filter((_, index) => !cachedResults[index]);
-      let freshData: any[] = [];
+      let freshData: FeedValueData[] = [];
 
       if (missingFeeds.length > 0) {
         freshData = await this.providerService.getValues(missingFeeds);
@@ -433,7 +431,7 @@ export class FtsoProviderController {
     });
   }
 
-  private async getRealTimeFeedValues(feeds: any[]): Promise<any[]> {
+  private async getRealTimeFeedValues(feeds: FeedId[]): Promise<FeedValueData[]> {
     const startTime = performance.now();
 
     // Process feeds in parallel for better performance
@@ -604,7 +602,7 @@ export class FtsoProviderController {
     }
   }
 
-  private async getCachedHistoricalData(feeds: any[], votingRoundId: number): Promise<(any | null)[]> {
+  private async getCachedHistoricalData(feeds: FeedId[], votingRoundId: number): Promise<(FeedValueData | null)[]> {
     const results = [];
 
     for (const feed of feeds) {
@@ -623,7 +621,7 @@ export class FtsoProviderController {
     return results;
   }
 
-  private async cacheHistoricalData(feeds: any[], data: any[], votingRoundId: number): Promise<void> {
+  private async cacheHistoricalData(feeds: FeedId[], data: FeedValueData[], votingRoundId: number): Promise<void> {
     for (let i = 0; i < feeds.length; i++) {
       const feed = feeds[i];
       const feedData = data[i];
@@ -646,11 +644,11 @@ export class FtsoProviderController {
   }
 
   private combineHistoricalResults(
-    allFeeds: any[],
-    cachedResults: (any | null)[],
-    missingFeeds: any[],
-    freshData: any[]
-  ): any[] {
+    allFeeds: FeedId[],
+    cachedResults: (FeedValueData | null)[],
+    missingFeeds: FeedId[],
+    freshData: FeedValueData[]
+  ): FeedValueData[] {
     const results = [];
     let freshIndex = 0;
 
@@ -666,7 +664,7 @@ export class FtsoProviderController {
     return results;
   }
 
-  private async getOptimizedVolumes(feeds: any[], windowSec: number): Promise<any[]> {
+  private async getOptimizedVolumes(feeds: FeedId[], windowSec: number): Promise<FeedVolumeData[]> {
     // Use existing CCXT volume processing with USDT conversion
     return await this.providerService.getVolumes(feeds, windowSec);
   }
@@ -676,263 +674,12 @@ export class FtsoProviderController {
     return age <= 2000; // 2-second freshness requirement
   }
 
-  @Post("health")
-  @ApiOperation({
-    summary: "Health check endpoint",
-    description: "Returns comprehensive system health status and performance metrics with detailed component status",
-  })
-  @ApiResponse({
-    status: 200,
-    description: "System is healthy",
-    schema: {
-      type: "object",
-      properties: {
-        status: { type: "string", enum: ["healthy", "degraded", "unhealthy"] },
-        timestamp: { type: "number" },
-        version: { type: "string" },
-        uptime: { type: "number" },
-        memory: { type: "object" },
-        performance: { type: "object" },
-        components: { type: "object" },
-        details: { type: "object" },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 503,
-    description: "System is unhealthy",
-    schema: {
-      type: "object",
-      properties: {
-        status: { type: "string", enum: ["unhealthy"] },
-        timestamp: { type: "number" },
-        error: { type: "string" },
-        details: { type: "object" },
-      },
-    },
-  })
-  async healthCheck(): Promise<any> {
-    const startTime = performance.now();
-    const requestId = this.generateRequestId();
-
-    try {
-      // Get comprehensive health information
-      const [health, performanceMetrics] = await Promise.allSettled([
-        this.providerService.healthCheck(),
-        this.providerService.getPerformanceMetrics(),
-      ]);
-
-      // Get additional component health
-      const cacheStats = this.cacheService.getStats();
-      const aggregationStats = this.aggregationService.getCacheStats();
-
-      // Determine component health status
-      const components = {
-        provider: {
-          status: health.status === "fulfilled" ? health.value.status : "unhealthy",
-          details: health.status === "fulfilled" ? health.value.details : { error: health.reason?.message },
-        },
-        cache: {
-          status: cacheStats.hitRate > 0.3 ? "healthy" : "degraded",
-          hitRate: cacheStats.hitRate,
-          totalEntries: cacheStats.totalEntries,
-          memoryUsage: cacheStats.memoryUsage,
-        },
-        aggregation: {
-          status: aggregationStats.totalEntries > 0 ? "healthy" : "degraded",
-          totalEntries: aggregationStats.totalEntries,
-          hitRate: aggregationStats.hitRate,
-          averageAge: aggregationStats.averageAge,
-        },
-        performance: {
-          status: performanceMetrics.status === "fulfilled" ? "healthy" : "degraded",
-          metrics: performanceMetrics.status === "fulfilled" ? performanceMetrics.value : null,
-        },
-      };
-
-      // Determine overall health
-      const componentStatuses = Object.values(components).map(c => c.status);
-      const unhealthyCount = componentStatuses.filter(s => s === "unhealthy").length;
-      const degradedCount = componentStatuses.filter(s => s === "degraded").length;
-
-      let overallStatus: "healthy" | "degraded" | "unhealthy";
-      if (unhealthyCount > 0) {
-        overallStatus = "unhealthy";
-      } else if (degradedCount > 0) {
-        overallStatus = "degraded";
-      } else {
-        overallStatus = "healthy";
-      }
-
-      const responseTime = performance.now() - startTime;
-
-      const response = {
-        status: overallStatus,
-        timestamp: Date.now(),
-        version: "1.0.0",
-        uptime: process.uptime(),
-        responseTime: Math.round(responseTime),
-        memory: {
-          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
-          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
-          external: Math.round(process.memoryUsage().external / 1024 / 1024), // MB
-          rss: Math.round(process.memoryUsage().rss / 1024 / 1024), // MB
-        },
-        components,
-        details: {
-          requestId,
-          environment: process.env.NODE_ENV || "development",
-          nodeVersion: process.version,
-          platform: process.platform,
-          pid: process.pid,
-        },
-      };
-
-      // Log health check performance
-      this.logger.log(`Health check completed in ${responseTime.toFixed(2)}ms - Status: ${overallStatus}`, {
-        requestId,
-        status: overallStatus,
-        responseTime,
-        componentStatuses,
-      });
-
-      // Log performance warning if health check is slow
-      if (responseTime > 1000) {
-        this.logger.warn(`Health check response time ${responseTime.toFixed(2)}ms exceeded 1s threshold`, {
-          requestId,
-          responseTime,
-        });
-      }
-
-      if (overallStatus === "unhealthy") {
-        throw new HttpException(response, HttpStatus.SERVICE_UNAVAILABLE);
-      }
-
-      return response;
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-      this.logger.error(`Health check failed in ${responseTime.toFixed(2)}ms:`, error, { requestId });
-
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      const errorResponse = {
-        status: "unhealthy",
-        timestamp: Date.now(),
-        responseTime: Math.round(responseTime),
-        error: "Health check failed",
-        details: {
-          error: error.message,
-          requestId,
-          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-        },
-      };
-
-      throw new HttpException(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
-    }
-  }
-
-  @Post("metrics")
-  @ApiOperation({
-    summary: "API metrics and monitoring data",
-    description: "Returns comprehensive API performance metrics, endpoint statistics, and health information",
-  })
-  @ApiResponse({
-    status: 200,
-    description: "API metrics retrieved successfully",
-    schema: {
-      type: "object",
-      properties: {
-        health: { type: "object" },
-        endpoints: { type: "array" },
-        performance: { type: "object" },
-        errors: { type: "object" },
-        timestamp: { type: "number" },
-      },
-    },
-  })
-  async getApiMetrics(): Promise<any> {
-    const startTime = performance.now();
-    const requestId = this.generateRequestId();
-
-    try {
-      // Log API request
-      this.logApiRequest("POST", "/metrics", null, requestId);
-
-      // Get comprehensive API metrics
-      const healthMetrics = this.apiMonitor.getApiHealthMetrics();
-      const endpointStats = this.apiMonitor.getAllEndpointStats();
-      const performanceMetrics = this.apiMonitor.getPerformanceMetrics(5); // Last 5 minutes
-      const errorAnalysis = this.apiMonitor.getErrorAnalysis();
-
-      const response = {
-        health: healthMetrics,
-        endpoints: endpointStats.slice(0, 20), // Top 20 endpoints
-        performance: performanceMetrics,
-        errors: errorAnalysis,
-        system: {
-          uptime: process.uptime(),
-          memory: {
-            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
-            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
-          },
-          metricsCount: this.apiMonitor.getMetricsCount(),
-        },
-        timestamp: Date.now(),
-        requestId,
-      };
-
-      const responseTime = performance.now() - startTime;
-
-      // Log API response
-      this.logApiResponse("POST", "/metrics", 200, responseTime, this.calculateResponseSize(response), requestId);
-
-      this.logger.log(`API metrics retrieved in ${responseTime.toFixed(2)}ms`, {
-        requestId,
-        responseTime,
-        endpointCount: endpointStats.length,
-        metricsCount: this.apiMonitor.getMetricsCount(),
-      });
-
-      return response;
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-
-      const errorResponse = {
-        error: "METRICS_ERROR",
-        code: 5004,
-        message: "Failed to retrieve API metrics",
-        timestamp: Date.now(),
-        requestId,
-      };
-
-      // Log error response
-      this.logApiResponse(
-        "POST",
-        "/metrics",
-        500,
-        responseTime,
-        this.calculateResponseSize(errorResponse),
-        requestId,
-        error.message
-      );
-
-      this.logger.error(`Error retrieving API metrics (${responseTime.toFixed(2)}ms):`, error, {
-        requestId,
-        responseTime,
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
   private generateRequestId(): string {
     return this.errorHandler.generateRequestId();
   }
 
   // Enhanced logging and monitoring methods
-  private logApiRequest(method: string, url: string, body?: any, requestId?: string): void {
+  private logApiRequest(method: string, url: string, body?: unknown, requestId?: string): void {
     const sanitizedBody = this.sanitizeRequestBody(body);
     this.logger.log(`API Request: ${method} ${url}`, {
       requestId,
@@ -950,9 +697,8 @@ export class FtsoProviderController {
     responseTime: number,
     responseSize: number,
     requestId?: string,
-    error?: string
+    errorMessage?: string
   ): void {
-    // Record metrics in API monitor
     this.apiMonitor.recordApiRequest({
       endpoint: url,
       method,
@@ -961,40 +707,34 @@ export class FtsoProviderController {
       responseSize,
       timestamp: Date.now(),
       requestId,
-      error,
+      error: errorMessage,
     });
 
-    // Log via error handler
-    this.errorHandler.logApiCall(method, url, responseTime, statusCode, requestId);
-
-    // Additional detailed logging
-    this.logger.log(
-      `API Response: ${method} ${url} - ${statusCode} - ${responseTime.toFixed(2)}ms - ${responseSize} bytes`,
-      {
-        requestId,
-        method,
-        url,
-        statusCode,
-        responseTime,
-        responseSize,
-        timestamp: Date.now(),
-      }
-    );
-
-    // Log performance warnings
-    this.errorHandler.logPerformanceWarning(`${method} ${url}`, responseTime, 100, requestId);
+    this.logger.log(`API Response: ${method} ${url} - ${statusCode}`, {
+      requestId,
+      method,
+      url,
+      statusCode,
+      responseTime: Math.round(responseTime),
+      responseSize,
+      timestamp: Date.now(),
+      error: errorMessage,
+    });
   }
 
-  private sanitizeRequestBody(body: any): any {
+  private sanitizeRequestBody(body: unknown): unknown {
     if (!body) return body;
 
-    // Remove sensitive information from logs
-    const sanitized = { ...body };
+    // Create a copy and limit the size for logging
+    const sanitized = JSON.parse(JSON.stringify(body));
 
-    // Remove any potential API keys or sensitive data
-    if (sanitized.apiKey) sanitized.apiKey = "[REDACTED]";
-    if (sanitized.secret) sanitized.secret = "[REDACTED]";
-    if (sanitized.password) sanitized.password = "[REDACTED]";
+    // Limit feeds array for logging (show first 3 feeds)
+    if (sanitized.feeds && Array.isArray(sanitized.feeds) && sanitized.feeds.length > 3) {
+      sanitized.feeds = [
+        ...sanitized.feeds.slice(0, 3),
+        { truncated: `... and ${sanitized.feeds.length - 3} more feeds` },
+      ];
+    }
 
     return sanitized;
   }
