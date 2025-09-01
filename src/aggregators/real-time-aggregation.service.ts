@@ -1,6 +1,5 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 import { EnhancedFeedId } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
@@ -41,12 +40,9 @@ export interface PriceSubscription {
 
 @Injectable()
 export class RealTimeAggregationService
-  extends EventEmitter
+  extends BaseEventService
   implements OnModuleInit, OnModuleDestroy, IAggregationService
 {
-  private readonly logger = new Logger(RealTimeAggregationService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("RealTimeAggregation");
-
   private readonly config: RealTimeAggregationConfig = {
     cacheTTLMs: 1000, // 1-second TTL maximum for real-time requirements
     maxCacheSize: 1000, // Store up to 1000 feed prices
@@ -79,7 +75,7 @@ export class RealTimeAggregationService
     private readonly consensusAggregator: ConsensusAggregator,
     private readonly configService: ConfigService
   ) {
-    super();
+    super("RealTimeAggregation", true); // Enable enhanced logging
   }
 
   async onModuleInit() {

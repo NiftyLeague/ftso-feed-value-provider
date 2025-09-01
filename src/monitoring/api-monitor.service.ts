@@ -1,5 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 export interface ApiMetrics {
   endpoint: string;
@@ -41,8 +41,7 @@ export interface ApiHealthMetrics {
 }
 
 @Injectable()
-export class ApiMonitorService extends EventEmitter {
-  private readonly logger = new Logger(ApiMonitorService.name);
+export class ApiMonitorService extends BaseEventService {
   private readonly metrics: ApiMetrics[] = [];
   private readonly endpointStats = new Map<string, EndpointStats>();
   private readonly recentErrors = new Map<string, { count: number; lastSeen: number; error: string }>();
@@ -50,7 +49,7 @@ export class ApiMonitorService extends EventEmitter {
   private readonly maxErrorHistory = 1000; // Keep last 1k errors
 
   constructor() {
-    super();
+    super("ApiMonitorService");
     this.startPeriodicCleanup();
   }
 

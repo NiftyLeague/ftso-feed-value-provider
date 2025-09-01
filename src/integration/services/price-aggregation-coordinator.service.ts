@@ -1,6 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 // Aggregation services
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -21,9 +20,7 @@ import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 import { FeedConfiguration } from "@/config/config.service";
 
 @Injectable()
-export class PriceAggregationCoordinatorService extends EventEmitter {
-  private readonly logger = new Logger(PriceAggregationCoordinatorService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("PriceAggregationCoordinator");
+export class PriceAggregationCoordinatorService extends BaseEventService {
   private isInitialized = false;
 
   constructor(
@@ -33,7 +30,7 @@ export class PriceAggregationCoordinatorService extends EventEmitter {
     private readonly cachePerformanceMonitor: CachePerformanceMonitorService,
     private readonly configService: ConfigService
   ) {
-    super();
+    super("PriceAggregationCoordinator", true); // Enable enhanced logging
   }
 
   async initialize(): Promise<void> {

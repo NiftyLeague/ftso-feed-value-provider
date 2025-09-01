@@ -1,6 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 // Monitoring services
 import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
@@ -47,9 +46,7 @@ interface SystemHealthMetrics {
 }
 
 @Injectable()
-export class SystemHealthService extends EventEmitter {
-  private readonly logger = new Logger(SystemHealthService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("SystemHealth");
+export class SystemHealthService extends BaseEventService {
   private isInitialized = false;
 
   private sourceHealthMap = new Map<string, SourceHealthStatus>();
@@ -61,7 +58,7 @@ export class SystemHealthService extends EventEmitter {
     private readonly performanceMonitor: PerformanceMonitorService,
     private readonly alertingService: AlertingService
   ) {
-    super();
+    super("SystemHealth", true); // Enable enhanced logging
 
     this.healthMetrics = {
       status: "healthy",

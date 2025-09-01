@@ -1,10 +1,13 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from "@nestjs/common";
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
 
 @Injectable()
-export class ResponseTimeInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(ResponseTimeInterceptor.name);
+export class ResponseTimeInterceptor extends BaseService implements NestInterceptor {
+  constructor() {
+    super("ResponseTimeInterceptor");
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const startTime = Date.now();

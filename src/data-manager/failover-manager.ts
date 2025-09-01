@@ -1,7 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable } from "@nestjs/common";
 import { DataSource } from "@/interfaces";
 import { EnhancedFeedId } from "@/types";
+import { BaseEventService } from "@/common";
 
 export interface FailoverConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms)
@@ -29,9 +29,7 @@ export interface FailoverGroup {
 }
 
 @Injectable()
-export class FailoverManager extends EventEmitter {
-  private readonly logger = new Logger(FailoverManager.name);
-
+export class FailoverManager extends BaseEventService {
   private dataSources = new Map<string, DataSource>();
   private sourceHealth = new Map<string, SourceHealth>();
   private failoverGroups = new Map<string, FailoverGroup>();
@@ -47,7 +45,7 @@ export class FailoverManager extends EventEmitter {
   private config: FailoverConfig;
 
   constructor() {
-    super();
+    super(FailoverManager.name);
     this.config = { ...this.defaultConfig };
     this.startHealthMonitoring();
   }

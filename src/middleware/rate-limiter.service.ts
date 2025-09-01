@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 
 export interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -22,13 +23,13 @@ interface ClientRecord {
 }
 
 @Injectable()
-export class RateLimiterService {
-  private readonly logger = new Logger(RateLimiterService.name);
+export class RateLimiterService extends BaseService {
   private readonly clients = new Map<string, ClientRecord>();
   private readonly config: RateLimitConfig;
   private cleanupInterval: NodeJS.Timeout;
 
   constructor(config?: Partial<RateLimitConfig>) {
+    super("RateLimiterService");
     this.config = {
       windowMs: 60000, // 1 minute default
       maxRequests: 1000, // 1000 requests per minute default

@@ -1,6 +1,7 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
 import { IntegrationService } from "../integration.service";
 import { ConfigService } from "@/config/config.service";
+import { BaseService } from "@/common";
 
 interface StartupValidationResult {
   success: boolean;
@@ -12,14 +13,15 @@ interface StartupValidationResult {
 }
 
 @Injectable()
-export class StartupValidationService implements OnModuleInit {
-  private readonly logger = new Logger(StartupValidationService.name);
+export class StartupValidationService extends BaseService implements OnModuleInit {
   private validationResult: StartupValidationResult | null = null;
 
   constructor(
     private readonly integrationService: IntegrationService,
     private readonly configService: ConfigService
-  ) {}
+  ) {
+    super(StartupValidationService.name);
+  }
 
   async onModuleInit(): Promise<void> {
     this.logger.log("Starting application startup validation...");

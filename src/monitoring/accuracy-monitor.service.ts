@@ -1,5 +1,5 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable, Inject } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 import {
   AccuracyMetrics,
   QualityScore,
@@ -9,14 +9,13 @@ import {
 } from "./interfaces/monitoring.interfaces";
 
 @Injectable()
-export class AccuracyMonitorService extends EventEmitter {
-  private readonly logger = new Logger(AccuracyMonitorService.name);
+export class AccuracyMonitorService extends BaseEventService {
   private accuracyHistory: Map<string, AccuracyMetrics[]> = new Map();
   private qualityScores: Map<string, QualityScore> = new Map();
   private consensusData: Map<string, ConsensusData> = new Map();
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
-    super();
+    super("AccuracyMonitorService");
   }
 
   /**

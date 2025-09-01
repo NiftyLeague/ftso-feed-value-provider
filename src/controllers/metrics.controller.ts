@@ -1,18 +1,19 @@
-import { Controller, Post, Get, HttpException, HttpStatus, Logger } from "@nestjs/common";
+import { Controller, Post, Get, HttpException, HttpStatus } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { BaseService } from "@/common/base/base.service";
 
 import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
 import { ApiMonitorService } from "../monitoring/api-monitor.service";
 
 @ApiTags("API Metrics and Monitoring")
 @Controller()
-export class MetricsController {
-  private logger = new Logger(MetricsController.name);
-
+export class MetricsController extends BaseService {
   constructor(
     private readonly errorHandler: ApiErrorHandlerService,
     private readonly apiMonitor: ApiMonitorService
-  ) {}
+  ) {
+    super("MetricsController");
+  }
 
   @Post("metrics")
   @ApiOperation({

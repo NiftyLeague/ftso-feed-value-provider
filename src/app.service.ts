@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -7,19 +8,20 @@ import { EnhancedFeedId } from "@/types";
 import { IFtsoProviderService, ServiceHealthStatus, ServicePerformanceMetrics } from "@/interfaces/service.interfaces";
 
 @Injectable()
-export class FtsoProviderService implements IFtsoProviderService {
-  private readonly logger = new Logger(FtsoProviderService.name);
+export class FtsoProviderService extends BaseService implements IFtsoProviderService {
   private integrationService?: IntegrationService;
 
   constructor(
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService
-  ) {}
+  ) {
+    super("FtsoProviderService", true); // Enable enhanced logging
+  }
 
   // Method to set the integration service (called by the factory)
   setIntegrationService(integrationService: IntegrationService): void {
     this.integrationService = integrationService;
-    this.logger.log("Production integration service connected");
+    this.logInitialization("Production integration service connected");
   }
 
   async getValue(feed: FeedId): Promise<FeedValueData> {
@@ -39,7 +41,7 @@ export class FtsoProviderService implements IFtsoProviderService {
       const aggregatedPrice = await this.integrationService.getCurrentPrice(enhancedFeedId);
 
       const responseTime = performance.now() - startTime;
-      this.logger.debug(`Production integration for ${feed.name}: ${responseTime.toFixed(2)}ms`);
+      this.logPerformance(`getValue-${feed.name}`, responseTime);
 
       return {
         feed,
@@ -47,7 +49,7 @@ export class FtsoProviderService implements IFtsoProviderService {
       };
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      this.logger.error(`Error getting value for ${feed.name} (${responseTime.toFixed(2)}ms):`, error);
+      this.logError(error as Error, `getValue-${feed.name}`, { responseTime: responseTime.toFixed(2) });
       throw error;
     }
   }
@@ -74,12 +76,15 @@ export class FtsoProviderService implements IFtsoProviderService {
       }));
 
       const responseTime = performance.now() - startTime;
-      this.logger.debug(`Production integration for ${feeds.length} feeds: ${responseTime.toFixed(2)}ms`);
+      this.logPerformance(`getValues-${feeds.length}feeds`, responseTime);
 
       return results;
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      this.logger.error(`Error getting multiple values (${responseTime.toFixed(2)}ms):`, error);
+      this.logError(error as Error, "getValues", {
+        feedCount: feeds.length,
+        responseTime: responseTime.toFixed(2),
+      });
       throw error;
     }
   }
@@ -90,12 +95,10 @@ export class FtsoProviderService implements IFtsoProviderService {
     try {
       // Production integration mode - volume data would be handled by the integration service
       // For now, return empty volumes as this functionality is not yet implemented
-      this.logger.warn("Volume data not yet implemented in production integration mode");
+      this.logWarning("Volume data not yet implemented in production integration mode", "getVolumes");
 
       const responseTime = performance.now() - startTime;
-      this.logger.debug(
-        `Volume request for ${feeds.length} feeds (${volumeWindow}s window) processed in ${responseTime.toFixed(2)}ms`
-      );
+      this.logPerformance(`getVolumes-${feeds.length}feeds-${volumeWindow}s`, responseTime);
 
       return feeds.map(feed => ({
         feed,
@@ -103,7 +106,11 @@ export class FtsoProviderService implements IFtsoProviderService {
       }));
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      this.logger.error(`Error getting volumes (${responseTime.toFixed(2)}ms):`, error);
+      this.logError(error as Error, "getVolumes", {
+        feedCount: feeds.length,
+        volumeWindow,
+        responseTime: responseTime.toFixed(2),
+      });
       throw error;
     }
   }
@@ -152,7 +159,7 @@ export class FtsoProviderService implements IFtsoProviderService {
         details: systemHealth,
       };
     } catch (error) {
-      this.logger.error("Health check failed:", error);
+      this.logError(error as Error, "healthCheck");
       return {
         status: "unhealthy",
         details: {
@@ -174,8 +181,6 @@ export class FtsoProviderService implements IFtsoProviderService {
   }
 
   async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
-    const metrics = await this.getPerformanceMetrics();
-
     // Convert to standardized format
     return {
       responseTime: {

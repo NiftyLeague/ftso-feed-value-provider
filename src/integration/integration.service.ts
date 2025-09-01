@@ -1,6 +1,5 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 // Focused services
 import { DataSourceIntegrationService } from "./services/data-source-integration.service";
@@ -13,11 +12,10 @@ import { ConfigService } from "@/config/config.service";
 // Types and interfaces
 import { EnhancedFeedId } from "@/types";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
+import { PriceUpdate } from "@/interfaces";
 
 @Injectable()
-export class IntegrationService extends EventEmitter implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(IntegrationService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("Integration");
+export class IntegrationService extends BaseEventService implements OnModuleInit, OnModuleDestroy {
   private isInitialized = false;
   private shutdownInProgress = false;
 
@@ -27,18 +25,14 @@ export class IntegrationService extends EventEmitter implements OnModuleInit, On
     private readonly systemHealth: SystemHealthService,
     private readonly configService: ConfigService
   ) {
-    super();
+    super("Integration", true); // Enable enhanced logging
   }
 
   async onModuleInit(): Promise<void> {
-    const operationId = `init_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "module_initialization", "Integration");
+    const startTime = performance.now();
 
     try {
-      this.enhancedLogger.logCriticalOperation("module_initialization", "Integration", {
-        phase: "starting",
-        timestamp: Date.now(),
-      });
+      this.logger.log("Starting Integration Orchestrator initialization");
 
       // Step 1: Initialize data source integration
       await this.dataSourceIntegration.initialize();
@@ -57,35 +51,14 @@ export class IntegrationService extends EventEmitter implements OnModuleInit, On
 
       this.isInitialized = true;
 
-      this.enhancedLogger.logCriticalOperation(
-        "module_initialization",
-        "Integration",
-        {
-          phase: "completed",
-          timestamp: Date.now(),
-          initialized: true,
-        },
-        true
-      );
+      const duration = performance.now() - startTime;
+      this.logger.log(`Module initialization completed in ${duration.toFixed(2)}ms`);
 
-      this.enhancedLogger.endPerformanceTimer(operationId, true, { initialized: true });
-      this.emit("initialized");
+      this.emitWithLogging("initialized");
     } catch (error) {
-      this.enhancedLogger.logCriticalOperation(
-        "module_initialization",
-        "Integration",
-        {
-          phase: "failed",
-          timestamp: Date.now(),
-          error: error.message,
-        },
-        false
-      );
-
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
-      this.enhancedLogger.error(error, {
-        component: "Integration",
-        operation: "module_initialization",
+      this.logError(error as Error, "module_initialization", {
+        phase: "failed",
+        timestamp: Date.now(),
         severity: "critical",
       });
       throw error;
@@ -112,7 +85,7 @@ export class IntegrationService extends EventEmitter implements OnModuleInit, On
 
       this.logger.log("Integration Orchestrator shutdown completed");
     } catch (error) {
-      this.logger.error("Error during shutdown:", error);
+      this.logError(error as Error, "shutdown");
     }
   }
 
@@ -143,12 +116,12 @@ export class IntegrationService extends EventEmitter implements OnModuleInit, On
 
   // Private methods
   private async wireServiceInteractions(): Promise<void> {
-    this.logger.log("Wiring service interactions...");
+    this.logDebug("Wiring service interactions...", "wireServiceInteractions");
 
     try {
       // Connect data source events to price aggregation
-      this.dataSourceIntegration.on("priceUpdate", (update: any) => {
-        this.priceAggregationCoordinator.handlePriceUpdate(update);
+      this.dataSourceIntegration.on("priceUpdate", (update: unknown) => {
+        this.priceAggregationCoordinator.handlePriceUpdate(update as PriceUpdate);
       });
 
       // Connect price aggregation events to system health
@@ -179,15 +152,15 @@ export class IntegrationService extends EventEmitter implements OnModuleInit, On
         this.systemHealth.recordAggregationError(error);
       });
 
-      this.logger.log("Service interactions wired successfully");
+      this.logDebug("Service interactions wired successfully", "wireServiceInteractions");
     } catch (error) {
-      this.logger.error("Failed to wire service interactions:", error);
+      this.logError(error as Error, "wireServiceInteractions");
       throw error;
     }
   }
 
   private async subscribeToFeeds(): Promise<void> {
-    this.logger.log("Subscribing to configured feeds...");
+    this.logDebug("Subscribing to configured feeds...", "subscribeToFeeds");
 
     try {
       const feedConfigs = this.configService.getFeedConfigurations();
@@ -200,16 +173,16 @@ export class IntegrationService extends EventEmitter implements OnModuleInit, On
           // Configure aggregation for the feed
           await this.priceAggregationCoordinator.configureFeed(config);
 
-          this.logger.debug(`Subscribed to feed: ${config.feed.name}`);
+          this.logDebug(`Subscribed to feed: ${config.feed.name}`, "subscribeToFeeds");
         } catch (error) {
-          this.logger.error(`Failed to subscribe to feed ${config.feed.name}:`, error);
+          this.logError(error as Error, "subscribeToFeeds", { feedName: config.feed.name });
           // Continue with other feeds
         }
       }
 
-      this.logger.log(`Subscribed to ${feedConfigs.length} feeds`);
+      this.logDebug(`Subscribed to ${feedConfigs.length} feeds`, "subscribeToFeeds");
     } catch (error) {
-      this.logger.error("Failed to subscribe to feeds:", error);
+      this.logError(error as Error, "subscribeToFeeds");
       throw error;
     }
   }

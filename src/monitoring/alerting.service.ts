@@ -1,5 +1,6 @@
-import { Injectable, Logger, Inject, OnModuleDestroy } from "@nestjs/common";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
+
 import {
   Alert,
   AlertRule,
@@ -12,9 +13,7 @@ import * as nodemailer from "nodemailer";
 import axios from "axios";
 
 @Injectable()
-export class AlertingService implements OnModuleDestroy {
-  private readonly logger = new Logger(AlertingService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("AlertingService");
+export class AlertingService extends BaseService implements OnModuleDestroy {
   private alerts: Map<string, Alert> = new Map();
   private activeAlerts: Map<string, Alert> = new Map();
   private alertCooldowns: Map<string, number> = new Map();
@@ -23,6 +22,7 @@ export class AlertingService implements OnModuleDestroy {
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
+    super("AlertingService", true);
     this.initializeEmailTransporter();
     this.startAlertCleanup();
   }

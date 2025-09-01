@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { RealTimeCacheService } from "./real-time-cache.service";
 
 interface PerformanceMetrics {
@@ -23,8 +24,7 @@ interface MemoryUsageMetric {
 }
 
 @Injectable()
-export class CachePerformanceMonitorService implements OnModuleDestroy {
-  private readonly logger = new Logger(CachePerformanceMonitorService.name);
+export class CachePerformanceMonitorService extends BaseService implements OnModuleDestroy {
   private readonly responseTimes: ResponseTimeMetric[] = [];
   private readonly memoryUsageHistory: MemoryUsageMetric[] = [];
   private readonly maxHistorySize = 1000; // Keep last 1000 measurements
@@ -35,6 +35,7 @@ export class CachePerformanceMonitorService implements OnModuleDestroy {
   private readonly monitoringIntervalMs = 5000; // 5 seconds
 
   constructor(private readonly cacheService: RealTimeCacheService) {
+    super("CachePerformanceMonitorService");
     this.startMonitoring();
   }
 

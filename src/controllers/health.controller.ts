@@ -1,4 +1,5 @@
-import { Controller, Get, Post, HttpException, HttpStatus, Logger, Inject } from "@nestjs/common";
+import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { FtsoProviderService } from "@/app.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
@@ -28,8 +29,7 @@ interface HealthStatus {
 
 @ApiTags("System Health")
 @Controller()
-export class HealthController {
-  private readonly logger = new Logger(HealthController.name);
+export class HealthController extends BaseService {
   private readonly startupTime = Date.now();
   private readyTime?: number;
 
@@ -39,7 +39,9 @@ export class HealthController {
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
     private readonly errorHandler: ApiErrorHandlerService
-  ) {}
+  ) {
+    super("HealthController");
+  }
 
   @Post("health")
   @ApiOperation({

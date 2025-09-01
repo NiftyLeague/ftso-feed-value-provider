@@ -1,5 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable } from "@nestjs/common";
 import { DataValidator, ValidationResult, ValidationContext } from "./data-validator";
 import { PriceUpdate } from "@/interfaces";
 import { EnhancedFeedId } from "@/types";
@@ -9,6 +8,7 @@ import {
   ServiceHealthStatus,
   ServicePerformanceMetrics,
 } from "@/interfaces/service.interfaces";
+import { BaseEventService } from "@/common";
 
 export interface ValidationServiceConfig {
   enableRealTimeValidation: boolean;
@@ -20,9 +20,7 @@ export interface ValidationServiceConfig {
 }
 
 @Injectable()
-export class ValidationService extends EventEmitter implements IDataValidationService {
-  private readonly logger = new Logger(ValidationService.name);
-
+export class ValidationService extends BaseEventService implements IDataValidationService {
   private readonly validator: DataValidator;
   private readonly config: ValidationServiceConfig;
 
@@ -45,7 +43,7 @@ export class ValidationService extends EventEmitter implements IDataValidationSe
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor(validator: DataValidator, config?: Partial<ValidationServiceConfig>) {
-    super();
+    super(ValidationService.name);
 
     this.validator = validator;
     this.config = {

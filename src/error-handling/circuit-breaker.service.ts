@@ -1,5 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 export enum CircuitBreakerState {
   CLOSED = "closed", // Normal operation
@@ -35,9 +35,7 @@ export interface CircuitBreakerMetrics {
 }
 
 @Injectable()
-export class CircuitBreakerService extends EventEmitter {
-  private readonly logger = new Logger(CircuitBreakerService.name);
-
+export class CircuitBreakerService extends BaseEventService {
   private circuits = new Map<string, CircuitBreakerState>();
   private configs = new Map<string, CircuitBreakerConfig>();
   private stats = new Map<string, CircuitBreakerStats>();
@@ -51,6 +49,10 @@ export class CircuitBreakerService extends EventEmitter {
     timeout: 5000, // 5 second timeout
     monitoringWindow: 300000, // 5 minute monitoring window
   };
+
+  constructor() {
+    super("CircuitBreakerService");
+  }
 
   /**
    * Register a new circuit breaker for a service

@@ -1,8 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { RealTimeCacheService } from "./real-time-cache.service";
 import { EnhancedFeedId } from "@/types";
 import { CacheEntry } from "./interfaces/cache.interfaces";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
+import { BaseService } from "@/common";
 
 interface WarmupConfig {
   popularFeeds: EnhancedFeedId[];
@@ -18,14 +19,14 @@ interface FeedPopularityMetrics {
 }
 
 @Injectable()
-export class CacheWarmerService {
-  private readonly logger = new Logger(CacheWarmerService.name);
+export class CacheWarmerService extends BaseService {
   private readonly popularityMetrics = new Map<string, FeedPopularityMetrics>();
   private warmupInterval?: NodeJS.Timeout;
   private config: WarmupConfig;
   private dataSourceCallback?: (feedId: EnhancedFeedId) => Promise<AggregatedPrice | null>;
 
   constructor(private readonly cacheService: RealTimeCacheService) {
+    super(CacheWarmerService.name);
     this.config = {
       popularFeeds: [],
       warmupInterval: 30000, // 30 seconds

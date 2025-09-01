@@ -1,6 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 import { EnhancedFeedId } from "@/types";
 import { DataSource, PriceUpdate } from "@/interfaces";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
@@ -25,10 +24,10 @@ interface SourceSubscription {
 }
 
 @Injectable()
-export class ProductionDataManagerService extends EventEmitter implements ProductionDataManager, RealTimeDataManager {
-  private readonly logger = new Logger(ProductionDataManagerService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("ProductionDataManager");
-
+export class ProductionDataManagerService
+  extends BaseEventService
+  implements ProductionDataManager, RealTimeDataManager
+{
   // Data sources management
   private dataSources = new Map<string, DataSource>();
   private connectionMetrics = new Map<string, ConnectionMetrics>();
@@ -63,7 +62,7 @@ export class ProductionDataManagerService extends EventEmitter implements Produc
   private healthMonitorInterval?: NodeJS.Timeout;
 
   constructor() {
-    super();
+    super("ProductionDataManager", true); // Enable enhanced logging
     this.setupHealthMonitoring();
   }
 

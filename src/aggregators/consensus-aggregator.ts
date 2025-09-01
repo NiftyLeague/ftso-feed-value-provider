@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { EnhancedFeedId } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import {
@@ -41,9 +42,7 @@ export interface ConsensusAggregatorConfig extends AggregationConfig {
 }
 
 @Injectable()
-export class ConsensusAggregator implements PriceAggregator {
-  private readonly logger = new Logger(ConsensusAggregator.name);
-
+export class ConsensusAggregator extends BaseService implements PriceAggregator {
   private readonly defaultConfig: ConsensusAggregatorConfig = {
     method: "consensus_optimized",
     timeDecayFactor: 0.00005, // LAMBDA parameter from existing CCXT implementation
@@ -67,6 +66,7 @@ export class ConsensusAggregator implements PriceAggregator {
   };
 
   constructor() {
+    super("ConsensusAggregator");
     this.config = { ...this.defaultConfig };
   }
 

@@ -1,6 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { PriceUpdate } from "@/interfaces";
 import { EnhancedFeedId } from "@/types";
+import { BaseService } from "@/common";
 import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
 
 export interface ValidationResult {
@@ -43,9 +44,7 @@ export interface MarketConditions {
 }
 
 @Injectable()
-export class DataValidator {
-  private readonly logger = new Logger(DataValidator.name);
-
+export class DataValidator extends BaseService {
   // Default validation configuration
   private readonly defaultConfig: ValidationConfig = {
     maxAge: 2000, // 2 seconds (Requirement 2.5)
@@ -53,6 +52,10 @@ export class DataValidator {
     outlierThreshold: 0.05, // 5% deviation
     consensusWeight: 0.8,
   };
+
+  constructor() {
+    super(DataValidator.name);
+  }
 
   // Multi-tier validation (Requirement 2.1)
   async validateUpdate(

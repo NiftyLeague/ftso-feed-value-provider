@@ -6,12 +6,12 @@ import {
   ParseIntPipe,
   Post,
   Inject,
-  Logger,
   Query,
   HttpException,
   HttpStatus,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { BaseService } from "@/common/base/base.service";
 import { FtsoProviderService } from "@/app.service";
 import {
   FeedValuesRequest,
@@ -32,16 +32,16 @@ import { ApiMonitorService } from "../monitoring/api-monitor.service";
 
 @ApiTags("FTSO Feed Values")
 @Controller()
-export class FeedController {
-  private logger = new Logger(FeedController.name);
-
+export class FeedController extends BaseService {
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
     private readonly errorHandler: ApiErrorHandlerService,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
     private readonly apiMonitor: ApiMonitorService
-  ) {}
+  ) {
+    super("FeedController");
+  }
 
   @Post("feed-values/:votingRoundId")
   @ApiOperation({

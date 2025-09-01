@@ -1,13 +1,11 @@
-import { Injectable, Logger, Inject, OnModuleDestroy } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
+import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
+import { LogContext } from "@/utils/enhanced-logger.service";
 import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
+import { BaseEventService } from "@/common";
 import * as os from "os";
 
 @Injectable()
-export class PerformanceMonitorService extends EventEmitter implements OnModuleDestroy {
-  private readonly logger = new Logger(PerformanceMonitorService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("PerformanceMonitor");
+export class PerformanceMonitorService extends BaseEventService implements OnModuleDestroy {
   private performanceHistory: PerformanceMetrics[] = [];
   private healthHistory: HealthMetrics[] = [];
   private connectionStatus: Map<string, boolean> = new Map();
@@ -18,7 +16,7 @@ export class PerformanceMonitorService extends EventEmitter implements OnModuleD
   private monitoringInterval?: NodeJS.Timeout;
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
-    super();
+    super(PerformanceMonitorService.name, true);
     // Start periodic monitoring
     this.startPeriodicMonitoring();
   }

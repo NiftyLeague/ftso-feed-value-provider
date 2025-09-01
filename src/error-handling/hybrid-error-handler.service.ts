@@ -1,6 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
+
 import { EnhancedFeedId } from "@/types";
 import { PriceUpdate } from "@/interfaces";
 import { CircuitBreakerService } from "./circuit-breaker.service";
@@ -62,10 +62,7 @@ export interface TierFailoverConfig {
 }
 
 @Injectable()
-export class HybridErrorHandlerService extends EventEmitter {
-  private readonly logger = new Logger(HybridErrorHandlerService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("HybridErrorHandler");
-
+export class HybridErrorHandlerService extends BaseEventService {
   private errorHistory = new Map<string, DataSourceError[]>();
   private tierStatus = new Map<string, { tier: DataSourceTier; isHealthy: boolean; lastError?: number }>();
   private ccxtBackupActive = new Map<string, boolean>(); // feedId -> backup active
@@ -97,7 +94,7 @@ export class HybridErrorHandlerService extends EventEmitter {
     private readonly connectionRecovery: ConnectionRecoveryService,
     private readonly ccxtAdapter: CcxtMultiExchangeAdapter
   ) {
-    super();
+    super("HybridErrorHandlerService", true);
     this.config = { ...this.defaultConfig };
     this.initializeErrorClassifications();
     this.startRecoveryMonitoring();

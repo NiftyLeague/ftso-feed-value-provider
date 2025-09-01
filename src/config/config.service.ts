@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { readFileSync, watchFile, unwatchFile } from "fs";
 import { join } from "path";
 import { EnhancedFeedId, FeedCategory } from "@/types";
@@ -114,8 +115,7 @@ export interface ConfigValidationResult {
 }
 
 @Injectable()
-export class ConfigService implements IConfigurationService {
-  private readonly logger = new Logger(ConfigService.name);
+export class ConfigService extends BaseService implements IConfigurationService {
   private readonly adapterMappings: AdapterMapping;
   private feedConfigurations: FeedConfiguration[] = [];
   private environmentConfig: EnvironmentConfig;
@@ -123,6 +123,7 @@ export class ConfigService implements IConfigurationService {
   private isWatchingFeeds = false;
 
   constructor() {
+    super("ConfigService", true); // Enable enhanced logging
     this.feedsFilePath = join(__dirname, "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
     this.environmentConfig = this.loadAndValidateEnvironmentConfig();

@@ -1,10 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 // Core components
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
+import { ExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
 
 // Exchange adapters
 import { BinanceAdapter } from "@/adapters/crypto/binance.adapter";
@@ -26,9 +26,7 @@ import { EnhancedFeedId } from "@/types";
 import { DataSource, PriceUpdate } from "@/interfaces";
 
 @Injectable()
-export class DataSourceIntegrationService extends EventEmitter {
-  private readonly logger = new Logger(DataSourceIntegrationService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("DataSourceIntegration");
+export class DataSourceIntegrationService extends BaseEventService {
   private isInitialized = false;
 
   constructor(
@@ -39,18 +37,14 @@ export class DataSourceIntegrationService extends EventEmitter {
     private readonly connectionRecovery: ConnectionRecoveryService,
     private readonly dataSourceFactory: DataSourceFactory
   ) {
-    super();
+    super("DataSourceIntegration", true); // Enable enhanced logging
   }
 
   async initialize(): Promise<void> {
-    const operationId = `init_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "data_source_initialization", "DataSourceIntegration");
+    const startTime = performance.now();
 
     try {
-      this.enhancedLogger.logCriticalOperation("data_source_initialization", "DataSourceIntegration", {
-        phase: "starting",
-        timestamp: Date.now(),
-      });
+      this.logger.log("Starting data source integration initialization");
 
       // Step 1: Register exchange adapters
       await this.registerExchangeAdapters();
@@ -66,25 +60,10 @@ export class DataSourceIntegrationService extends EventEmitter {
 
       this.isInitialized = true;
 
-      this.enhancedLogger.logCriticalOperation(
-        "data_source_initialization",
-        "DataSourceIntegration",
-        {
-          phase: "completed",
-          timestamp: Date.now(),
-          initialized: true,
-        },
-        true
-      );
-
-      this.enhancedLogger.endPerformanceTimer(operationId, true, { initialized: true });
+      const duration = performance.now() - startTime;
+      this.logger.log(`Data source initialization completed in ${duration.toFixed(2)}ms`);
     } catch (error) {
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
-      this.enhancedLogger.error(error, {
-        component: "DataSourceIntegration",
-        operation: "data_source_initialization",
-        severity: "critical",
-      });
+      this.logError(error as Error, "data_source_initialization", { severity: "critical" });
       throw error;
     }
   }
@@ -101,7 +80,7 @@ export class DataSourceIntegrationService extends EventEmitter {
 
       this.logger.log("Data Source Integration shutdown completed");
     } catch (error) {
-      this.logger.error("Error during data source integration shutdown:", error);
+      this.logError(error as Error, "shutdown");
     }
   }
 
@@ -409,8 +388,8 @@ export class DataSourceIntegrationService extends EventEmitter {
 
   private handleSourceDisconnection(sourceId: string): void {
     try {
-      // Trigger connection recovery
-      this.connectionRecovery.handleDisconnection(sourceId);
+      // Trigger connection recovery (fire and forget)
+      void this.connectionRecovery.handleDisconnection(sourceId);
 
       // Emit for system health monitoring
       this.emit("sourceDisconnected", sourceId);
@@ -513,7 +492,7 @@ export class DataSourceIntegrationService extends EventEmitter {
   }
 
   // Helper methods
-  private createDataSourceFromAdapter(adapter: any): DataSource {
+  private createDataSourceFromAdapter(adapter: ExchangeAdapter): DataSource {
     const priority = this.getAdapterPriority(adapter.exchangeName);
     return this.dataSourceFactory.createFromAdapter(adapter, priority);
   }

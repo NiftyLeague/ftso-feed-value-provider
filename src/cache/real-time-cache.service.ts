@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { BaseService } from "@/common/base/base.service";
 import { RealTimeCache, CacheEntry, CacheStats, CacheConfig } from "./interfaces/cache.interfaces";
 import { EnhancedFeedId } from "@/types";
 
@@ -10,8 +11,7 @@ interface CacheItem {
 }
 
 @Injectable()
-export class RealTimeCacheService implements RealTimeCache, OnModuleDestroy {
-  private readonly logger = new Logger(RealTimeCacheService.name);
+export class RealTimeCacheService extends BaseService implements RealTimeCache, OnModuleDestroy {
   private readonly cache = new Map<string, CacheItem>();
   private config: CacheConfig;
   private readonly cleanupInterval: NodeJS.Timeout;
@@ -23,6 +23,7 @@ export class RealTimeCacheService implements RealTimeCache, OnModuleDestroy {
   };
 
   constructor() {
+    super("RealTimeCacheService");
     this.config = {
       maxTTL: 1000, // 1 second maximum TTL as per requirement 6.2
       maxEntries: 10000,

@@ -3,14 +3,17 @@ import { EventEmitter } from "events";
 import { DataSource, PriceUpdate } from "@/interfaces";
 import { ExchangeAdapter } from "@/adapters/base";
 import { FeedCategory } from "@/types";
+import { BaseService } from "@/common";
 
 /**
  * Factory for creating DataSource instances from ExchangeAdapter instances
  * This bridges the gap between the adapter pattern and the data source interface
  */
 @Injectable()
-export class DataSourceFactory {
-  private readonly logger = new Logger(DataSourceFactory.name);
+export class DataSourceFactory extends BaseService {
+  constructor() {
+    super(DataSourceFactory.name);
+  }
 
   /**
    * Create a DataSource from an ExchangeAdapter

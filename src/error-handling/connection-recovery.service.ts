@@ -1,5 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 import { DataSource } from "@/interfaces";
 import { EnhancedFeedId } from "@/types";
 import { CircuitBreakerService, CircuitBreakerState } from "./circuit-breaker.service";
@@ -43,9 +43,7 @@ export interface RecoveryStrategy {
 }
 
 @Injectable()
-export class ConnectionRecoveryService extends EventEmitter {
-  private readonly logger = new Logger(ConnectionRecoveryService.name);
-
+export class ConnectionRecoveryService extends BaseEventService {
   private dataSources = new Map<string, DataSource>();
   private connectionHealth = new Map<string, ConnectionHealth>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
@@ -68,7 +66,7 @@ export class ConnectionRecoveryService extends EventEmitter {
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly failoverManager: FailoverManager
   ) {
-    super();
+    super("ConnectionRecoveryService");
     this.config = { ...this.defaultConfig };
     this.startHealthMonitoring();
     this.setupEventHandlers();

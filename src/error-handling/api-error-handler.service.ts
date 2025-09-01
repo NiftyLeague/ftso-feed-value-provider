@@ -1,4 +1,5 @@
-import { Injectable, Logger, HttpException, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
+import { BaseService } from "@/common";
 
 export interface ApiErrorResponse {
   error: string;
@@ -28,8 +29,10 @@ export enum ApiErrorCodes {
 }
 
 @Injectable()
-export class ApiErrorHandlerService {
-  private readonly logger = new Logger(ApiErrorHandlerService.name);
+export class ApiErrorHandlerService extends BaseService {
+  constructor() {
+    super(ApiErrorHandlerService.name);
+  }
 
   createErrorResponse(errorCode: ApiErrorCodes, message: string, requestId: string, details?: any): ApiErrorResponse {
     return {

@@ -1,6 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { EventEmitter } from "events";
+import { Injectable } from "@nestjs/common";
 import WebSocket from "ws";
+import { BaseEventService } from "@/common";
 
 export interface WebSocketConnectionConfig {
   url: string;
@@ -24,9 +24,7 @@ export interface ConnectionStats {
 }
 
 @Injectable()
-export class WebSocketConnectionManager extends EventEmitter {
-  private readonly logger = new Logger(WebSocketConnectionManager.name);
-
+export class WebSocketConnectionManager extends BaseEventService {
   private connections = new Map<string, WebSocket>();
   private connectionConfigs = new Map<string, WebSocketConnectionConfig>();
   private connectionStats = new Map<string, ConnectionStats>();
@@ -39,6 +37,10 @@ export class WebSocketConnectionManager extends EventEmitter {
     reconnectDelay: 5000, // 5 seconds
     maxReconnectAttempts: 10,
   };
+
+  constructor() {
+    super(WebSocketConnectionManager.name);
+  }
 
   async createConnection(connectionId: string, config: WebSocketConnectionConfig): Promise<void> {
     try {
