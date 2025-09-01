@@ -1,5 +1,10 @@
 import { Module } from "@nestjs/common";
-import { ProductionIntegrationService } from "./production-integration.service";
+
+// Decomposed integration services
+import { IntegrationService } from "./integration.service";
+import { DataSourceIntegrationService } from "./services/data-source-integration.service";
+import { PriceAggregationCoordinatorService } from "./services/price-aggregation-coordinator.service";
+import { SystemHealthService } from "./services/system-health.service";
 
 // Core modules
 import { CacheModule } from "@/cache/cache.module";
@@ -30,17 +35,20 @@ import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-
 import { FailoverManager } from "@/data-manager/failover-manager";
 
 // Data source factory
-import { DataSourceFactory } from "./data-source.factory";
+import { DataSourceFactory } from "./services/data-source.factory";
 
 // Startup validation
-import { StartupValidationService } from "./startup-validation.service";
+import { StartupValidationService } from "./services/startup-validation.service";
 
 @Module({
   imports: [CacheModule, AggregatorsModule, MonitoringModule],
   controllers: [],
   providers: [
-    // Core integration service
-    ProductionIntegrationService,
+    // Decomposed integration services
+    IntegrationService,
+    DataSourceIntegrationService,
+    PriceAggregationCoordinatorService,
+    SystemHealthService,
 
     // Startup validation
     StartupValidationService,
@@ -80,7 +88,7 @@ import { StartupValidationService } from "./startup-validation.service";
     // Factory for creating the integrated FTSO provider service
     {
       provide: "INTEGRATED_FTSO_PROVIDER",
-      useFactory: async (integrationService: ProductionIntegrationService) => {
+      useFactory: async (integrationService: IntegrationService) => {
         // Wait for initialization to complete
         await new Promise<void>(resolve => {
           if (integrationService.listenerCount("initialized") > 0) {
@@ -93,14 +101,22 @@ import { StartupValidationService } from "./startup-validation.service";
 
         return integrationService;
       },
-      inject: [ProductionIntegrationService],
+      inject: [IntegrationService],
     },
   ],
   exports: [
-    ProductionIntegrationService,
+    // Decomposed services
+    IntegrationService,
+    DataSourceIntegrationService,
+    PriceAggregationCoordinatorService,
+    SystemHealthService,
+
+    // Core services
     ProductionDataManagerService,
     ExchangeAdapterRegistry,
     StartupValidationService,
+
+    // Factory
     "INTEGRATED_FTSO_PROVIDER",
   ],
 })

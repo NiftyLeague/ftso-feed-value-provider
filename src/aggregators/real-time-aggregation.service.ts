@@ -390,7 +390,7 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
 
   /**
    * Process price update and trigger aggregation
-   * This method is called by the ProductionIntegrationService
+   * This method is called by the DataSourceIntegrationService
    */
   async processPriceUpdate(update: PriceUpdate): Promise<void> {
     const operationId = `process_update_${update.symbol}_${Date.now()}`;

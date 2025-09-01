@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { ProductionIntegrationService } from "./production-integration.service";
+import { IntegrationService } from "../integration.service";
 import { ConfigService } from "@/config/config.service";
 
 interface StartupValidationResult {
@@ -17,7 +17,7 @@ export class StartupValidationService implements OnModuleInit {
   private validationResult: StartupValidationResult | null = null;
 
   constructor(
-    private readonly integrationService: ProductionIntegrationService,
+    private readonly integrationService: IntegrationService,
     private readonly configService: ConfigService
   ) {}
 
@@ -120,7 +120,7 @@ export class StartupValidationService implements OnModuleInit {
         result.warnings.push("No exchange adapters are active");
       }
 
-      result.validatedServices.push("ProductionIntegrationService");
+      result.validatedServices.push("IntegrationService");
     } catch (error) {
       result.errors.push(`Integration service validation failed: ${error.message}`);
     }

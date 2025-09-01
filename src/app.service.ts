@@ -2,13 +2,13 @@ import { Injectable, Logger } from "@nestjs/common";
 import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-import { ProductionIntegrationService } from "@/integration/production-integration.service";
+import { IntegrationService } from "@/integration/integration.service";
 import { EnhancedFeedId } from "@/types";
 
 @Injectable()
 export class FtsoProviderService {
   private readonly logger = new Logger(FtsoProviderService.name);
-  private integrationService?: ProductionIntegrationService;
+  private integrationService?: IntegrationService;
 
   constructor(
     private readonly cacheService: RealTimeCacheService,
@@ -16,7 +16,7 @@ export class FtsoProviderService {
   ) {}
 
   // Method to set the integration service (called by the factory)
-  setIntegrationService(integrationService: ProductionIntegrationService): void {
+  setIntegrationService(integrationService: IntegrationService): void {
     this.integrationService = integrationService;
     this.logger.log("Production integration service connected");
   }

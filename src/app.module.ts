@@ -1,14 +1,14 @@
 import { Module } from "@nestjs/common";
 import { FtsoProviderService } from "@/app.service";
 
-// New focused controllers
+// App controllers
 import { FeedController } from "@/controllers/feed.controller";
 import { HealthController } from "@/controllers/health.controller";
 import { MetricsController } from "@/controllers/metrics.controller";
 
 // Production integration
 import { IntegrationModule } from "@/integration/integration.module";
-import { ProductionIntegrationService } from "@/integration/production-integration.service";
+import { IntegrationService } from "@/integration/integration.service";
 
 // Core modules
 import { ConfigModule } from "@/config/config.module";
@@ -58,7 +58,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
       useFactory: async (
         cacheService: RealTimeCacheService,
         aggregationService: RealTimeAggregationService,
-        integrationService: ProductionIntegrationService
+        integrationService: IntegrationService
       ) => {
         try {
           // Always use production integration service
@@ -74,7 +74,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
           throw error;
         }
       },
-      inject: [RealTimeCacheService, RealTimeAggregationService, ProductionIntegrationService],
+      inject: [RealTimeCacheService, RealTimeAggregationService, IntegrationService],
     },
 
     // Provide the service for direct injection (for health checks)

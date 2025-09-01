@@ -20,12 +20,26 @@ interface TestSuite {
 }
 
 const TEST_SUITES: TestSuite[] = [
-  // Unit Tests - Core Application
+  // Unit Tests - Controllers
   {
-    name: "App Controller",
-    pattern: "src/app.controller.spec.ts",
+    name: "Feed Controller",
+    pattern: "src/controllers/__tests__/feed.controller.spec.ts",
     timeout: 30000,
-    description: "Tests for main application controller",
+    description: "Tests for feed controller",
+    category: "unit",
+  },
+  {
+    name: "Health Controller",
+    pattern: "src/controllers/__tests__/health.controller.spec.ts",
+    timeout: 30000,
+    description: "Tests for health controller",
+    category: "unit",
+  },
+  {
+    name: "Metrics Controller",
+    pattern: "src/controllers/__tests__/metrics.controller.spec.ts",
+    timeout: 30000,
+    description: "Tests for metrics controller",
     category: "unit",
   },
 

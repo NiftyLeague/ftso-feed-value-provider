@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { FtsoProviderService } from "@/app.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-import { ProductionIntegrationService } from "../integration/production-integration.service";
+import { IntegrationService } from "../integration/integration.service";
 
 import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
 
@@ -35,7 +35,7 @@ export class HealthController {
 
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
-    private readonly integrationService: ProductionIntegrationService,
+    private readonly integrationService: IntegrationService,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
     private readonly errorHandler: ApiErrorHandlerService
@@ -427,17 +427,14 @@ export class HealthController {
   async getReadiness(): Promise<Record<string, unknown>> {
     try {
       const startTime = Date.now();
-
       // Perform readiness checks
       const checks = await this.performReadinessChecks();
-
       // System is ready if all critical checks pass
-      const checksTyped = checks as any;
-      const isReady = checksTyped.integration.ready && checksTyped.provider.ready && checksTyped.startup.ready;
+      const isReady = checks.integration.ready && checks.provider.ready && checks.startup.ready;
 
       // Determine overall status
       const overallStatus = isReady
-        ? checksTyped.integration.status === "healthy" && checksTyped.provider.status === "healthy"
+        ? checks.integration.status === "healthy" && checks.provider.status === "healthy"
           ? "healthy"
           : "degraded"
         : "unhealthy";
@@ -513,14 +510,10 @@ export class HealthController {
   @ApiResponse({ status: 503, description: "System is not alive" })
   async getLiveness(): Promise<Record<string, unknown>> {
     try {
-      const startTime = Date.now();
-
       // Basic liveness checks - verify core services are responsive
       const livenessChecks = await this.performLivenessChecks();
-
-      const responseTime = Date.now() - startTime;
-      const checksTyped = livenessChecks as unknown;
-      const isAlive = checksTyped.integration && checksTyped.provider;
+      const isAlive = livenessChecks.integration && livenessChecks.provider;
+      const responseTime = livenessChecks.responseTime;
 
       const response = {
         alive: isAlive,
@@ -566,7 +559,11 @@ export class HealthController {
     return this.errorHandler.generateRequestId();
   }
 
-  private async performReadinessChecks(): Promise<Record<string, unknown>> {
+  private async performReadinessChecks(): Promise<{
+    integration: { ready: boolean; status: string; error: null | string };
+    provider: { ready: boolean; status: string; error: null | string };
+    startup: { ready: boolean; timeSinceStartup: number };
+  }> {
     const checks = {
       integration: { ready: false, status: "unhealthy", error: null },
       provider: { ready: false, status: "unhealthy", error: null },
@@ -592,7 +589,12 @@ export class HealthController {
     return checks;
   }
 
-  private async performLivenessChecks(): Promise<unknown> {
+  private async performLivenessChecks(): Promise<{
+    integration: boolean;
+    provider: boolean;
+    memory: boolean;
+    responseTime: number;
+  }> {
     const checks = {
       integration: false,
       provider: false,
