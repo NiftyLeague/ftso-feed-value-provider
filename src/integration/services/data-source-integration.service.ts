@@ -22,8 +22,8 @@ import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.
 import { DataSourceFactory } from "./data-source.factory";
 
 // Types and interfaces
-import { EnhancedFeedId } from "@/types";
-import { DataSource, PriceUpdate } from "@/interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 @Injectable()
 export class DataSourceIntegrationService extends BaseEventService {

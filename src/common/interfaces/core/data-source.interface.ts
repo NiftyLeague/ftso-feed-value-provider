@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "../../types/feed.types";
 
 export interface PriceUpdate {
   symbol: string;

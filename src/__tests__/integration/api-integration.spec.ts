@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock API server for testing
 class MockApiServer {

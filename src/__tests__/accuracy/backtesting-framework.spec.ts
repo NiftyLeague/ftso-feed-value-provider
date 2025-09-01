@@ -1,5 +1,5 @@
-import { FeedCategory, EnhancedFeedId } from "@/types";
-import { PriceUpdate } from "@/interfaces/data-source.interface";
+import { FeedCategory, EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 // Mock historical data generator
 const generateHistoricalData = (

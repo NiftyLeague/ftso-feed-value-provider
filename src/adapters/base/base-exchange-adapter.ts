@@ -1,6 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { ExchangeAdapter, ExchangeConnectionConfig } from "./exchange-adapter.interface";
-import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
+import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 
 /**
  * Base exchange adapter class that eliminates adapter boilerplate

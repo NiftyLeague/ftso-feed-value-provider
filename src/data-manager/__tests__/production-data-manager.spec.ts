@@ -2,9 +2,9 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ProductionDataManagerService } from "../production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { DataValidator } from "../validation/data-validator";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 import { ExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
-import { PriceUpdate } from "@/interfaces/data-source.interface";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 // Mock adapter for testing that implements DataSource interface
 class MockExchangeAdapter extends ExchangeAdapter {

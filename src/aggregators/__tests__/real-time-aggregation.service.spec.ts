@@ -2,8 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
 import { ConsensusAggregator } from "../consensus-aggregator";
 import { ConfigService } from "@/config/config.service";
-import { EnhancedFeedId, FeedCategory } from "@/types";
-import { PriceUpdate } from "@/interfaces/data-source.interface";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 describe("RealTimeAggregationService", () => {
@@ -194,7 +194,7 @@ describe("RealTimeAggregationService", () => {
       service.addPriceUpdate(mockFeedId, update);
       await service.getAggregatedPrice(mockFeedId);
 
-      const performanceMetrics = service.getPerformanceMetrics(mockFeedId);
+      const performanceMetrics = service.getFeedPerformanceMetrics(mockFeedId);
       expect(performanceMetrics.sampleCount).toBe(1);
       expect(performanceMetrics.averageResponseTime).toBeGreaterThan(0);
     });
@@ -531,7 +531,7 @@ describe("RealTimeAggregationService", () => {
       service.addPriceUpdate(mockFeedId, update);
       await service.getAggregatedPrice(mockFeedId);
 
-      const performanceMetrics = service.getPerformanceMetrics(mockFeedId);
+      const performanceMetrics = service.getFeedPerformanceMetrics(mockFeedId);
       expect(performanceMetrics.sampleCount).toBe(1);
       expect(performanceMetrics.averageResponseTime).toBeGreaterThan(0);
       expect(performanceMetrics.averageResponseTime).toBeLessThan(1000); // Should be fast

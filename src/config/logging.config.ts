@@ -37,19 +37,19 @@ export const getLoggingConfig = (): LoggingConfig => {
     enableFileLogging: process.env.ENABLE_FILE_LOGGING === "true",
     logDirectory: process.env.LOG_DIRECTORY || "./logs",
     maxLogFileSize: process.env.MAX_LOG_FILE_SIZE || "10MB",
-    maxLogFiles: parseInt(process.env.MAX_LOG_FILES || "5"),
+    maxLogFiles: parseInt(process.env.MAX_LOG_FILES || "5", 10),
 
     // Performance logging
     enablePerformanceLogging: process.env.ENABLE_PERFORMANCE_LOGGING !== "false", // Default true
-    performanceLogThreshold: parseInt(process.env.PERFORMANCE_LOG_THRESHOLD || "100"), // 100ms
+    performanceLogThreshold: parseInt(process.env.PERFORMANCE_LOG_THRESHOLD || "100", 10), // 100ms
 
     // Debug logging
     enableDebugLogging: process.env.ENABLE_DEBUG_LOGGING === "true",
     debugLogLevel: (process.env.DEBUG_LOG_LEVEL as "verbose" | "debug" | "log") || "debug",
 
     // Error logging
-    errorLogRetention: parseInt(process.env.ERROR_LOG_RETENTION_DAYS || "30"),
-    maxErrorHistorySize: parseInt(process.env.MAX_ERROR_HISTORY_SIZE || "1000"),
+    errorLogRetention: parseInt(process.env.ERROR_LOG_RETENTION_DAYS || "30", 10),
+    maxErrorHistorySize: parseInt(process.env.MAX_ERROR_HISTORY_SIZE || "1000", 10),
 
     // Audit logging
     enableAuditLogging: process.env.ENABLE_AUDIT_LOGGING !== "false", // Default true

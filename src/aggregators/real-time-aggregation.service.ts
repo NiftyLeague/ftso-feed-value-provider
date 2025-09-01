@@ -1,11 +1,12 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-import { EnhancedFeedId } from "@/types";
-import { PriceUpdate } from "@/interfaces/data-source.interface";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
 import { ConsensusAggregator } from "./consensus-aggregator";
 import { ConfigService } from "@/config/config.service";
-import { IAggregationService, ServiceHealthStatus, ServicePerformanceMetrics } from "@/interfaces/service.interfaces";
+import { IAggregationService } from "@/common/interfaces/services/aggregation.interface";
+import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
 
 export interface CacheEntry {
   value: AggregatedPrice;
@@ -335,7 +336,7 @@ export class RealTimeAggregationService
   /**
    * Get performance metrics for a specific feed
    */
-  getPerformanceMetrics(feedId: EnhancedFeedId): {
+  getFeedPerformanceMetrics(feedId: EnhancedFeedId): {
     averageResponseTime: number;
     maxResponseTime: number;
     minResponseTime: number;
@@ -713,40 +714,67 @@ export class RealTimeAggregationService
     return config ? config.feed : null;
   }
 
-  // IBaseService interface methods
-  async getHealthStatus(): Promise<ServiceHealthStatus> {
-    const isHealthy = this.cache.size > 0 && this.activePriceUpdates.size > 0;
-
-    return {
-      status: isHealthy ? "healthy" : "degraded",
-      timestamp: Date.now(),
-      details: {
-        cacheSize: this.cache.size,
-        activeFeedCount: this.activePriceUpdates.size,
-        subscriptionCount: this.getSubscriptionCount(),
-      },
-    };
+  getServiceName(): string {
+    return "RealTimeAggregationService";
   }
 
-  async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
-    const cacheStats = this.getCacheStats();
+  // IBaseService interface methods
+  async getPerformanceMetrics(): Promise<{
+    responseTime: { average: number; min: number; max: number };
+    throughput: { requestsPerSecond: number; totalRequests: number };
+    errorRate: number;
+    uptime: number;
+  }> {
+    const uptime = process.uptime();
+    const totalRequests = this.cacheStats.totalRequests;
+    const requestsPerSecond = totalRequests / uptime;
+
+    // Calculate average response time from all feeds
+    const allMetrics = Array.from(this.performanceMetrics.values()).flat();
+    const averageResponseTime =
+      allMetrics.length > 0 ? allMetrics.reduce((sum, time) => sum + time, 0) / allMetrics.length : 0;
+    const minResponseTime = allMetrics.length > 0 ? Math.min(...allMetrics) : 0;
+    const maxResponseTime = allMetrics.length > 0 ? Math.max(...allMetrics) : 0;
 
     return {
       responseTime: {
-        average: this.config.performanceTargetMs,
-        min: 0,
-        max: this.config.performanceTargetMs * 2,
+        average: averageResponseTime,
+        min: minResponseTime,
+        max: maxResponseTime,
       },
       throughput: {
-        requestsPerSecond: cacheStats.totalEntries / 60, // Rough estimate
-        totalRequests: cacheStats.totalEntries,
+        requestsPerSecond,
+        totalRequests,
       },
-      errorRate: 1 - cacheStats.hitRate, // Rough estimate
-      uptime: Date.now(),
+      errorRate: 0, // Mock value - should be calculated from actual error metrics
+      uptime,
     };
   }
 
-  getServiceName(): string {
-    return "RealTimeAggregationService";
+  async getHealthStatus(): Promise<{
+    status: "healthy" | "degraded" | "unhealthy";
+    timestamp: number;
+    details?: any;
+  }> {
+    const activeFeedCount = this.getActiveFeedCount();
+    const cacheStats = this.getCacheStats();
+
+    let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+
+    if (activeFeedCount === 0) {
+      status = "unhealthy";
+    } else if (cacheStats.hitRate < 0.8) {
+      status = "degraded";
+    }
+
+    return {
+      status,
+      timestamp: Date.now(),
+      details: {
+        activeFeedCount,
+        cacheStats,
+        subscriptionCount: this.getSubscriptionCount(),
+      },
+    };
   }
 }

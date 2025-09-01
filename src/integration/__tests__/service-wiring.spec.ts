@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { IntegrationModule } from "../integration.module";
-import { ProductionIntegrationService } from "../production-integration.service";
+import { IntegrationService } from "../integration.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
@@ -8,11 +8,11 @@ import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
 import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
 import { AlertingService } from "@/monitoring/alerting.service";
 import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
-import { EnhancedFeedId, FeedCategory } from "@/types";
-import { PriceUpdate } from "@/interfaces";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 describe("Service Wiring Integration", () => {
-  let integrationService: ProductionIntegrationService;
+  let integrationService: IntegrationService;
   let dataManager: ProductionDataManagerService;
   let aggregationService: RealTimeAggregationService;
   let cacheService: RealTimeCacheService;
@@ -27,7 +27,7 @@ describe("Service Wiring Integration", () => {
       imports: [IntegrationModule],
     }).compile();
 
-    integrationService = module.get<ProductionIntegrationService>(ProductionIntegrationService);
+    integrationService = module.get<IntegrationService>(IntegrationService);
     dataManager = module.get<ProductionDataManagerService>(ProductionDataManagerService);
     aggregationService = module.get<RealTimeAggregationService>(RealTimeAggregationService);
     cacheService = module.get<RealTimeCacheService>(RealTimeCacheService);

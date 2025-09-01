@@ -1,7 +1,8 @@
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { BaseService } from "../base/base.service";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
+import { ClientIdentificationUtils } from "../utils/client-identification.utils";
 
 @Injectable()
 export class ResponseTimeInterceptor extends BaseService implements NestInterceptor {
@@ -16,7 +17,7 @@ export class ResponseTimeInterceptor extends BaseService implements NestIntercep
     const method = request.method;
     const url = request.url;
     const userAgent = request.headers["user-agent"] || "unknown";
-    const clientId = this.getClientIdentifier(request);
+    const clientInfo = ClientIdentificationUtils.getClientInfo(request);
 
     // Add request start time for downstream services
     request.startTime = startTime;
@@ -45,8 +46,8 @@ export class ResponseTimeInterceptor extends BaseService implements NestIntercep
             statusCode,
             responseTime,
             responseSize,
-            clientId: this.sanitizeClientId(clientId),
-            userAgent: this.sanitizeUserAgent(userAgent),
+            clientId: clientInfo.sanitized,
+            userAgent: ClientIdentificationUtils.sanitizeUserAgent(userAgent),
             timestamp: new Date().toISOString(),
           };
 
@@ -87,8 +88,8 @@ export class ResponseTimeInterceptor extends BaseService implements NestIntercep
             url,
             statusCode,
             responseTime,
-            clientId: this.sanitizeClientId(clientId),
-            userAgent: this.sanitizeUserAgent(userAgent),
+            clientId: clientInfo.sanitized,
+            userAgent: ClientIdentificationUtils.sanitizeUserAgent(userAgent),
             error: error.message,
             timestamp: new Date().toISOString(),
           };
@@ -102,38 +103,7 @@ export class ResponseTimeInterceptor extends BaseService implements NestIntercep
     );
   }
 
-  private getClientIdentifier(request: any): string {
-    // Try to get client identifier from various sources
-    const apiKey = request.headers["x-api-key"];
-    if (apiKey) return `api:${apiKey}`;
-
-    const clientId = request.headers["x-client-id"];
-    if (clientId) return `client:${clientId}`;
-
-    const ip =
-      request.ip ||
-      request.connection?.remoteAddress ||
-      request.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-      "unknown";
-    return `ip:${ip}`;
-  }
-
-  private sanitizeClientId(clientId: string): string {
-    if (clientId.startsWith("api:")) {
-      const apiKey = clientId.substring(4);
-      return apiKey.length > 8
-        ? `api:${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
-        : `api:${apiKey.substring(0, 4)}...`;
-    }
-    return clientId;
-  }
-
-  private sanitizeUserAgent(userAgent: string): string {
-    // Truncate very long user agent strings
-    return userAgent.length > 100 ? `${userAgent.substring(0, 100)}...` : userAgent;
-  }
-
-  private calculateResponseSize(responseData: any): number {
+  private calculateResponseSize(responseData: unknown): number {
     try {
       if (!responseData) return 0;
       if (typeof responseData === "string") return responseData.length;

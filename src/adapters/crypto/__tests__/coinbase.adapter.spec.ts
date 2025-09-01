@@ -1,5 +1,5 @@
 import { CoinbaseAdapter, CoinbaseTickerData } from "../coinbase.adapter";
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock WebSocket
 class MockWebSocket {

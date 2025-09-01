@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-import { DataSource } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
+import { DataSource } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId } from "@/common/types/feed.types";
 import { CircuitBreakerService, CircuitBreakerState } from "./circuit-breaker.service";
 import { FailoverManager } from "@/data-manager/failover-manager";
 

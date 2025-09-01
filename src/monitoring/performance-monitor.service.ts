@@ -1,7 +1,7 @@
 import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
-import { LogContext } from "@/utils/enhanced-logger.service";
+import { LogContext } from "@/common/logging/logger.types";
 import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
-import { BaseEventService } from "@/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 import * as os from "os";
 
 @Injectable()

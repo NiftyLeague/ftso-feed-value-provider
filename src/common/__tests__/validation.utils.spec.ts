@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { ValidationUtils } from "../validation/validation.utils";
+import { ValidationUtils } from "../utils/validation.utils";
 
 describe("ValidationUtils", () => {
   describe("validateFeedId", () => {

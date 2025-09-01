@@ -4,7 +4,7 @@ import { DataSourceIntegrationService } from "../services/data-source-integratio
 import { PriceAggregationCoordinatorService } from "../services/price-aggregation-coordinator.service";
 import { SystemHealthService } from "../services/system-health.service";
 import { ConfigService } from "@/config/config.service";
-import { EnhancedFeedId } from "@/types";
+import { EnhancedFeedId } from "@/common/types/feed.types";
 
 describe("IntegrationService", () => {
   let service: IntegrationService;

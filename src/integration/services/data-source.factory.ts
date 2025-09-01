@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { DataSource, PriceUpdate } from "@/interfaces";
+import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { ExchangeAdapter } from "@/adapters/base";
-import { FeedCategory } from "@/types";
-import { BaseService } from "@/common";
+import { FeedCategory } from "@/common/types/feed.types";
+import { BaseService } from "@/common/base/base.service";
 
 /**
  * Factory for creating DataSource instances from ExchangeAdapter instances

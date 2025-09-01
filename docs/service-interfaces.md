@@ -21,8 +21,8 @@ contracts for the core services:
 
 The main service interface for FTSO feed value provision.
 
-**Location:** `src/interfaces/service.interfaces.ts` **Implementation:**
-`src/app.service.ts` (FtsoProviderService)
+**Location:** `src/common/interfaces/services/provider.interface.ts`
+**Implementation:** `src/app.service.ts` (FtsoProviderService)
 
 **Key Methods:**
 
@@ -42,8 +42,9 @@ The main service interface for FTSO feed value provision.
 
 Interface for real-time price aggregation and caching services.
 
-**Location:** `src/interfaces/service.interfaces.ts` **Implementation:**
-`src/aggregators/real-time-aggregation.service.ts` (RealTimeAggregationService)
+**Location:** `src/common/interfaces/services/aggregation.interface.ts`
+**Implementation:** `src/aggregators/real-time-aggregation.service.ts`
+(RealTimeAggregationService)
 
 **Key Methods:**
 
@@ -63,8 +64,8 @@ Interface for real-time price aggregation and caching services.
 
 Interface for configuration management and validation.
 
-**Location:** `src/interfaces/service.interfaces.ts` **Implementation:**
-`src/config/config.service.ts` (ConfigService)
+**Location:** `src/common/interfaces/services/configuration.interface.ts`
+**Implementation:** `src/config/config.service.ts` (ConfigService)
 
 **Key Methods:**
 
@@ -85,8 +86,9 @@ Interface for configuration management and validation.
 
 Interface for data validation and quality assurance.
 
-**Location:** `src/interfaces/service.interfaces.ts` **Implementation:**
-`src/data-manager/validation/validation.service.ts` (ValidationService)
+**Location:** `src/common/interfaces/services/validation.interface.ts`
+**Implementation:** `src/data-manager/validation/validation.service.ts`
+(ValidationService)
 
 **Key Methods:**
 

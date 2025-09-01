@@ -17,9 +17,9 @@ import { AggregatorsModule } from "@/aggregators/aggregators.module";
 
 // Core services
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
-import { RateLimiterService } from "@/middleware/rate-limiter.service";
-import { RateLimitGuard } from "@/guards/rate-limit.guard";
-import { ResponseTimeInterceptor } from "@/interceptors/response-time.interceptor";
+import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
+import { ResponseTimeInterceptor } from "@/common/interceptors/response-time.interceptor";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
@@ -42,7 +42,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
       useFactory: () => {
         return new RateLimiterService({
           windowMs: 60000, // 1 minute
-          maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000"),
+          maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000", 10),
           skipSuccessfulRequests: false,
           skipFailedRequests: false,
         });

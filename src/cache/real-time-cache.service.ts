@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
 import { RealTimeCache, CacheEntry, CacheStats, CacheConfig } from "./interfaces/cache.interfaces";
-import { EnhancedFeedId } from "@/types";
+import { EnhancedFeedId } from "@/common/types/feed.types";
 
 interface CacheItem {
   entry: CacheEntry;

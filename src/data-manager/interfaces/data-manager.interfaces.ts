@@ -1,5 +1,5 @@
-import { EnhancedFeedId } from "@/types";
-import { PriceUpdate, DataSource } from "@/interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate, DataSource } from "@/common/interfaces/core/data-source.interface";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 export interface ProductionDataManager {

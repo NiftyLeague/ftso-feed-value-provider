@@ -1,5 +1,5 @@
 import { BinanceAdapter, BinanceTickerData } from "../binance.adapter";
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock WebSocket
 class MockWebSocket {

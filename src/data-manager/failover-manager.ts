@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { DataSource } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
-import { BaseEventService } from "@/common";
+import { DataSource } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 export interface FailoverConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms)

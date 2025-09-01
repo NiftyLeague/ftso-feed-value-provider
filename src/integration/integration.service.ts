@@ -10,9 +10,9 @@ import { SystemHealthService } from "./services/system-health.service";
 import { ConfigService } from "@/config/config.service";
 
 // Types and interfaces
-import { EnhancedFeedId } from "@/types";
+import { EnhancedFeedId } from "@/common/types/feed.types";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-import { PriceUpdate } from "@/interfaces";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 @Injectable()
 export class IntegrationService extends BaseEventService implements OnModuleInit, OnModuleDestroy {

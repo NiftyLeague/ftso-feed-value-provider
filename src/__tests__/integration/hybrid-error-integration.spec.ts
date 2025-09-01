@@ -8,7 +8,7 @@ import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service"
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
 import { FailoverManager } from "@/data-manager/failover-manager";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 
 describe("Hybrid Error Handling Integration", () => {
   let hybridErrorHandler: HybridErrorHandlerService;

@@ -2,8 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CircuitBreakerService } from "../circuit-breaker.service";
 import { FailoverManager } from "@/data-manager/failover-manager";
-import { DataSource } from "@/interfaces";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { DataSource } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 
 // Mock DataSource implementation
 class MockDataSource implements DataSource {

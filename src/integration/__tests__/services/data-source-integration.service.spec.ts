@@ -6,8 +6,8 @@ import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 import { DataSourceFactory } from "../../services/data-source.factory";
-import { EnhancedFeedId } from "@/types";
-import { PriceUpdate } from "@/interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 describe("DataSourceIntegrationService", () => {
   let service: DataSourceIntegrationService;

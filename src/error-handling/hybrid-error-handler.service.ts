@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
 
-import { EnhancedFeedId } from "@/types";
-import { PriceUpdate } from "@/interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
 import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";

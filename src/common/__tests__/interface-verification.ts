@@ -15,7 +15,7 @@ import {
   IAggregationService,
   IConfigurationService,
   IDataValidationService,
-} from "./service.interfaces";
+} from "../interfaces";
 
 // Type assertions to verify interface compliance
 // These will cause TypeScript compilation errors if interfaces are not properly implemented

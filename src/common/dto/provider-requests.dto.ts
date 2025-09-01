@@ -1,4 +1,4 @@
-import { EnhancedFeedId } from "@/types";
+import { EnhancedFeedId } from "../types/feed.types";
 
 export class FeedId implements EnhancedFeedId {
   category: number;

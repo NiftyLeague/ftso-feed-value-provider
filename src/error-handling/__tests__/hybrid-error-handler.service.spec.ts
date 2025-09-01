@@ -2,7 +2,7 @@ import { HybridErrorHandlerService, DataSourceTier, ErrorClassification } from "
 import { CircuitBreakerService } from "../circuit-breaker.service";
 import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 
 // Mock implementations
 const mockCircuitBreaker = {

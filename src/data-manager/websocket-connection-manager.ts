@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import WebSocket from "ws";
-import { BaseEventService } from "@/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 export interface WebSocketConnectionConfig {
   url: string;

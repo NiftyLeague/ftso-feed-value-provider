@@ -1,5 +1,5 @@
-import { PriceUpdate } from "@/interfaces/data-source.interface";
-import { FeedCategory } from "@/types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock WebSocket for integration testing
 class MockWebSocket {

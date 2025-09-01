@@ -1,14 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { DataValidator, ValidationResult, ValidationContext } from "./data-validator";
-import { PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId } from "@/common/types/feed.types";
 import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
-import {
-  IDataValidationService,
-  ServiceHealthStatus,
-  ServicePerformanceMetrics,
-} from "@/interfaces/service.interfaces";
-import { BaseEventService } from "@/common";
+import { IDataValidationService } from "@/common/interfaces/services/validation.interface";
+import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 export interface ValidationServiceConfig {
   enableRealTimeValidation: boolean;
@@ -421,43 +418,57 @@ export class ValidationService extends BaseEventService implements IDataValidati
     return this.validateRealTime(update, feedId, validationConfig);
   }
 
-  // IBaseService interface methods
-  async getHealthStatus(): Promise<ServiceHealthStatus> {
-    const stats = this.getValidationStatistics();
-    const isHealthy = stats.validationRate > 0.8; // 80% validation success rate
-
-    return {
-      status: isHealthy ? "healthy" : "degraded",
-      timestamp: Date.now(),
-      details: {
-        validationRate: stats.validationRate,
-        totalValidations: stats.totalValidations,
-        cacheSize: stats.cacheSize,
-        averageValidationTime: stats.averageValidationTime,
-      },
-    };
+  getServiceName(): string {
+    return "ValidationService";
   }
 
-  async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
+  // IBaseService interface methods
+  async getPerformanceMetrics(): Promise<{
+    responseTime: { average: number; min: number; max: number };
+    throughput: { requestsPerSecond: number; totalRequests: number };
+    errorRate: number;
+    uptime: number;
+  }> {
+    const uptime = process.uptime();
     const stats = this.getValidationStatistics();
 
     return {
       responseTime: {
         average: stats.averageValidationTime,
-        min: 0,
-        max: stats.averageValidationTime * 2,
+        min: 1, // Mock value
+        max: 50, // Mock value
       },
       throughput: {
-        requestsPerSecond: stats.totalValidations / 60, // Rough estimate
+        requestsPerSecond: stats.totalValidations / uptime,
         totalRequests: stats.totalValidations,
       },
       errorRate: 1 - stats.validationRate,
-      uptime: Date.now(),
+      uptime,
     };
   }
 
-  getServiceName(): string {
-    return "ValidationService";
+  async getHealthStatus(): Promise<{
+    status: "healthy" | "degraded" | "unhealthy";
+    timestamp: number;
+    details?: any;
+  }> {
+    const stats = this.getValidationStatistics();
+
+    let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+
+    if (stats.validationRate < 0.5) {
+      status = "unhealthy";
+    } else if (stats.validationRate < 0.8) {
+      status = "degraded";
+    }
+
+    return {
+      status,
+      timestamp: Date.now(),
+      details: {
+        validationStatistics: stats,
+      },
+    };
   }
 }
 

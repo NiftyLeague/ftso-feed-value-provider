@@ -1,5 +1,5 @@
-import { FeedCategory } from "@/types";
-import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
+import { FeedCategory } from "@/common/types/feed.types";
+import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 
 export interface ExchangeConnectionConfig {
   websocketUrl?: string;

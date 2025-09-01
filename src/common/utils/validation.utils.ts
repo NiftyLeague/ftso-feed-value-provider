@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { FeedId } from "@/dto/provider-requests.dto";
+import { FeedId } from "../dto/provider-requests.dto";
 
 /**
  * Validation utilities to eliminate request validation duplication
@@ -266,5 +266,174 @@ export class ValidationUtils {
     }
 
     return value;
+  }
+
+  /**
+   * Validate pagination parameters
+   */
+  static validatePagination(page?: any, limit?: any): { page: number; limit: number; offset: number } {
+    const validatedPage = page !== undefined ? this.validateNumericRange(page, "page", 1, undefined, false) : 1;
+    const validatedLimit = limit !== undefined ? this.validateNumericRange(limit, "limit", 1, 100, false) : 10;
+
+    return {
+      page: validatedPage,
+      limit: validatedLimit,
+      offset: (validatedPage - 1) * validatedLimit,
+    };
+  }
+
+  /**
+   * Validate required field
+   */
+  static validateRequired<T>(value: T, fieldName: string): T {
+    if (value === null || value === undefined || value === "") {
+      throw new BadRequestException(`${fieldName} is required`);
+    }
+    return value;
+  }
+
+  /**
+   * Validate array with constraints
+   */
+  static validateArray<T>(
+    value: any,
+    fieldName: string,
+    options: {
+      minLength?: number;
+      maxLength?: number;
+      itemValidator?: (item: any, index: number) => T;
+    } = {}
+  ): T[] {
+    if (!Array.isArray(value)) {
+      throw new BadRequestException(`${fieldName} must be an array`);
+    }
+
+    const { minLength = 0, maxLength = 1000, itemValidator } = options;
+
+    if (value.length < minLength) {
+      throw new BadRequestException(`${fieldName} must have at least ${minLength} items`);
+    }
+
+    if (value.length > maxLength) {
+      throw new BadRequestException(`${fieldName} cannot have more than ${maxLength} items`);
+    }
+
+    if (itemValidator) {
+      return value.map((item, index) => {
+        try {
+          return itemValidator(item, index);
+        } catch (error) {
+          throw new BadRequestException(`${fieldName}[${index}]: ${(error as Error).message}`);
+        }
+      });
+    }
+
+    return value;
+  }
+
+  /**
+   * Validate email format
+   */
+  static validateEmail(email: any, fieldName = "email"): string {
+    const emailStr = this.sanitizeString(email, fieldName, 254);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(emailStr)) {
+      throw new BadRequestException(`${fieldName} must be a valid email address`);
+    }
+
+    return emailStr.toLowerCase();
+  }
+
+  /**
+   * Validate URL format
+   */
+  static validateUrl(url: any, fieldName = "url", allowedProtocols = ["http", "https"]): string {
+    const urlStr = this.sanitizeString(url, fieldName, 2048);
+
+    try {
+      const parsedUrl = new URL(urlStr);
+
+      if (!allowedProtocols.includes(parsedUrl.protocol.slice(0, -1))) {
+        throw new BadRequestException(`${fieldName} must use one of these protocols: ${allowedProtocols.join(", ")}`);
+      }
+
+      return urlStr;
+    } catch (error) {
+      throw new BadRequestException(`${fieldName} must be a valid URL`);
+    }
+  }
+
+  /**
+   * Validate enum value
+   */
+  static validateEnum<T>(value: any, enumObject: Record<string, T>, fieldName: string): T {
+    const enumValues = Object.values(enumObject);
+
+    if (!enumValues.includes(value)) {
+      throw new BadRequestException(`${fieldName} must be one of: ${enumValues.join(", ")}`);
+    }
+
+    return value;
+  }
+
+  /**
+   * Validate date string or timestamp
+   */
+  static validateDate(date: any, fieldName: string): Date {
+    let dateObj: Date;
+
+    if (typeof date === "number") {
+      dateObj = new Date(date);
+    } else if (typeof date === "string") {
+      dateObj = new Date(date);
+    } else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      throw new BadRequestException(`${fieldName} must be a valid date, timestamp, or date string`);
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      throw new BadRequestException(`${fieldName} must be a valid date`);
+    }
+
+    return dateObj;
+  }
+
+  /**
+   * Validate object structure
+   */
+  static validateObject<T>(value: any, fieldName: string, validator: (obj: any) => T): T {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new BadRequestException(`${fieldName} must be an object`);
+    }
+
+    try {
+      return validator(value);
+    } catch (error) {
+      throw new BadRequestException(`${fieldName}: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Validate boolean value
+   */
+  static validateBoolean(value: unknown, fieldName: string): boolean {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const lowerValue = value.toLowerCase();
+      if (lowerValue === "true") return true;
+      if (lowerValue === "false") return false;
+    }
+
+    if (typeof value === "number") {
+      if (value === 1) return true;
+      if (value === 0) return false;
+    }
+
+    throw new BadRequestException(`${fieldName} must be a boolean value (true/false)`);
   }
 }

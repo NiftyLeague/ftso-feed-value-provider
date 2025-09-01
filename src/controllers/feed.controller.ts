@@ -11,28 +11,28 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { BaseService } from "@/common/base/base.service";
+import { BaseController } from "@/common/base/base.controller";
+import { ValidationUtils } from "@/common/utils/validation.utils";
 import { FtsoProviderService } from "@/app.service";
 import {
+  FeedId,
+  FeedValueData,
   FeedValuesRequest,
   FeedValuesResponse,
+  FeedVolumeData,
   FeedVolumesResponse,
   RoundFeedValuesResponse,
   VolumesRequest,
-  FeedValueData,
-  FeedVolumeData,
-} from "@/dto/provider-requests.dto";
+} from "@/common/dto/provider-requests.dto";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-import { isValidFeedId } from "@/types";
-import { FeedId } from "@/dto/provider-requests.dto";
 
 import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
 import { ApiMonitorService } from "../monitoring/api-monitor.service";
 
 @ApiTags("FTSO Feed Values")
 @Controller()
-export class FeedController extends BaseService {
+export class FeedController extends BaseController {
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
     private readonly errorHandler: ApiErrorHandlerService,
@@ -56,113 +56,46 @@ export class FeedController extends BaseService {
     @Param("votingRoundId", ParseIntPipe) votingRoundId: number,
     @Body() body: FeedValuesRequest
   ): Promise<RoundFeedValuesResponse> {
-    const startTime = performance.now();
-    const requestId = this.generateRequestId();
+    return this.handleControllerOperation(
+      async () => {
+        // Validate voting round ID
+        ValidationUtils.validateVotingRoundId(votingRoundId);
 
-    // Log API request
-    this.logApiRequest("POST", `/feed-values/${votingRoundId}`, body, requestId);
+        // Validate feed requests
+        this.validateFeedRequest(body);
 
-    try {
-      // Validate voting round ID
-      if (votingRoundId < 0) {
-        const errorResponse = {
-          error: "INVALID_VOTING_ROUND",
-          code: 4003,
-          message: "Voting round ID must be non-negative",
-          timestamp: Date.now(),
-          requestId,
+        // Try to get cached historical data first
+        const cachedResults = await this.getCachedHistoricalData(body.feeds, votingRoundId);
+
+        // Get fresh data for any missing feeds
+        const missingFeeds = body.feeds.filter((_, index) => !cachedResults[index]);
+        let freshData: FeedValueData[] = [];
+
+        if (missingFeeds.length > 0) {
+          freshData = await this.providerService.getValues(missingFeeds);
+
+          // Cache the fresh data for this voting round
+          await this.cacheHistoricalData(missingFeeds, freshData, votingRoundId);
+        }
+
+        // Combine cached and fresh data
+        const values = this.combineHistoricalResults(body.feeds, cachedResults, missingFeeds, freshData);
+
+        this.logger.log(`Feed values for voting round ${votingRoundId}: ${values.length} feeds`, {
+          votingRoundId,
+          feedCount: values.length,
+        });
+
+        return {
+          votingRoundId,
+          data: values,
         };
-
-        // Log error response
-        const responseTime = performance.now() - startTime;
-        this.logApiResponse(
-          "POST",
-          `/feed-values/${votingRoundId}`,
-          400,
-          responseTime,
-          this.calculateResponseSize(errorResponse),
-          requestId
-        );
-
-        throw new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
-      }
-
-      // Validate feed requests
-      this.validateFeedRequest(body, requestId);
-
-      // Try to get cached historical data first
-      const cachedResults = await this.getCachedHistoricalData(body.feeds, votingRoundId);
-
-      // Get fresh data for any missing feeds
-      const missingFeeds = body.feeds.filter((_, index) => !cachedResults[index]);
-      let freshData: FeedValueData[] = [];
-
-      if (missingFeeds.length > 0) {
-        freshData = await this.providerService.getValues(missingFeeds);
-
-        // Cache the fresh data for this voting round
-        await this.cacheHistoricalData(missingFeeds, freshData, votingRoundId);
-      }
-
-      // Combine cached and fresh data
-      const values = this.combineHistoricalResults(body.feeds, cachedResults, missingFeeds, freshData);
-
-      const responseTime = performance.now() - startTime;
-      const response = {
-        votingRoundId,
-        data: values,
-      };
-
-      // Log API response
-      this.logApiResponse(
-        "POST",
-        `/feed-values/${votingRoundId}`,
-        200,
-        responseTime,
-        this.calculateResponseSize(response),
-        requestId
-      );
-
-      this.logger.log(
-        `Feed values for voting round ${votingRoundId}: ${values.length} feeds, ${responseTime.toFixed(2)}ms`,
-        { requestId, votingRoundId, feedCount: values.length, responseTime }
-      );
-
-      return response;
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-
-      if (error instanceof HttpException) {
-        // Already logged above
-        throw error;
-      }
-
-      const errorResponse = {
-        error: "INTERNAL_ERROR",
-        code: 5001,
-        message: "Failed to retrieve feed values for voting round",
-        timestamp: Date.now(),
-        requestId,
-      };
-
-      // Log error response
-      this.logApiResponse(
-        "POST",
-        `/feed-values/${votingRoundId}`,
-        500,
-        responseTime,
-        this.calculateResponseSize(errorResponse),
-        requestId
-      );
-
-      this.logger.error(
-        `Error getting feed values for voting round ${votingRoundId} (${responseTime.toFixed(2)}ms):`,
-        error,
-        { requestId, votingRoundId, responseTime }
-      );
-
-      throw new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+      },
+      `getFeedValues(${votingRoundId})`,
+      "POST",
+      `/feed-values/${votingRoundId}`,
+      { body }
+    );
   }
 
   @Post("feed-values/")
@@ -174,68 +107,27 @@ export class FeedController extends BaseService {
   @ApiResponse({ status: 400, description: "Invalid feed request" })
   @ApiResponse({ status: 500, description: "Internal server error" })
   async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
-    const startTime = performance.now();
-    const requestId = this.generateRequestId();
+    return this.handleControllerOperation(
+      async () => {
+        // Validate feed requests
+        this.validateFeedRequest(body);
 
-    // Log API request
-    this.logApiRequest("POST", "/feed-values/", body, requestId);
+        // Get real-time data with caching
+        const values = await this.getRealTimeFeedValues(body.feeds);
 
-    try {
-      // Validate feed requests
-      this.validateFeedRequest(body, requestId);
+        this.logger.log(`Current feed values: ${values.length} feeds`, {
+          feedCount: values.length,
+        });
 
-      // Get real-time data with caching
-      const values = await this.getRealTimeFeedValues(body.feeds);
-
-      const responseTime = performance.now() - startTime;
-      const response = {
-        data: values,
-      };
-
-      // Log API response
-      this.logApiResponse("POST", "/feed-values/", 200, responseTime, this.calculateResponseSize(response), requestId);
-
-      this.logger.log(`Current feed values: ${values.length} feeds, ${responseTime.toFixed(2)}ms`, {
-        requestId,
-        feedCount: values.length,
-        responseTime,
-      });
-
-      return response;
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-
-      if (error instanceof HttpException) {
-        // Already logged in validation methods
-        throw error;
-      }
-
-      const errorResponse = {
-        error: "INTERNAL_ERROR",
-        code: 5001,
-        message: "Failed to retrieve current feed values",
-        timestamp: Date.now(),
-        requestId,
-      };
-
-      // Log error response
-      this.logApiResponse(
-        "POST",
-        "/feed-values/",
-        500,
-        responseTime,
-        this.calculateResponseSize(errorResponse),
-        requestId
-      );
-
-      this.logger.error(`Error getting current feed values (${responseTime.toFixed(2)}ms):`, error, {
-        requestId,
-        responseTime,
-        feedCount: body?.feeds?.length || 0,
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+        return {
+          data: values,
+        };
+      },
+      "getCurrentFeedValues",
+      "POST",
+      "/feed-values/",
+      { body }
+    );
   }
 
   @Post("volumes/")
@@ -250,182 +142,46 @@ export class FeedController extends BaseService {
     @Body() body: VolumesRequest,
     @Query("window", new DefaultValuePipe("60"), ParseIntPipe) windowSec: number
   ): Promise<FeedVolumesResponse> {
-    const startTime = performance.now();
-    const requestId = this.generateRequestId();
+    return this.handleControllerOperation(
+      async () => {
+        // Validate volume request
+        this.validateVolumeRequest(body, windowSec);
 
-    // Log API request
-    this.logApiRequest("POST", `/volumes/?window=${windowSec}`, body, requestId);
+        // Get volumes with USDT conversion using existing CCXT processing
+        const values = await this.getOptimizedVolumes(body.feeds, windowSec);
 
-    try {
-      // Validate volume request
-      this.validateVolumeRequest(body, windowSec, requestId);
-
-      // Get volumes with USDT conversion using existing CCXT processing
-      const values = await this.getOptimizedVolumes(body.feeds, windowSec);
-
-      const responseTime = performance.now() - startTime;
-      const response = {
-        data: values,
-      };
-
-      // Log API response
-      this.logApiResponse(
-        "POST",
-        `/volumes/?window=${windowSec}`,
-        200,
-        responseTime,
-        this.calculateResponseSize(response),
-        requestId
-      );
-
-      this.logger.log(
-        `Feed volumes for last ${windowSec} seconds: ${values.length} feeds, ${responseTime.toFixed(2)}ms`,
-        {
-          requestId,
+        this.logger.log(`Feed volumes for last ${windowSec} seconds: ${values.length} feeds`, {
           windowSec,
           feedCount: values.length,
-          responseTime,
-        }
-      );
+        });
 
-      return response;
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-
-      if (error instanceof HttpException) {
-        // Already logged in validation methods
-        throw error;
-      }
-
-      const errorResponse = {
-        error: "INTERNAL_ERROR",
-        code: 5001,
-        message: "Failed to retrieve feed volumes",
-        timestamp: Date.now(),
-        requestId,
-      };
-
-      // Log error response
-      this.logApiResponse(
-        "POST",
-        `/volumes/?window=${windowSec}`,
-        500,
-        responseTime,
-        this.calculateResponseSize(errorResponse),
-        requestId
-      );
-
-      this.logger.error(`Error getting feed volumes (${responseTime.toFixed(2)}ms):`, error, {
-        requestId,
-        windowSec,
-        feedCount: body?.feeds?.length || 0,
-        responseTime,
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+        return {
+          data: values,
+        };
+      },
+      `getFeedVolumes(window=${windowSec})`,
+      "POST",
+      `/volumes/?window=${windowSec}`,
+      { body }
+    );
   }
 
   // Private helper methods
 
-  private validateFeedRequest(body: FeedValuesRequest, requestId?: string): void {
-    const reqId = requestId || this.generateRequestId();
-
-    if (!body || !Array.isArray(body.feeds) || body.feeds.length === 0) {
-      const errorResponse = {
-        error: "INVALID_FEED_REQUEST",
-        code: 4000,
-        message: "Request must contain a non-empty feeds array",
-        timestamp: Date.now(),
-        requestId: reqId,
-      };
-
-      this.logger.warn("Invalid feed request: missing or empty feeds array", {
-        requestId: reqId,
-        body: this.sanitizeRequestBody(body),
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
-    }
-
-    // Check feed count limits
-    if (body.feeds.length > 100) {
-      const errorResponse = {
-        error: "TOO_MANY_FEEDS",
-        code: 4002,
-        message: `Too many feeds requested: ${body.feeds.length}. Maximum allowed: 100`,
-        timestamp: Date.now(),
-        requestId: reqId,
-      };
-
-      this.logger.warn(`Too many feeds requested: ${body.feeds.length}`, {
-        requestId: reqId,
-        feedCount: body.feeds.length,
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
-    }
-
-    // Validate each feed ID
-    const invalidFeeds = [];
-    for (let i = 0; i < body.feeds.length; i++) {
-      const feed = body.feeds[i];
-      if (!isValidFeedId(feed)) {
-        invalidFeeds.push({ index: i, feed });
-      }
-    }
-
-    if (invalidFeeds.length > 0) {
-      const errorResponse = {
-        error: "INVALID_FEED_ID",
-        code: 4001,
-        message: `Invalid feed IDs found: ${invalidFeeds.length} out of ${body.feeds.length}`,
-        timestamp: Date.now(),
-        requestId: reqId,
-        invalidFeeds: invalidFeeds.slice(0, 5), // Limit to first 5 for response size
-      };
-
-      this.logger.warn(`Invalid feed IDs in request`, {
-        requestId: reqId,
-        invalidCount: invalidFeeds.length,
-        totalCount: body.feeds.length,
-        invalidFeeds: invalidFeeds.slice(0, 10), // Log up to 10 for debugging
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
-    }
+  private validateFeedRequest(body: FeedValuesRequest): void {
+    // Use existing ValidationUtils for comprehensive feed validation
+    ValidationUtils.validateFeedValuesRequest(body);
   }
 
-  private validateVolumeRequest(body: VolumesRequest, windowSec: number, requestId?: string): void {
-    const reqId = requestId || this.generateRequestId();
+  private validateVolumeRequest(body: VolumesRequest, windowSec: number): void {
+    // Use existing ValidationUtils for comprehensive volume validation
+    ValidationUtils.validateVolumesRequest(body);
 
-    // First validate the feed request
-    this.validateFeedRequest(body, reqId);
-
-    // Validate time window
-    if (windowSec <= 0 || windowSec > 3600) {
-      const errorResponse = {
-        error: "INVALID_TIME_WINDOW",
-        code: 4004,
-        message: "Time window must be between 1 and 3600 seconds",
-        timestamp: Date.now(),
-        requestId: reqId,
-        providedWindow: windowSec,
-        allowedRange: { min: 1, max: 3600 },
-      };
-
-      this.logger.warn(`Invalid time window: ${windowSec}`, {
-        requestId: reqId,
-        windowSec,
-        allowedRange: { min: 1, max: 3600 },
-      });
-
-      throw new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
-    }
+    // Validate time window (ValidationUtils has validateTimeWindow but with different max)
+    ValidationUtils.validateNumericRange(windowSec, "windowSec", 1, 3600, false);
 
     // Log valid volume request
     this.logger.debug(`Volume request validated`, {
-      requestId: reqId,
       feedCount: body.feeds.length,
       windowSec,
     });
@@ -674,23 +430,8 @@ export class FeedController extends BaseService {
     return age <= 2000; // 2-second freshness requirement
   }
 
-  private generateRequestId(): string {
-    return this.errorHandler.generateRequestId();
-  }
-
-  // Enhanced logging and monitoring methods
-  private logApiRequest(method: string, url: string, body?: unknown, requestId?: string): void {
-    const sanitizedBody = this.sanitizeRequestBody(body);
-    this.logger.log(`API Request: ${method} ${url}`, {
-      requestId,
-      method,
-      url,
-      bodySize: JSON.stringify(sanitizedBody).length,
-      timestamp: Date.now(),
-    });
-  }
-
-  private logApiResponse(
+  // Override logApiResponse to include API monitoring
+  protected logApiResponse(
     method: string,
     url: string,
     statusCode: number,
@@ -699,6 +440,7 @@ export class FeedController extends BaseService {
     requestId?: string,
     errorMessage?: string
   ): void {
+    // Record in API monitor
     this.apiMonitor.recordApiRequest({
       endpoint: url,
       method,
@@ -710,40 +452,7 @@ export class FeedController extends BaseService {
       error: errorMessage,
     });
 
-    this.logger.log(`API Response: ${method} ${url} - ${statusCode}`, {
-      requestId,
-      method,
-      url,
-      statusCode,
-      responseTime: Math.round(responseTime),
-      responseSize,
-      timestamp: Date.now(),
-      error: errorMessage,
-    });
-  }
-
-  private sanitizeRequestBody(body: unknown): unknown {
-    if (!body) return body;
-
-    // Create a copy and limit the size for logging
-    const sanitized = JSON.parse(JSON.stringify(body));
-
-    // Limit feeds array for logging (show first 3 feeds)
-    if (sanitized.feeds && Array.isArray(sanitized.feeds) && sanitized.feeds.length > 3) {
-      sanitized.feeds = [
-        ...sanitized.feeds.slice(0, 3),
-        { truncated: `... and ${sanitized.feeds.length - 3} more feeds` },
-      ];
-    }
-
-    return sanitized;
-  }
-
-  private calculateResponseSize(response: unknown): number {
-    try {
-      return JSON.stringify(response).length;
-    } catch {
-      return 0;
-    }
+    // Call parent implementation
+    super.logApiResponse(method, url, statusCode, responseTime, responseSize, requestId, errorMessage);
   }
 }

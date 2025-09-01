@@ -3,8 +3,8 @@ import {
   ExchangeCapabilities,
   ExchangeConnectionConfig,
 } from "@/adapters/base/exchange-adapter.interface";
-import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
-import { FeedCategory } from "@/types";
+import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
+import { FeedCategory } from "@/common/types/feed.types";
 
 export interface KrakenTickerData {
   channelID: number;

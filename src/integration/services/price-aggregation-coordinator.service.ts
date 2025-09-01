@@ -13,8 +13,8 @@ import { CachePerformanceMonitorService } from "@/cache/cache-performance-monito
 import { ConfigService } from "@/config/config.service";
 
 // Types and interfaces
-import { EnhancedFeedId } from "@/types";
-import { PriceUpdate } from "@/interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 import { FeedConfiguration } from "@/config/config.service";

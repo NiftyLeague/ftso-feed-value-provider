@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { RealTimeCacheService } from "./real-time-cache.service";
-import { EnhancedFeedId } from "@/types";
+import { EnhancedFeedId } from "@/common/types/feed.types";
 import { CacheEntry } from "./interfaces/cache.interfaces";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-import { BaseService } from "@/common";
+import { BaseService } from "@/common/base/base.service";
+import { executeWithConcurrency } from "@/common/utils/async.utils";
 
 interface WarmupConfig {
   popularFeeds: EnhancedFeedId[];
@@ -65,21 +66,27 @@ export class CacheWarmerService extends BaseService {
     const popularFeeds = this.getPopularFeeds();
 
     if (popularFeeds.length === 0) {
-      this.logger.debug("No popular feeds to warm");
+      this.logDebug("No popular feeds to warm");
       return;
     }
 
-    this.logger.debug(`Warming cache for ${popularFeeds.length} popular feeds`);
+    this.logDebug(`Warming cache for ${popularFeeds.length} popular feeds`);
 
-    // Process feeds in parallel but with controlled concurrency
-    const warmupPromises = popularFeeds.map(metrics =>
-      this.warmFeedCache(metrics.feedId).catch(error => {
-        this.logger.warn(`Failed to warm cache for feed ${this.generateFeedKey(metrics.feedId)}: ${error.message}`);
-      })
+    // Use the new async utility for controlled concurrency
+    const { successful, failed } = await executeWithConcurrency(
+      popularFeeds,
+      async metrics => {
+        await this.warmFeedCache(metrics.feedId);
+        return metrics.feedId;
+      },
+      {
+        concurrency: 5,
+        onError: "continue",
+        logger: this.logger,
+      }
     );
 
-    await Promise.allSettled(warmupPromises);
-    this.logger.debug("Cache warming completed");
+    this.logDebug(`Cache warming completed: ${successful} successful, ${failed} failed`);
   }
 
   // Warm cache for a specific feed

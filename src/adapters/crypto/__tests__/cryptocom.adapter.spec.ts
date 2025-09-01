@@ -1,5 +1,5 @@
 import { CryptocomAdapter, CryptocomTickerData, CryptocomRestResponse } from "../cryptocom.adapter";
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock WebSocket
 class MockWebSocket {

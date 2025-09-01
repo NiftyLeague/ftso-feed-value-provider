@@ -6,7 +6,7 @@ import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
 import { LogLevel, Logger, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "@/app.module";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 
 // Global application instance for graceful shutdown
 let app: any = null;
@@ -96,7 +96,7 @@ async function bootstrap() {
     setupGracefulShutdown();
 
     // Start the HTTP server
-    const PORT = process.env.VALUE_PROVIDER_CLIENT_PORT ? parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT) : 3101;
+    const PORT = process.env.VALUE_PROVIDER_CLIENT_PORT ? parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT, 10) : 3101;
 
     const serverStartTime = performance.now();
     await app.listen(PORT, "0.0.0.0");
@@ -178,7 +178,7 @@ async function validateEnvironment(): Promise<void> {
   }
 
   // Validate port number
-  const port = parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT || "3101");
+  const port = parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT || "3101", 10);
   if (isNaN(port) || port < 1 || port > 65535) {
     throw new Error(`Invalid port number: ${process.env.VALUE_PROVIDER_CLIENT_PORT}`);
   }
@@ -266,7 +266,7 @@ async function gracefulShutdown(): Promise<void> {
     logger.log("🛑 Initiating graceful shutdown...");
 
     // Set a timeout for shutdown process
-    const timeoutMs = parseInt(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || "30000");
+    const timeoutMs = parseInt(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || "30000", 10);
     const shutdownTimeout = setTimeout(() => {
       logger.error(`⏰ Shutdown timeout reached after ${timeoutMs}ms, forcing exit`);
       process.exit(1);
@@ -284,7 +284,7 @@ async function gracefulShutdown(): Promise<void> {
 }
 
 async function waitForApplicationReady(): Promise<void> {
-  const maxWaitTime = parseInt(process.env.APP_READINESS_TIMEOUT_MS || "30000");
+  const maxWaitTime = parseInt(process.env.APP_READINESS_TIMEOUT_MS || "30000", 10);
   const checkInterval = 1000; // 1 second
   const startTime = Date.now();
 

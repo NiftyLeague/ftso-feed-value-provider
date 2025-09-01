@@ -1,5 +1,5 @@
 import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { BaseController } from "@/common/base/base.controller";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { FtsoProviderService } from "@/app.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
@@ -29,8 +29,7 @@ interface HealthStatus {
 
 @ApiTags("System Health")
 @Controller()
-export class HealthController extends BaseService {
-  private readonly startupTime = Date.now();
+export class HealthController extends BaseController {
   private readyTime?: number;
 
   constructor(
@@ -79,125 +78,86 @@ export class HealthController extends BaseService {
     },
   })
   async healthCheck(): Promise<Record<string, unknown>> {
-    const startTime = performance.now();
-    const requestId = this.generateRequestId();
+    const result = await this.executeOperation(
+      async () => {
+        // Get comprehensive health information
+        const [health, performanceMetrics] = await Promise.allSettled([
+          this.providerService.healthCheck(),
+          this.providerService.getPerformanceMetrics(),
+        ]);
 
-    try {
-      // Get comprehensive health information
-      const [health, performanceMetrics] = await Promise.allSettled([
-        this.providerService.healthCheck(),
-        this.providerService.getPerformanceMetrics(),
-      ]);
+        // Get additional component health
+        const cacheStats = this.cacheService.getStats();
+        const aggregationStats = this.aggregationService.getCacheStats();
 
-      // Get additional component health
-      const cacheStats = this.cacheService.getStats();
-      const aggregationStats = this.aggregationService.getCacheStats();
+        // Determine component health status
+        const components = {
+          provider: {
+            status: health.status === "fulfilled" ? health.value.status : "unhealthy",
+            details: health.status === "fulfilled" ? health.value.details : { error: health.reason?.message },
+          },
+          cache: {
+            status: cacheStats.hitRate > 0.3 ? "healthy" : "degraded",
+            hitRate: cacheStats.hitRate,
+            totalEntries: cacheStats.totalEntries,
+            memoryUsage: cacheStats.memoryUsage,
+          },
+          aggregation: {
+            status: aggregationStats.totalEntries > 0 ? "healthy" : "degraded",
+            totalEntries: aggregationStats.totalEntries,
+            hitRate: aggregationStats.hitRate,
+            averageAge: aggregationStats.averageAge,
+          },
+          performance: {
+            status: performanceMetrics.status === "fulfilled" ? "healthy" : "degraded",
+            metrics: performanceMetrics.status === "fulfilled" ? performanceMetrics.value : null,
+          },
+        };
 
-      // Determine component health status
-      const components = {
-        provider: {
-          status: health.status === "fulfilled" ? health.value.status : "unhealthy",
-          details: health.status === "fulfilled" ? health.value.details : { error: health.reason?.message },
-        },
-        cache: {
-          status: cacheStats.hitRate > 0.3 ? "healthy" : "degraded",
-          hitRate: cacheStats.hitRate,
-          totalEntries: cacheStats.totalEntries,
-          memoryUsage: cacheStats.memoryUsage,
-        },
-        aggregation: {
-          status: aggregationStats.totalEntries > 0 ? "healthy" : "degraded",
-          totalEntries: aggregationStats.totalEntries,
-          hitRate: aggregationStats.hitRate,
-          averageAge: aggregationStats.averageAge,
-        },
-        performance: {
-          status: performanceMetrics.status === "fulfilled" ? "healthy" : "degraded",
-          metrics: performanceMetrics.status === "fulfilled" ? performanceMetrics.value : null,
-        },
-      };
+        // Determine overall health
+        const componentStatuses = Object.values(components).map(c => c.status);
+        const unhealthyCount = componentStatuses.filter(s => s === "unhealthy").length;
+        const degradedCount = componentStatuses.filter(s => s === "degraded").length;
 
-      // Determine overall health
-      const componentStatuses = Object.values(components).map(c => c.status);
-      const unhealthyCount = componentStatuses.filter(s => s === "unhealthy").length;
-      const degradedCount = componentStatuses.filter(s => s === "degraded").length;
+        let overallStatus: "healthy" | "degraded" | "unhealthy";
+        if (unhealthyCount > 0) {
+          overallStatus = "unhealthy";
+        } else if (degradedCount > 0) {
+          overallStatus = "degraded";
+        } else {
+          overallStatus = "healthy";
+        }
 
-      let overallStatus: "healthy" | "degraded" | "unhealthy";
-      if (unhealthyCount > 0) {
-        overallStatus = "unhealthy";
-      } else if (degradedCount > 0) {
-        overallStatus = "degraded";
-      } else {
-        overallStatus = "healthy";
-      }
+        const response = {
+          status: overallStatus,
+          timestamp: Date.now(),
+          version: "1.0.0",
+          uptime: process.uptime(),
+          memory: {
+            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
+            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
+            external: Math.round(process.memoryUsage().external / 1024 / 1024), // MB
+            rss: Math.round(process.memoryUsage().rss / 1024 / 1024), // MB
+          },
+          components,
+          details: {
+            environment: process.env.NODE_ENV || "development",
+            nodeVersion: process.version,
+            platform: process.platform,
+            pid: process.pid,
+          },
+        };
 
-      const responseTime = performance.now() - startTime;
+        if (overallStatus === "unhealthy") {
+          throw new HttpException(response, HttpStatus.SERVICE_UNAVAILABLE);
+        }
 
-      const response = {
-        status: overallStatus,
-        timestamp: Date.now(),
-        version: "1.0.0",
-        uptime: process.uptime(),
-        responseTime: Math.round(responseTime),
-        memory: {
-          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
-          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
-          external: Math.round(process.memoryUsage().external / 1024 / 1024), // MB
-          rss: Math.round(process.memoryUsage().rss / 1024 / 1024), // MB
-        },
-        components,
-        details: {
-          requestId,
-          environment: process.env.NODE_ENV || "development",
-          nodeVersion: process.version,
-          platform: process.platform,
-          pid: process.pid,
-        },
-      };
-
-      // Log health check performance
-      this.logger.log(`Health check completed in ${responseTime.toFixed(2)}ms - Status: ${overallStatus}`, {
-        requestId,
-        status: overallStatus,
-        responseTime,
-        componentStatuses,
-      });
-
-      // Log performance warning if health check is slow
-      if (responseTime > 1000) {
-        this.logger.warn(`Health check response time ${responseTime.toFixed(2)}ms exceeded 1s threshold`, {
-          requestId,
-          responseTime,
-        });
-      }
-
-      if (overallStatus === "unhealthy") {
-        throw new HttpException(response, HttpStatus.SERVICE_UNAVAILABLE);
-      }
-
-      return response;
-    } catch (error) {
-      const responseTime = performance.now() - startTime;
-      this.logger.error(`Health check failed in ${responseTime.toFixed(2)}ms:`, error, { requestId });
-
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      const errorResponse = {
-        status: "unhealthy",
-        timestamp: Date.now(),
-        responseTime: Math.round(responseTime),
-        error: "Health check failed",
-        details: {
-          error: error.message,
-          requestId,
-          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-        },
-      };
-
-      throw new HttpException(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
-    }
+        return response;
+      },
+      "healthCheck",
+      { performanceThreshold: 1000 }
+    );
+    return result.data as Record<string, unknown>;
   }
 
   @Get("health")
@@ -556,10 +516,6 @@ export class HealthController extends BaseService {
   }
 
   // Helper methods
-
-  private generateRequestId(): string {
-    return this.errorHandler.generateRequestId();
-  }
 
   private async performReadinessChecks(): Promise<{
     integration: { ready: boolean; status: string; error: null | string };

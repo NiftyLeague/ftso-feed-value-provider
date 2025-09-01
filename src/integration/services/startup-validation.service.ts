@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { IntegrationService } from "../integration.service";
 import { ConfigService } from "@/config/config.service";
-import { BaseService } from "@/common";
+import { BaseService } from "@/common/base/base.service";
 
 interface StartupValidationResult {
   success: boolean;
@@ -138,7 +138,7 @@ export class StartupValidationService extends BaseService implements OnModuleIni
     }
 
     // Validate port
-    const port = parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT || "3101");
+    const port = parseInt(process.env.VALUE_PROVIDER_CLIENT_PORT || "3101", 10);
     if (isNaN(port) || port < 1 || port > 65535) {
       result.errors.push(`Invalid port number: ${process.env.VALUE_PROVIDER_CLIENT_PORT}`);
     }

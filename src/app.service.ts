@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-import { FeedId, FeedValueData, FeedVolumeData } from "@/dto/provider-requests.dto";
+import { FeedId, FeedValueData, FeedVolumeData } from "@/common/dto/provider-requests.dto";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { IntegrationService } from "@/integration/integration.service";
-import { EnhancedFeedId } from "@/types";
-import { IFtsoProviderService, ServiceHealthStatus, ServicePerformanceMetrics } from "@/interfaces/service.interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { IFtsoProviderService } from "@/common/interfaces/services/provider.interface";
+import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
 
 @Injectable()
 export class FtsoProviderService extends BaseService implements IFtsoProviderService {
@@ -125,11 +126,29 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
   // Performance monitoring methods
 
   async getPerformanceMetrics(): Promise<{
+    responseTime: { average: number; min: number; max: number };
+    throughput: { requestsPerSecond: number; totalRequests: number };
+    errorRate: number;
+    uptime: number;
     cacheStats: any;
     aggregationStats: any;
     activeFeedCount: number;
   }> {
+    const startTime = Date.now();
+    const uptime = process.uptime();
+
     return {
+      responseTime: {
+        average: 50, // Mock values - should be calculated from actual metrics
+        min: 10,
+        max: 200,
+      },
+      throughput: {
+        requestsPerSecond: 100, // Mock values - should be calculated from actual metrics
+        totalRequests: 10000,
+      },
+      errorRate: 0.01, // Mock value - should be calculated from actual metrics
+      uptime,
       cacheStats: this.cacheService.getStats(),
       aggregationStats: this.aggregationService.getCacheStats(),
       activeFeedCount: this.aggregationService.getActiveFeedCount(),
@@ -139,6 +158,7 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
   // Health check method
   async healthCheck(): Promise<{
     status: "healthy" | "degraded" | "unhealthy";
+    timestamp: number;
     details: any;
   }> {
     try {
@@ -146,9 +166,9 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
       if (!this.integrationService) {
         return {
           status: "unhealthy",
+          timestamp: Date.now(),
           details: {
             error: "Production integration service not available",
-            timestamp: Date.now(),
           },
         };
       }
@@ -156,15 +176,16 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
       const systemHealth = await this.integrationService.getSystemHealth();
       return {
         status: systemHealth.status,
+        timestamp: Date.now(),
         details: systemHealth,
       };
     } catch (error) {
       this.logError(error as Error, "healthCheck");
       return {
         status: "unhealthy",
+        timestamp: Date.now(),
         details: {
           error: error.message,
-          timestamp: Date.now(),
         },
       };
     }

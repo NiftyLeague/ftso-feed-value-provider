@@ -1,6 +1,8 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from "@nestjs/common";
-import { RateLimiterService } from "@/middleware/rate-limiter.service";
+import { RateLimiterService } from "./rate-limiter.service";
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { ClientIdentificationUtils } from "../utils/client-identification.utils";
+import { RateLimitErrorResponse } from "./rate-limit.types";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -14,7 +16,8 @@ export class RateLimitGuard implements CanActivate {
     const response = context.switchToHttp().getResponse();
 
     // Get client identifier (IP address or API key)
-    const clientId = this.getClientId(request);
+    const clientInfo = ClientIdentificationUtils.getClientInfo(request);
+    const clientId = clientInfo.id;
     const method = request.method;
     const url = request.url;
 
@@ -54,7 +57,7 @@ export class RateLimitGuard implements CanActivate {
             resetTime: new Date(Date.now() + rateLimitInfo.msBeforeNext).toISOString(),
           },
           clientInfo: {
-            clientId: this.sanitizeClientId(clientId),
+            clientId: clientInfo.sanitized,
             method,
             url,
           },
@@ -63,9 +66,9 @@ export class RateLimitGuard implements CanActivate {
       );
 
       // Log rate limit violation with context
-      console.warn(`Rate limit exceeded for client ${this.sanitizeClientId(clientId)}`, {
+      console.warn(`Rate limit exceeded for client ${clientInfo.sanitized}`, {
         requestId,
-        clientId: this.sanitizeClientId(clientId),
+        clientId: clientInfo.sanitized,
         method,
         url,
         totalHits: rateLimitInfo.totalHits,
@@ -82,13 +85,13 @@ export class RateLimitGuard implements CanActivate {
     this.rateLimiter.recordRequest(clientId, true);
 
     // Add request tracking headers for monitoring
-    response.setHeader("X-Client-ID", this.sanitizeClientId(clientId));
+    response.setHeader("X-Client-ID", clientInfo.sanitized);
     response.setHeader("X-Request-Count", rateLimitInfo.totalHitsInWindow.toString());
 
     // Log successful rate limit check for high-frequency clients
     if (rateLimitInfo.totalHitsInWindow > this.rateLimiter.getConfig().maxRequests * 0.8) {
-      console.log(`High request volume from client ${this.sanitizeClientId(clientId)}`, {
-        clientId: this.sanitizeClientId(clientId),
+      console.log(`High request volume from client ${clientInfo.sanitized}`, {
+        clientId: clientInfo.sanitized,
         method,
         url,
         totalHitsInWindow: rateLimitInfo.totalHitsInWindow,
@@ -98,77 +101,5 @@ export class RateLimitGuard implements CanActivate {
     }
 
     return true;
-  }
-
-  private getClientId(request: any): string {
-    // Try to get client ID from various sources in order of preference
-
-    // 1. API Key (highest priority)
-    const apiKey = request.headers["x-api-key"];
-    if (apiKey && typeof apiKey === "string" && apiKey.length > 0) {
-      return `api:${apiKey}`;
-    }
-
-    // 2. Authorization header (Bearer token)
-    const authHeader = request.headers["authorization"];
-    if (authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-      if (token.length > 0) {
-        return `bearer:${token}`;
-      }
-    }
-
-    // 3. Custom client ID header
-    const clientId = request.headers["x-client-id"];
-    if (clientId && typeof clientId === "string" && clientId.length > 0) {
-      return `client:${clientId}`;
-    }
-
-    // 4. IP address as fallback
-    const ip = this.getClientIP(request);
-    return `ip:${ip}`;
-  }
-
-  private getClientIP(request: any): string {
-    // Try multiple sources for IP address
-    const candidates = [
-      request.ip,
-      request.connection?.remoteAddress,
-      request.socket?.remoteAddress,
-      request.headers["x-forwarded-for"]?.split(",")[0]?.trim(),
-      request.headers["x-real-ip"],
-      request.headers["x-client-ip"],
-      request.headers["cf-connecting-ip"], // Cloudflare
-    ];
-
-    for (const candidate of candidates) {
-      if (candidate && typeof candidate === "string" && candidate.length > 0 && candidate !== "unknown") {
-        return candidate;
-      }
-    }
-
-    return "unknown";
-  }
-
-  private sanitizeClientId(clientId: string): string {
-    // Sanitize client ID for logging (hide sensitive parts)
-    if (clientId.startsWith("api:")) {
-      const apiKey = clientId.substring(4);
-      if (apiKey.length > 8) {
-        return `api:${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`;
-      }
-      return `api:${apiKey.substring(0, Math.min(4, apiKey.length))}...`;
-    }
-
-    if (clientId.startsWith("bearer:")) {
-      const token = clientId.substring(7);
-      if (token.length > 8) {
-        return `bearer:${token.substring(0, 4)}...${token.substring(token.length - 4)}`;
-      }
-      return `bearer:${token.substring(0, Math.min(4, token.length))}...`;
-    }
-
-    // For IP addresses and client IDs, return as-is (they're not sensitive)
-    return clientId;
   }
 }

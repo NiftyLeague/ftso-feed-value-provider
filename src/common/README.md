@@ -1,18 +1,24 @@
-# Base Classes and Utilities
+# Common Modules
 
-This directory contains base classes and utilities designed to eliminate code
-duplication and standardize patterns across the FTSO Feed Value Provider system.
+This directory contains shared modules, utilities, and base classes used
+throughout the FTSO Feed Value Provider system. It centralizes reusable code to
+eliminate duplication and standardize patterns.
 
-## Overview
+## Structure
 
-The base classes eliminate over **555+ lines of duplicated code** across the
-codebase:
-
-- **BaseService**: Eliminates logger duplication across 25+ services (75+ lines)
-- **BaseEventService**: Standardizes EventEmitter patterns (130+ lines)
-- **BaseExchangeAdapter**: Eliminates adapter boilerplate (200+ lines)
-- **ValidationUtils**: Eliminates request validation duplication (150+ lines)
-- **ErrorResponseBuilder**: Standardizes error formats (300+ lines)
+```
+src/common/
+├── base/           # Base classes for services and event handling
+├── dto/            # Data Transfer Objects used across the app
+├── errors/         # Error handling utilities and builders
+├── interceptors/   # Shared NestJS interceptors
+├── interfaces/     # Shared TypeScript interfaces (organized by domain)
+├── logging/        # Consolidated logging services and types
+├── rate-limiting/  # Consolidated rate limiting functionality
+├── types/          # Shared type definitions
+├── utils/          # Utility functions and services (consolidated)
+└── validation/     # Validation utilities
+```
 
 ## Base Classes
 
@@ -21,7 +27,7 @@ codebase:
 Provides common logging functionality for all services.
 
 ```typescript
-import { BaseService } from "@/common";
+import { BaseService } from "@/common/base/base.service";
 
 @Injectable()
 export class MyService extends BaseService {
@@ -45,10 +51,8 @@ export class MyService extends BaseService {
 }
 ```
 
-**Benefits:**
+**Features:**
 
-- Eliminates `private readonly logger = new Logger(ServiceName.name)` in every
-  service
 - Standardized logging methods with context and performance tracking
 - Optional enhanced logging integration
 - Consistent initialization and shutdown logging
@@ -58,7 +62,7 @@ export class MyService extends BaseService {
 Standardizes EventEmitter patterns with automatic tracking and logging.
 
 ```typescript
-import { BaseEventService } from "@/common";
+import { BaseEventService } from "@/common/base/base-event.service";
 
 @Injectable()
 export class MyEventService extends BaseEventService {
@@ -83,44 +87,122 @@ export class MyEventService extends BaseEventService {
 }
 ```
 
-**Benefits:**
+**Features:**
 
-- Eliminates EventEmitter setup boilerplate (130+ lines)
 - Automatic event listener tracking and memory leak prevention
 - Built-in error handling for EventEmitter errors
 - Event statistics and debugging capabilities
 
-### BaseExchangeAdapter
+### ClientIdentificationUtils
 
-Eliminates common adapter patterns with standardized connection, retry, and
-error handling.
+Provides standardized client identification and sanitization across guards and
+interceptors.
 
 ```typescript
-import { BaseExchangeAdapter } from "@/common";
+import { ClientIdentificationUtils } from "@/common/utils/client-identification.utils";
 
-export class MyAdapter extends BaseExchangeAdapter {
-  readonly exchangeName = "my-exchange";
-  readonly category = FeedCategory.Crypto;
+// Get comprehensive client information
+const clientInfo = ClientIdentificationUtils.getClientInfo(request);
+console.log(clientInfo.id); // Full client ID
+console.log(clientInfo.type); // 'api', 'bearer', 'client', or 'ip'
+console.log(clientInfo.sanitized); // Sanitized for logging
 
-  // Only implement exchange-specific methods
-  protected async doConnect(): Promise<void> {
-    // Just connection logic - retry/error handling is automatic
-  }
+// Legacy methods for backward compatibility
+const clientId = ClientIdentificationUtils.getClientId(request);
+const sanitized = ClientIdentificationUtils.sanitizeClientId(clientId);
+```
 
-  protected async doSubscribe(symbols: string[]): Promise<void> {
-    // Just subscription logic - validation is automatic
-  }
+**Features:**
 
-  // Implement other required abstract methods...
+- Unified client identification from API keys, bearer tokens, client IDs, and IP
+  addresses
+- Automatic sanitization for secure logging
+- Backward compatibility with existing code
+
+## Rate Limiting Services
+
+### RateLimiterService
+
+Provides configurable rate limiting with client tracking and statistics.
+
+```typescript
+import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
+
+const rateLimiter = new RateLimiterService({
+  windowMs: 60000, // 1 minute window
+  maxRequests: 1000, // 1000 requests per minute
+});
+
+// Check rate limit
+const rateLimitInfo = rateLimiter.checkRateLimit(clientId);
+if (rateLimitInfo.isBlocked) {
+  // Handle rate limit exceeded
+}
+
+// Record request
+rateLimiter.recordRequest(clientId, true);
+
+// Get statistics
+const stats = rateLimiter.getStats();
+```
+
+### RateLimitGuard
+
+NestJS guard that automatically applies rate limiting to routes.
+
+```typescript
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
+
+@Controller()
+@UseGuards(RateLimitGuard)
+export class MyController {
+  // All routes in this controller are rate limited
 }
 ```
 
-**Benefits:**
+**Features:**
 
-- Eliminates 200+ lines of adapter boilerplate
-- Automatic retry logic with exponential backoff
-- Standardized error handling and logging
-- Built-in validation and health checking
+- Configurable rate limits per client
+- Multiple client identification methods (API key, IP, etc.)
+- Comprehensive rate limit headers
+- Detailed logging and statistics
+- Automatic cleanup of old records
+
+## Logging Services
+
+### EnhancedLoggerService
+
+Provides comprehensive logging with performance tracking, error analysis, and
+file output.
+
+```typescript
+import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
+
+const logger = new EnhancedLoggerService("MyService");
+
+// Performance tracking
+logger.startPerformanceTimer("op1", "fetchData", "DataService");
+// ... do work ...
+logger.endPerformanceTimer("op1", true);
+
+// Enhanced error logging
+logger.error(new Error("Something failed"), {
+  component: "DataService",
+  operation: "fetchData",
+  metadata: { userId: "123" },
+});
+
+// Get statistics
+const errorStats = logger.getErrorStatistics();
+const perfStats = logger.getPerformanceStatistics();
+```
+
+**Features:**
+
+- Performance timing with automatic logging
+- Enhanced error tracking with severity analysis
+- File logging support for production environments
+- Comprehensive statistics and monitoring
 
 ## Utility Classes
 
@@ -130,7 +212,7 @@ Provides standardized request validation to eliminate duplication across
 controllers.
 
 ```typescript
-import { ValidationUtils } from "@/common";
+import { ValidationUtils } from "@/common/utils/validation.utils";
 
 @Controller()
 export class MyController {
@@ -158,7 +240,7 @@ export class MyController {
 Standardizes error response formats across all controllers.
 
 ```typescript
-import { ErrorResponseBuilder } from "@/common";
+import { ErrorResponseBuilder } from "@/common/errors/error-response.builder";
 
 @Controller()
 export class MyController {
@@ -186,149 +268,6 @@ export class MyController {
 - `createRateLimitError()` - 429 Too Many Requests errors
 - `createFromUnknownError(error)` - Handles any unknown error type
 
-## Migration Guide
-
-### Migrating Services to BaseService
-
-**Before:**
-
-```typescript
-@Injectable()
-export class MyService {
-  private readonly logger = new Logger(MyService.name);
-  private readonly enhancedLogger = new EnhancedLoggerService("MyService");
-
-  async doSomething(): Promise<void> {
-    try {
-      this.logger.log("Starting operation");
-      // Business logic
-      this.logger.log("Operation completed");
-    } catch (error) {
-      this.logger.error(`Operation failed: ${error.message}`, error.stack);
-      throw error;
-    }
-  }
-}
-```
-
-**After:**
-
-```typescript
-@Injectable()
-export class MyService extends BaseService {
-  constructor() {
-    super("MyService", true); // Enhanced logging enabled
-  }
-
-  async doSomething(): Promise<void> {
-    const startTime = performance.now();
-
-    try {
-      this.logInitialization("Starting operation");
-      // Business logic
-
-      const duration = performance.now() - startTime;
-      this.logPerformance("doSomething", duration);
-    } catch (error) {
-      this.logError(error as Error, "doSomething");
-      throw error;
-    }
-  }
-}
-```
-
-### Migrating EventEmitter Services to BaseEventService
-
-**Before:**
-
-```typescript
-@Injectable()
-export class MyEventService extends EventEmitter {
-  private readonly logger = new Logger(MyEventService.name);
-
-  constructor() {
-    super();
-    this.setMaxListeners(20);
-    this.on("error", error => {
-      this.logger.error("EventEmitter error:", error);
-    });
-  }
-
-  publishData(data: any): void {
-    this.logger.debug("Emitting data event");
-    this.emit("data", data);
-  }
-}
-```
-
-**After:**
-
-```typescript
-@Injectable()
-export class MyEventService extends BaseEventService {
-  constructor() {
-    super("MyEventService");
-  }
-
-  publishData(data: any): void {
-    this.emitWithLogging("data", data);
-  }
-}
-```
-
-### Migrating Controllers to Use ValidationUtils and ErrorResponseBuilder
-
-**Before:**
-
-```typescript
-@Controller()
-export class MyController {
-  @Post("/feed-values")
-  async getFeedValues(@Body() body: any): Promise<FeedValuesResponse> {
-    // Manual validation (20+ lines)
-    if (!body || typeof body !== "object") {
-      throw new HttpException("Invalid request body", HttpStatus.BAD_REQUEST);
-    }
-
-    if (!body.feeds || !Array.isArray(body.feeds)) {
-      throw new HttpException("feeds must be an array", HttpStatus.BAD_REQUEST);
-    }
-
-    // More validation...
-
-    try {
-      // Business logic
-    } catch (error) {
-      // Manual error handling (10+ lines)
-      throw new HttpException(
-        "Internal server error",
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-}
-```
-
-**After:**
-
-```typescript
-@Controller()
-export class MyController {
-  @Post("/feed-values")
-  async getFeedValues(@Body() body: any): Promise<FeedValuesResponse> {
-    // Automatic validation (1 line)
-    const { feeds } = ValidationUtils.validateFeedValuesRequest(body);
-
-    try {
-      // Business logic
-    } catch (error) {
-      // Standardized error handling (1 line)
-      throw ErrorResponseBuilder.createFromUnknownError(error);
-    }
-  }
-}
-```
-
 ## Testing
 
 All base classes include comprehensive unit tests:
@@ -341,34 +280,6 @@ npm test -- src/common/__tests__
 npm test -- src/common/__tests__/base.service.spec.ts
 ```
 
-## Code Quality Metrics
-
-### Before Base Classes
-
-- **Total duplicated code**: 555+ lines
-- **Logger declarations**: 25+ services × 3 lines = 75+ lines
-- **EventEmitter boilerplate**: 13+ services × 10 lines = 130+ lines
-- **Adapter boilerplate**: 6+ adapters × 33 lines = 200+ lines
-- **Validation code**: 3+ controllers × 50 lines = 150+ lines
-- **Error handling**: 3+ controllers × 100 lines = 300+ lines
-
-### After Base Classes
-
-- **Total duplicated code**: ~0 lines
-- **Logger declarations**: 0 lines (handled by BaseService)
-- **EventEmitter boilerplate**: 0 lines (handled by BaseEventService)
-- **Adapter boilerplate**: 0 lines (handled by BaseExchangeAdapter)
-- **Validation code**: 0 lines (handled by ValidationUtils)
-- **Error handling**: 0 lines (handled by ErrorResponseBuilder)
-
-### Reduction Summary
-
-- **Code reduction**: 555+ lines eliminated
-- **Maintainability**: Centralized common patterns
-- **Consistency**: Standardized behavior across all services
-- **Developer productivity**: Focus on business logic, not boilerplate
-- **Bug reduction**: Common patterns tested once in base classes
-
 ## Best Practices
 
 1. **Always extend base classes** for new services that fit the patterns
@@ -378,14 +289,3 @@ npm test -- src/common/__tests__/base.service.spec.ts
 5. **Call cleanup methods** in service destruction hooks
 6. **Use performance logging** for operations that might be slow
 7. **Add context** to error and warning logs for better debugging
-
-## Future Enhancements
-
-The base classes are designed to be extensible. Future enhancements might
-include:
-
-- **Distributed tracing** integration in BaseService
-- **Metrics collection** in BaseEventService
-- **Circuit breaker patterns** in BaseExchangeAdapter
-- **Schema validation** in ValidationUtils
-- **Structured logging** in ErrorResponseBuilder

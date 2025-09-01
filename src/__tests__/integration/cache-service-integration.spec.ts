@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 describe("Cache Service Integration - Task 7 Implementation", () => {

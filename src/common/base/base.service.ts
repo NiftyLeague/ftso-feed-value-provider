@@ -1,9 +1,8 @@
 import { Logger } from "@nestjs/common";
-import { EnhancedLoggerService } from "@/utils/enhanced-logger.service";
+import { EnhancedLoggerService } from "../logging/enhanced-logger.service";
 
 /**
  * Base service class that provides common logging functionality
- * Eliminates logger duplication across 25+ services (75+ lines)
  */
 export abstract class BaseService {
   protected readonly logger: Logger;

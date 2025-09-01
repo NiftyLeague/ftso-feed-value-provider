@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-import { EnhancedFeedId } from "@/types";
-import { DataSource, PriceUpdate } from "@/interfaces";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 import {
   ProductionDataManager,

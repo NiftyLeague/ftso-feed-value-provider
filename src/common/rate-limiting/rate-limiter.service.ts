@@ -1,26 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
-
-export interface RateLimitConfig {
-  windowMs: number; // Time window in milliseconds
-  maxRequests: number; // Maximum requests per window
-  skipSuccessfulRequests?: boolean;
-  skipFailedRequests?: boolean;
-}
-
-export interface RateLimitInfo {
-  totalHits: number;
-  totalHitsInWindow: number;
-  remainingPoints: number;
-  msBeforeNext: number;
-  isBlocked: boolean;
-}
-
-interface ClientRecord {
-  requests: number[];
-  totalRequests: number;
-  firstRequest: number;
-}
+import { BaseService } from "../base/base.service";
+import { RateLimitConfig, RateLimitInfo, ClientRecord, RateLimitStats } from "./rate-limit.types";
 
 @Injectable()
 export class RateLimiterService extends BaseService {
@@ -118,12 +98,7 @@ export class RateLimiterService extends BaseService {
   /**
    * Get rate limit statistics
    */
-  getStats(): {
-    totalClients: number;
-    activeClients: number;
-    totalRequests: number;
-    blockedRequests: number;
-  } {
+  getStats(): RateLimitStats {
     const now = Date.now();
     const windowStart = now - this.config.windowMs;
 

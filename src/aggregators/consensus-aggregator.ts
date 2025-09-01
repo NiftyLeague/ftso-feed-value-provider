@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-import { EnhancedFeedId } from "@/types";
-import { PriceUpdate } from "@/interfaces/data-source.interface";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import {
   AggregatedPrice,
   QualityMetrics,

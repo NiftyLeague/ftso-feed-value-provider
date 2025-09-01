@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { HttpStatus } from "@nestjs/common";
 import { HealthController } from "../health.controller";
 import { FtsoProviderService } from "../../app.service";
-import { ProductionIntegrationService } from "../../integration/production-integration.service";
+import { IntegrationService } from "../../integration/integration.service";
 import { RealTimeCacheService } from "../../cache/real-time-cache.service";
 import { RealTimeAggregationService } from "../../aggregators/real-time-aggregation.service";
 import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.service";
@@ -10,7 +10,7 @@ import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.s
 describe("HealthController - Health Check Endpoints", () => {
   let controller: HealthController;
   let providerService: jest.Mocked<FtsoProviderService>;
-  let integrationService: jest.Mocked<ProductionIntegrationService>;
+  let integrationService: jest.Mocked<IntegrationService>;
   let cacheService: jest.Mocked<RealTimeCacheService>;
   let aggregationService: jest.Mocked<RealTimeAggregationService>;
 
@@ -40,7 +40,7 @@ describe("HealthController - Health Check Endpoints", () => {
           useValue: mockProviderService,
         },
         {
-          provide: ProductionIntegrationService,
+          provide: IntegrationService,
           useValue: mockIntegrationService,
         },
         {
@@ -60,7 +60,7 @@ describe("HealthController - Health Check Endpoints", () => {
 
     controller = module.get<HealthController>(HealthController);
     providerService = module.get("FTSO_PROVIDER_SERVICE");
-    integrationService = module.get(ProductionIntegrationService);
+    integrationService = module.get(IntegrationService);
     cacheService = module.get(RealTimeCacheService);
     aggregationService = module.get(RealTimeAggregationService);
   });
@@ -71,8 +71,16 @@ describe("HealthController - Health Check Endpoints", () => {
 
   describe("healthCheck (POST)", () => {
     it("should return healthy status when all components are healthy", async () => {
-      providerService.healthCheck.mockResolvedValue({ status: "healthy", details: {} });
+      providerService.healthCheck.mockResolvedValue({
+        status: "healthy",
+        timestamp: Date.now(),
+        details: {},
+      });
       providerService.getPerformanceMetrics.mockResolvedValue({
+        responseTime: { average: 100, min: 50, max: 200 },
+        throughput: { requestsPerSecond: 10, totalRequests: 1000 },
+        errorRate: 0.01,
+        uptime: 3600,
         cacheStats: {},
         aggregationStats: {},
         activeFeedCount: 10,
@@ -101,8 +109,16 @@ describe("HealthController - Health Check Endpoints", () => {
     });
 
     it("should return degraded status when some components are degraded", async () => {
-      providerService.healthCheck.mockResolvedValue({ status: "healthy", details: {} });
+      providerService.healthCheck.mockResolvedValue({
+        status: "healthy",
+        timestamp: Date.now(),
+        details: {},
+      });
       providerService.getPerformanceMetrics.mockResolvedValue({
+        responseTime: { average: 100, min: 50, max: 200 },
+        throughput: { requestsPerSecond: 10, totalRequests: 1000 },
+        errorRate: 0.01,
+        uptime: 3600,
         cacheStats: {},
         aggregationStats: {},
         activeFeedCount: 10,

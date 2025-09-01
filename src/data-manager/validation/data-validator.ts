@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId } from "@/types";
-import { BaseService } from "@/common";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId } from "@/common/types/feed.types";
+import { BaseService } from "@/common/base/base.service";
 import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
 
 export interface ValidationResult {

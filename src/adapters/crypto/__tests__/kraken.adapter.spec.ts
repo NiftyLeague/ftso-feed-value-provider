@@ -1,5 +1,5 @@
 import { KrakenAdapter, KrakenTickerData } from "../kraken.adapter";
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock WebSocket
 class MockWebSocket {

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationService } from "../validation.service";
 import { DataValidator, ValidationResult } from "../data-validator";
-import { PriceUpdate } from "@/interfaces";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 
 describe("ValidationService", () => {
   let service: ValidationService;

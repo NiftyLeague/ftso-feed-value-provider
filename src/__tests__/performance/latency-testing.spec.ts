@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 // Mock HTTP server for latency testing
 class MockLatencyServer {

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { FailoverManager, FailoverConfig } from "../failover-manager";
-import { DataSource } from "@/interfaces";
-import { EnhancedFeedId, FeedCategory } from "@/types";
+import { DataSource } from "@/common/interfaces/core/data-source.interface";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 
 // Mock DataSource for testing
 class MockDataSource implements DataSource {

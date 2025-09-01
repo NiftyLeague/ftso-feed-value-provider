@@ -1,5 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
-import { BaseService } from "@/common";
+import { BaseService } from "@/common/base/base.service";
 
 export interface ApiErrorResponse {
   error: string;

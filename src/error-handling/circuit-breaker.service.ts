@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
+import { createTimer } from "@/common/utils/performance.utils";
+import { handleAsyncOperation } from "@/common/utils/http-response.utils";
 
 export enum CircuitBreakerState {
   CLOSED = "closed", // Normal operation
@@ -106,21 +108,16 @@ export class CircuitBreakerService extends BaseEventService {
       }
     }
 
-    // Execute the operation with timeout
-    const startTime = Date.now();
+    // Execute the operation with timeout using performance utilities
+    const timer = createTimer();
     try {
-      const result = await Promise.race([
-        operation(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Operation timeout for ${serviceId}`)), config.timeout)
-        ),
-      ]);
+      const result = await handleAsyncOperation(operation, `circuit-breaker-${serviceId}`, { timeout: config.timeout });
 
-      const responseTime = Date.now() - startTime;
+      const responseTime = timer.end();
       this.recordSuccess(serviceId, responseTime);
       return result;
     } catch (error) {
-      const responseTime = Date.now() - startTime;
+      const responseTime = timer.end();
       this.recordFailure(serviceId, responseTime);
       throw error;
     }

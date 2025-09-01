@@ -8,7 +8,7 @@ import {
   IAggregationService,
   IConfigurationService,
   IDataValidationService,
-} from "../service.interfaces";
+} from "../interfaces";
 
 describe("Service Interface Implementation", () => {
   let ftsoProviderService: IFtsoProviderService;

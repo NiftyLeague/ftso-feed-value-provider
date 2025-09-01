@@ -1,5 +1,5 @@
 import { ExchangeAdapter, ExchangeCapabilities } from "./exchange-adapter.interface";
-import { FeedCategory } from "@/types";
+import { FeedCategory } from "@/common/types/feed.types";
 
 export interface AdapterRegistryEntry {
   adapter: ExchangeAdapter;

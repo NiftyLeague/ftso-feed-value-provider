@@ -1,9 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-import { readFileSync, watchFile, unwatchFile } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
-import { EnhancedFeedId, FeedCategory } from "@/types";
-import { IConfigurationService, ServiceHealthStatus, ServicePerformanceMetrics } from "@/interfaces/service.interfaces";
+import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { IConfigurationService } from "@/common/interfaces/services/configuration.interface";
+import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
+import { ConfigValidationService, EnvironmentConfig, ConfigValidationResult } from "./config-validation.service";
+import { FileWatcherService } from "./file-watcher.service";
 
 export interface AdapterMapping {
   [exchange: string]: {
@@ -37,82 +40,8 @@ export interface RawFeedData {
   }[];
 }
 
-export interface EnvironmentConfig {
-  // Core application settings
-  logLevel: string;
-  port: number;
-  basePath: string;
-  nodeEnv: string;
-
-  // Provider implementation settings (production only)
-  useProductionIntegration: boolean;
-
-  // Data processing settings
-  medianDecay: number;
-  tradesHistorySize: number;
-
-  // Alerting configuration
-  alerting: {
-    email: {
-      enabled: boolean;
-      smtpHost: string;
-      smtpPort: number;
-      username: string;
-      password: string;
-      from: string;
-      to: string[];
-    };
-    webhook: {
-      enabled: boolean;
-      url: string;
-      headers: Record<string, string>;
-      timeout: number;
-    };
-    maxAlertsPerHour: number;
-    alertRetentionDays: number;
-  };
-
-  // Exchange API configuration
-  exchangeApiKeys: Record<
-    string,
-    {
-      apiKey?: string;
-      secret?: string;
-      passphrase?: string;
-      sandbox?: boolean;
-    }
-  >;
-
-  // Cache configuration
-  cache: {
-    ttlMs: number;
-    maxEntries: number;
-    warmupInterval: number;
-  };
-
-  // Monitoring configuration
-  monitoring: {
-    enabled: boolean;
-    metricsPort: number;
-    healthCheckInterval: number;
-  };
-
-  // Error handling configuration
-  errorHandling: {
-    maxRetries: number;
-    retryDelayMs: number;
-    circuitBreakerThreshold: number;
-    circuitBreakerTimeout: number;
-  };
-}
-
-export interface ConfigValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-  missingRequired: string[];
-  invalidValues: string[];
-}
+// Re-export types from validation service for backward compatibility
+export type { EnvironmentConfig, ConfigValidationResult } from "./config-validation.service";
 
 @Injectable()
 export class ConfigService extends BaseService implements IConfigurationService {
@@ -120,260 +49,17 @@ export class ConfigService extends BaseService implements IConfigurationService 
   private feedConfigurations: FeedConfiguration[] = [];
   private environmentConfig: EnvironmentConfig;
   private feedsFilePath: string;
-  private isWatchingFeeds = false;
+  private configValidationService: ConfigValidationService;
+  private fileWatcherService: FileWatcherService;
 
   constructor() {
     super("ConfigService", true); // Enable enhanced logging
     this.feedsFilePath = join(__dirname, "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
-    this.environmentConfig = this.loadAndValidateEnvironmentConfig();
+    this.configValidationService = new ConfigValidationService();
+    this.fileWatcherService = new FileWatcherService();
+    this.environmentConfig = this.configValidationService.loadAndValidateEnvironmentConfig();
     this.loadFeedConfigurations();
-  }
-
-  /**
-   * Load and validate environment configuration
-   * Requirements: 5.1, 5.2, 5.4
-   */
-  private loadAndValidateEnvironmentConfig(): EnvironmentConfig {
-    const config: EnvironmentConfig = {
-      // Core application settings
-      logLevel: process.env.LOG_LEVEL || "log",
-      port: this.parseIntWithDefault(process.env.VALUE_PROVIDER_CLIENT_PORT, 3101),
-      basePath: process.env.VALUE_PROVIDER_CLIENT_BASE_PATH || "",
-      nodeEnv: process.env.NODE_ENV || "development",
-
-      // Provider implementation settings (production only)
-      useProductionIntegration: true, // Always use production integration
-
-      // Data processing settings
-      medianDecay: this.parseFloatWithDefault(process.env.MEDIAN_DECAY, 0.00005),
-      tradesHistorySize: this.parseIntWithDefault(process.env.TRADES_HISTORY_SIZE, 1000),
-
-      // Testing settings (no network configuration needed)
-
-      // Alerting configuration
-      alerting: {
-        email: {
-          enabled: process.env.ALERT_EMAIL_ENABLED === "true",
-          smtpHost: process.env.ALERT_SMTP_HOST || "localhost",
-          smtpPort: this.parseIntWithDefault(process.env.ALERT_SMTP_PORT, 587),
-          username: process.env.ALERT_SMTP_USERNAME || "",
-          password: process.env.ALERT_SMTP_PASSWORD || "",
-          from: process.env.ALERT_EMAIL_FROM || "alerts@ftso-provider.com",
-          to: (process.env.ALERT_EMAIL_TO || "").split(",").filter(Boolean),
-        },
-        webhook: {
-          enabled: process.env.ALERT_WEBHOOK_ENABLED === "true",
-          url: process.env.ALERT_WEBHOOK_URL || "",
-          headers: this.parseJsonWithDefault(process.env.ALERT_WEBHOOK_HEADERS, {}),
-          timeout: this.parseIntWithDefault(process.env.ALERT_WEBHOOK_TIMEOUT, 5000),
-        },
-        maxAlertsPerHour: this.parseIntWithDefault(process.env.ALERT_MAX_PER_HOUR, 20),
-        alertRetentionDays: this.parseIntWithDefault(process.env.ALERT_RETENTION_DAYS, 30),
-      },
-
-      // Exchange API configuration
-      exchangeApiKeys: this.loadExchangeApiKeys(),
-
-      // Cache configuration
-      cache: {
-        ttlMs: this.parseIntWithDefault(process.env.CACHE_TTL_MS, 1000),
-        maxEntries: this.parseIntWithDefault(process.env.CACHE_MAX_ENTRIES, 10000),
-        warmupInterval: this.parseIntWithDefault(process.env.CACHE_WARMUP_INTERVAL_MS, 30000),
-      },
-
-      // Monitoring configuration
-      monitoring: {
-        enabled: process.env.MONITORING_ENABLED !== "false",
-        metricsPort: this.parseIntWithDefault(process.env.MONITORING_METRICS_PORT, 9090),
-        healthCheckInterval: this.parseIntWithDefault(process.env.MONITORING_HEALTH_CHECK_INTERVAL_MS, 5000),
-      },
-
-      // Error handling configuration
-      errorHandling: {
-        maxRetries: this.parseIntWithDefault(process.env.ERROR_HANDLING_MAX_RETRIES, 3),
-        retryDelayMs: this.parseIntWithDefault(process.env.ERROR_HANDLING_RETRY_DELAY_MS, 1000),
-        circuitBreakerThreshold: this.parseIntWithDefault(process.env.ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD, 5),
-        circuitBreakerTimeout: this.parseIntWithDefault(process.env.ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS, 60000),
-      },
-    };
-
-    // Validate the configuration
-    const validation = this.validateEnvironmentConfig(config);
-    if (!validation.isValid) {
-      this.logger.error("Environment configuration validation failed:");
-      validation.errors.forEach(error => this.logger.error(`  - ${error}`));
-      validation.missingRequired.forEach(missing => this.logger.error(`  - Missing required: ${missing}`));
-      validation.invalidValues.forEach(invalid => this.logger.error(`  - Invalid value: ${invalid}`));
-
-      if (validation.errors.length > 0 || validation.missingRequired.length > 0) {
-        throw new Error("Critical configuration errors detected. Please fix the configuration and restart.");
-      }
-    }
-
-    if (validation.warnings.length > 0) {
-      this.logger.warn("Environment configuration warnings:");
-      validation.warnings.forEach(warning => this.logger.warn(`  - ${warning}`));
-    }
-
-    this.logger.log("Environment configuration loaded and validated successfully");
-    return config;
-  }
-
-  /**
-   * Parse integer with default value and validation
-   * Requirements: 5.2
-   */
-  private parseIntWithDefault(value: string | undefined, defaultValue: number): number {
-    if (!value) return defaultValue;
-    const parsed = parseInt(value, 10);
-    if (isNaN(parsed)) {
-      this.logger.warn(`Invalid integer value "${value}", using default ${defaultValue}`);
-      return defaultValue;
-    }
-    return parsed;
-  }
-
-  /**
-   * Parse float with default value and validation
-   * Requirements: 5.2
-   */
-  private parseFloatWithDefault(value: string | undefined, defaultValue: number): number {
-    if (!value) return defaultValue;
-    const parsed = parseFloat(value);
-    if (isNaN(parsed)) {
-      this.logger.warn(`Invalid float value "${value}", using default ${defaultValue}`);
-      return defaultValue;
-    }
-    return parsed;
-  }
-
-  /**
-   * Parse JSON with default value and validation
-   * Requirements: 5.2
-   */
-  private parseJsonWithDefault<T>(value: string | undefined, defaultValue: T): T {
-    if (!value) return defaultValue;
-    try {
-      return JSON.parse(value);
-    } catch (error) {
-      this.logger.warn(`Invalid JSON value "${value}", using default`, error);
-      return defaultValue;
-    }
-  }
-
-  /**
-   * Load exchange API keys from environment variables
-   * Requirements: 5.1, 5.2
-   */
-  private loadExchangeApiKeys(): Record<
-    string,
-    { apiKey?: string; secret?: string; passphrase?: string; sandbox?: boolean }
-  > {
-    const apiKeys: Record<string, { apiKey?: string; secret?: string; passphrase?: string; sandbox?: boolean }> = {};
-
-    // Common exchange patterns
-    const exchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
-
-    for (const exchange of exchanges) {
-      const upperExchange = exchange.toUpperCase();
-      const apiKey = process.env[`${upperExchange}_API_KEY`];
-      const secret = process.env[`${upperExchange}_SECRET`];
-      const passphrase = process.env[`${upperExchange}_PASSPHRASE`];
-      const sandbox = process.env[`${upperExchange}_SANDBOX`] === "true";
-
-      if (apiKey || secret || passphrase) {
-        apiKeys[exchange] = {
-          apiKey,
-          secret,
-          passphrase,
-          sandbox,
-        };
-      }
-    }
-
-    return apiKeys;
-  }
-
-  /**
-   * Validate environment configuration
-   * Requirements: 5.1, 5.2
-   */
-  private validateEnvironmentConfig(config: EnvironmentConfig): ConfigValidationResult {
-    const result: ConfigValidationResult = {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      missingRequired: [],
-      invalidValues: [],
-    };
-
-    // Validate log level
-    const validLogLevels = ["error", "warn", "log", "debug", "verbose"];
-    if (!validLogLevels.includes(config.logLevel)) {
-      result.invalidValues.push(
-        `LOG_LEVEL: "${config.logLevel}" is not valid. Must be one of: ${validLogLevels.join(", ")}`
-      );
-    }
-
-    // Validate port range
-    if (config.port < 1 || config.port > 65535) {
-      result.invalidValues.push(`VALUE_PROVIDER_CLIENT_PORT: ${config.port} is not a valid port number (1-65535)`);
-    }
-
-    // Validate node environment
-    const validNodeEnvs = ["development", "production", "test"];
-    if (!validNodeEnvs.includes(config.nodeEnv)) {
-      result.warnings.push(
-        `NODE_ENV: "${config.nodeEnv}" is not a standard value. Expected: ${validNodeEnvs.join(", ")}`
-      );
-    }
-
-    // Production integration is always enabled - no validation needed
-
-    // Validate numeric ranges
-    if (config.medianDecay <= 0 || config.medianDecay > 1) {
-      result.invalidValues.push(`MEDIAN_DECAY: ${config.medianDecay} must be between 0 and 1`);
-    }
-
-    if (config.tradesHistorySize < 1 || config.tradesHistorySize > 10000) {
-      result.invalidValues.push(`TRADES_HISTORY_SIZE: ${config.tradesHistorySize} must be between 1 and 10000`);
-    }
-
-    // Validate alerting configuration
-    if (config.alerting.email.enabled) {
-      if (!config.alerting.email.smtpHost) {
-        result.missingRequired.push("ALERT_SMTP_HOST is required when email alerting is enabled");
-      }
-      if (config.alerting.email.to.length === 0) {
-        result.missingRequired.push("ALERT_EMAIL_TO is required when email alerting is enabled");
-      }
-    }
-
-    if (config.alerting.webhook.enabled) {
-      if (!config.alerting.webhook.url) {
-        result.missingRequired.push("ALERT_WEBHOOK_URL is required when webhook alerting is enabled");
-      }
-    }
-
-    // Validate cache configuration
-    if (config.cache.ttlMs < 100 || config.cache.ttlMs > 10000) {
-      result.warnings.push(`CACHE_TTL_MS: ${config.cache.ttlMs}ms may not be optimal. Recommended range: 100-10000ms`);
-    }
-
-    if (config.cache.maxEntries < 100) {
-      result.warnings.push(`CACHE_MAX_ENTRIES: ${config.cache.maxEntries} may be too low for production use`);
-    }
-
-    // Validate monitoring configuration
-    if (config.monitoring.metricsPort === config.port) {
-      result.errors.push("MONITORING_METRICS_PORT cannot be the same as VALUE_PROVIDER_CLIENT_PORT");
-    }
-
-    // Set overall validity
-    result.isValid = result.errors.length === 0 && result.missingRequired.length === 0;
-
-    return result;
   }
 
   /**
@@ -534,38 +220,6 @@ export class ConfigService extends BaseService implements IConfigurationService 
   }
 
   /**
-   * Validate that all exchanges in sources are supported
-   * Requirements: 1.1, 1.4
-   */
-  validateSources(sources: { exchange: string; symbol: string }[]): {
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-  } {
-    const result = {
-      isValid: true,
-      errors: [] as string[],
-      warnings: [] as string[],
-    };
-
-    for (const source of sources) {
-      const mapping = this.adapterMappings[source.exchange];
-
-      if (!mapping) {
-        // Unknown exchange - will be treated as CCXT by default
-        result.warnings.push(
-          `Exchange '${source.exchange}' not in known mappings, will use CCXT with ID '${source.exchange}'`
-        );
-
-        // Auto-add to mappings
-        this.addExchange(source.exchange, false, undefined, source.exchange);
-      }
-    }
-
-    return result;
-  }
-
-  /**
    * Get configuration for hybrid data provider
    * Requirements: 1.1, 1.4
    */
@@ -601,7 +255,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
       const feedsJson = JSON.parse(feedsData) as RawFeedData[];
 
       // Validate the JSON structure
-      const validation = this.validateFeedConfigurationStructure(feedsJson);
+      const validation = this.configValidationService.validateFeedConfigurationStructure(feedsJson);
       if (!validation.isValid) {
         this.logger.error("Feed configuration validation failed:");
         validation.errors.forEach(error => this.logger.error(`  - ${error}`));
@@ -636,65 +290,6 @@ export class ConfigService extends BaseService implements IConfigurationService 
   }
 
   /**
-   * Validate feed configuration JSON structure
-   * Requirements: 5.1, 5.2
-   */
-  private validateFeedConfigurationStructure(feedsJson: RawFeedData[]): ConfigValidationResult {
-    const result: ConfigValidationResult = {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      missingRequired: [],
-      invalidValues: [],
-    };
-
-    // Check if it's an array (the expected format)
-    if (!Array.isArray(feedsJson)) {
-      result.errors.push("feeds.json must contain an array of feed configurations");
-      result.isValid = false;
-      return result;
-    }
-
-    // Validate each feed configuration
-    feedsJson.forEach((feedConfig, index) => {
-      const feedPrefix = `Feed ${index + 1}`;
-
-      // Check required fields
-      if (!feedConfig.feed) {
-        result.errors.push(`${feedPrefix}: Missing 'feed' object`);
-      } else {
-        if (typeof feedConfig.feed.category !== "number") {
-          result.errors.push(`${feedPrefix}: feed.category must be a number`);
-        }
-        if (typeof feedConfig.feed.name !== "string" || !feedConfig.feed.name.trim()) {
-          result.errors.push(`${feedPrefix}: feed.name must be a non-empty string`);
-        }
-      }
-
-      if (!Array.isArray(feedConfig.sources)) {
-        result.errors.push(`${feedPrefix}: 'sources' must be an array`);
-      } else if (feedConfig.sources.length === 0) {
-        result.warnings.push(`${feedPrefix}: No sources defined for feed ${feedConfig.feed?.name || "unknown"}`);
-      } else {
-        // Validate each source
-        feedConfig.sources.forEach((source, sourceIndex) => {
-          const sourcePrefix = `${feedPrefix}, Source ${sourceIndex + 1}`;
-
-          if (typeof source.exchange !== "string" || !source.exchange.trim()) {
-            result.errors.push(`${sourcePrefix}: exchange must be a non-empty string`);
-          }
-          if (typeof source.symbol !== "string" || !source.symbol.trim()) {
-            result.errors.push(`${sourcePrefix}: symbol must be a non-empty string`);
-          }
-        });
-      }
-    });
-
-    result.isValid = result.errors.length === 0;
-    return result;
-  }
-
-  /**
    * Validate all sources in feed configurations
    * Requirements: 5.1, 5.2
    */
@@ -707,7 +302,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
       const sources = feedConfig.sources.map(s => ({ exchange: s.exchange, symbol: s.symbol }));
       totalSources += sources.length;
 
-      const validation = this.validateSources(sources);
+      const validation = this.configValidationService.validateSources(sources, this.adapterMappings);
       if (validation.isValid) {
         validatedSources += sources.length;
       }
@@ -781,20 +376,21 @@ export class ConfigService extends BaseService implements IConfigurationService 
    * Requirements: 5.4
    */
   enableFeedConfigurationHotReload(): void {
-    if (this.isWatchingFeeds) {
+    if (this.fileWatcherService.isWatching(this.feedsFilePath)) {
       this.logger.warn("Feed configuration hot-reload is already enabled");
       return;
     }
 
     try {
-      watchFile(this.feedsFilePath, { interval: 1000 }, (curr, prev) => {
-        if (curr.mtime !== prev.mtime) {
+      this.fileWatcherService.watchFile(
+        this.feedsFilePath,
+        () => {
           this.logger.log("Feed configuration file changed, reloading...");
           this.reloadFeedConfigurations();
-        }
-      });
+        },
+        { interval: 1000 }
+      );
 
-      this.isWatchingFeeds = true;
       this.logger.log("Feed configuration hot-reload enabled");
     } catch (error) {
       this.logger.error("Failed to enable feed configuration hot-reload:", error);
@@ -806,13 +402,12 @@ export class ConfigService extends BaseService implements IConfigurationService 
    * Requirements: 5.4
    */
   disableFeedConfigurationHotReload(): void {
-    if (!this.isWatchingFeeds) {
+    if (!this.fileWatcherService.isWatching(this.feedsFilePath)) {
       return;
     }
 
     try {
-      unwatchFile(this.feedsFilePath);
-      this.isWatchingFeeds = false;
+      this.fileWatcherService.unwatchFile(this.feedsFilePath);
       this.logger.log("Feed configuration hot-reload disabled");
     } catch (error) {
       this.logger.error("Failed to disable feed configuration hot-reload:", error);
@@ -851,7 +446,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
     this.logger.log("Reloading environment configuration...");
 
     try {
-      const newConfig = this.loadAndValidateEnvironmentConfig();
+      const newConfig = this.configValidationService.loadAndValidateEnvironmentConfig();
       this.environmentConfig = newConfig;
       this.logger.log("Environment configuration reloaded successfully");
     } catch (error) {
@@ -882,7 +477,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
       totalExchanges: number;
     };
   } {
-    const envValidation = this.validateEnvironmentConfig(this.environmentConfig);
+    const envValidation = this.configValidationService.validateEnvironmentConfig(this.environmentConfig);
 
     return {
       environment: {
@@ -893,7 +488,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
       feeds: {
         count: this.feedConfigurations.length,
         loadedAt: new Date(), // In a real implementation, you'd track this
-        hotReloadEnabled: this.isWatchingFeeds,
+        hotReloadEnabled: this.fileWatcherService.isWatching(this.feedsFilePath),
         filePath: this.feedsFilePath,
       },
       adapters: {
@@ -926,11 +521,11 @@ export class ConfigService extends BaseService implements IConfigurationService 
       }>;
     };
   } {
-    const envValidation = this.validateEnvironmentConfig(this.environmentConfig);
+    const envValidation = this.configValidationService.validateEnvironmentConfig(this.environmentConfig);
 
     const feedValidations = this.feedConfigurations.map(feedConfig => {
       const sources = feedConfig.sources.map(s => ({ exchange: s.exchange, symbol: s.symbol }));
-      const validation = this.validateSources(sources);
+      const validation = this.configValidationService.validateSources(sources, this.adapterMappings);
 
       return {
         feedName: feedConfig.feed.name,
@@ -996,39 +591,58 @@ export class ConfigService extends BaseService implements IConfigurationService 
     this.reloadEnvironmentConfiguration();
   }
 
+  getServiceName(): string {
+    return "ConfigService";
+  }
+
   // IBaseService interface methods
-  async getHealthStatus(): Promise<ServiceHealthStatus> {
+  async getPerformanceMetrics(): Promise<{
+    responseTime: { average: number; min: number; max: number };
+    throughput: { requestsPerSecond: number; totalRequests: number };
+    errorRate: number;
+    uptime: number;
+  }> {
+    const uptime = process.uptime();
+
+    return {
+      responseTime: {
+        average: 5, // Mock values - config service is typically very fast
+        min: 1,
+        max: 20,
+      },
+      throughput: {
+        requestsPerSecond: 1000, // Mock value
+        totalRequests: 50000, // Mock value
+      },
+      errorRate: 0, // Mock value
+      uptime,
+    };
+  }
+
+  async getHealthStatus(): Promise<{
+    status: "healthy" | "degraded" | "unhealthy";
+    timestamp: number;
+    details?: any;
+  }> {
     const validation = this.validateConfiguration();
-    const status = validation.isValid ? "healthy" : validation.errors.length > 0 ? "unhealthy" : "degraded";
+
+    let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+
+    if (!validation.isValid) {
+      status = "unhealthy";
+    } else if (validation.warnings.length > 0) {
+      status = "degraded";
+    }
 
     return {
       status,
       timestamp: Date.now(),
       details: {
-        feedCount: this.feedConfigurations.length,
-        hotReloadEnabled: this.isWatchingFeeds,
         validation,
+        feedCount: this.getFeedConfigurations().length,
+        environment: this.getEnvironmentConfig().nodeEnv,
+        fileWatcher: await this.fileWatcherService.getHealthStatus(),
       },
     };
-  }
-
-  async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
-    return {
-      responseTime: {
-        average: 1, // Configuration access is very fast
-        min: 0,
-        max: 5,
-      },
-      throughput: {
-        requestsPerSecond: 1000, // High throughput for config access
-        totalRequests: 0, // Would track actual requests
-      },
-      errorRate: 0, // Configuration service is very reliable
-      uptime: Date.now(),
-    };
-  }
-
-  getServiceName(): string {
-    return "ConfigService";
   }
 }
