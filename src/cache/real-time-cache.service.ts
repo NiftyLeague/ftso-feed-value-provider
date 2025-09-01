@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { RealTimeCache, CacheEntry, CacheStats, CacheConfig } from "./interfaces/cache.interfaces";
 import { EnhancedFeedId } from "@/types";
 
@@ -10,7 +10,7 @@ interface CacheItem {
 }
 
 @Injectable()
-export class RealTimeCacheService implements RealTimeCache {
+export class RealTimeCacheService implements RealTimeCache, OnModuleDestroy {
   private readonly logger = new Logger(RealTimeCacheService.name);
   private readonly cache = new Map<string, CacheItem>();
   private config: CacheConfig;
@@ -259,5 +259,9 @@ export class RealTimeCacheService implements RealTimeCache {
     }
     this.cache.clear();
     this.logger.debug("Cache service destroyed");
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    this.destroy();
   }
 }

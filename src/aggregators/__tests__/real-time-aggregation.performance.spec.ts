@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
 import { ConsensusAggregator } from "../consensus-aggregator";
+import { ConfigService } from "@/config/config.service";
 import { EnhancedFeedId, FeedCategory } from "@/types";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
@@ -17,12 +18,21 @@ describe("RealTimeAggregationService Performance Tests", () => {
       getQualityMetrics: jest.fn(),
     };
 
+    const mockConfigService = {
+      get: jest.fn(),
+      getConfig: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RealTimeAggregationService,
         {
           provide: ConsensusAggregator,
           useValue: mockConsensusAggregator,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();

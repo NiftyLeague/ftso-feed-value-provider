@@ -1,11 +1,11 @@
-import { Injectable, Logger, Inject } from "@nestjs/common";
+import { Injectable, Logger, Inject, OnModuleDestroy } from "@nestjs/common";
 import { EventEmitter } from "events";
 import { EnhancedLoggerService, LogContext } from "@/utils/enhanced-logger.service";
 import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
 import * as os from "os";
 
 @Injectable()
-export class PerformanceMonitorService extends EventEmitter {
+export class PerformanceMonitorService extends EventEmitter implements OnModuleDestroy {
   private readonly logger = new Logger(PerformanceMonitorService.name);
   private readonly enhancedLogger = new EnhancedLoggerService("PerformanceMonitor");
   private performanceHistory: PerformanceMetrics[] = [];
@@ -15,6 +15,7 @@ export class PerformanceMonitorService extends EventEmitter {
   private dataFreshnessHistory: Map<string, number[]> = new Map();
   private errorCounts: Map<string, number> = new Map();
   private startTime: number = Date.now();
+  private monitoringInterval?: NodeJS.Timeout;
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
     super();
@@ -498,7 +499,7 @@ export class PerformanceMonitorService extends EventEmitter {
    * Start periodic monitoring
    */
   private startPeriodicMonitoring(): void {
-    setInterval(() => {
+    this.monitoringInterval = setInterval(() => {
       const performanceMetrics = this.getCurrentPerformanceMetrics();
       const healthMetrics = this.getCurrentHealthMetrics();
 
@@ -516,6 +517,14 @@ export class PerformanceMonitorService extends EventEmitter {
       // Check thresholds and emit alerts if needed
       this.checkAndEmitAlerts(performanceMetrics, healthMetrics);
     }, this.config.monitoringInterval);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = undefined;
+    }
+    this.logger.log("Performance monitor service destroyed");
   }
 
   /**

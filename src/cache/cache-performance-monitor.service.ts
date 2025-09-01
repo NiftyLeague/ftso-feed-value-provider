@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { RealTimeCacheService } from "./real-time-cache.service";
 
 interface PerformanceMetrics {
@@ -23,7 +23,7 @@ interface MemoryUsageMetric {
 }
 
 @Injectable()
-export class CachePerformanceMonitorService {
+export class CachePerformanceMonitorService implements OnModuleDestroy {
   private readonly logger = new Logger(CachePerformanceMonitorService.name);
   private readonly responseTimes: ResponseTimeMetric[] = [];
   private readonly memoryUsageHistory: MemoryUsageMetric[] = [];
@@ -159,6 +159,14 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
     }, this.monitoringIntervalMs);
 
     this.logger.debug(`Started cache performance monitoring with ${this.monitoringIntervalMs}ms interval`);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = undefined;
+    }
+    this.logger.log("Cache performance monitor service destroyed");
   }
 
   // Manually trigger metrics collection (for testing)
