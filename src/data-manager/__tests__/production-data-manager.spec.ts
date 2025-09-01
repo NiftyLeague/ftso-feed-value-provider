@@ -3,7 +3,7 @@ import { ProductionDataManagerService } from "../production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { DataValidator } from "../validation/data-validator";
 import { EnhancedFeedId, FeedCategory } from "@/types";
-import { ExchangeAdapter } from "@/interfaces/exchange-adapter.interface";
+import { ExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
 import { PriceUpdate } from "@/interfaces/data-source.interface";
 
 // Mock adapter for testing that implements DataSource interface

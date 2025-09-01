@@ -1,4 +1,4 @@
-import { ExchangeAdapter, ExchangeCapabilities } from "@/interfaces/exchange-adapter.interface";
+import { ExchangeAdapter, ExchangeCapabilities } from "./exchange-adapter.interface";
 import { FeedCategory } from "@/types";
 
 export interface AdapterRegistryEntry {

@@ -2,7 +2,7 @@ import {
   ExchangeAdapter,
   ExchangeCapabilities,
   ExchangeConnectionConfig,
-} from "@/interfaces/exchange-adapter.interface";
+} from "@/adapters/base/exchange-adapter.interface";
 import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
 import { FeedCategory, EnhancedFeedId } from "@/types";
 import { Injectable, Logger } from "@nestjs/common";

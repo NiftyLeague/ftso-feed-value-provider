@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { DataSource, PriceUpdate, ExchangeAdapter } from "@/interfaces";
+import { DataSource, PriceUpdate } from "@/interfaces";
+import { ExchangeAdapter } from "@/adapters/base";
 import { FeedCategory } from "@/types";
 
 /**

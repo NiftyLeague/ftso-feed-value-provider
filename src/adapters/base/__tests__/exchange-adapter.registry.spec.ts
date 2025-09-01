@@ -1,5 +1,5 @@
 import { ExchangeAdapterRegistry } from "../exchange-adapter.registry";
-import { ExchangeAdapter, ExchangeCapabilities } from "@/interfaces/exchange-adapter.interface";
+import { ExchangeAdapter, ExchangeCapabilities } from "../exchange-adapter.interface";
 import { FeedCategory } from "@/types";
 import { PriceUpdate, VolumeUpdate } from "@/interfaces/data-source.interface";
 
