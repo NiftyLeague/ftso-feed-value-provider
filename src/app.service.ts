@@ -4,9 +4,10 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { IntegrationService } from "@/integration/integration.service";
 import { EnhancedFeedId } from "@/types";
+import { IFtsoProviderService, ServiceHealthStatus, ServicePerformanceMetrics } from "@/interfaces/service.interfaces";
 
 @Injectable()
-export class FtsoProviderService {
+export class FtsoProviderService implements IFtsoProviderService {
   private readonly logger = new Logger(FtsoProviderService.name);
   private integrationService?: IntegrationService;
 
@@ -160,5 +161,38 @@ export class FtsoProviderService {
         },
       };
     }
+  }
+
+  // IBaseService interface methods
+  async getHealthStatus(): Promise<ServiceHealthStatus> {
+    const healthCheck = await this.healthCheck();
+    return {
+      status: healthCheck.status,
+      timestamp: Date.now(),
+      details: healthCheck.details,
+    };
+  }
+
+  async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
+    const metrics = await this.getPerformanceMetrics();
+
+    // Convert to standardized format
+    return {
+      responseTime: {
+        average: 0, // Would be calculated from actual metrics
+        min: 0,
+        max: 0,
+      },
+      throughput: {
+        requestsPerSecond: 0, // Would be calculated from actual metrics
+        totalRequests: 0,
+      },
+      errorRate: 0, // Would be calculated from actual metrics
+      uptime: Date.now(), // Would track actual uptime
+    };
+  }
+
+  getServiceName(): string {
+    return "FtsoProviderService";
   }
 }

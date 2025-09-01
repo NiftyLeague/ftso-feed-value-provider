@@ -6,6 +6,7 @@ import { PriceUpdate } from "@/interfaces/data-source.interface";
 import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
 import { ConsensusAggregator } from "./consensus-aggregator";
 import { ConfigService } from "@/config/config.service";
+import { IAggregationService, ServiceHealthStatus, ServicePerformanceMetrics } from "@/interfaces/service.interfaces";
 
 export interface CacheEntry {
   value: AggregatedPrice;
@@ -39,7 +40,10 @@ export interface PriceSubscription {
 }
 
 @Injectable()
-export class RealTimeAggregationService extends EventEmitter implements OnModuleInit, OnModuleDestroy {
+export class RealTimeAggregationService
+  extends EventEmitter
+  implements OnModuleInit, OnModuleDestroy, IAggregationService
+{
   private readonly logger = new Logger(RealTimeAggregationService.name);
   private readonly enhancedLogger = new EnhancedLoggerService("RealTimeAggregation");
 
@@ -711,5 +715,42 @@ export class RealTimeAggregationService extends EventEmitter implements OnModule
     const feedConfigs = this.configService.getFeedConfigurations();
     const config = feedConfigs.find(config => config.feed.name === symbol);
     return config ? config.feed : null;
+  }
+
+  // IBaseService interface methods
+  async getHealthStatus(): Promise<ServiceHealthStatus> {
+    const isHealthy = this.cache.size > 0 && this.activePriceUpdates.size > 0;
+
+    return {
+      status: isHealthy ? "healthy" : "degraded",
+      timestamp: Date.now(),
+      details: {
+        cacheSize: this.cache.size,
+        activeFeedCount: this.activePriceUpdates.size,
+        subscriptionCount: this.getSubscriptionCount(),
+      },
+    };
+  }
+
+  async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
+    const cacheStats = this.getCacheStats();
+
+    return {
+      responseTime: {
+        average: this.config.performanceTargetMs,
+        min: 0,
+        max: this.config.performanceTargetMs * 2,
+      },
+      throughput: {
+        requestsPerSecond: cacheStats.totalEntries / 60, // Rough estimate
+        totalRequests: cacheStats.totalEntries,
+      },
+      errorRate: 1 - cacheStats.hitRate, // Rough estimate
+      uptime: Date.now(),
+    };
+  }
+
+  getServiceName(): string {
+    return "RealTimeAggregationService";
   }
 }

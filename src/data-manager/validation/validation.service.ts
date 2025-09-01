@@ -4,6 +4,11 @@ import { DataValidator, ValidationResult, ValidationContext } from "./data-valid
 import { PriceUpdate } from "@/interfaces";
 import { EnhancedFeedId } from "@/types";
 import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
+import {
+  IDataValidationService,
+  ServiceHealthStatus,
+  ServicePerformanceMetrics,
+} from "@/interfaces/service.interfaces";
 
 export interface ValidationServiceConfig {
   enableRealTimeValidation: boolean;
@@ -15,7 +20,7 @@ export interface ValidationServiceConfig {
 }
 
 @Injectable()
-export class ValidationService extends EventEmitter {
+export class ValidationService extends EventEmitter implements IDataValidationService {
   private readonly logger = new Logger(ValidationService.name);
 
   private readonly validator: DataValidator;
@@ -407,6 +412,54 @@ export class ValidationService extends EventEmitter {
     if (cleanedFeeds > 0) {
       this.logger.debug(`Cleaned up historical data for ${cleanedFeeds} feeds`);
     }
+  }
+
+  // IDataValidationService interface methods
+  async validatePriceUpdate(
+    update: PriceUpdate,
+    feedId: EnhancedFeedId,
+    validationConfig?: any
+  ): Promise<ValidationResult> {
+    return this.validateRealTime(update, feedId, validationConfig);
+  }
+
+  // IBaseService interface methods
+  async getHealthStatus(): Promise<ServiceHealthStatus> {
+    const stats = this.getValidationStatistics();
+    const isHealthy = stats.validationRate > 0.8; // 80% validation success rate
+
+    return {
+      status: isHealthy ? "healthy" : "degraded",
+      timestamp: Date.now(),
+      details: {
+        validationRate: stats.validationRate,
+        totalValidations: stats.totalValidations,
+        cacheSize: stats.cacheSize,
+        averageValidationTime: stats.averageValidationTime,
+      },
+    };
+  }
+
+  async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
+    const stats = this.getValidationStatistics();
+
+    return {
+      responseTime: {
+        average: stats.averageValidationTime,
+        min: 0,
+        max: stats.averageValidationTime * 2,
+      },
+      throughput: {
+        requestsPerSecond: stats.totalValidations / 60, // Rough estimate
+        totalRequests: stats.totalValidations,
+      },
+      errorRate: 1 - stats.validationRate,
+      uptime: Date.now(),
+    };
+  }
+
+  getServiceName(): string {
+    return "ValidationService";
   }
 }
 
