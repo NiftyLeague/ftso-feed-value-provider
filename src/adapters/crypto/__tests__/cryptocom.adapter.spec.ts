@@ -303,7 +303,7 @@ describe("CryptocomAdapter", () => {
     it("should handle subscription when not connected", async () => {
       await adapter.disconnect();
 
-      await expect(adapter.subscribe(["BTC/USDT"])).rejects.toThrow("Crypto.com WebSocket not connected");
+      await expect(adapter.subscribe(["BTC/USDT"])).rejects.toThrow("Cannot subscribe: not connected to cryptocom");
     });
 
     it("should handle unsubscription when not connected", async () => {

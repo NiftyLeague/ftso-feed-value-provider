@@ -13,7 +13,6 @@ import { MonitoringModule } from "@/monitoring/monitoring.module";
 
 // Core services
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
-import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
 
 // Error handling services
@@ -21,8 +20,8 @@ import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
-// CCXT adapter for error handling
-import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
+// Import adapters module for registry initialization
+import { AdaptersModule } from "@/adapters/adapters.module";
 
 // Validation services
 import { ValidationService } from "@/data-manager/validation/validation.service";
@@ -41,7 +40,7 @@ import { DataSourceFactory } from "./services/data-source.factory";
 import { StartupValidationService } from "./services/startup-validation.service";
 
 @Module({
-  imports: [CacheModule, AggregatorsModule, MonitoringModule],
+  imports: [CacheModule, AggregatorsModule, MonitoringModule, AdaptersModule],
   controllers: [],
   providers: [
     // Decomposed integration services
@@ -58,9 +57,6 @@ import { StartupValidationService } from "./services/startup-validation.service"
     WebSocketConnectionManager,
     FailoverManager,
 
-    // Adapter registry
-    ExchangeAdapterRegistry,
-
     // Data source factory
     DataSourceFactory,
 
@@ -71,9 +67,6 @@ import { StartupValidationService } from "./services/startup-validation.service"
     HybridErrorHandlerService,
     CircuitBreakerService,
     ConnectionRecoveryService,
-
-    // CCXT adapter
-    CcxtMultiExchangeAdapter,
 
     // Validation
     DataValidator,
@@ -113,7 +106,6 @@ import { StartupValidationService } from "./services/startup-validation.service"
 
     // Core services
     ProductionDataManagerService,
-    ExchangeAdapterRegistry,
     StartupValidationService,
 
     // Factory

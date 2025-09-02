@@ -1,8 +1,5 @@
-import {
-  ExchangeAdapter,
-  ExchangeCapabilities,
-  ExchangeConnectionConfig,
-} from "@/adapters/base/exchange-adapter.interface";
+import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
+import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 import { FeedCategory } from "@/common/types/feed.types";
 
@@ -56,7 +53,7 @@ export interface BinanceRestTickerData {
   count: number;
 }
 
-export class BinanceAdapter extends ExchangeAdapter {
+export class BinanceAdapter extends BaseExchangeAdapter {
   readonly exchangeName = "binance";
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
@@ -67,9 +64,6 @@ export class BinanceAdapter extends ExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private wsConnection?: WebSocket;
-  private isConnectedFlag = false;
-  private subscriptions = new Set<string>();
   private pingInterval?: NodeJS.Timeout;
 
   // Simple symbol mapping - use exact pairs from feeds.json
@@ -82,88 +76,27 @@ export class BinanceAdapter extends ExchangeAdapter {
     super(config);
   }
 
-  async connect(): Promise<void> {
-    if (this.isConnectedFlag) {
-      return;
-    }
-
+  protected async doConnect(): Promise<void> {
     const wsUrl = this.config?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
 
-    return new Promise((resolve, reject) => {
-      try {
-        this.wsConnection = new WebSocket(wsUrl);
-
-        this.wsConnection.onopen = () => {
-          this.isConnectedFlag = true;
-          this.startPingInterval();
-          this.onConnectionChangeCallback?.(true);
-          resolve();
-        };
-
-        this.wsConnection.onerror = error => {
-          this.isConnectedFlag = false;
-          this.stopPingInterval();
-          const connectionError = new Error(`Binance WebSocket connection failed: ${error}`);
-          this.onErrorCallback?.(connectionError);
-          this.onConnectionChangeCallback?.(false);
-          reject(connectionError);
-        };
-
-        this.wsConnection.onclose = event => {
-          this.isConnectedFlag = false;
-          this.stopPingInterval();
-          this.onConnectionChangeCallback?.(false);
-
-          // Emit error if close was unexpected (only if event has code property)
-          if (event && typeof event.code === "number" && event.code !== 1000) {
-            // 1000 is normal closure
-            const closeError = new Error(
-              `Binance WebSocket closed unexpectedly: ${event.code} - ${event.reason || "Unknown reason"}`
-            );
-            this.onErrorCallback?.(closeError);
-          }
-        };
-
-        this.wsConnection.onmessage = event => {
-          try {
-            const data = JSON.parse(event.data);
-
-            // Handle array of tickers (from !ticker@arr stream)
-            if (Array.isArray(data)) {
-              data.forEach(ticker => {
-                if (this.validateResponse(ticker)) {
-                  const priceUpdate = this.normalizePriceData(ticker);
-                  this.onPriceUpdateCallback?.(priceUpdate);
-                }
-              });
-            } else if (this.validateResponse(data)) {
-              const priceUpdate = this.normalizePriceData(data);
-              this.onPriceUpdateCallback?.(priceUpdate);
-            }
-          } catch (error) {
-            const parseError = new Error(`Error processing Binance message: ${error}`);
-            this.onErrorCallback?.(parseError);
-          }
-        };
-      } catch (error) {
-        reject(error);
-      }
+    // Use integrated WebSocket functionality from BaseExchangeAdapter
+    await this.connectWebSocket({
+      url: wsUrl,
+      reconnectDelay: 5000,
+      maxReconnectAttempts: 5,
+      pingInterval: 30000, // Binance requires periodic ping
     });
+
+    this.startPingInterval();
   }
 
-  async disconnect(): Promise<void> {
+  protected async doDisconnect(): Promise<void> {
     this.stopPingInterval();
-
-    if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = undefined;
-    }
-    this.isConnectedFlag = false;
-    this.subscriptions.clear();
+    await this.disconnectWebSocket();
   }
 
   isConnected(): boolean {
-    return this.isConnectedFlag && this.wsConnection?.readyState === WebSocket.OPEN;
+    return super.isConnected() && this.isWebSocketConnected();
   }
 
   normalizePriceData(rawData: BinanceTickerData): PriceUpdate {
@@ -219,19 +152,36 @@ export class BinanceAdapter extends ExchangeAdapter {
     }
   }
 
-  // WebSocket subscription management for individual symbols
-  async subscribe(symbols: string[]): Promise<void> {
+  protected async doSubscribe(_symbols: string[]): Promise<void> {
     // Note: The all-ticker stream (!ticker@arr) provides all symbols
     // For individual subscriptions, we would need a different WebSocket connection
     // This implementation uses the all-ticker stream and filters client-side
-
-    const binanceSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
-    binanceSymbols.forEach(symbol => this.subscriptions.add(symbol.toLowerCase()));
+    // No actual subscription needed as we get all tickers
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
-    const binanceSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
-    binanceSymbols.forEach(symbol => this.subscriptions.delete(symbol.toLowerCase()));
+  protected async doUnsubscribe(_symbols: string[]): Promise<void> {
+    // No actual unsubscription needed as we get all tickers
+    // Subscriptions are managed by the base class
+  }
+
+  // Override subscription tracking to maintain lowercase behavior for Binance
+  protected trackSubscriptions(symbols: string[]): void {
+    symbols.forEach(symbol => {
+      const exchangeSymbol = this.getSymbolMapping(symbol);
+      this.subscriptions.add(exchangeSymbol.toLowerCase());
+    });
+  }
+
+  protected untrackSubscriptions(symbols: string[]): void {
+    symbols.forEach(symbol => {
+      const exchangeSymbol = this.getSymbolMapping(symbol);
+      this.subscriptions.delete(exchangeSymbol.toLowerCase());
+    });
+  }
+
+  protected isSubscribed(symbol: string): boolean {
+    const exchangeSymbol = this.getSymbolMapping(symbol);
+    return this.subscriptions.has(exchangeSymbol.toLowerCase());
   }
 
   // REST API fallback methods
@@ -272,23 +222,6 @@ export class BinanceAdapter extends ExchangeAdapter {
     }
   }
 
-  // Event handlers
-  private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
-  private onErrorCallback?: (error: Error) => void;
-
-  onPriceUpdate(callback: (update: PriceUpdate) => void): void {
-    this.onPriceUpdateCallback = callback;
-  }
-
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-  }
-
-  onError(callback: (error: Error) => void): void {
-    this.onErrorCallback = callback;
-  }
-
   // Simple method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
     // Add slash if not present (WebSocket format comes without slash)
@@ -309,17 +242,45 @@ export class BinanceAdapter extends ExchangeAdapter {
     return exchangeSymbol;
   }
 
+  // Override WebSocket event handlers from BaseExchangeAdapter
+  protected handleWebSocketMessage(data: any): void {
+    this.safeProcessData(
+      data,
+      rawData => {
+        const parsed = JSON.parse(rawData as string);
+        // Handle array of tickers (from !ticker@arr stream)
+        if (Array.isArray(parsed)) {
+          parsed.forEach(ticker => {
+            if (this.validateResponse(ticker)) {
+              const priceUpdate = this.normalizePriceData(ticker);
+              this.onPriceUpdateCallback?.(priceUpdate);
+            }
+          });
+        } else if (this.validateResponse(parsed)) {
+          const priceUpdate = this.normalizePriceData(parsed);
+          this.onPriceUpdateCallback?.(priceUpdate);
+        }
+      },
+      "Binance message processing"
+    );
+  }
+
+  protected handleWebSocketClose(): void {
+    this.stopPingInterval();
+    super.handleWebSocketClose(); // Call base implementation
+  }
+
+  protected handleWebSocketError(error: Error): void {
+    this.stopPingInterval();
+    super.handleWebSocketError(error); // Call base implementation
+  }
+
   // Binance requires periodic ping to keep connection alive
   private startPingInterval(): void {
     this.pingInterval = setInterval(() => {
       if (this.isConnected()) {
-        // Send ping frame (WebSocket ping method may not be available in all environments)
-        try {
-          (this.wsConnection as any)?.ping?.();
-        } catch {
-          // Fallback: send ping message
-          this.wsConnection?.send(JSON.stringify({ method: "ping" }));
-        }
+        // Use integrated WebSocket functionality
+        this.sendWebSocketMessage(JSON.stringify({ method: "ping" }));
       }
     }, 30000); // Ping every 30 seconds
   }
@@ -331,18 +292,10 @@ export class BinanceAdapter extends ExchangeAdapter {
     }
   }
 
-  // Get current subscriptions
-  getSubscriptions(): string[] {
-    return Array.from(this.subscriptions);
-  }
+  // Subscription management is now provided by BaseExchangeAdapter
 
-  // Health check method
-  async healthCheck(): Promise<boolean> {
+  protected async doHealthCheck(): Promise<boolean> {
     try {
-      if (this.isConnected()) {
-        return true;
-      }
-
       // Try REST API health check
       const baseUrl = this.config?.restApiUrl || "https://api.binance.com";
       const response = await fetch(`${baseUrl}/api/v3/ping`);

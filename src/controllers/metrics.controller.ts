@@ -1,4 +1,4 @@
-import { Controller, Post, Get, HttpException, HttpStatus } from "@nestjs/common";
+import { Controller, Post, Get } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { BaseController } from "@/common/base/base.controller";
 

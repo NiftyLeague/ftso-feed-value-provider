@@ -1,8 +1,5 @@
-import {
-  ExchangeAdapter,
-  ExchangeCapabilities,
-  ExchangeConnectionConfig,
-} from "@/adapters/base/exchange-adapter.interface";
+import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
+import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 import { FeedCategory } from "@/common/types/feed.types";
 
@@ -34,7 +31,7 @@ export interface CoinbaseRestTickerData {
   time: string;
 }
 
-export class CoinbaseAdapter extends ExchangeAdapter {
+export class CoinbaseAdapter extends BaseExchangeAdapter {
   readonly exchangeName = "coinbase";
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
@@ -44,10 +41,6 @@ export class CoinbaseAdapter extends ExchangeAdapter {
     supportsOrderBook: true,
     supportedCategories: [FeedCategory.Crypto],
   };
-
-  private wsConnection?: WebSocket;
-  private isConnectedFlag = false;
-  private subscriptions = new Set<string>();
 
   // Simple symbol mapping - use exact pairs from feeds.json
   getSymbolMapping(feedSymbol: string): string {
@@ -59,74 +52,38 @@ export class CoinbaseAdapter extends ExchangeAdapter {
     super(config);
   }
 
-  async connect(): Promise<void> {
-    if (this.isConnectedFlag) {
-      return;
-    }
-
+  protected async doConnect(): Promise<void> {
     const wsUrl = this.config?.websocketUrl || "wss://ws-feed.exchange.coinbase.com";
 
-    return new Promise((resolve, reject) => {
-      try {
-        this.wsConnection = new WebSocket(wsUrl);
-
-        this.wsConnection.onopen = () => {
-          this.isConnectedFlag = true;
-          this.onConnectionChangeCallback?.(true);
-          resolve();
-        };
-
-        this.wsConnection.onerror = error => {
-          this.isConnectedFlag = false;
-          const connectionError = new Error(`Coinbase WebSocket connection failed: ${error}`);
-          this.onErrorCallback?.(connectionError);
-          this.onConnectionChangeCallback?.(false);
-          reject(connectionError);
-        };
-
-        this.wsConnection.onclose = event => {
-          this.isConnectedFlag = false;
-          this.onConnectionChangeCallback?.(false);
-
-          // Emit error if close was unexpected (only if event has code property)
-          if (event && typeof event.code === "number" && event.code !== 1000) {
-            // 1000 is normal closure
-            const closeError = new Error(
-              `Coinbase WebSocket closed unexpectedly: ${event.code} - ${event.reason || "Unknown reason"}`
-            );
-            this.onErrorCallback?.(closeError);
-          }
-        };
-
-        this.wsConnection.onmessage = event => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "ticker" && this.validateResponse(data)) {
-              const priceUpdate = this.normalizePriceData(data);
-              this.onPriceUpdateCallback?.(priceUpdate);
-            }
-          } catch (error) {
-            const parseError = new Error(`Error processing Coinbase message: ${error}`);
-            this.onErrorCallback?.(parseError);
-          }
-        };
-      } catch (error) {
-        reject(error);
-      }
+    // Use integrated WebSocket functionality from BaseExchangeAdapter
+    await this.connectWebSocket({
+      url: wsUrl,
+      reconnectDelay: 5000,
+      maxReconnectAttempts: 5,
     });
   }
 
-  async disconnect(): Promise<void> {
-    if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = undefined;
-    }
-    this.isConnectedFlag = false;
-    this.subscriptions.clear();
+  protected async doDisconnect(): Promise<void> {
+    await this.disconnectWebSocket();
   }
 
   isConnected(): boolean {
-    return this.isConnectedFlag && this.wsConnection?.readyState === WebSocket.OPEN;
+    return super.isConnected() && this.isWebSocketConnected();
+  }
+
+  // Override WebSocket event handlers from BaseExchangeAdapter
+  protected handleWebSocketMessage(data: any): void {
+    this.safeProcessData(
+      data,
+      rawData => {
+        const parsed = JSON.parse(rawData as string);
+        if (parsed.type === "ticker" && this.validateResponse(parsed)) {
+          const priceUpdate = this.normalizePriceData(parsed);
+          this.onPriceUpdateCallback?.(priceUpdate);
+        }
+      },
+      "Coinbase message processing"
+    );
   }
 
   normalizePriceData(rawData: CoinbaseTickerData): PriceUpdate {
@@ -183,12 +140,7 @@ export class CoinbaseAdapter extends ExchangeAdapter {
     }
   }
 
-  // WebSocket subscription management
-  async subscribe(symbols: string[]): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error("Not connected to Coinbase WebSocket");
-    }
-
+  protected async doSubscribe(symbols: string[]): Promise<void> {
     const coinbaseSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     const subscribeMessage = {
@@ -197,17 +149,10 @@ export class CoinbaseAdapter extends ExchangeAdapter {
       channels: ["ticker"],
     };
 
-    this.wsConnection?.send(JSON.stringify(subscribeMessage));
-
-    // Track subscriptions
-    coinbaseSymbols.forEach(symbol => this.subscriptions.add(symbol));
+    this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
-    if (!this.isConnected()) {
-      return;
-    }
-
+  protected async doUnsubscribe(symbols: string[]): Promise<void> {
     const coinbaseSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     const unsubscribeMessage = {
@@ -216,10 +161,7 @@ export class CoinbaseAdapter extends ExchangeAdapter {
       channels: ["ticker"],
     };
 
-    this.wsConnection?.send(JSON.stringify(unsubscribeMessage));
-
-    // Remove from tracked subscriptions
-    coinbaseSymbols.forEach(symbol => this.subscriptions.delete(symbol));
+    this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
   }
 
   // REST API fallback methods
@@ -252,22 +194,7 @@ export class CoinbaseAdapter extends ExchangeAdapter {
     }
   }
 
-  // Event handlers
-  private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
-  private onErrorCallback?: (error: Error) => void;
-
-  onPriceUpdate(callback: (update: PriceUpdate) => void): void {
-    this.onPriceUpdateCallback = callback;
-  }
-
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-  }
-
-  onError(callback: (error: Error) => void): void {
-    this.onErrorCallback = callback;
-  }
+  // Event handlers are now provided by BaseExchangeAdapter
 
   // Helper method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
@@ -276,18 +203,8 @@ export class CoinbaseAdapter extends ExchangeAdapter {
     return exchangeSymbol.replace("-", "/");
   }
 
-  // Get current subscriptions
-  getSubscriptions(): string[] {
-    return Array.from(this.subscriptions);
-  }
-
-  // Health check method
-  async healthCheck(): Promise<boolean> {
+  protected async doHealthCheck(): Promise<boolean> {
     try {
-      if (this.isConnected()) {
-        return true;
-      }
-
       // Try REST API health check
       const baseUrl = this.config?.restApiUrl || "https://api.exchange.coinbase.com";
       const response = await fetch(`${baseUrl}/time`);

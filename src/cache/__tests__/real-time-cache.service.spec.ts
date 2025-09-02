@@ -1,6 +1,7 @@
 import { RealTimeCacheService } from "../real-time-cache.service";
 import { CacheEntry } from "../interfaces/cache.interfaces";
 import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 
 describe("RealTimeCacheService", () => {
   let service: RealTimeCacheService;

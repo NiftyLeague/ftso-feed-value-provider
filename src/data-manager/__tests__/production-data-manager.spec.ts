@@ -3,11 +3,11 @@ import { ProductionDataManagerService } from "../production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { DataValidator } from "../validation/data-validator";
 import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { ExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
+import { IExchangeAdapter, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
 import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 // Mock adapter for testing that implements DataSource interface
-class MockExchangeAdapter extends ExchangeAdapter {
+class MockExchangeAdapter implements IExchangeAdapter {
   readonly exchangeName = "mock-exchange";
   readonly category = FeedCategory.Crypto;
   readonly capabilities = {
@@ -86,6 +86,18 @@ class MockExchangeAdapter extends ExchangeAdapter {
 
   validateSymbol(feedSymbol: string): boolean {
     return feedSymbol.includes("/");
+  }
+
+  getSymbolMapping(feedSymbol: string): string {
+    return feedSymbol;
+  }
+
+  getConfig(): ExchangeConnectionConfig | undefined {
+    return undefined;
+  }
+
+  updateConfig(_config: Partial<ExchangeConnectionConfig>): void {
+    // Mock implementation
   }
 
   // Helper method to simulate price updates

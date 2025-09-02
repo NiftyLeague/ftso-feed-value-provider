@@ -4,7 +4,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 import { IConfigurationService } from "@/common/interfaces/services/configuration.interface";
-import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
+
 import { ConfigValidationService, EnvironmentConfig, ConfigValidationResult } from "./config-validation.service";
 import { FileWatcherService } from "./file-watcher.service";
 
@@ -53,7 +53,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
   private fileWatcherService: FileWatcherService;
 
   constructor() {
-    super("ConfigService", true); // Enable enhanced logging
+    super("ConfigService");
     this.feedsFilePath = join(__dirname, "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
     this.configValidationService = new ConfigValidationService();
@@ -617,6 +617,13 @@ export class ConfigService extends BaseService implements IConfigurationService 
       errorRate: 0, // Mock value
       uptime,
     };
+  }
+
+  /**
+   * Validate sources configuration
+   */
+  validateSources(sources: { exchange: string; symbol: string }[]) {
+    return this.configValidationService.validateSources(sources, this.adapterMappings);
   }
 
   async getHealthStatus(): Promise<{

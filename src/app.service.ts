@@ -16,7 +16,7 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService
   ) {
-    super("FtsoProviderService", true); // Enable enhanced logging
+    super("FtsoProviderService"); // Don't need enhanced logging for basic operations
   }
 
   // Method to set the integration service (called by the factory)
@@ -134,7 +134,7 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
     aggregationStats: any;
     activeFeedCount: number;
   }> {
-    const startTime = Date.now();
+    // const startTime = Date.now(); // Unused for now
     const uptime = process.uptime();
 
     return {

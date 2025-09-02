@@ -4,7 +4,7 @@ import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { EnhancedFeedId } from "@/common/types/feed.types";
 import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
 import { IDataValidationService } from "@/common/interfaces/services/validation.interface";
-import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
+
 import { BaseEventService } from "@/common/base/base-event.service";
 
 export interface ValidationServiceConfig {

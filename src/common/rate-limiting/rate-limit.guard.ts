@@ -2,7 +2,6 @@ import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } 
 import { RateLimiterService } from "./rate-limiter.service";
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
 import { ClientIdentificationUtils } from "../utils/client-identification.utils";
-import { RateLimitErrorResponse } from "./rate-limit.types";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {

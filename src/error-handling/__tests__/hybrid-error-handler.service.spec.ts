@@ -143,7 +143,7 @@ describe("HybridErrorHandlerService", () => {
 
       service.on("tier1ErrorHandled", (sourceId, dataSourceError, response) => {
         expect(sourceId).toBe("binance-adapter");
-        expect(dataSourceError.tier).toBe(DataSourceTier.TIER_1_CUSTOM);
+        expect((dataSourceError as any).tier).toBe(DataSourceTier.TIER_1_CUSTOM);
         expect(response).toBeDefined();
         done();
       });
@@ -202,7 +202,7 @@ describe("HybridErrorHandlerService", () => {
 
       service.on("tier2ErrorHandled", (exchangeId, dataSourceError, response) => {
         expect(exchangeId).toBe("kucoin");
-        expect(dataSourceError.tier).toBe(DataSourceTier.TIER_2_CCXT);
+        expect((dataSourceError as any).tier).toBe(DataSourceTier.TIER_2_CCXT);
         expect(response).toBeDefined();
         done();
       });
@@ -241,7 +241,7 @@ describe("HybridErrorHandlerService", () => {
 
       service.on("tierFailoverCompleted", (feedId, response) => {
         expect(feedId).toEqual(testFeedId);
-        expect(response.strategy).toBe("ccxt_backup");
+        expect((response as any).strategy).toBe("ccxt_backup");
         done();
       });
 

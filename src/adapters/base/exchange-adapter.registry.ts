@@ -1,8 +1,8 @@
-import { ExchangeAdapter, ExchangeCapabilities } from "./exchange-adapter.interface";
+import { IExchangeAdapter, ExchangeCapabilities } from "./exchange-adapter.interface";
 import { FeedCategory } from "@/common/types/feed.types";
 
 export interface AdapterRegistryEntry {
-  adapter: ExchangeAdapter;
+  adapter: IExchangeAdapter;
   registeredAt: Date;
   isActive: boolean;
   lastHealthCheck?: Date;
@@ -22,7 +22,7 @@ export class ExchangeAdapterRegistry {
   /**
    * Register a new exchange adapter
    */
-  register(name: string, adapter: ExchangeAdapter): void {
+  register(name: string, adapter: IExchangeAdapter): void {
     const normalizedName = name.toLowerCase();
 
     if (this.adapters.has(normalizedName)) {
@@ -39,7 +39,7 @@ export class ExchangeAdapterRegistry {
   /**
    * Get an adapter by name
    */
-  get(name: string): ExchangeAdapter | undefined {
+  get(name: string): IExchangeAdapter | undefined {
     const entry = this.adapters.get(name.toLowerCase());
     return entry?.isActive ? entry.adapter : undefined;
   }
@@ -47,7 +47,7 @@ export class ExchangeAdapterRegistry {
   /**
    * Get all adapters matching the filter criteria
    */
-  getFiltered(filter: AdapterFilter = {}): ExchangeAdapter[] {
+  getFiltered(filter: AdapterFilter = {}): IExchangeAdapter[] {
     return Array.from(this.adapters.values())
       .filter(entry => this.matchesFilter(entry, filter))
       .map(entry => entry.adapter);
@@ -56,14 +56,14 @@ export class ExchangeAdapterRegistry {
   /**
    * Get adapters by category
    */
-  getByCategory(category: FeedCategory): ExchangeAdapter[] {
+  getByCategory(category: FeedCategory): IExchangeAdapter[] {
     return this.getFiltered({ category, isActive: true });
   }
 
   /**
    * Get adapters by capabilities
    */
-  getByCapabilities(capabilities: Partial<ExchangeCapabilities>): ExchangeAdapter[] {
+  getByCapabilities(capabilities: Partial<ExchangeCapabilities>): IExchangeAdapter[] {
     return this.getFiltered({ capabilities, isActive: true });
   }
 
@@ -159,7 +159,7 @@ export class ExchangeAdapterRegistry {
   /**
    * Find the best adapter for a symbol and category
    */
-  findBestAdapter(symbol: string, category: FeedCategory): ExchangeAdapter | undefined {
+  findBestAdapter(symbol: string, category: FeedCategory): IExchangeAdapter | undefined {
     const candidates = this.getByCategory(category)
       .filter(adapter => adapter.validateSymbol(symbol))
       .filter(adapter => this.getHealthStatus(adapter.exchangeName) !== "unhealthy");

@@ -8,10 +8,11 @@ export abstract class BaseService {
   protected readonly logger: Logger;
   protected readonly enhancedLogger?: EnhancedLoggerService;
 
-  constructor(serviceName: string, useEnhancedLogger = false) {
+  constructor(serviceName: string, useEnhancedLogging: boolean = false) {
     this.logger = new Logger(serviceName);
 
-    if (useEnhancedLogger) {
+    // Only create enhanced logger if explicitly requested
+    if (useEnhancedLogging) {
       this.enhancedLogger = new EnhancedLoggerService(serviceName);
     }
   }
@@ -49,10 +50,6 @@ export abstract class BaseService {
   protected logError(error: Error, context?: string, additionalData?: any): void {
     const contextMessage = context ? `[${context}] ` : "";
     this.logger.error(`${contextMessage}${error.message}`, error.stack, additionalData);
-
-    if (this.enhancedLogger) {
-      this.enhancedLogger.error(`${contextMessage}${error.message}`, additionalData);
-    }
   }
 
   /**
@@ -61,21 +58,53 @@ export abstract class BaseService {
   protected logWarning(message: string, context?: string, additionalData?: any): void {
     const contextMessage = context ? `[${context}] ` : "";
     this.logger.warn(`${contextMessage}${message}`, additionalData);
-
-    if (this.enhancedLogger) {
-      this.enhancedLogger.warn(`${contextMessage}${message}`, additionalData);
-    }
   }
 
   /**
    * Log debug information
    */
-  protected logDebug(message: string, context?: string, additionalData?: any): void {
+  protected logDebug(message: string, context?: string, additionalData?: unknown): void {
     const contextMessage = context ? `[${context}] ` : "";
     this.logger.debug(`${contextMessage}${message}`, additionalData);
+  }
 
+  /**
+   * Log critical operation with enhanced logging if available, otherwise regular logging
+   */
+  protected logCriticalOperation(operation: string, details: Record<string, any>, success: boolean = true): void {
     if (this.enhancedLogger) {
-      this.enhancedLogger.debug(`${contextMessage}${message}`, additionalData);
+      this.enhancedLogger.logCriticalOperation(operation, this.constructor.name, details, success);
+    } else {
+      const message = `Critical Operation: ${operation} ${success ? "completed successfully" : "failed"}`;
+      if (success) {
+        this.logger.log(message, details);
+      } else {
+        this.logger.error(message, details);
+      }
     }
+  }
+
+  /**
+   * Start performance timer with enhanced logging if available
+   */
+  protected startPerformanceTimer(operationId: string, operation: string, metadata?: Record<string, any>): void {
+    if (this.enhancedLogger) {
+      this.enhancedLogger.startPerformanceTimer(operationId, operation, this.constructor.name, metadata);
+    }
+    // Regular logger doesn't have performance timers, so we just skip
+  }
+
+  /**
+   * End performance timer with enhanced logging if available
+   */
+  protected endPerformanceTimer(
+    operationId: string,
+    success: boolean = true,
+    additionalMetadata?: Record<string, unknown>
+  ): void {
+    if (this.enhancedLogger) {
+      this.enhancedLogger.endPerformanceTimer(operationId, success, additionalMetadata);
+    }
+    // Regular logger doesn't have performance timers, so we just skip
   }
 }

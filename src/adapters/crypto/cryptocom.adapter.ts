@@ -1,8 +1,5 @@
-import {
-  ExchangeAdapter,
-  ExchangeCapabilities,
-  ExchangeConnectionConfig,
-} from "@/adapters/base/exchange-adapter.interface";
+import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
+import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 import { FeedCategory } from "@/common/types/feed.types";
 
@@ -50,7 +47,7 @@ export interface CryptocomRestResponse {
   };
 }
 
-export class CryptocomAdapter extends ExchangeAdapter {
+export class CryptocomAdapter extends BaseExchangeAdapter {
   readonly exchangeName = "cryptocom";
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
@@ -61,9 +58,6 @@ export class CryptocomAdapter extends ExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private wsConnection?: WebSocket;
-  private isConnectedFlag = false;
-  private subscriptions = new Set<string>();
   private pingInterval?: NodeJS.Timeout;
   private messageId = 1;
 
@@ -71,95 +65,71 @@ export class CryptocomAdapter extends ExchangeAdapter {
     super(config);
   }
 
-  async connect(): Promise<void> {
-    if (this.isConnectedFlag) {
-      return;
-    }
-
+  protected async doConnect(): Promise<void> {
     const wsUrl = this.config?.websocketUrl || "wss://stream.crypto.com/v2/market";
 
-    return new Promise((resolve, reject) => {
-      try {
-        this.wsConnection = new WebSocket(wsUrl);
-
-        this.wsConnection.onopen = () => {
-          this.isConnectedFlag = true;
-          this.startPingInterval();
-          this.onConnectionChangeCallback?.(true);
-          resolve();
-        };
-
-        this.wsConnection.onerror = error => {
-          this.isConnectedFlag = false;
-          this.stopPingInterval();
-          const connectionError = new Error(`Crypto.com WebSocket connection failed: ${error}`);
-          this.onErrorCallback?.(connectionError);
-          this.onConnectionChangeCallback?.(false);
-          reject(connectionError);
-        };
-
-        this.wsConnection.onclose = event => {
-          this.isConnectedFlag = false;
-          this.stopPingInterval();
-          this.onConnectionChangeCallback?.(false);
-
-          // Emit error if close was unexpected (only if event has code property)
-          if (event && typeof event.code === "number" && event.code !== 1000) {
-            // 1000 is normal closure
-            const closeError = new Error(
-              `Crypto.com WebSocket closed unexpectedly: ${event.code} - ${event.reason || "Unknown reason"}`
-            );
-            this.onErrorCallback?.(closeError);
-          }
-        };
-
-        this.wsConnection.onmessage = event => {
-          try {
-            const message: CryptocomWebSocketMessage = JSON.parse(event.data);
-
-            // Handle pong response
-            if (message.method === "public/heartbeat") {
-              return;
-            }
-
-            // Handle subscription confirmation
-            if (message.method === "subscribe" && message.code === 0) {
-              return;
-            }
-
-            // Handle ticker data
-            if (message.result?.channel === "ticker" && message.result.data) {
-              message.result.data.forEach((ticker: CryptocomTickerData) => {
-                if (this.validateResponse(ticker)) {
-                  const priceUpdate = this.normalizePriceData(ticker);
-                  this.onPriceUpdateCallback?.(priceUpdate);
-                }
-              });
-            }
-          } catch (error) {
-            const parseError = new Error(`Error processing Crypto.com message: ${error}`);
-            this.onErrorCallback?.(parseError);
-          }
-        };
-      } catch (error) {
-        reject(error);
-      }
+    // Use integrated WebSocket functionality from BaseExchangeAdapter
+    await this.connectWebSocket({
+      url: wsUrl,
+      reconnectDelay: 5000,
+      maxReconnectAttempts: 5,
+      pingInterval: 30000, // Crypto.com requires periodic heartbeat
     });
+
+    this.startPingInterval();
   }
 
-  async disconnect(): Promise<void> {
+  protected async doDisconnect(): Promise<void> {
     this.stopPingInterval();
-
-    if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = undefined;
-    }
-    this.isConnectedFlag = false;
-    this.subscriptions.clear();
+    await this.disconnectWebSocket();
   }
 
   isConnected(): boolean {
-    return this.isConnectedFlag && this.wsConnection?.readyState === WebSocket.OPEN;
+    return super.isConnected() && this.isWebSocketConnected();
+  }
+
+  // Override WebSocket event handlers from BaseExchangeAdapter
+  protected handleWebSocketMessage(data: any): void {
+    try {
+      const message: CryptocomWebSocketMessage = JSON.parse(data as string);
+
+      // Handle pong response
+      if (message.method === "public/heartbeat") {
+        return;
+      }
+
+      // Handle subscription confirmation
+      if (message.method === "subscribe" && message.code === 0) {
+        return;
+      }
+
+      // Handle ticker data
+      if (
+        (message.method === "subscription" || !message.method) &&
+        message.result?.channel === "ticker" &&
+        message.result.data
+      ) {
+        message.result.data.forEach((ticker: CryptocomTickerData) => {
+          if (this.validateResponse(ticker)) {
+            const priceUpdate = this.normalizePriceData(ticker);
+            this.onPriceUpdateCallback?.(priceUpdate);
+          }
+        });
+      }
+    } catch (error) {
+      const parseError = new Error(`Error processing Crypto.com message: ${error}`);
+      this.onErrorCallback?.(parseError);
+    }
+  }
+
+  protected handleWebSocketClose(): void {
+    this.stopPingInterval();
+    super.handleWebSocketClose(); // Call base implementation
+  }
+
+  protected handleWebSocketError(error: Error): void {
+    this.stopPingInterval();
+    super.handleWebSocketError(error); // Call base implementation
   }
 
   normalizePriceData(rawData: CryptocomTickerData): PriceUpdate {
@@ -196,7 +166,7 @@ export class CryptocomAdapter extends ExchangeAdapter {
     };
   }
 
-  validateResponse(rawData: any): boolean {
+  validateResponse(rawData: unknown): boolean {
     if (!rawData || typeof rawData !== "object") {
       return false;
     }
@@ -215,15 +185,11 @@ export class CryptocomAdapter extends ExchangeAdapter {
     }
   }
 
-  // WebSocket subscription management
-  async subscribe(symbols: string[]): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error("Crypto.com WebSocket not connected");
-    }
-
+  protected async doSubscribe(symbols: string[]): Promise<void> {
     const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     for (const symbol of cryptocomSymbols) {
+      // Check if already subscribed to avoid duplicates
       if (!this.subscriptions.has(symbol)) {
         const subscribeMessage = {
           id: this.messageId++,
@@ -233,20 +199,16 @@ export class CryptocomAdapter extends ExchangeAdapter {
           },
         };
 
-        this.wsConnection?.send(JSON.stringify(subscribeMessage));
-        this.subscriptions.add(symbol);
+        this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
       }
     }
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
-    if (!this.isConnected()) {
-      return;
-    }
-
+  protected async doUnsubscribe(symbols: string[]): Promise<void> {
     const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     for (const symbol of cryptocomSymbols) {
+      // Check if actually subscribed before unsubscribing
       if (this.subscriptions.has(symbol)) {
         const unsubscribeMessage = {
           id: this.messageId++,
@@ -256,8 +218,7 @@ export class CryptocomAdapter extends ExchangeAdapter {
           },
         };
 
-        this.wsConnection?.send(JSON.stringify(unsubscribeMessage));
-        this.subscriptions.delete(symbol);
+        this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
       }
     }
   }
@@ -306,22 +267,7 @@ export class CryptocomAdapter extends ExchangeAdapter {
     }
   }
 
-  // Event handlers
-  private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
-  private onErrorCallback?: (error: Error) => void;
-
-  onPriceUpdate(callback: (update: PriceUpdate) => void): void {
-    this.onPriceUpdateCallback = callback;
-  }
-
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-  }
-
-  onError(callback: (error: Error) => void): void {
-    this.onErrorCallback = callback;
-  }
+  // Event handlers are now provided by BaseExchangeAdapter
 
   // Helper method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
@@ -345,7 +291,7 @@ export class CryptocomAdapter extends ExchangeAdapter {
           method: "public/heartbeat",
           params: {},
         };
-        this.wsConnection?.send(JSON.stringify(heartbeatMessage));
+        this.sendWebSocketMessage(JSON.stringify(heartbeatMessage));
       }
     }, 30000); // Heartbeat every 30 seconds
   }
@@ -357,18 +303,8 @@ export class CryptocomAdapter extends ExchangeAdapter {
     }
   }
 
-  // Get current subscriptions
-  getSubscriptions(): string[] {
-    return Array.from(this.subscriptions);
-  }
-
-  // Health check method
-  async healthCheck(): Promise<boolean> {
+  protected async doHealthCheck(): Promise<boolean> {
     try {
-      if (this.isConnected()) {
-        return true;
-      }
-
       // Try REST API health check
       const baseUrl = this.config?.restApiUrl || "https://api.crypto.com";
       const response = await fetch(`${baseUrl}/v2/public/get-instruments`);

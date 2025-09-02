@@ -1,8 +1,5 @@
-import {
-  ExchangeAdapter,
-  ExchangeCapabilities,
-  ExchangeConnectionConfig,
-} from "@/adapters/base/exchange-adapter.interface";
+import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
+import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 import { FeedCategory } from "@/common/types/feed.types";
 
@@ -37,7 +34,7 @@ export interface KrakenRestTickerData {
   };
 }
 
-export class KrakenAdapter extends ExchangeAdapter {
+export class KrakenAdapter extends BaseExchangeAdapter {
   readonly exchangeName = "kraken";
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
@@ -47,10 +44,6 @@ export class KrakenAdapter extends ExchangeAdapter {
     supportsOrderBook: true,
     supportedCategories: [FeedCategory.Crypto],
   };
-
-  private wsConnection?: WebSocket;
-  private isConnectedFlag = false;
-  private subscriptions = new Set<string>();
 
   constructor(config?: ExchangeConnectionConfig) {
     super(config);
@@ -62,94 +55,58 @@ export class KrakenAdapter extends ExchangeAdapter {
     return feedSymbol.replace("/", "");
   }
 
-  async connect(): Promise<void> {
-    if (this.isConnectedFlag) {
-      return;
-    }
-
+  protected async doConnect(): Promise<void> {
     const wsUrl = this.config?.websocketUrl || "wss://ws.kraken.com";
 
-    return new Promise((resolve, reject) => {
-      try {
-        this.wsConnection = new WebSocket(wsUrl);
-
-        this.wsConnection.onopen = () => {
-          this.isConnectedFlag = true;
-          this.onConnectionChangeCallback?.(true);
-          resolve();
-        };
-
-        this.wsConnection.onerror = error => {
-          this.isConnectedFlag = false;
-          const connectionError = new Error(`Kraken WebSocket connection failed: ${error}`);
-          this.onErrorCallback?.(connectionError);
-          this.onConnectionChangeCallback?.(false);
-          reject(connectionError);
-        };
-
-        this.wsConnection.onclose = event => {
-          this.isConnectedFlag = false;
-          this.onConnectionChangeCallback?.(false);
-
-          // Emit error if close was unexpected (only if event has code property)
-          if (event && typeof event.code === "number" && event.code !== 1000) {
-            // 1000 is normal closure
-            const closeError = new Error(
-              `Kraken WebSocket closed unexpectedly: ${event.code} - ${event.reason || "Unknown reason"}`
-            );
-            this.onErrorCallback?.(closeError);
-          }
-        };
-
-        this.wsConnection.onmessage = event => {
-          try {
-            const data = JSON.parse(event.data);
-
-            // Handle different message types
-            if (Array.isArray(data)) {
-              // Ticker data format: [channelID, data, channelName, pair]
-              if (data.length >= 4 && data[2] === "ticker") {
-                const tickerData: KrakenTickerData = {
-                  channelID: data[0],
-                  channelName: data[2],
-                  pair: data[3],
-                  data: data[1],
-                };
-
-                if (this.validateResponse(tickerData)) {
-                  const priceUpdate = this.normalizePriceData(tickerData);
-                  this.onPriceUpdateCallback?.(priceUpdate);
-                }
-              }
-            } else if (data.event === "systemStatus") {
-              console.log("Kraken system status:", data.status);
-            } else if (data.event === "subscriptionStatus") {
-              if (data.status === "subscribed") {
-                console.log("Kraken subscription confirmed:", data.pair);
-              }
-            }
-          } catch (error) {
-            const parseError = new Error(`Error processing Kraken message: ${error}`);
-            this.onErrorCallback?.(parseError);
-          }
-        };
-      } catch (error) {
-        reject(error);
-      }
+    // Use integrated WebSocket functionality from BaseExchangeAdapter
+    await this.connectWebSocket({
+      url: wsUrl,
+      reconnectDelay: 5000,
+      maxReconnectAttempts: 5,
     });
   }
 
-  async disconnect(): Promise<void> {
-    if (this.wsConnection) {
-      this.wsConnection.close();
-      this.wsConnection = undefined;
-    }
-    this.isConnectedFlag = false;
-    this.subscriptions.clear();
+  protected async doDisconnect(): Promise<void> {
+    await this.disconnectWebSocket();
   }
 
   isConnected(): boolean {
-    return this.isConnectedFlag && this.wsConnection?.readyState === WebSocket.OPEN;
+    return super.isConnected() && this.isWebSocketConnected();
+  }
+
+  // Override WebSocket event handlers from BaseExchangeAdapter
+  protected handleWebSocketMessage(data: any): void {
+    this.safeProcessData(
+      data,
+      rawData => {
+        const parsed = JSON.parse(rawData as string);
+
+        // Handle different message types
+        if (Array.isArray(parsed)) {
+          // Ticker data format: [channelID, data, channelName, pair]
+          if (parsed.length >= 4 && parsed[2] === "ticker") {
+            const tickerData: KrakenTickerData = {
+              channelID: parsed[0],
+              channelName: parsed[2],
+              pair: parsed[3],
+              data: parsed[1],
+            };
+
+            if (this.validateResponse(tickerData)) {
+              const priceUpdate = this.normalizePriceData(tickerData);
+              this.onPriceUpdateCallback?.(priceUpdate);
+            }
+          }
+        } else if (parsed.event === "systemStatus") {
+          this.logger.debug("Kraken system status:", parsed.status);
+        } else if (parsed.event === "subscriptionStatus") {
+          if (parsed.status === "subscribed") {
+            this.logger.debug("Kraken subscription confirmed:", parsed.pair);
+          }
+        }
+      },
+      "Kraken message processing"
+    );
   }
 
   normalizePriceData(rawData: KrakenTickerData): PriceUpdate {
@@ -206,12 +163,7 @@ export class KrakenAdapter extends ExchangeAdapter {
     }
   }
 
-  // WebSocket subscription management
-  async subscribe(symbols: string[]): Promise<void> {
-    if (!this.isConnected()) {
-      throw new Error("Not connected to Kraken WebSocket");
-    }
-
+  protected async doSubscribe(symbols: string[]): Promise<void> {
     const krakenSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     const subscribeMessage = {
@@ -222,17 +174,10 @@ export class KrakenAdapter extends ExchangeAdapter {
       },
     };
 
-    this.wsConnection?.send(JSON.stringify(subscribeMessage));
-
-    // Track subscriptions
-    krakenSymbols.forEach(symbol => this.subscriptions.add(symbol));
+    this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
-    if (!this.isConnected()) {
-      return;
-    }
-
+  protected async doUnsubscribe(symbols: string[]): Promise<void> {
     const krakenSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     const unsubscribeMessage = {
@@ -243,10 +188,7 @@ export class KrakenAdapter extends ExchangeAdapter {
       },
     };
 
-    this.wsConnection?.send(JSON.stringify(unsubscribeMessage));
-
-    // Remove from tracked subscriptions
-    krakenSymbols.forEach(symbol => this.subscriptions.delete(symbol));
+    this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
   }
 
   // REST API fallback methods
@@ -298,22 +240,7 @@ export class KrakenAdapter extends ExchangeAdapter {
     }
   }
 
-  // Event handlers
-  private onPriceUpdateCallback?: (update: PriceUpdate) => void;
-  private onConnectionChangeCallback?: (connected: boolean) => void;
-  private onErrorCallback?: (error: Error) => void;
-
-  onPriceUpdate(callback: (update: PriceUpdate) => void): void {
-    this.onPriceUpdateCallback = callback;
-  }
-
-  onConnectionChange(callback: (connected: boolean) => void): void {
-    this.onConnectionChangeCallback = callback;
-  }
-
-  onError(callback: (error: Error) => void): void {
-    this.onErrorCallback = callback;
-  }
+  // Event handlers are now provided by BaseExchangeAdapter
 
   // Simple method to convert exchange symbol back to normalized format
   private normalizeSymbolFromExchange(exchangeSymbol: string): string {
@@ -335,18 +262,8 @@ export class KrakenAdapter extends ExchangeAdapter {
     return exchangeSymbol;
   }
 
-  // Get current subscriptions
-  getSubscriptions(): string[] {
-    return Array.from(this.subscriptions);
-  }
-
-  // Health check method
-  async healthCheck(): Promise<boolean> {
+  protected async doHealthCheck(): Promise<boolean> {
     try {
-      if (this.isConnected()) {
-        return true;
-      }
-
       // Try REST API health check
       const baseUrl = this.config?.restApiUrl || "https://api.kraken.com";
       const response = await fetch(`${baseUrl}/0/public/SystemStatus`);

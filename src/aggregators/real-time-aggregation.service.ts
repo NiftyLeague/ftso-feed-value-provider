@@ -6,7 +6,6 @@ import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
 import { ConsensusAggregator } from "./consensus-aggregator";
 import { ConfigService } from "@/config/config.service";
 import { IAggregationService } from "@/common/interfaces/services/aggregation.interface";
-import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
 
 export interface CacheEntry {
   value: AggregatedPrice;
@@ -76,7 +75,7 @@ export class RealTimeAggregationService
     private readonly consensusAggregator: ConsensusAggregator,
     private readonly configService: ConfigService
   ) {
-    super("RealTimeAggregation", true); // Enable enhanced logging
+    super("RealTimeAggregation", true); // Needs enhanced logging for performance tracking and data flow
   }
 
   async onModuleInit() {
@@ -99,7 +98,7 @@ export class RealTimeAggregationService
     const operationId = `aggregate_${feedId.name}_${Date.now()}`;
     const feedKey = this.getFeedKey(feedId);
 
-    this.enhancedLogger.startPerformanceTimer(operationId, "get_aggregated_price", "RealTimeAggregation", {
+    this.startPerformanceTimer(operationId, "get_aggregated_price", {
       feedId: feedId.name,
       category: feedId.category,
     });
@@ -110,18 +109,13 @@ export class RealTimeAggregationService
       if (cachedEntry) {
         this.recordCacheHit();
 
-        this.enhancedLogger.debug(`Cache hit for ${feedId.name}`, {
-          component: "RealTimeAggregation",
-          operation: "cache_lookup",
-          symbol: feedId.name,
-          metadata: {
-            cacheAge: Date.now() - cachedEntry.timestamp,
-            price: cachedEntry.value.price,
-            sources: cachedEntry.sources.length,
-          },
+        this.logDebug(`Cache hit for ${feedId.name}`, "cache_lookup", {
+          cacheAge: Date.now() - cachedEntry.timestamp,
+          price: cachedEntry.value.price,
+          sources: cachedEntry.sources.length,
         });
 
-        this.enhancedLogger.endPerformanceTimer(operationId, true, {
+        this.endPerformanceTimer(operationId, true, {
           cacheHit: true,
           price: cachedEntry.value.price,
         });

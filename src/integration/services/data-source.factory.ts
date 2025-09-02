@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
 import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { ExchangeAdapter } from "@/adapters/base";
+import { IExchangeAdapter } from "@/adapters/base";
 import { FeedCategory } from "@/common/types/feed.types";
 import { BaseService } from "@/common/base/base.service";
 
@@ -18,14 +18,14 @@ export class DataSourceFactory extends BaseService {
   /**
    * Create a DataSource from an ExchangeAdapter
    */
-  createFromAdapter(adapter: ExchangeAdapter, priority: number = 1): DataSource {
+  createFromAdapter(adapter: IExchangeAdapter, priority: number = 1): DataSource {
     return new AdapterDataSource(adapter, priority);
   }
 
   /**
    * Create multiple DataSources from adapters
    */
-  createFromAdapters(adapters: { adapter: ExchangeAdapter; priority: number }[]): DataSource[] {
+  createFromAdapters(adapters: { adapter: IExchangeAdapter; priority: number }[]): DataSource[] {
     return adapters.map(({ adapter, priority }) => this.createFromAdapter(adapter, priority));
   }
 }
@@ -40,7 +40,7 @@ class AdapterDataSource extends EventEmitter implements DataSource {
   private lastLatency = 0;
 
   constructor(
-    private readonly adapter: ExchangeAdapter,
+    private readonly adapter: IExchangeAdapter,
     public readonly priority: number
   ) {
     super();
@@ -135,7 +135,7 @@ class AdapterDataSource extends EventEmitter implements DataSource {
     return Array.from(this.subscriptions);
   }
 
-  getAdapter(): ExchangeAdapter {
+  getAdapter(): IExchangeAdapter {
     return this.adapter;
   }
 

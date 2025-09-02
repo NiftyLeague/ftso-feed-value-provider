@@ -62,7 +62,7 @@ export class ProductionDataManagerService
   private healthMonitorInterval?: NodeJS.Timeout;
 
   constructor() {
-    super("ProductionDataManager", true); // Enable enhanced logging
+    super("ProductionDataManager");
     this.setupHealthMonitoring();
   }
 

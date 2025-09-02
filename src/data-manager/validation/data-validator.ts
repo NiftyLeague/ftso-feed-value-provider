@@ -54,7 +54,7 @@ export class DataValidator extends BaseService {
   };
 
   constructor() {
-    super(DataValidator.name);
+    super(DataValidator.name); // Basic validation operations don't need enhanced logging
   }
 
   // Multi-tier validation (Requirement 2.1)

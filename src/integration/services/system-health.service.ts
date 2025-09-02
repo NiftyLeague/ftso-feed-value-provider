@@ -58,7 +58,7 @@ export class SystemHealthService extends BaseEventService {
     private readonly performanceMonitor: PerformanceMonitorService,
     private readonly alertingService: AlertingService
   ) {
-    super("SystemHealth", true); // Enable enhanced logging
+    super("SystemHealth", true); // Needs enhanced logging for performance tracking and critical operations
 
     this.healthMetrics = {
       status: "healthy",
@@ -81,10 +81,10 @@ export class SystemHealthService extends BaseEventService {
 
   async initialize(): Promise<void> {
     const operationId = `init_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "system_health_initialization", "SystemHealth");
+    this.startPerformanceTimer(operationId, "system_health_initialization");
 
     try {
-      this.enhancedLogger.logCriticalOperation("system_health_initialization", "SystemHealth", {
+      this.logCriticalOperation("system_health_initialization", {
         phase: "starting",
         timestamp: Date.now(),
       });
@@ -100,9 +100,8 @@ export class SystemHealthService extends BaseEventService {
 
       this.isInitialized = true;
 
-      this.enhancedLogger.logCriticalOperation(
+      this.logCriticalOperation(
         "system_health_initialization",
-        "SystemHealth",
         {
           phase: "completed",
           timestamp: Date.now(),
@@ -111,14 +110,10 @@ export class SystemHealthService extends BaseEventService {
         true
       );
 
-      this.enhancedLogger.endPerformanceTimer(operationId, true, { initialized: true });
+      this.endPerformanceTimer(operationId, true, { initialized: true });
     } catch (error) {
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
-      this.enhancedLogger.error(error, {
-        component: "SystemHealth",
-        operation: "system_health_initialization",
-        severity: "critical",
-      });
+      this.endPerformanceTimer(operationId, false, { error: error.message });
+      this.logError(error as Error, "system_health_initialization", { severity: "critical" });
       throw error;
     }
   }
@@ -421,13 +416,13 @@ export class SystemHealthService extends BaseEventService {
     }
   }
 
-  private handleAccuracyAlert(alert: any): void {
+  private handleAccuracyAlert(alert: unknown): void {
     try {
       const healthAlert: HealthAlert = {
         type: "accuracy_alert",
         timestamp: Date.now(),
-        severity: alert.severity || "warning",
-        message: `Accuracy alert: ${alert.message}`,
+        severity: (alert as any).severity || "warning",
+        message: `Accuracy alert: ${(alert as any).message}`,
       };
 
       this.sendAlert(healthAlert);

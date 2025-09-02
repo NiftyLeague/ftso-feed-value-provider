@@ -159,7 +159,7 @@ describe("FailoverManager", () => {
 
       manager.on("failoverGroupConfigured", (configuredFeedId, group) => {
         expect(configuredFeedId).toEqual(feedId);
-        expect(group.primarySources).toEqual(["binance", "coinbase"]);
+        expect((group as any).primarySources).toEqual(["binance", "coinbase"]);
         done();
       });
 
@@ -250,7 +250,7 @@ describe("FailoverManager", () => {
       const failoverPromise = new Promise<void>(resolve => {
         manager.on("failoverCompleted", (completedFeedId, details) => {
           expect(completedFeedId).toEqual(feedId);
-          expect(details.failedSource).toBe("binance");
+          expect((details as any).failedSource).toBe("binance");
           resolve();
         });
       });
@@ -271,8 +271,8 @@ describe("FailoverManager", () => {
           failoverCount++;
           if (failoverCount === 2) {
             // After both primary sources fail
-            expect(details.backupSourcesActivated).toBeDefined();
-            expect(details.backupSourcesActivated?.length).toBeGreaterThan(0);
+            expect((details as any).backupSourcesActivated).toBeDefined();
+            expect((details as any).backupSourcesActivated?.length).toBeGreaterThan(0);
             resolve();
           }
         });
@@ -296,7 +296,7 @@ describe("FailoverManager", () => {
       const failoverFailedPromise = new Promise<void>(resolve => {
         manager.on("failoverFailed", (failedFeedId, details) => {
           expect(failedFeedId).toEqual(feedId);
-          expect(details.reason).toContain("No healthy backup sources available");
+          expect((details as any).reason).toContain("No healthy backup sources available");
           resolve();
         });
       });
@@ -352,8 +352,8 @@ describe("FailoverManager", () => {
       const recoveryPromise = new Promise<void>(resolve => {
         manager.on("sourceRecovered", (recoveredFeedId, details) => {
           expect(recoveredFeedId).toEqual(feedId);
-          expect(details.recoveredSource).toBe("binance");
-          expect(details.deactivatedBackups).toContain("kraken");
+          expect((details as any).recoveredSource).toBe("binance");
+          expect((details as any).deactivatedBackups).toContain("kraken");
           resolve();
         });
       });

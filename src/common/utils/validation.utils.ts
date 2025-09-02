@@ -322,8 +322,8 @@ export class ValidationUtils {
       return value.map((item, index) => {
         try {
           return itemValidator(item, index);
-        } catch (error) {
-          throw new BadRequestException(`${fieldName}[${index}]: ${(error as Error).message}`);
+        } catch (_error) {
+          throw new BadRequestException(`${fieldName}[${index}]: ${(_error as Error).message}`);
         }
       });
     }
@@ -359,7 +359,7 @@ export class ValidationUtils {
       }
 
       return urlStr;
-    } catch (error) {
+    } catch {
       throw new BadRequestException(`${fieldName} must be a valid URL`);
     }
   }

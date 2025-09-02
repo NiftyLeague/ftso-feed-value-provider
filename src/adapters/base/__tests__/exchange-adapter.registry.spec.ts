@@ -1,16 +1,15 @@
 import { ExchangeAdapterRegistry } from "../exchange-adapter.registry";
-import { ExchangeAdapter, ExchangeCapabilities } from "../exchange-adapter.interface";
+import { IExchangeAdapter, ExchangeCapabilities } from "../exchange-adapter.interface";
 import { FeedCategory } from "@/common/types/feed.types";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 
 // Mock adapter for testing
-class MockExchangeAdapter extends ExchangeAdapter {
+class MockExchangeAdapter implements IExchangeAdapter {
   readonly exchangeName: string;
   readonly category: FeedCategory;
   readonly capabilities: ExchangeCapabilities;
 
   constructor(name: string, category: FeedCategory, capabilities: ExchangeCapabilities) {
-    super();
     this.exchangeName = name;
     this.category = category;
     this.capabilities = capabilities;
@@ -65,6 +64,18 @@ class MockExchangeAdapter extends ExchangeAdapter {
 
   validateSymbol(_feedSymbol: string): boolean {
     return true;
+  }
+
+  getSymbolMapping(feedSymbol: string): string {
+    return feedSymbol;
+  }
+
+  getConfig(): any {
+    return undefined;
+  }
+
+  updateConfig(_config: any): void {
+    // Mock implementation
   }
 }
 

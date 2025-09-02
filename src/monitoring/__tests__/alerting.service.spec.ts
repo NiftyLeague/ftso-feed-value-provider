@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { AlertingService } from "../alerting.service";
 import { MonitoringConfig, AlertSeverity, AlertAction, AlertRule } from "../interfaces/monitoring.interfaces";
+import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import axios from "axios";
 
 // Mock axios

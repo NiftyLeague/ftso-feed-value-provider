@@ -16,7 +16,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
   private monitoringInterval?: NodeJS.Timeout;
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
-    super(PerformanceMonitorService.name, true);
+    super(PerformanceMonitorService.name);
     // Start periodic monitoring
     this.startPeriodicMonitoring();
   }

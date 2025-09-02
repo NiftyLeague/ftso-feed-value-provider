@@ -22,7 +22,7 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
-    super("AlertingService", true);
+    super("AlertingService", true); // Needs enhanced logging for critical alert operations
     this.initializeEmailTransporter();
     this.startAlertCleanup();
   }
@@ -102,7 +102,7 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
     this.alertCooldowns.set(rule.id, now);
 
     // Enhanced alert logging with detailed context
-    this.enhancedLogger.logCriticalOperation("alert_triggered", "AlertingService", {
+    this.logCriticalOperation("alert_triggered", {
       alertId,
       ruleId: rule.id,
       ruleName: rule.name,

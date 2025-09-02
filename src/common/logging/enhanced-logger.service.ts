@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ILogger } from "./logger.interface";
 import { LogContext } from "./logger.types";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
-import { BaseService } from "../base/base.service";
 import * as fs from "fs";
 import * as path from "path";
 
 @Injectable()
-export class EnhancedLoggerService extends BaseService implements ILogger {
+export class EnhancedLoggerService implements ILogger {
+  private readonly logger: Logger;
   private readonly logDirectory: string;
   private readonly debugLogFile: string;
   private readonly auditLogFile: string;
@@ -23,7 +23,7 @@ export class EnhancedLoggerService extends BaseService implements ILogger {
   private readonly enableDebugLogging: boolean;
 
   constructor(context: string = "EnhancedLogger") {
-    super(context);
+    this.logger = new Logger(context);
 
     // Configure logging based on environment
     this.enableFileLogging = process.env.ENABLE_FILE_LOGGING === "true";

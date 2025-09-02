@@ -25,7 +25,7 @@ export class IntegrationService extends BaseEventService implements OnModuleInit
     private readonly systemHealth: SystemHealthService,
     private readonly configService: ConfigService
   ) {
-    super("Integration", true); // Enable enhanced logging
+    super("Integration");
   }
 
   async onModuleInit(): Promise<void> {

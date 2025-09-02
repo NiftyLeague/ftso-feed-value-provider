@@ -82,7 +82,7 @@ export interface EnvironmentConfig {
 @Injectable()
 export class ConfigValidationService extends BaseService {
   constructor() {
-    super("ConfigValidationService", true);
+    super("ConfigValidationService");
   }
 
   /**

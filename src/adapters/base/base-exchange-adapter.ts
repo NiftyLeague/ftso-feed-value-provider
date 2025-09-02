@@ -1,12 +1,14 @@
 import { Logger } from "@nestjs/common";
-import { ExchangeAdapter, ExchangeConnectionConfig } from "./exchange-adapter.interface";
+import { IExchangeAdapter, ExchangeConnectionConfig } from "./exchange-adapter.interface";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
+import { WebSocketConnectionManager, WebSocketConnectionConfig } from "@/data-manager/websocket-connection-manager";
 
 /**
  * Base exchange adapter class that eliminates adapter boilerplate
- * Reduces adapter duplication by 200+ lines across adapters
+ * Includes integrated WebSocket functionality
  */
-export abstract class BaseExchangeAdapter extends ExchangeAdapter {
+export abstract class BaseExchangeAdapter implements IExchangeAdapter {
+  protected config?: ExchangeConnectionConfig;
   protected readonly logger: Logger;
   protected isConnectedFlag = false;
   protected subscriptions = new Set<string>();
@@ -20,10 +22,24 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
   protected onConnectionChangeCallback?: (connected: boolean) => void;
   protected onErrorCallback?: (error: Error) => void;
 
+  // Integrated WebSocket functionality
+  protected wsManager?: WebSocketConnectionManager;
+  protected wsConnectionId?: string;
+
   constructor(config?: ExchangeConnectionConfig) {
-    super(config);
+    this.config = config;
     this.logger = new Logger(this.constructor.name);
   }
+
+  // Abstract properties that must be implemented
+  abstract readonly exchangeName: string;
+  abstract readonly category: any;
+  abstract readonly capabilities: any;
+
+  // Abstract methods that must be implemented by concrete adapters
+  abstract normalizePriceData(rawData: any): PriceUpdate;
+  abstract normalizeVolumeData(rawData: any): VolumeUpdate;
+  abstract validateResponse(rawData: any): boolean;
 
   /**
    * Standard connection implementation with retry logic
@@ -112,7 +128,7 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
 
     try {
       await this.doSubscribe(validSymbols);
-      validSymbols.forEach(symbol => this.subscriptions.add(symbol));
+      this.trackSubscriptions(validSymbols);
       this.logger.debug(`Subscribed to ${validSymbols.length} symbols on ${this.exchangeName}`);
     } catch (error) {
       this.logger.error(`Subscription failed on ${this.exchangeName}:`, error);
@@ -128,14 +144,14 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
       return; // Silently ignore if not connected
     }
 
-    const subscribedSymbols = symbols.filter(symbol => this.subscriptions.has(symbol));
+    const subscribedSymbols = symbols.filter(symbol => this.isSubscribed(symbol));
     if (subscribedSymbols.length === 0) {
       return; // Nothing to unsubscribe
     }
 
     try {
       await this.doUnsubscribe(subscribedSymbols);
-      subscribedSymbols.forEach(symbol => this.subscriptions.delete(symbol));
+      this.untrackSubscriptions(subscribedSymbols);
       this.logger.debug(`Unsubscribed from ${subscribedSymbols.length} symbols on ${this.exchangeName}`);
     } catch (error) {
       this.logger.error(`Unsubscription failed on ${this.exchangeName}:`, error);
@@ -151,14 +167,42 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
   }
 
   /**
+   * Track subscriptions - can be overridden by adapters for custom behavior
+   */
+  protected trackSubscriptions(symbols: string[]): void {
+    symbols.forEach(symbol => {
+      const exchangeSymbol = this.getSymbolMapping(symbol);
+      this.subscriptions.add(exchangeSymbol); // Default: exchange symbol as-is
+    });
+  }
+
+  /**
+   * Untrack subscriptions - can be overridden by adapters for custom behavior
+   */
+  protected untrackSubscriptions(symbols: string[]): void {
+    symbols.forEach(symbol => {
+      const exchangeSymbol = this.getSymbolMapping(symbol);
+      this.subscriptions.delete(exchangeSymbol); // Default: exchange symbol as-is
+    });
+  }
+
+  /**
+   * Check if a symbol is subscribed - can be overridden by adapters for custom behavior
+   */
+  protected isSubscribed(symbol: string): boolean {
+    const exchangeSymbol = this.getSymbolMapping(symbol);
+    return this.subscriptions.has(exchangeSymbol); // Default: exchange symbol as-is
+  }
+
+  /**
    * Standard health check implementation
    */
   async healthCheck(): Promise<boolean> {
     try {
       if (this.isConnected()) {
-        return await this.doHealthCheck();
+        return true;
       }
-      return false;
+      return await this.doHealthCheck();
     } catch (error) {
       this.logger.error(`Health check failed for ${this.exchangeName}:`, error);
       return false;
@@ -187,7 +231,7 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
   /**
    * Utility method for safe data processing
    */
-  protected safeProcessData<T>(data: any, processor: (data: any) => T, context: string): T | null {
+  protected safeProcessData<T>(data: any, processor: (data: unknown) => T, context: string): T | null {
     try {
       if (!this.validateResponse(data)) {
         this.logger.warn(`Invalid data received in ${context}:`, data);
@@ -209,11 +253,25 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
   }
 
   /**
+   * Symbol mapping - override if exchange needs symbol transformation
+   */
+  getSymbolMapping(feedSymbol: string): string {
+    return feedSymbol;
+  }
+
+  /**
    * Enhanced symbol validation with logging
    */
   validateSymbol(feedSymbol: string): boolean {
     try {
-      const isValid = super.validateSymbol(feedSymbol);
+      const exchangeSymbol = this.getSymbolMapping(feedSymbol);
+      // Basic validation: ensure we got a non-empty string and it contains valid characters
+      const isValid =
+        exchangeSymbol &&
+        exchangeSymbol.length > 0 &&
+        feedSymbol.includes("/") && // Must be a proper pair format
+        feedSymbol.split("/").length === 2; // Must have exactly one separator
+
       if (!isValid) {
         this.logger.debug(`Invalid symbol format: ${feedSymbol}`);
       }
@@ -222,6 +280,213 @@ export abstract class BaseExchangeAdapter extends ExchangeAdapter {
       this.logger.error(`Symbol validation error for ${feedSymbol}:`, error);
       return false;
     }
+  }
+
+  /**
+   * Enhanced confidence calculation with multiple factors
+   */
+  protected calculateConfidence(
+    rawData: any,
+    additionalFactors?: {
+      latency?: number;
+      volume?: number;
+      spread?: number;
+    }
+  ): number {
+    let confidence = 1.0;
+
+    // Base confidence from data quality
+    if (!rawData || typeof rawData !== "object") {
+      return 0.0;
+    }
+
+    // Adjust for latency (lower confidence for older data)
+    if (additionalFactors?.latency) {
+      const latencyPenalty = Math.min(additionalFactors.latency / 1000, 0.5); // Max 50% penalty
+      confidence -= latencyPenalty;
+    }
+
+    // Adjust for volume (higher volume = higher confidence)
+    if (additionalFactors?.volume) {
+      const volumeBonus = Math.min(Math.log10(additionalFactors.volume) / 10, 0.2); // Max 20% bonus
+      confidence += volumeBonus;
+    }
+
+    // Adjust for spread (tighter spread = higher confidence)
+    if (additionalFactors?.spread) {
+      const spreadPenalty = Math.min(additionalFactors.spread / 10, 0.3); // Max 30% penalty, more sensitive
+      confidence -= spreadPenalty;
+    }
+
+    return Math.max(0.0, Math.min(1.0, confidence));
+  }
+
+  /**
+   * Utility method to normalize timestamps
+   */
+  protected normalizeTimestamp(timestamp: any): number {
+    if (typeof timestamp === "number") {
+      // Handle both seconds and milliseconds
+      return timestamp > 1e12 ? timestamp : timestamp * 1000;
+    }
+
+    if (typeof timestamp === "string") {
+      return new Date(timestamp).getTime();
+    }
+
+    if (timestamp instanceof Date) {
+      return timestamp.getTime();
+    }
+
+    // Fallback to current time
+    return Date.now();
+  }
+
+  /**
+   * Utility method to safely parse numeric values
+   */
+  protected parseNumber(value: unknown): number {
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = parseFloat(value);
+      if (isNaN(parsed)) {
+        throw new Error(`Invalid numeric value: ${value}`);
+      }
+      return parsed;
+    }
+
+    throw new Error(`Cannot parse number from: ${typeof value}`);
+  }
+
+  /**
+   * Get adapter configuration
+   */
+  getConfig(): ExchangeConnectionConfig | undefined {
+    return this.config;
+  }
+
+  /**
+   * Update adapter configuration
+   */
+  updateConfig(config: Partial<ExchangeConnectionConfig>): void {
+    this.config = { ...this.config, ...config };
+  }
+
+  /**
+   * Initialize WebSocket connection manager for this adapter
+   */
+  protected initializeWebSocket(): void {
+    if (!this.wsManager) {
+      this.wsManager = new WebSocketConnectionManager();
+      this.wsConnectionId = `${this.exchangeName}-ws`;
+    }
+  }
+
+  /**
+   * Connect to WebSocket using the centralized connection manager
+   */
+  protected async connectWebSocket(config: WebSocketConnectionConfig): Promise<void> {
+    this.initializeWebSocket();
+
+    try {
+      await this.wsManager!.createConnection(this.wsConnectionId!, config);
+
+      // Set up message handler
+      this.wsManager!.on("message", (connectionId: string, data: any) => {
+        if (connectionId === this.wsConnectionId) {
+          this.handleWebSocketMessage(data);
+        }
+      });
+
+      // Set up connection event handlers
+      this.wsManager!.on("connectionClosed", (connectionId: string) => {
+        if (connectionId === this.wsConnectionId) {
+          this.handleWebSocketClose();
+        }
+      });
+
+      this.wsManager!.on("connectionError", (connectionId: string, error: Error) => {
+        if (connectionId === this.wsConnectionId) {
+          this.handleWebSocketError(error);
+        }
+      });
+    } catch (error) {
+      this.logger.error(`Failed to connect WebSocket: ${error}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Disconnect WebSocket
+   */
+  protected async disconnectWebSocket(): Promise<void> {
+    if (this.wsManager && this.wsConnectionId) {
+      try {
+        await this.wsManager.closeConnection(this.wsConnectionId);
+      } catch (error) {
+        this.logger.error(`Failed to disconnect WebSocket: ${error}`);
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Check if WebSocket is connected
+   */
+  protected isWebSocketConnected(): boolean {
+    return this.wsManager?.isConnected(this.wsConnectionId!) ?? false;
+  }
+
+  /**
+   * Send message via WebSocket
+   */
+  protected sendWebSocketMessage(message: string | Buffer): boolean {
+    if (this.wsManager && this.wsConnectionId) {
+      return this.wsManager.sendMessage(this.wsConnectionId, message);
+    }
+    return false;
+  }
+
+  /**
+   * Get WebSocket connection statistics
+   */
+  protected getWebSocketStats() {
+    if (this.wsManager && this.wsConnectionId) {
+      return this.wsManager.getConnectionStats(this.wsConnectionId);
+    }
+    return null;
+  }
+
+  /**
+   * Get WebSocket latency
+   */
+  protected getWebSocketLatency(): number {
+    if (this.wsManager && this.wsConnectionId) {
+      return this.wsManager.getLatency(this.wsConnectionId);
+    }
+    return 0;
+  }
+
+  // Optional WebSocket event handlers (adapters can override these)
+  protected handleWebSocketMessage(data: unknown): void {
+    // Default implementation - adapters should override this
+    this.logger.debug(`Received WebSocket message: ${JSON.stringify(data)}`);
+  }
+
+  protected handleWebSocketClose(): void {
+    // Default implementation - adapters should override this
+    this.logger.warn(`WebSocket connection closed for ${this.exchangeName}`);
+    this.isConnectedFlag = false;
+    this.onConnectionChangeCallback?.(false);
+  }
+
+  protected handleWebSocketError(error: Error): void {
+    // Default implementation - adapters should override this
+    this.logger.error(`WebSocket error for ${this.exchangeName}:`, error);
+    this.onErrorCallback?.(error);
   }
 
   // Abstract methods that must be implemented by concrete adapters

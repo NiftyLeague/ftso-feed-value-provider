@@ -14,6 +14,7 @@ import { IntegrationService } from "@/integration/integration.service";
 import { ConfigModule } from "@/config/config.module";
 import { CacheModule } from "@/cache/cache.module";
 import { AggregatorsModule } from "@/aggregators/aggregators.module";
+import { AdaptersModule } from "@/adapters/adapters.module";
 
 // Core services
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
@@ -30,7 +31,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     ConfigModule,
     CacheModule,
     AggregatorsModule,
-    // Always use production integration
+    AdaptersModule,
     IntegrationModule,
   ],
   controllers: [FeedController, HealthController, MetricsController],

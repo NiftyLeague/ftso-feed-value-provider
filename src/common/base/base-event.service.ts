@@ -9,8 +9,8 @@ export abstract class BaseEventService extends BaseService {
   private readonly eventListeners = new Map<string, number>();
   private eventEmitter: EventEmitter;
 
-  constructor(serviceName: string, useEnhancedLogger = false) {
-    super(serviceName, useEnhancedLogger);
+  constructor(serviceName: string, useEnhancedLogging: boolean = false) {
+    super(serviceName, useEnhancedLogging);
 
     // Initialize EventEmitter functionality
     this.eventEmitter = new EventEmitter();

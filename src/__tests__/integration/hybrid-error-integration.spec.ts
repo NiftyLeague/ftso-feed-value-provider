@@ -327,7 +327,7 @@ describe("Hybrid Error Handling Integration", () => {
 
       hybridErrorHandler.on("tierFailoverCompleted", (feedId, response) => {
         expect(feedId).toEqual(testFeedId);
-        expect(response.strategy).toBe("ccxt_backup");
+        expect((response as any).strategy).toBe("ccxt_backup");
         done();
       });
 

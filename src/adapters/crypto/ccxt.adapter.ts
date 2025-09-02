@@ -1,11 +1,7 @@
-import {
-  ExchangeAdapter,
-  ExchangeCapabilities,
-  ExchangeConnectionConfig,
-} from "@/adapters/base/exchange-adapter.interface";
+import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
+import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
 import { FeedCategory, EnhancedFeedId } from "@/common/types/feed.types";
-import { Injectable, Logger } from "@nestjs/common";
 
 export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
   tradesLimit?: number; // CCXT trades limit (default: 1000)
@@ -32,8 +28,7 @@ export interface ExchangePriceData {
   volume?: number;
 }
 
-@Injectable()
-export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
+export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   readonly exchangeName = "ccxt-multi-exchange";
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
@@ -44,9 +39,8 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private readonly logger = new Logger(CcxtMultiExchangeAdapter.name);
   private isInitialized = false;
-  protected adapterConfig: CcxtMultiExchangeConfig; // Changed from private to protected to match base class
+  protected adapterConfig: CcxtMultiExchangeConfig;
   private metrics: CcxtMultiExchangeMetrics = {
     priceExtractionCount: 0,
     successfulExtractions: 0,
@@ -61,14 +55,15 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     name: "USDT/USD",
   };
 
-  constructor() {
-    super();
+  constructor(config?: CcxtMultiExchangeConfig) {
+    super(config);
     this.adapterConfig = {
       tradesLimit: 1000,
       lambda: 0.00005,
       retryBackoffMs: 10000,
       enableUsdtConversion: true,
       tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
+      ...config,
     };
   }
 
@@ -86,7 +81,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     return adapter;
   }
 
-  async connect(): Promise<void> {
+  protected async doConnect(): Promise<void> {
     if (this.isInitialized) {
       return;
     }
@@ -110,14 +105,14 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     }
   }
 
-  async disconnect(): Promise<void> {
+  protected async doDisconnect(): Promise<void> {
     this.isInitialized = false;
     // CCXT doesn't have a clean shutdown method, but we can mark as disconnected
     this.logger.log("CCXT multi-exchange adapter disconnected");
   }
 
   isConnected(): boolean {
-    return this.isInitialized;
+    return super.isConnected() && this.isInitialized;
   }
 
   normalizePriceData(rawData: any): PriceUpdate {
@@ -433,8 +428,7 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     };
   }
 
-  // Health check using CCXT
-  async healthCheck(): Promise<boolean> {
+  protected async doHealthCheck(): Promise<boolean> {
     try {
       if (!this.isInitialized) {
         return false;
@@ -535,24 +529,13 @@ export class CcxtMultiExchangeAdapter extends ExchangeAdapter {
     return reliabilityFactors[exchangeName] || 0.8; // Default reliability for unknown exchanges
   }
 
-  // Required abstract methods (not used in CCXT context)
-  async subscribe(symbols: string[]): Promise<void> {
+  protected async doSubscribe(symbols: string[]): Promise<void> {
     // CCXT adapter doesn't use subscriptions - it uses the existing CCXT service
     this.logger.debug(`CCXT adapter doesn't support subscriptions for: ${symbols.join(", ")}`);
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
+  protected async doUnsubscribe(symbols: string[]): Promise<void> {
     // CCXT adapter doesn't use subscriptions
     this.logger.debug(`CCXT adapter doesn't support unsubscriptions for: ${symbols.join(", ")}`);
-  }
-
-  onPriceUpdate(_callback: (update: PriceUpdate) => void): void {
-    // CCXT adapter is pull-based, not push-based
-    this.logger.debug("CCXT adapter doesn't support price update callbacks");
-  }
-
-  onConnectionChange(_callback: (connected: boolean) => void): void {
-    // CCXT adapter doesn't have connection state changes in the traditional sense
-    this.logger.debug("CCXT adapter doesn't support connection change callbacks");
   }
 }

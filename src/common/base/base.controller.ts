@@ -12,8 +12,8 @@ import { createTimer, PerformanceUtils } from "../utils/performance.utils";
 export abstract class BaseController extends BaseService {
   protected readonly startupTime: number = Date.now();
 
-  constructor(controllerName: string, useEnhancedLogger = false) {
-    super(controllerName, useEnhancedLogger);
+  constructor(controllerName: string) {
+    super(controllerName);
   }
 
   /**

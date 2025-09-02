@@ -1,10 +1,11 @@
 import { BaseService } from "../base/base.service";
 import { Logger } from "@nestjs/common";
+import { EnhancedLoggerService } from "../logging/enhanced-logger.service";
 
 // Test implementation of BaseService
 class TestService extends BaseService {
-  constructor(useEnhancedLogger = false) {
-    super("TestService", useEnhancedLogger);
+  constructor(useEnhancedLogging?: boolean) {
+    super("TestService", useEnhancedLogging);
   }
 
   public testLogInitialization() {
@@ -56,6 +57,7 @@ describe("BaseService", () => {
     it("should create enhanced logger when requested", () => {
       const serviceWithEnhanced = new TestService(true);
       expect(serviceWithEnhanced["enhancedLogger"]).toBeDefined();
+      expect(serviceWithEnhanced["enhancedLogger"]).toBeInstanceOf(EnhancedLoggerService);
     });
 
     it("should not create enhanced logger by default", () => {

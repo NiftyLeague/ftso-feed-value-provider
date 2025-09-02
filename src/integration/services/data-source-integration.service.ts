@@ -4,14 +4,7 @@ import { BaseEventService } from "@/common/base/base-event.service";
 // Core components
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
-import { ExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
-
-// Exchange adapters
-import { BinanceAdapter } from "@/adapters/crypto/binance.adapter";
-import { CoinbaseAdapter } from "@/adapters/crypto/coinbase.adapter";
-import { KrakenAdapter } from "@/adapters/crypto/kraken.adapter";
-import { OkxAdapter } from "@/adapters/crypto/okx.adapter";
-import { CryptocomAdapter } from "@/adapters/crypto/cryptocom.adapter";
+import { IExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
 
 // Error handling
 import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
@@ -37,7 +30,7 @@ export class DataSourceIntegrationService extends BaseEventService {
     private readonly connectionRecovery: ConnectionRecoveryService,
     private readonly dataSourceFactory: DataSourceFactory
   ) {
-    super("DataSourceIntegration", true); // Enable enhanced logging
+    super("DataSourceIntegration", true); // Needs enhanced logging for performance tracking and critical operations
   }
 
   async initialize(): Promise<void> {
@@ -125,70 +118,50 @@ export class DataSourceIntegrationService extends BaseEventService {
   // Private methods
   private async registerExchangeAdapters(): Promise<void> {
     const operationId = `register_adapters_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "register_exchange_adapters", "DataSourceIntegration");
+    this.startPerformanceTimer(operationId, "register_exchange_adapters");
 
     try {
-      const adaptersToRegister = [
-        { name: "binance", adapter: new BinanceAdapter() },
-        { name: "coinbase", adapter: new CoinbaseAdapter() },
-        { name: "cryptocom", adapter: new CryptocomAdapter() },
-        { name: "kraken", adapter: new KrakenAdapter() },
-        { name: "okx", adapter: new OkxAdapter() },
-      ];
+      // Verify that adapters are already registered by AdaptersModule
+      const expectedAdapters = ["binance", "coinbase", "cryptocom", "kraken", "okx", "ccxt-multi-exchange"];
 
-      let registeredCount = 0;
-      let skippedCount = 0;
+      let availableCount = 0;
+      let missingAdapters: string[] = [];
 
-      for (const { name, adapter } of adaptersToRegister) {
-        try {
-          this.adapterRegistry.register(name, adapter);
-          registeredCount++;
-
-          this.enhancedLogger.log(`Exchange adapter registered: ${name}`, {
-            component: "DataSourceIntegration",
-            operation: "adapter_registration",
-            sourceId: name,
-            metadata: { adapterType: adapter.constructor.name },
+      for (const adapterName of expectedAdapters) {
+        if (this.adapterRegistry.has(adapterName)) {
+          availableCount++;
+          this.logDebug(`Exchange adapter available: ${adapterName}`, "adapter_verification", {
+            sourceId: adapterName,
           });
-        } catch (error) {
-          if (error.message.includes("already registered")) {
-            skippedCount++;
-            this.enhancedLogger.debug(`Adapter ${name} already registered, skipping`, {
-              component: "DataSourceIntegration",
-              operation: "adapter_registration",
-              sourceId: name,
-            });
-          } else {
-            this.enhancedLogger.error(error, {
-              component: "DataSourceIntegration",
-              operation: "adapter_registration",
-              sourceId: name,
-              severity: "high",
-            });
-            throw error;
-          }
+        } else {
+          missingAdapters.push(adapterName);
         }
       }
 
-      this.enhancedLogger.logCriticalOperation(
-        "register_exchange_adapters",
-        "DataSourceIntegration",
+      if (missingAdapters.length > 0) {
+        this.logWarning(`Missing adapters: ${missingAdapters.join(", ")}`, "adapter_verification", {
+          missingCount: missingAdapters.length,
+          totalExpected: expectedAdapters.length,
+        });
+      }
+
+      this.logCriticalOperation(
+        "verify_exchange_adapters",
         {
-          totalAdapters: adaptersToRegister.length,
-          registeredCount,
-          skippedCount,
+          totalExpected: expectedAdapters.length,
+          availableCount,
+          missingCount: missingAdapters.length,
         },
-        true
+        missingAdapters.length === 0
       );
 
-      this.enhancedLogger.endPerformanceTimer(operationId, true, { registeredCount, skippedCount });
-    } catch (error) {
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
-      this.enhancedLogger.error(error, {
-        component: "DataSourceIntegration",
-        operation: "register_exchange_adapters",
-        severity: "critical",
+      this.endPerformanceTimer(operationId, true, {
+        availableCount,
+        missingCount: missingAdapters.length,
       });
+    } catch (error) {
+      this.endPerformanceTimer(operationId, false, { error: error.message });
+      this.logError(error as Error, "verify_exchange_adapters", { severity: "critical" });
       throw error;
     }
   }
@@ -458,7 +431,7 @@ export class DataSourceIntegrationService extends BaseEventService {
     }
   }
 
-  private handleConnectionRecoveryEvent(eventType: string, sourceId: string, result?: any): void {
+  private handleConnectionRecoveryEvent(eventType: string, sourceId: string, result?: unknown): void {
     try {
       this.logger.log(`Connection recovery event: ${eventType} for ${sourceId}`);
       this.emit("connectionRecoveryEvent", eventType, sourceId, result);
@@ -492,7 +465,7 @@ export class DataSourceIntegrationService extends BaseEventService {
   }
 
   // Helper methods
-  private createDataSourceFromAdapter(adapter: ExchangeAdapter): DataSource {
+  private createDataSourceFromAdapter(adapter: IExchangeAdapter): DataSource {
     const priority = this.getAdapterPriority(adapter.exchangeName);
     return this.dataSourceFactory.createFromAdapter(adapter, priority);
   }

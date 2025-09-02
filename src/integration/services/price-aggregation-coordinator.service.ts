@@ -30,19 +30,15 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
     private readonly cachePerformanceMonitor: CachePerformanceMonitorService,
     private readonly configService: ConfigService
   ) {
-    super("PriceAggregationCoordinator", true); // Enable enhanced logging
+    super("PriceAggregationCoordinator", true); // Needs enhanced logging for performance tracking and critical operations
   }
 
   async initialize(): Promise<void> {
     const operationId = `init_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(
-      operationId,
-      "price_aggregation_initialization",
-      "PriceAggregationCoordinator"
-    );
+    this.startPerformanceTimer(operationId, "price_aggregation_initialization");
 
     try {
-      this.enhancedLogger.logCriticalOperation("price_aggregation_initialization", "PriceAggregationCoordinator", {
+      this.logCriticalOperation("price_aggregation_initialization", {
         phase: "starting",
         timestamp: Date.now(),
       });
@@ -58,9 +54,8 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
 
       this.isInitialized = true;
 
-      this.enhancedLogger.logCriticalOperation(
+      this.logCriticalOperation(
         "price_aggregation_initialization",
-        "PriceAggregationCoordinator",
         {
           phase: "completed",
           timestamp: Date.now(),
@@ -69,14 +64,10 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
         true
       );
 
-      this.enhancedLogger.endPerformanceTimer(operationId, true, { initialized: true });
+      this.endPerformanceTimer(operationId, true, { initialized: true });
     } catch (error) {
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
-      this.enhancedLogger.error(error, {
-        component: "PriceAggregationCoordinator",
-        operation: "price_aggregation_initialization",
-        severity: "critical",
-      });
+      this.endPerformanceTimer(operationId, false, { error: error.message });
+      this.logError(error as Error, "price_aggregation_initialization", { severity: "critical" });
       throw error;
     }
   }

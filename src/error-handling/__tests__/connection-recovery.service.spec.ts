@@ -209,8 +209,8 @@ describe("ConnectionRecoveryService", () => {
 
       const failoverTime = Date.now() - startTime;
       expect(failoverTime).toBeLessThan(200); // Allow some buffer for test execution
-      expect(result.success).toBe(true);
-      expect(result.failoverTime).toBeLessThan(200);
+      expect((result as any).success).toBe(true);
+      expect((result as any).failoverTime).toBeLessThan(200);
     });
 
     it("should update connection health on failover", async () => {
@@ -224,7 +224,7 @@ describe("ConnectionRecoveryService", () => {
     it("should emit failover events", done => {
       service.on("failoverCompleted", (sourceId, result) => {
         expect(sourceId).toBe("source1");
-        expect(result.success).toBe(true);
+        expect((result as any).success).toBe(true);
         done();
       });
 
@@ -450,7 +450,7 @@ describe("ConnectionRecoveryService", () => {
 
       const result = await service.triggerFailover("test-source", "Test error handling");
 
-      expect(result.success).toBe(false);
+      expect((result as any).success).toBe(false);
       expect(result.degradationLevel).toBe("severe");
 
       // Restore original method

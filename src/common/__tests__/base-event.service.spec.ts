@@ -1,10 +1,11 @@
 import { BaseEventService } from "../base/base-event.service";
 import { Logger } from "@nestjs/common";
+import { EnhancedLoggerService } from "../logging/enhanced-logger.service";
 
 // Test implementation of BaseEventService
 class TestEventService extends BaseEventService {
-  constructor(useEnhancedLogger = false) {
-    super("TestEventService", useEnhancedLogger);
+  constructor(useEnhancedLogging?: boolean) {
+    super("TestEventService", useEnhancedLogging);
   }
 
   public testEmitWithLogging(event: string, ...args: any[]) {
@@ -60,6 +61,7 @@ describe("BaseEventService", () => {
     it("should create enhanced logger when requested", () => {
       const serviceWithEnhanced = new TestEventService(true);
       expect(serviceWithEnhanced["enhancedLogger"]).toBeDefined();
+      expect(serviceWithEnhanced["enhancedLogger"]).toBeInstanceOf(EnhancedLoggerService);
     });
 
     it("should not create enhanced logger by default", () => {
@@ -284,14 +286,14 @@ describe("BaseEventService", () => {
   });
 
   describe("enhanced logging integration", () => {
-    it("should use enhanced logger when enabled", () => {
+    it("should use regular logger for error logging", () => {
       const serviceWithEnhanced = new TestEventService(true);
-      const enhancedLoggerSpy = jest.spyOn(serviceWithEnhanced["enhancedLogger"]!, "error").mockImplementation();
+      const errorSpy = jest.spyOn(Logger.prototype, "error");
 
       const testError = new Error("Test error");
       serviceWithEnhanced["logError"](testError, "test-context");
 
-      expect(enhancedLoggerSpy).toHaveBeenCalledWith("[test-context] Test error", undefined);
+      expect(errorSpy).toHaveBeenCalledWith("[test-context] Test error", testError.stack, undefined);
     });
   });
 });

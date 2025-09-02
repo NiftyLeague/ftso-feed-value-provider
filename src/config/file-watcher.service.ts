@@ -22,7 +22,7 @@ export class FileWatcherService extends BaseService implements OnModuleDestroy {
   >();
 
   constructor() {
-    super("FileWatcherService", true);
+    super("FileWatcherService");
   }
 
   /**

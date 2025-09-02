@@ -94,7 +94,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     private readonly connectionRecovery: ConnectionRecoveryService,
     private readonly ccxtAdapter: CcxtMultiExchangeAdapter
   ) {
-    super("HybridErrorHandlerService", true);
+    super("HybridErrorHandlerService");
     this.config = { ...this.defaultConfig };
     this.initializeErrorClassifications();
     this.startRecoveryMonitoring();

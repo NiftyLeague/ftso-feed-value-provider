@@ -23,7 +23,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   };
 
   constructor() {
-    super("RealTimeCacheService");
+    super("RealTimeCacheService"); // Basic caching operations don't need enhanced logging
     this.config = {
       maxTTL: 1000, // 1 second maximum TTL as per requirement 6.2
       maxEntries: 10000,
