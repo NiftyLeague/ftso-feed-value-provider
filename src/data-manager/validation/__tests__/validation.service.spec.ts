@@ -1,8 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationService } from "../validation.service";
-import { DataValidator, ValidationResult } from "../data-validator";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { DataValidator } from "../data-validator";
+import type { DataValidatorResult } from "@/common/types/data-manager";
+import { type PriceUpdate, type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { ValidationErrorType, ErrorCode, ErrorSeverity } from "@/common/types/error-handling";
 
 describe("ValidationService", () => {
   let service: ValidationService;
@@ -47,18 +48,20 @@ describe("ValidationService", () => {
   });
 
   afterEach(() => {
-    service.cleanup();
+    service.cleanupForTests();
     // Restore console methods after each test
     jest.restoreAllMocks();
   });
 
   describe("Real-time Validation", () => {
     it("should validate a price update successfully", async () => {
-      const mockResult: ValidationResult = {
+      const mockResult: DataValidatorResult = {
         isValid: true,
         errors: [],
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
+        warnings: [],
+        timestamp: Date.now(),
       };
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
@@ -80,11 +83,13 @@ describe("ValidationService", () => {
     });
 
     it("should use cached results when available", async () => {
-      const mockResult: ValidationResult = {
+      const mockResult: DataValidatorResult = {
         isValid: true,
         errors: [],
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
+        warnings: [],
+        timestamp: Date.now(),
       };
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
@@ -103,11 +108,13 @@ describe("ValidationService", () => {
   describe("Batch Validation", () => {
     it("should validate multiple updates", async () => {
       const updates = [mockUpdate, { ...mockUpdate, source: "another-exchange" }];
-      const mockResults = new Map<string, ValidationResult>();
+      const mockResults = new Map<string, DataValidatorResult>();
 
       mockResults.set("test-exchange-BTC/USD-" + mockUpdate.timestamp, {
         isValid: true,
         errors: [],
+        warnings: [],
+        timestamp: Date.now(),
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
       });
@@ -132,17 +139,30 @@ describe("ValidationService", () => {
     it("should filter valid updates from validation results", () => {
       const updates = [mockUpdate, { ...mockUpdate, source: "another-exchange", timestamp: Date.now() + 1000 }];
 
-      const validationResults = new Map<string, ValidationResult>();
+      const validationResults = new Map<string, DataValidatorResult>();
       validationResults.set(`${mockUpdate.source}-${mockUpdate.symbol}-${mockUpdate.timestamp}`, {
         isValid: true,
         errors: [],
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
+        warnings: [],
+        timestamp: Date.now(),
       });
       validationResults.set(`another-exchange-${mockUpdate.symbol}-${mockUpdate.timestamp + 1000}`, {
         isValid: false,
-        errors: [{ type: "format_error" as any, message: "Invalid price", severity: "critical" }],
+        errors: [
+          {
+            code: ErrorCode.DATA_VALIDATION_FAILED,
+            type: ValidationErrorType.FORMAT_ERROR,
+            message: "Invalid price",
+            severity: ErrorSeverity.CRITICAL,
+            operation: "validateRealTime",
+            validationErrors: ["Invalid price"],
+          },
+        ],
         confidence: 0,
+        warnings: [],
+        timestamp: Date.now(),
       });
 
       const validUpdates = service.filterValidUpdates(updates, validationResults);
@@ -154,7 +174,7 @@ describe("ValidationService", () => {
 
   describe("Statistics", () => {
     it("should return validation statistics", () => {
-      const stats = service.getValidationStatistics();
+      const stats = service.getValidationStats();
 
       expect(stats).toBeDefined();
       expect(typeof stats.totalValidations).toBe("number");
@@ -179,24 +199,23 @@ describe("ValidationService", () => {
 
   describe("Configuration", () => {
     it("should work with custom configuration", () => {
-      const customConfig = {
-        enableRealTimeValidation: false,
-        validationCacheSize: 500,
-      };
+      // Using default config; ensure service constructs successfully
 
       const customService = new ValidationService(dataValidator);
       expect(customService).toBeDefined();
-      customService.cleanup(); // Clean up the custom service
+      customService.cleanupForTests(); // Clean up the custom service
     });
   });
 
   describe("Event Emission", () => {
     it("should emit validation events", async () => {
-      const mockResult: ValidationResult = {
+      const mockResult: DataValidatorResult = {
         isValid: true,
         errors: [],
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
+        warnings: [],
+        timestamp: Date.now(),
       };
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
@@ -212,10 +231,21 @@ describe("ValidationService", () => {
     });
 
     it("should emit validation failure events", async () => {
-      const mockResult: ValidationResult = {
+      const mockResult: DataValidatorResult = {
         isValid: false,
-        errors: [{ type: "format_error" as any, message: "Invalid price", severity: "critical" }],
+        errors: [
+          {
+            code: ErrorCode.DATA_VALIDATION_FAILED,
+            type: ValidationErrorType.FORMAT_ERROR,
+            message: "Invalid price",
+            severity: ErrorSeverity.CRITICAL,
+            operation: "validateRealTime",
+            validationErrors: ["Invalid price"],
+          },
+        ],
         confidence: 0,
+        warnings: [],
+        timestamp: Date.now(),
       };
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
@@ -249,7 +279,7 @@ describe("ValidationService", () => {
       expect(result.isValid).toBe(true);
       expect(result.confidence).toBe(mockUpdate.confidence);
 
-      disabledService.cleanup(); // Clean up the disabled service
+      disabledService.cleanupForTests(); // Clean up the disabled service
     });
 
     it("should bypass batch validation when disabled", async () => {
@@ -261,10 +291,10 @@ describe("ValidationService", () => {
       const results = await disabledService.validateBatch(updates, mockFeedId);
 
       expect(results.size).toBe(1);
-      const result = results.values().next().value;
+      const result = results.values().next().value as DataValidatorResult;
       expect(result.isValid).toBe(true);
 
-      disabledService.cleanup(); // Clean up the disabled service
+      disabledService.cleanupForTests(); // Clean up the disabled service
     });
   });
 });

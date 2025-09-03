@@ -4,24 +4,7 @@
  */
 
 import { HttpException, HttpStatus } from "@nestjs/common";
-
-export interface ApiResponse<T = any> {
-  status: string;
-  timestamp: number;
-  responseTime?: number;
-  requestId?: string;
-  data?: T;
-  error?: string;
-  message?: string;
-  details?: any;
-}
-
-export interface ErrorResponse extends ApiResponse {
-  error: string;
-  message: string;
-  path?: string;
-  stack?: string;
-}
+import type { ApiResponse, ErrorResponse } from "../types/http/http.types";
 
 /**
  * Create standardized success response
@@ -34,11 +17,12 @@ export function createSuccessResponse<T>(
     message?: string;
   } = {}
 ): ApiResponse<T> {
+  const { requestId } = options;
   return {
-    status: "success",
+    success: true,
     timestamp: Date.now(),
     data,
-    ...options,
+    ...(requestId ? { requestId } : {}),
   };
 }
 
@@ -51,7 +35,7 @@ export function createErrorResponse(
   options: {
     responseTime?: number;
     requestId?: string;
-    details?: any;
+    details?: Record<string, unknown>;
     path?: string;
     stack?: string;
   } = {}
@@ -75,7 +59,7 @@ export function throwHttpException(
   options: {
     responseTime?: number;
     requestId?: string;
-    details?: any;
+    details?: Record<string, unknown>;
     path?: string;
   } = {}
 ): never {
@@ -88,22 +72,24 @@ export function throwHttpException(
  * Common HTTP exception creators
  */
 export const HttpExceptions = {
-  badRequest: (message: string, options?: { requestId?: string; details?: any }) =>
+  badRequest: (message: string, options?: { requestId?: string; details?: Record<string, unknown> }) =>
     throwHttpException(HttpStatus.BAD_REQUEST, "Bad Request", message, options),
 
-  notFound: (message: string, options?: { requestId?: string; details?: any }) =>
+  notFound: (message: string, options?: { requestId?: string; details?: Record<string, unknown> }) =>
     throwHttpException(HttpStatus.NOT_FOUND, "Not Found", message, options),
 
-  internalServerError: (message: string, options?: { requestId?: string; details?: any; stack?: string }) =>
-    throwHttpException(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", message, options),
+  internalServerError: (
+    message: string,
+    options?: { requestId?: string; details?: Record<string, unknown>; stack?: string }
+  ) => throwHttpException(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", message, options),
 
-  serviceUnavailable: (message: string, options?: { requestId?: string; details?: any }) =>
+  serviceUnavailable: (message: string, options?: { requestId?: string; details?: Record<string, unknown> }) =>
     throwHttpException(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable", message, options),
 
-  badGateway: (message: string, options?: { requestId?: string; details?: any }) =>
+  badGateway: (message: string, options?: { requestId?: string; details?: Record<string, unknown> }) =>
     throwHttpException(HttpStatus.BAD_GATEWAY, "Bad Gateway", message, options),
 
-  tooManyRequests: (message: string, options?: { requestId?: string; details?: unknown }) =>
+  tooManyRequests: (message: string, options?: { requestId?: string; details?: Record<string, unknown> }) =>
     throwHttpException(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", message, options),
 };
 

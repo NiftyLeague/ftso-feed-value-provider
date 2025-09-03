@@ -1,8 +1,8 @@
+import type { CacheEntry } from "@/common/types/cache";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+
 import { CacheWarmerService } from "../cache-warmer.service";
 import { RealTimeCacheService } from "../real-time-cache.service";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { CacheEntry } from "../interfaces/cache.interfaces";
-import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 
 describe("CacheWarmerService", () => {
   let warmerService: CacheWarmerService;
@@ -176,7 +176,7 @@ describe("CacheWarmerService", () => {
       warmerService.trackFeedAccess(mockFeedId2);
 
       // Mock fetchFreshData to fail for first feed but succeed for second
-      const spy = jest.spyOn(warmerService as any, "fetchFreshData").mockImplementation((feedId: EnhancedFeedId) => {
+      const spy = jest.spyOn(warmerService as any, "fetchFreshData").mockImplementation((feedId: any) => {
         if (feedId.name === "BTC/USD") {
           return Promise.reject(new Error("Network error"));
         }

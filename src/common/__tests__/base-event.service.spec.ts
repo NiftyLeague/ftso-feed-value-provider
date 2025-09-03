@@ -39,11 +39,10 @@ class TestEventService extends BaseEventService {
 
 describe("BaseEventService", () => {
   let service: TestEventService;
-  let loggerSpy: jest.SpyInstance;
 
   beforeEach(() => {
     service = new TestEventService();
-    loggerSpy = jest.spyOn(Logger.prototype, "log").mockImplementation();
+    jest.spyOn(Logger.prototype, "log").mockImplementation();
     jest.spyOn(Logger.prototype, "warn").mockImplementation();
     jest.spyOn(Logger.prototype, "error").mockImplementation();
     jest.spyOn(Logger.prototype, "debug").mockImplementation();

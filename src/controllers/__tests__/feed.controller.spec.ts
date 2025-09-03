@@ -1,24 +1,22 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { HttpStatus } from "@nestjs/common";
-import { FeedController } from "../feed.controller";
-import { FtsoProviderService } from "../../app.service";
-import { RealTimeCacheService } from "../../cache/real-time-cache.service";
-import { RealTimeAggregationService } from "../../aggregators/real-time-aggregation.service";
-import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.service";
-import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
+import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { ApiMonitorService } from "@/monitoring/api-monitor.service";
+import { FtsoProviderService } from "@/app.service";
 import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
-import { ApiMonitorService } from "../../monitoring/api-monitor.service";
-import { FeedCategory } from "@/common/types/feed.types";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
+import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
+import { RealTimeCacheService } from "@/cache/real-time-cache.service";
+import { FeedCategory } from "@/common/types/core";
+
+import { FeedController } from "../feed.controller";
 
 describe("FeedController - Feed Value Endpoints", () => {
   let controller: FeedController;
   let providerService: jest.Mocked<FtsoProviderService>;
   let cacheService: jest.Mocked<RealTimeCacheService>;
   let aggregationService: jest.Mocked<RealTimeAggregationService>;
-  let errorHandler: ApiErrorHandlerService;
 
   const mockFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
-  const mockFeedValue = { feed: mockFeedId, value: 50000 };
   const mockVolumeData = { feed: mockFeedId, volumes: [{ exchange: "binance", volume: 1000000 }] };
 
   beforeEach(async () => {
@@ -126,7 +124,7 @@ describe("FeedController - Feed Value Endpoints", () => {
     providerService = module.get("FTSO_PROVIDER_SERVICE");
     cacheService = module.get(RealTimeCacheService);
     aggregationService = module.get(RealTimeAggregationService);
-    errorHandler = module.get(ApiErrorHandlerService);
+    // No need to store error handler instance for these tests
   });
 
   afterEach(() => {

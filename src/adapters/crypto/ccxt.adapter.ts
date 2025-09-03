@@ -1,7 +1,12 @@
-import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory, EnhancedFeedId } from "@/common/types/feed.types";
+import type {
+  ExchangeCapabilities,
+  ExchangeConnectionConfig,
+  RawPriceData,
+  RawVolumeData,
+} from "@/common/types/adapters";
+import type { PriceUpdate, VolumeUpdate, EnhancedFeedId } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
   tradesLimit?: number; // CCXT trades limit (default: 1000)
@@ -111,46 +116,64 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     this.logger.log("CCXT multi-exchange adapter disconnected");
   }
 
-  isConnected(): boolean {
+  override isConnected(): boolean {
     return super.isConnected() && this.isInitialized;
   }
 
-  normalizePriceData(rawData: any): PriceUpdate {
+  normalizePriceData(rawData: RawPriceData): PriceUpdate {
     // CCXT adapter doesn't receive raw data in the traditional sense
     // This method is called internally after fetching from CCXT
     const { feedId, price, timestamp } = rawData;
 
+    const numericPrice = typeof price === "string" ? parseFloat(price) : price;
+    const numericTimestamp = typeof timestamp === "string" ? parseInt(timestamp, 10) : timestamp;
+
+    if (typeof numericPrice !== "number" || isNaN(numericPrice)) {
+      throw new Error(`Invalid price received: ${price}`);
+    }
+    if (typeof numericTimestamp !== "number" || isNaN(numericTimestamp)) {
+      throw new Error(`Invalid timestamp received: ${timestamp}`);
+    }
+
     return {
-      symbol: feedId.name,
-      price,
-      timestamp: timestamp || Date.now(),
+      symbol: (feedId as EnhancedFeedId).name, // Cast feedId to EnhancedFeedId
+      price: numericPrice,
+      timestamp: numericTimestamp || Date.now(),
       source: this.exchangeName,
       confidence: this.calculateConfidence(rawData, {
-        latency: Date.now() - (timestamp || Date.now()),
+        latency: Date.now() - (numericTimestamp || Date.now()),
       }),
     };
   }
 
-  normalizeVolumeData(rawData: any): VolumeUpdate {
+  normalizeVolumeData(rawData: RawVolumeData): VolumeUpdate {
     const { feedId, volume, timestamp } = rawData;
 
+    const numericVolume = typeof volume === "string" ? parseFloat(volume) : volume;
+    const numericTimestamp = typeof timestamp === "string" ? parseInt(timestamp, 10) : timestamp;
+
+    if (typeof numericVolume !== "number" || isNaN(numericVolume)) {
+      throw new Error(`Invalid volume received: ${volume}`);
+    }
+    if (typeof numericTimestamp !== "number" || isNaN(numericTimestamp)) {
+      throw new Error(`Invalid timestamp received: ${timestamp}`);
+    }
+
     return {
-      symbol: feedId.name,
-      volume,
-      timestamp: timestamp || Date.now(),
+      symbol: (feedId as EnhancedFeedId).name, // Cast feedId to EnhancedFeedId
+      volume: numericVolume,
+      timestamp: numericTimestamp || Date.now(),
       source: this.exchangeName,
     };
   }
 
-  validateResponse(rawData: any): boolean {
-    return !!(
-      rawData &&
-      typeof rawData === "object" &&
-      rawData.feedId &&
-      typeof rawData.price === "number" &&
-      !isNaN(rawData.price) &&
-      rawData.price > 0
-    );
+  validateResponse(rawData: unknown): boolean {
+    if (!rawData || typeof rawData !== "object") return false;
+    const obj = rawData as { feedId?: unknown; price?: unknown };
+    const hasFeedId = obj.feedId !== undefined && obj.feedId !== null;
+    const priceVal = obj.price;
+    const isNum = typeof priceVal === "number" && !Number.isNaN(priceVal) && priceVal > 0;
+    return hasFeedId && isNum;
   }
 
   // Get single price from CCXT (for backward compatibility)
@@ -448,12 +471,12 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Get configuration
-  getConfig(): CcxtMultiExchangeConfig {
+  override getConfig(): CcxtMultiExchangeConfig {
     return { ...this.adapterConfig };
   }
 
   // Update configuration
-  updateConfig(config: Partial<CcxtMultiExchangeConfig>): void {
+  override updateConfig(config: Partial<CcxtMultiExchangeConfig>): void {
     this.adapterConfig = { ...this.adapterConfig, ...config };
   }
 
@@ -474,7 +497,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Access CCXT's private latestPrice Map using reflection
-  private getLatestPriceMap(): Map<string, Map<string, any>> {
+  private getLatestPriceMap(): Map<string, Map<string, { value: number; time: number }>> {
     try {
       throw new Error("CCXT price map access not yet implemented");
     } catch (error) {

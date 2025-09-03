@@ -2,7 +2,7 @@
  * Error and Retry Utilities
  */
 
-import { ILogger } from "../logging/logger.interface";
+import type { ILogger } from "../types/logging";
 import { sleepFor } from "./common.utils";
 
 // Error handling utilities

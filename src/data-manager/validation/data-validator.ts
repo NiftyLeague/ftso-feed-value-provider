@@ -1,56 +1,40 @@
 import { Injectable } from "@nestjs/common";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { EnhancedFeedId } from "@/common/types/feed.types";
 import { BaseService } from "@/common/base/base.service";
-import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
 
-export interface ValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
-  confidence: number;
-  adjustedUpdate?: PriceUpdate;
-}
+import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handling";
+import { ErrorCode } from "@/common/types/error-handling/error.types";
+import type { DataValidationError as BaseDataValidationError } from "@/common/types/error-handling";
+import type { PriceUpdate } from "@/common/types/core";
+import type { DataValidatorConfig, DataValidatorResult, ValidationContext } from "@/common/types/data-manager";
+export type { ValidationContext } from "@/common/types/data-manager";
 
-export interface ValidationError {
-  type: ValidationErrorType;
-  message: string;
-  severity: "low" | "medium" | "high" | "critical";
+// Extended validation error type with optional fields used across methods
+// Keeps strict typing while removing inline import() usages.
+export type ExtendedDataValidationError = BaseDataValidationError & {
+  type?: ValidationErrorType;
   field?: string;
-  value?: any;
-}
-
-export enum ValidationErrorType {
-  FORMAT_ERROR = "format_error",
-  RANGE_ERROR = "range_error",
-  STALENESS_ERROR = "staleness_error",
-  OUTLIER_ERROR = "outlier_error",
-  CONSENSUS_ERROR = "consensus_error",
-  CROSS_SOURCE_ERROR = "cross_source_error",
-}
-
-export interface ValidationContext {
-  feedId: EnhancedFeedId;
-  historicalPrices: PriceUpdate[];
-  crossSourcePrices: PriceUpdate[];
-  consensusMedian?: number;
-  marketConditions?: MarketConditions;
-}
-
-export interface MarketConditions {
-  volatility: number;
-  volume: number;
-  spread: number;
-  isMarketOpen: boolean;
-}
+  value?: unknown;
+  path?: string;
+  rule?: string;
+};
 
 @Injectable()
 export class DataValidator extends BaseService {
   // Default validation configuration
-  private readonly defaultConfig: ValidationConfig = {
+  private readonly defaultConfig: DataValidatorConfig = {
     maxAge: 2000, // 2 seconds (Requirement 2.5)
     priceRange: { min: 0.01, max: 1000000 },
     outlierThreshold: 0.05, // 5% deviation
     consensusWeight: 0.8,
+    enableRealTimeValidation: true,
+    enableBatchValidation: true,
+    maxBatchSize: 100,
+    validationTimeout: 5000,
+    // Additional required fields for DataValidatorConfig
+    crossSourceWindow: 10_000,
+    historicalDataWindow: 50,
+    validationCacheSize: 1000,
+    validationCacheTTL: 5000,
   };
 
   constructor() {
@@ -61,10 +45,10 @@ export class DataValidator extends BaseService {
   async validateUpdate(
     update: PriceUpdate,
     context: ValidationContext,
-    config?: Partial<ValidationConfig>
-  ): Promise<ValidationResult> {
-    const validationConfig = { ...this.defaultConfig, ...config };
-    const errors: ValidationError[] = [];
+    config?: Partial<DataValidatorConfig>
+  ): Promise<DataValidatorResult> {
+    const DataValidatorConfig = { ...this.defaultConfig, ...config };
+    const errors: ExtendedDataValidationError[] = [];
     let confidence = update?.confidence || 0;
 
     try {
@@ -73,12 +57,16 @@ export class DataValidator extends BaseService {
         return {
           isValid: false,
           errors: [
-            {
-              type: ValidationErrorType.FORMAT_ERROR,
-              message: "Update is null or undefined",
-              severity: "critical",
-            },
+            this.makeValidationError(
+              "Update is null or undefined",
+              "validateUpdate",
+              ["update is null or undefined"],
+              ErrorSeverity.CRITICAL,
+              { type: ValidationErrorType.FORMAT_ERROR }
+            ),
           ],
+          warnings: [],
+          timestamp: Date.now(),
           confidence: 0,
         };
       }
@@ -88,15 +76,15 @@ export class DataValidator extends BaseService {
       errors.push(...formatErrors);
 
       // Tier 2: Range validation
-      const rangeErrors = this.validateRange(update, validationConfig);
+      const rangeErrors = this.validateRange(update, DataValidatorConfig);
       errors.push(...rangeErrors);
 
       // Tier 3: Staleness validation (Requirement 2.5)
-      const stalenessErrors = this.validateStaleness(update, validationConfig);
+      const stalenessErrors = this.validateStaleness(update, DataValidatorConfig);
       errors.push(...stalenessErrors);
 
       // Tier 4: Statistical outlier detection (Requirement 2.2)
-      const outlierErrors = await this.validateOutliers(update, context, validationConfig);
+      const outlierErrors = await this.validateOutliers(update, context, DataValidatorConfig);
       errors.push(...outlierErrors);
 
       // Tier 5: Cross-source validation (Requirement 2.1)
@@ -104,15 +92,15 @@ export class DataValidator extends BaseService {
       errors.push(...crossSourceErrors);
 
       // Tier 6: Consensus awareness validation (Requirement 2.6)
-      const consensusErrors = this.validateConsensusAlignment(update, context, validationConfig);
+      const consensusErrors = this.validateConsensusAlignment(update, context, DataValidatorConfig);
       errors.push(...consensusErrors);
 
       // Calculate overall confidence adjustment
       confidence = this.adjustConfidence(update.confidence, errors);
 
       // Determine if update is valid
-      const criticalErrors = errors.filter(e => e.severity === "critical");
-      const highErrors = errors.filter(e => e.severity === "high");
+      const criticalErrors = errors.filter(e => e.severity === ErrorSeverity.CRITICAL);
+      const highErrors = errors.filter(e => e.severity === ErrorSeverity.HIGH);
 
       const isValid = criticalErrors.length === 0 && highErrors.length <= 1;
 
@@ -122,146 +110,169 @@ export class DataValidator extends BaseService {
       return {
         isValid,
         errors,
+        warnings: [],
+        timestamp: Date.now(),
         confidence,
         adjustedUpdate,
       };
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Validation failed for ${update.source}:`, error);
 
       return {
         isValid: false,
         errors: [
-          {
-            type: ValidationErrorType.FORMAT_ERROR,
-            message: `Validation process failed: ${error.message}`,
-            severity: "critical",
-          },
+          this.makeValidationError(
+            `Validation process failed: ${message}`,
+            "validateUpdate",
+            ["unexpected error"],
+            ErrorSeverity.CRITICAL,
+            { type: ValidationErrorType.FORMAT_ERROR }
+          ),
         ],
+        warnings: [],
+        timestamp: Date.now(),
         confidence: 0,
       };
     }
   }
 
   // Format validation - ensures data structure integrity
-  private validateFormat(update: PriceUpdate): ValidationError[] {
-    const errors: ValidationError[] = [];
+  private validateFormat(update: PriceUpdate): ExtendedDataValidationError[] {
+    const errors: ExtendedDataValidationError[] = [];
 
     // Check required fields
     if (!update.symbol || typeof update.symbol !== "string") {
-      errors.push({
-        type: ValidationErrorType.FORMAT_ERROR,
-        message: "Invalid or missing symbol",
-        severity: "critical",
-        field: "symbol",
-        value: update.symbol,
-      });
+      errors.push(
+        this.makeValidationError("Invalid or missing symbol", "validateUpdate", ["symbol"], ErrorSeverity.CRITICAL, {
+          type: ValidationErrorType.FORMAT_ERROR,
+          field: "symbol",
+          value: update.symbol,
+        })
+      );
     }
 
     if (typeof update.price !== "number" || isNaN(update.price)) {
-      errors.push({
-        type: ValidationErrorType.FORMAT_ERROR,
-        message: "Invalid or missing price",
-        severity: "critical",
-        field: "price",
-        value: update.price,
-      });
+      errors.push(
+        this.makeValidationError("Invalid or missing price", "validateUpdate", ["price"], ErrorSeverity.CRITICAL, {
+          type: ValidationErrorType.FORMAT_ERROR,
+          field: "price",
+          value: update.price,
+        })
+      );
     }
 
     if (typeof update.timestamp !== "number" || update.timestamp <= 0) {
-      errors.push({
-        type: ValidationErrorType.FORMAT_ERROR,
-        message: "Invalid or missing timestamp",
-        severity: "critical",
-        field: "timestamp",
-        value: update.timestamp,
-      });
+      errors.push(
+        this.makeValidationError(
+          "Invalid or missing timestamp",
+          "validateUpdate",
+          ["timestamp"],
+          ErrorSeverity.CRITICAL,
+          {
+            type: ValidationErrorType.FORMAT_ERROR,
+            field: "timestamp",
+            value: update.timestamp,
+          }
+        )
+      );
     }
 
     if (!update.source || typeof update.source !== "string") {
-      errors.push({
-        type: ValidationErrorType.FORMAT_ERROR,
-        message: "Invalid or missing source",
-        severity: "critical",
-        field: "source",
-        value: update.source,
-      });
+      errors.push(
+        this.makeValidationError("Invalid or missing source", "validateUpdate", ["source"], ErrorSeverity.CRITICAL, {
+          type: ValidationErrorType.FORMAT_ERROR,
+          field: "source",
+          value: update.source,
+        })
+      );
     }
 
     if (typeof update.confidence !== "number" || update.confidence < 0 || update.confidence > 1) {
-      errors.push({
-        type: ValidationErrorType.FORMAT_ERROR,
-        message: "Invalid confidence value (must be between 0 and 1)",
-        severity: "medium",
-        field: "confidence",
-        value: update.confidence,
-      });
+      errors.push(
+        this.makeValidationError(
+          "Invalid confidence value (must be between 0 and 1)",
+          "validateUpdate",
+          ["confidence"],
+          ErrorSeverity.MEDIUM,
+          { type: ValidationErrorType.FORMAT_ERROR, field: "confidence", value: update.confidence }
+        )
+      );
     }
 
     return errors;
   }
 
   // Range validation - ensures price is within reasonable bounds
-  private validateRange(update: PriceUpdate, config: ValidationConfig): ValidationError[] {
-    const errors: ValidationError[] = [];
+  private validateRange(update: PriceUpdate, config: DataValidatorConfig): ExtendedDataValidationError[] {
+    const errors: ExtendedDataValidationError[] = [];
 
     if (update.price <= 0) {
-      errors.push({
-        type: ValidationErrorType.RANGE_ERROR,
-        message: "Price must be positive",
-        severity: "critical",
-        field: "price",
-        value: update.price,
-      });
+      errors.push(
+        this.makeValidationError("Price must be positive", "validateUpdate", ["price"], ErrorSeverity.CRITICAL, {
+          type: ValidationErrorType.RANGE_ERROR,
+          field: "price",
+          value: update.price,
+        })
+      );
     }
 
     if (update.price < config.priceRange.min) {
-      errors.push({
-        type: ValidationErrorType.RANGE_ERROR,
-        message: `Price ${update.price} below minimum ${config.priceRange.min}`,
-        severity: "high",
-        field: "price",
-        value: update.price,
-      });
+      errors.push(
+        this.makeValidationError(
+          `Price ${update.price} below minimum ${config.priceRange.min}`,
+          "validateUpdate",
+          ["price"],
+          ErrorSeverity.HIGH,
+          { type: ValidationErrorType.RANGE_ERROR, field: "price", value: update.price }
+        )
+      );
     }
 
     if (update.price > config.priceRange.max) {
-      errors.push({
-        type: ValidationErrorType.RANGE_ERROR,
-        message: `Price ${update.price} above maximum ${config.priceRange.max}`,
-        severity: "high",
-        field: "price",
-        value: update.price,
-      });
+      errors.push(
+        this.makeValidationError(
+          `Price ${update.price} above maximum ${config.priceRange.max}`,
+          "validateUpdate",
+          ["price"],
+          ErrorSeverity.HIGH,
+          { type: ValidationErrorType.RANGE_ERROR, field: "price", value: update.price }
+        )
+      );
     }
 
     return errors;
   }
 
   // Staleness validation - ensures data is fresh (Requirement 2.5)
-  private validateStaleness(update: PriceUpdate, config: ValidationConfig): ValidationError[] {
-    const errors: ValidationError[] = [];
+  private validateStaleness(update: PriceUpdate, config: DataValidatorConfig): ExtendedDataValidationError[] {
+    const errors: ExtendedDataValidationError[] = [];
     const now = Date.now();
     const age = now - update.timestamp;
 
     if (age > config.maxAge) {
-      errors.push({
-        type: ValidationErrorType.STALENESS_ERROR,
-        message: `Data is stale: ${age}ms old (max: ${config.maxAge}ms)`,
-        severity: "critical",
-        field: "timestamp",
-        value: age,
-      });
+      errors.push(
+        this.makeValidationError(
+          `Data is stale: ${age}ms old (max: ${config.maxAge}ms)`,
+          "validateUpdate",
+          ["timestamp"],
+          ErrorSeverity.CRITICAL,
+          { type: ValidationErrorType.STALENESS_ERROR, field: "timestamp", value: age }
+        )
+      );
     }
 
     // Warning for data approaching staleness threshold
     if (age > config.maxAge * 0.8) {
-      errors.push({
-        type: ValidationErrorType.STALENESS_ERROR,
-        message: `Data approaching staleness: ${age}ms old`,
-        severity: "low",
-        field: "timestamp",
-        value: age,
-      });
+      errors.push(
+        this.makeValidationError(
+          `Data approaching staleness: ${age}ms old`,
+          "validateUpdate",
+          ["timestamp"],
+          ErrorSeverity.LOW,
+          { type: ValidationErrorType.STALENESS_ERROR, field: "timestamp", value: age }
+        )
+      );
     }
 
     return errors;
@@ -271,17 +282,18 @@ export class DataValidator extends BaseService {
   private async validateOutliers(
     update: PriceUpdate,
     context: ValidationContext,
-    config: ValidationConfig
-  ): Promise<ValidationError[]> {
-    const errors: ValidationError[] = [];
+    config: DataValidatorConfig
+  ): Promise<ExtendedDataValidationError[]> {
+    const errors: ExtendedDataValidationError[] = [];
 
-    if (context.historicalPrices.length < 3) {
+    const historicalPrices = context.historicalPrices ?? [];
+    if (historicalPrices.length < 3) {
       // Not enough data for outlier detection
       return errors;
     }
 
     // Calculate statistical measures
-    const prices = context.historicalPrices.map(p => p.price);
+    const prices = historicalPrices.map(p => (p as PriceUpdate).price);
     const mean = prices.reduce((sum, price) => sum + price, 0) / prices.length;
     const variance = prices.reduce((sum, price) => sum + Math.pow(price - mean, 2), 0) / prices.length;
     const stdDev = Math.sqrt(variance);
@@ -291,45 +303,60 @@ export class DataValidator extends BaseService {
     const zScoreThreshold = 2.5; // 2.5 standard deviations
 
     if (zScore > zScoreThreshold) {
-      errors.push({
-        type: ValidationErrorType.OUTLIER_ERROR,
-        message: `Price is statistical outlier: z-score ${zScore.toFixed(2)}`,
-        severity: "medium",
-        field: "price",
-        value: { price: update.price, zScore, mean, stdDev },
-      });
+      errors.push(
+        this.makeValidationError(
+          `Price is statistical outlier: z-score ${zScore.toFixed(2)}`,
+          "validateUpdate",
+          ["price"],
+          ErrorSeverity.MEDIUM,
+          {
+            type: ValidationErrorType.OUTLIER_ERROR,
+            field: "price",
+            value: { price: update.price, zScore, mean, stdDev },
+          }
+        )
+      );
     }
 
     // Percentage deviation from recent average
-    const recentPrices = context.historicalPrices.slice(-5).map(p => p.price);
+    const recentPrices = historicalPrices.slice(-5).map(p => (p as PriceUpdate).price);
     const recentMean = recentPrices.reduce((sum, price) => sum + price, 0) / recentPrices.length;
     const percentageDeviation = Math.abs((update.price - recentMean) / recentMean);
 
     if (percentageDeviation > config.outlierThreshold) {
-      const severity = percentageDeviation > config.outlierThreshold * 2 ? "high" : "medium";
-      errors.push({
-        type: ValidationErrorType.OUTLIER_ERROR,
-        message: `Price deviates ${(percentageDeviation * 100).toFixed(2)}% from recent average`,
-        severity,
-        field: "price",
-        value: { price: update.price, recentMean, deviation: percentageDeviation },
-      });
+      const severity = percentageDeviation > config.outlierThreshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+      errors.push(
+        this.makeValidationError(
+          `Price deviates ${(percentageDeviation * 100).toFixed(2)}% from recent average`,
+          "validateUpdate",
+          ["price"],
+          severity,
+          {
+            type: ValidationErrorType.OUTLIER_ERROR,
+            field: "price",
+            value: { price: update.price, recentMean, deviation: percentageDeviation },
+          }
+        )
+      );
     }
 
     return errors;
   }
 
   // Cross-source validation to identify anomalous data (Requirement 2.1)
-  private validateCrossSource(update: PriceUpdate, context: ValidationContext): ValidationError[] {
-    const errors: ValidationError[] = [];
+  private validateCrossSource(update: PriceUpdate, context: ValidationContext): ExtendedDataValidationError[] {
+    const errors: ExtendedDataValidationError[] = [];
 
-    if (context.crossSourcePrices.length < 2) {
+    const crossSourcePrices = context.crossSourcePrices ?? [];
+    if (crossSourcePrices.length < 2) {
       // Not enough cross-source data for validation
       return errors;
     }
 
     // Filter out prices from the same source
-    const otherSourcePrices = context.crossSourcePrices.filter(p => p.source !== update.source).map(p => p.price);
+    const otherSourcePrices = crossSourcePrices
+      .filter(p => (p as PriceUpdate).source !== update.source)
+      .map(p => (p as PriceUpdate).price);
 
     if (otherSourcePrices.length === 0) {
       return errors;
@@ -347,14 +374,20 @@ export class DataValidator extends BaseService {
     const crossSourceThreshold = 0.02; // 2% deviation threshold
 
     if (deviation > crossSourceThreshold) {
-      const severity = deviation > crossSourceThreshold * 2 ? "high" : "medium";
-      errors.push({
-        type: ValidationErrorType.CROSS_SOURCE_ERROR,
-        message: `Price deviates ${(deviation * 100).toFixed(2)}% from cross-source median`,
-        severity,
-        field: "price",
-        value: { price: update.price, crossSourceMedian: median, deviation },
-      });
+      const severity = deviation > crossSourceThreshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+      errors.push(
+        this.makeValidationError(
+          `Price deviates ${(deviation * 100).toFixed(2)}% from cross-source median`,
+          "validateUpdate",
+          ["price"],
+          severity,
+          {
+            type: ValidationErrorType.CROSS_SOURCE_ERROR,
+            field: "price",
+            value: { price: update.price, crossSourceMedian: median, deviation },
+          }
+        )
+      );
     }
 
     return errors;
@@ -364,9 +397,9 @@ export class DataValidator extends BaseService {
   private validateConsensusAlignment(
     update: PriceUpdate,
     context: ValidationContext,
-    _config: ValidationConfig
-  ): ValidationError[] {
-    const errors: ValidationError[] = [];
+    _config: DataValidatorConfig
+  ): ExtendedDataValidationError[] {
+    const errors: ExtendedDataValidationError[] = [];
 
     if (!context.consensusMedian) {
       // No consensus data available
@@ -377,35 +410,41 @@ export class DataValidator extends BaseService {
     const consensusThreshold = 0.005; // 0.5% for FTSO requirement
 
     if (deviation > consensusThreshold) {
-      const severity = deviation > consensusThreshold * 2 ? "high" : "medium";
-      errors.push({
-        type: ValidationErrorType.CONSENSUS_ERROR,
-        message: `Price deviates ${(deviation * 100).toFixed(3)}% from consensus median`,
-        severity,
-        field: "price",
-        value: { price: update.price, consensusMedian: context.consensusMedian, deviation },
-      });
+      const severity = deviation > consensusThreshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+      errors.push(
+        this.makeValidationError(
+          `Price deviates ${(deviation * 100).toFixed(3)}% from consensus median`,
+          "validateUpdate",
+          ["price"],
+          severity,
+          {
+            type: ValidationErrorType.CONSENSUS_ERROR,
+            field: "price",
+            value: { price: update.price, consensusMedian: context.consensusMedian, deviation },
+          }
+        )
+      );
     }
 
     return errors;
   }
 
   // Adjust confidence based on validation errors
-  private adjustConfidence(originalConfidence: number, errors: ValidationError[]): number {
+  private adjustConfidence(originalConfidence: number, errors: ExtendedDataValidationError[]): number {
     let adjustedConfidence = originalConfidence;
 
     for (const error of errors) {
       switch (error.severity) {
-        case "critical":
+        case ErrorSeverity.CRITICAL:
           adjustedConfidence *= 0.1; // Severe penalty
           break;
-        case "high":
+        case ErrorSeverity.HIGH:
           adjustedConfidence *= 0.5; // High penalty
           break;
-        case "medium":
+        case ErrorSeverity.MEDIUM:
           adjustedConfidence *= 0.8; // Medium penalty
           break;
-        case "low":
+        case ErrorSeverity.LOW:
           adjustedConfidence *= 0.95; // Small penalty
           break;
       }
@@ -417,7 +456,7 @@ export class DataValidator extends BaseService {
   // Create adjusted update with corrected confidence
   private createAdjustedUpdate(
     original: PriceUpdate,
-    errors: ValidationError[],
+    _errors: ExtendedDataValidationError[],
     adjustedConfidence: number
   ): PriceUpdate {
     return {
@@ -430,9 +469,9 @@ export class DataValidator extends BaseService {
   async validateBatch(
     updates: PriceUpdate[],
     context: ValidationContext,
-    config?: Partial<ValidationConfig>
-  ): Promise<Map<string, ValidationResult>> {
-    const results = new Map<string, ValidationResult>();
+    config?: Partial<DataValidatorConfig>
+  ): Promise<Map<string, DataValidatorResult>> {
+    const results = new Map<string, DataValidatorResult>();
 
     for (const update of updates) {
       const key = `${update.source}-${update.symbol}-${update.timestamp}`;
@@ -444,41 +483,80 @@ export class DataValidator extends BaseService {
   }
 
   // Get validation statistics
-  getValidationStats(results: ValidationResult[]): ValidationStats {
+  getValidationStats(results: DataValidatorResult[]): {
+    total: number;
+    valid: number;
+    invalid: number;
+    validationRate: number;
+    averageConfidence: number;
+  };
+  // Overload to support tests that pass a minimal result shape
+  getValidationStats(
+    results: Array<
+      Pick<DataValidatorResult, "isValid" | "timestamp"> & {
+        confidence?: number;
+        warnings?: unknown[];
+        errors: Array<{
+          code: string;
+          message: string;
+          severity: unknown;
+          type?: unknown;
+        }>;
+      }
+    >
+  ): {
+    total: number;
+    valid: number;
+    invalid: number;
+    validationRate: number;
+    averageConfidence: number;
+  };
+  getValidationStats(results: Array<{ isValid: boolean; confidence?: number }>): {
+    total: number;
+    valid: number;
+    invalid: number;
+    validationRate: number;
+    averageConfidence: number;
+  } {
     const total = results.length;
     const valid = results.filter(r => r.isValid).length;
     const invalid = total - valid;
-
-    const errorCounts = new Map<ValidationErrorType, number>();
-    const severityCounts = new Map<string, number>();
-
-    for (const result of results) {
-      for (const error of result.errors) {
-        errorCounts.set(error.type, (errorCounts.get(error.type) || 0) + 1);
-        severityCounts.set(error.severity, (severityCounts.get(error.severity) || 0) + 1);
-      }
-    }
-
-    const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / total;
+    const validationRate = total > 0 ? valid / total : 0;
+    const averageConfidence = total > 0 ? results.reduce((sum: number, r) => sum + (r.confidence || 0), 0) / total : 0;
 
     return {
       total,
       valid,
       invalid,
-      validationRate: valid / total,
-      averageConfidence: avgConfidence,
-      errorCounts,
-      severityCounts,
+      validationRate,
+      averageConfidence,
     };
   }
-}
 
-export interface ValidationStats {
-  total: number;
-  valid: number;
-  invalid: number;
-  validationRate: number;
-  averageConfidence: number;
-  errorCounts: Map<ValidationErrorType, number>;
-  severityCounts: Map<string, number>;
+  // Helper to construct a DataValidationError with extra test-friendly fields
+  private makeValidationError(
+    message: string,
+    operation: string,
+    validationErrors: string[],
+    severity: ErrorSeverity,
+    extras?: {
+      type?: ValidationErrorType;
+      field?: string;
+      value?: unknown;
+      path?: string;
+      rule?: string;
+    }
+  ): ExtendedDataValidationError {
+    const base: BaseDataValidationError = {
+      code: ErrorCode.DATA_VALIDATION_FAILED,
+      message,
+      severity,
+      module: "data",
+      operation,
+      timestamp: Date.now(),
+      validationErrors,
+    };
+
+    return { ...base, ...(extras || {}) } as ExtendedDataValidationError;
+  }
 }

@@ -1,6 +1,5 @@
 import { CachePerformanceMonitorService } from "../cache-performance-monitor.service";
 import { RealTimeCacheService } from "../real-time-cache.service";
-import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 
 describe("CachePerformanceMonitorService", () => {
   let performanceMonitor: CachePerformanceMonitorService;

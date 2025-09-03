@@ -1,33 +1,24 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-import {
+
+import type { AggregatedPrice } from "@/common/types/services";
+import type { EnhancedFeedId, DataSource, PriceUpdate } from "@/common/types/core";
+import type { HealthCheckResult } from "@/common/types/monitoring";
+import type {
   ProductionDataManager,
   ConnectionHealth,
-  RealTimeDataManager,
+  ConnectionMetrics,
+  SourceSubscription,
   DataFreshnessPolicy,
-} from "./interfaces/data-manager.interfaces";
-
-interface ConnectionMetrics {
-  latency: number;
-  lastUpdate: number;
-  reconnectAttempts: number;
-  isHealthy: boolean;
-}
-
-interface SourceSubscription {
-  feedId: EnhancedFeedId;
-  symbols: string[];
-  lastUpdate: number;
-}
+} from "@/common/types/data-manager";
+import {
+  hasReconnectionCapability,
+  hasRestFallbackCapability,
+  hasHealthCheckCapability,
+} from "@/common/types/data-manager";
 
 @Injectable()
-export class ProductionDataManagerService
-  extends BaseEventService
-  implements ProductionDataManager, RealTimeDataManager
-{
+export class ProductionDataManagerService extends BaseEventService implements ProductionDataManager {
   // Data sources management
   private dataSources = new Map<string, DataSource>();
   private connectionMetrics = new Map<string, ConnectionMetrics>();
@@ -43,10 +34,6 @@ export class ProductionDataManagerService
     staleThresholdMs: 2000,
     realTimePriority: true,
     cacheBypassOnFreshData: true,
-    immediateProcessing: true,
-    streamingConnectionPreferred: true,
-    preciseTimestamps: true,
-    votingRoundTracking: true,
   };
 
   // Reconnection configuration
@@ -69,26 +56,26 @@ export class ProductionDataManagerService
   // Failover and recovery methods
   async triggerSourceFailover(sourceId: string, reason: string): Promise<boolean> {
     const operationId = `failover_${sourceId}_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "source_failover", "ProductionDataManager", {
+    this.enhancedLogger?.startPerformanceTimer(operationId, "source_failover", "ProductionDataManager", {
       sourceId,
       reason,
     });
 
     try {
-      this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
+      this.enhancedLogger?.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
         reason,
         phase: "starting",
       });
 
       const source = this.dataSources.get(sourceId);
       if (!source) {
-        this.enhancedLogger.error(`Cannot failover unknown source: ${sourceId}`, {
+        this.enhancedLogger?.error(`Cannot failover unknown source: ${sourceId}`, {
           component: "ProductionDataManager",
           operation: "source_failover",
           sourceId,
           severity: "high",
         });
-        this.enhancedLogger.endPerformanceTimer(operationId, false, { error: "source_not_found" });
+        this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: "source_not_found" });
         return false;
       }
 
@@ -100,15 +87,18 @@ export class ProductionDataManagerService
 
       // Attempt reconnection for WebSocket sources
       if (source.type === "websocket" && "attemptReconnection" in source) {
-        this.enhancedLogger.logConnection(sourceId, "reconnecting", {
+        this.enhancedLogger?.logConnection(sourceId, "reconnecting", {
           sourceType: source.type,
           reason,
         });
 
         try {
-          const reconnected = await (source as any).attemptReconnection();
+          if (!hasReconnectionCapability(source)) {
+            throw new Error("Source does not support reconnection");
+          }
+          const reconnected = await source.attemptReconnection();
           if (reconnected) {
-            this.enhancedLogger.logConnection(sourceId, "connected", {
+            this.enhancedLogger?.logConnection(sourceId, "connected", {
               recoveryMethod: "websocket_reconnection",
             });
 
@@ -117,13 +107,14 @@ export class ProductionDataManagerService
               metrics.reconnectAttempts = 0;
             }
 
-            this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "websocket_reconnection", true);
-            this.enhancedLogger.endPerformanceTimer(operationId, true, { recoveryMethod: "websocket_reconnection" });
+            this.enhancedLogger?.logErrorRecovery(sourceId, "connection_failure", "websocket_reconnection", true);
+            this.enhancedLogger?.endPerformanceTimer(operationId, true, { recoveryMethod: "websocket_reconnection" });
             this.emit("sourceRecovered", sourceId);
             return true;
           }
         } catch (reconnectError) {
-          this.enhancedLogger.error(reconnectError, {
+          const errMsg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
+          this.enhancedLogger?.error(errMsg, {
             component: "ProductionDataManager",
             operation: "websocket_reconnection",
             sourceId,
@@ -140,14 +131,14 @@ export class ProductionDataManagerService
       for (const subscription of subscriptions) {
         for (const symbol of subscription.symbols) {
           try {
-            if ("fetchPriceViaREST" in source) {
-              const restUpdate = await (source as any).fetchPriceViaREST(symbol);
+            if (hasRestFallbackCapability(source)) {
+              const restUpdate = await source.fetchPriceViaREST(symbol);
               if (restUpdate) {
                 this.processUpdateImmediately(restUpdate);
                 restFallbackSuccess = true;
                 processedSymbols++;
 
-                this.enhancedLogger.logPriceUpdate(
+                this.enhancedLogger?.logPriceUpdate(
                   symbol,
                   sourceId,
                   restUpdate.price,
@@ -157,7 +148,8 @@ export class ProductionDataManagerService
               }
             }
           } catch (restError) {
-            this.enhancedLogger.error(restError, {
+            const errMsg = restError instanceof Error ? restError.message : String(restError);
+            this.enhancedLogger?.error(errMsg, {
               component: "ProductionDataManager",
               operation: "rest_fallback",
               sourceId,
@@ -169,12 +161,12 @@ export class ProductionDataManagerService
       }
 
       if (restFallbackSuccess) {
-        this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "rest_fallback", true, {
+        this.enhancedLogger?.logErrorRecovery(sourceId, "connection_failure", "rest_fallback", true, {
           processedSymbols,
           totalSubscriptions: subscriptions.length,
         });
 
-        this.enhancedLogger.endPerformanceTimer(operationId, true, {
+        this.enhancedLogger?.endPerformanceTimer(operationId, true, {
           recoveryMethod: "rest_fallback",
           processedSymbols,
         });
@@ -184,11 +176,11 @@ export class ProductionDataManagerService
       }
 
       // Failover unsuccessful
-      this.enhancedLogger.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
+      this.enhancedLogger?.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
         reason: "no_recovery_method_successful",
       });
 
-      this.enhancedLogger.endPerformanceTimer(operationId, false, {
+      this.enhancedLogger?.endPerformanceTimer(operationId, false, {
         error: "no_recovery_method_successful",
       });
 
@@ -196,14 +188,15 @@ export class ProductionDataManagerService
       this.emit("sourceFailover", sourceId, reason);
       return false;
     } catch (error) {
-      this.enhancedLogger.error(error, {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.enhancedLogger?.error(errMsg, {
         component: "ProductionDataManager",
         operation: "source_failover",
         sourceId,
         severity: "high",
       });
 
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
+      this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: errMsg });
       return false;
     }
   }
@@ -225,8 +218,8 @@ export class ProductionDataManagerService
       }
 
       // Attempt recovery
-      if ("attemptReconnection" in source) {
-        const recovered = await (source as any).attemptReconnection();
+      if (hasReconnectionCapability(source)) {
+        const recovered = await source.attemptReconnection();
         if (recovered) {
           const metrics = this.connectionMetrics.get(sourceId);
           if (metrics) {
@@ -248,34 +241,36 @@ export class ProductionDataManagerService
     }
   }
 
-  getSourceHealthMetrics(sourceId: string): any {
+  getSourceHealthMetrics(sourceId: string): HealthCheckResult | undefined {
     const source = this.dataSources.get(sourceId);
     const metrics = this.connectionMetrics.get(sourceId);
 
     if (!source || !metrics) {
-      return null;
+      return undefined;
     }
 
-    const baseMetrics = {
-      sourceId,
-      isConnected: source.isConnected(),
-      isHealthy: metrics.isHealthy,
-      latency: metrics.latency,
-      lastUpdate: metrics.lastUpdate,
-      reconnectAttempts: metrics.reconnectAttempts,
+    const now = Date.now();
+    const details = {
+      component: sourceId,
+      status: metrics.isHealthy && source.isConnected() ? ("healthy" as const) : ("unhealthy" as const),
+      timestamp: now,
+      metrics: {
+        uptime: metrics.uptime,
+        memoryUsage: 0,
+        cpuUsage: 0,
+        connectionCount: 1,
+      },
     };
 
-    // Add adapter-specific metrics if available
-    if ("getHealthMetrics" in source) {
-      const adapterMetrics = (source as any).getHealthMetrics();
-      return { ...baseMetrics, ...adapterMetrics };
-    }
-
-    return baseMetrics;
+    return {
+      isHealthy: metrics.isHealthy && source.isConnected(),
+      details,
+      timestamp: now,
+    };
   }
 
-  // Cleanup method for tests
-  cleanup(): void {
+  // Cleanup
+  protected override cleanup(): void {
     // Clear all reconnection timers
     for (const timer of this.reconnectTimers.values()) {
       clearTimeout(timer);
@@ -287,6 +282,11 @@ export class ProductionDataManagerService
       clearInterval(this.healthMonitorInterval);
       this.healthMonitorInterval = undefined;
     }
+  }
+
+  // Public helper for tests
+  cleanupForTests(): void {
+    this.cleanup();
   }
 
   // Test helper method to manually emit price updates
@@ -314,10 +314,15 @@ export class ProductionDataManagerService
 
       // Initialize connection metrics
       this.connectionMetrics.set(source.id, {
-        latency: 0,
-        lastUpdate: Date.now(),
-        reconnectAttempts: 0,
+        sourceId: source.id,
         isHealthy: false,
+        lastUpdate: Date.now(),
+        errorCount: 0,
+        successCount: 0,
+        reconnectAttempts: 0,
+        averageLatency: 0,
+        latency: 0,
+        uptime: 0,
       });
 
       // Set up event handlers
@@ -399,9 +404,12 @@ export class ProductionDataManagerService
           // Track subscription
           const sourceSubscriptions = this.subscriptions.get(source.id) || [];
           sourceSubscriptions.push({
+            sourceId: source.id,
             feedId,
             symbols: [symbol],
+            timestamp: Date.now(),
             lastUpdate: Date.now(),
+            active: true,
           });
           this.subscriptions.set(source.id, sourceSubscriptions);
         } catch (error) {
@@ -487,14 +495,10 @@ export class ProductionDataManagerService
   }
 
   processUpdateImmediately(update: PriceUpdate): void {
-    if (!this.dataFreshnessPolicy.immediateProcessing) {
-      return;
-    }
-
     // Validate data freshness
     const age = Date.now() - update.timestamp;
     if (age > this.maxDataAge) {
-      this.enhancedLogger.warn(`Rejecting stale data from ${update.source}: age ${age}ms`, {
+      this.enhancedLogger?.warn(`Rejecting stale data from ${update.source}: age ${age}ms`, {
         component: "ProductionDataManager",
         operation: "process_update",
         sourceId: update.source,
@@ -513,10 +517,16 @@ export class ProductionDataManagerService
     this.updateSubscriptionTimestamp(update);
 
     // Log the price update with enhanced context
-    this.enhancedLogger.logPriceUpdate(update.symbol, update.source, update.price, update.timestamp, update.confidence);
+    this.enhancedLogger?.logPriceUpdate(
+      update.symbol,
+      update.source,
+      update.price,
+      update.timestamp,
+      update.confidence
+    );
 
     // Emit for immediate processing
-    this.enhancedLogger.debug(`Emitting priceUpdate event for ${update.symbol} from ${update.source}`, {
+    this.enhancedLogger?.debug(`Emitting priceUpdate event for ${update.symbol} from ${update.source}`, {
       component: "ProductionDataManager",
       operation: "emit_price_update",
       sourceId: update.source,
@@ -617,7 +627,7 @@ export class ProductionDataManagerService
           sourceId: source.id,
           sourceType: source.type,
           timestamp: Date.now(),
-          errorType: (error as any).errorType || "UNKNOWN_ERROR",
+          errorType: (error as Error & { errorType?: string }).errorType || "UNKNOWN_ERROR",
         };
 
         this.emit("sourceError", source.id, error, errorContext);
@@ -795,8 +805,8 @@ export class ProductionDataManagerService
 
       // Perform adapter-specific health check if available
       try {
-        if ("performHealthCheck" in source && typeof (source as any).performHealthCheck === "function") {
-          const adapterHealthy = await (source as any).performHealthCheck();
+        if (hasHealthCheckCapability(source)) {
+          const adapterHealthy = await source.performHealthCheck();
           if (!adapterHealthy) {
             isHealthy = false;
           }

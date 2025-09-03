@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { CircuitBreakerService, CircuitBreakerState } from "../circuit-breaker.service";
+import { CircuitBreakerState } from "@/common/types/error-handling";
+import { CircuitBreakerService } from "../circuit-breaker.service";
 
 describe("CircuitBreakerService", () => {
   let service: CircuitBreakerService;
@@ -81,7 +82,8 @@ describe("CircuitBreakerService", () => {
       } catch (error) {
         const duration = Date.now() - startTime;
         expect(duration).toBeLessThan(100); // Should fail fast
-        expect(error.message).toContain("Circuit breaker is OPEN");
+        const err: any = error as any;
+        expect(err.message).toContain("Circuit breaker is OPEN");
       }
     });
 
@@ -177,7 +179,8 @@ describe("CircuitBreakerService", () => {
           return "success";
         });
       } catch (error) {
-        expect(error.message).toContain("Operation timeout");
+        const err: any = error as any;
+        expect(err.message).toContain("Operation timeout");
       }
 
       const stats = service.getStats(serviceId);

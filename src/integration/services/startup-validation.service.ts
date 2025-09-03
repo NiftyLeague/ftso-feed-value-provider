@@ -1,16 +1,9 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { IntegrationService } from "../integration.service";
 import { ConfigService } from "@/config/config.service";
 import { BaseService } from "@/common/base/base.service";
+import type { StartupValidationResult } from "@/common/types/services";
 
-interface StartupValidationResult {
-  success: boolean;
-  errors: string[];
-  warnings: string[];
-  validatedServices: string[];
-  timestamp: number;
-  validationTime: number;
-}
+import { IntegrationService } from "../integration.service";
 
 @Injectable()
 export class StartupValidationService extends BaseService implements OnModuleInit {
@@ -79,7 +72,8 @@ export class StartupValidationService extends BaseService implements OnModuleIni
 
       return result;
     } catch (error) {
-      result.errors.push(`Validation process failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(`Validation process failed: ${message}`);
       result.success = false;
       result.validationTime = Date.now() - startTime;
       return result;
@@ -99,7 +93,8 @@ export class StartupValidationService extends BaseService implements OnModuleIni
 
       result.validatedServices.push("ConfigService");
     } catch (error) {
-      result.errors.push(`Configuration validation failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(`Configuration validation failed: ${message}`);
     }
   }
 
@@ -115,16 +110,21 @@ export class StartupValidationService extends BaseService implements OnModuleIni
         result.warnings.push("Integration service is in degraded state");
       }
 
-      // Check adapter connections
-      if (health.adapters && health.adapters.totalAdapters === 0) {
-        result.warnings.push("No exchange adapters are registered");
-      } else if (health.adapters && health.adapters.activeAdapters === 0) {
-        result.warnings.push("No exchange adapters are active");
+      // Check source health information based on available fields
+      const totalSources = health.sources?.length ?? 0;
+      if (totalSources === 0) {
+        result.warnings.push("No data sources have reported health status yet");
+      } else {
+        const unhealthy = health.sources.filter(s => s.status === "unhealthy").length;
+        if (unhealthy === totalSources) {
+          result.warnings.push("All data sources are unhealthy");
+        }
       }
 
       result.validatedServices.push("IntegrationService");
     } catch (error) {
-      result.errors.push(`Integration service validation failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(`Integration service validation failed: ${message}`);
     }
   }
 
@@ -184,7 +184,8 @@ export class StartupValidationService extends BaseService implements OnModuleIni
 
       result.validatedServices.push("System Resources");
     } catch (error) {
-      result.warnings.push(`System resource validation failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      result.warnings.push(`System resource validation failed: ${message}`);
     }
   }
 

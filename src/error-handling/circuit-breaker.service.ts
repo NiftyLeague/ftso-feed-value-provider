@@ -2,39 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
 import { createTimer } from "@/common/utils/performance.utils";
 import { handleAsyncOperation } from "@/common/utils/http-response.utils";
-
-export enum CircuitBreakerState {
-  CLOSED = "closed", // Normal operation
-  OPEN = "open", // Circuit is open, requests fail fast
-  HALF_OPEN = "half_open", // Testing if service has recovered
-}
-
-export interface CircuitBreakerConfig {
-  failureThreshold: number; // Number of failures before opening circuit
-  recoveryTimeout: number; // Time to wait before attempting recovery (ms)
-  successThreshold: number; // Number of successes needed to close circuit in half-open state
-  timeout: number; // Request timeout (ms)
-  monitoringWindow: number; // Time window for failure counting (ms)
-}
-
-export interface CircuitBreakerStats {
-  state: CircuitBreakerState;
-  failureCount: number;
-  successCount: number;
-  lastFailureTime?: number;
-  lastSuccessTime?: number;
-  totalRequests: number;
-  totalFailures: number;
-  totalSuccesses: number;
-  uptime: number;
-}
-
-export interface CircuitBreakerMetrics {
-  requestCount: number;
-  failureRate: number;
-  averageResponseTime: number;
-  lastStateChange: number;
-}
+import { CircuitBreakerState } from "@/common/types/error-handling";
+import type { CircuitBreakerConfig, CircuitBreakerStats, CircuitBreakerMetrics } from "@/common/types/error-handling";
 
 @Injectable()
 export class CircuitBreakerService extends BaseEventService {

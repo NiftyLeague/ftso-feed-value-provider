@@ -1,13 +1,13 @@
-import { FeedCategory } from "@/common/types/feed.types";
+import { FeedCategory } from "@/common/types/core";
+import type { MockRequestBody, MockResponse } from "@/common/types/utils";
 
 // Mock HTTP server for load testing
 class MockHttpServer {
   private requestCount = 0;
   private responseDelay = 50;
 
-  async handleRequest(requestBody: any): Promise<any> {
+  async handleRequest(requestBody: MockRequestBody): Promise<MockResponse> {
     this.requestCount++;
-    const startTime = Date.now();
 
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, this.responseDelay + Math.random() * 20));
@@ -15,26 +15,24 @@ class MockHttpServer {
     // Validate request
     if (!requestBody.feeds || !Array.isArray(requestBody.feeds)) {
       return {
-        status: 400,
+        statusCode: 400,
         body: { error: "Invalid request" },
-        responseTime: Date.now() - startTime,
       };
     }
 
     // Process feeds
-    const feeds = requestBody.feeds.map((feed: any) => ({
+    const feeds = requestBody.feeds.map(feed => ({
       feedId: { category: feed.category, name: feed.name },
       value: Math.floor(Math.random() * 100000),
       decimals: 8,
     }));
 
     return {
-      status: 200,
+      statusCode: 200,
       body: {
         feeds,
         timestamp: Date.now(),
       },
-      responseTime: Date.now() - startTime,
     };
   }
 
@@ -79,12 +77,16 @@ describe("Load Testing", () => {
         .fill(null)
         .map(() => mockServer.handleRequest(requestBody));
 
-      const responses = await Promise.allSettled(requests);
+      const responses = await Promise.allSettled<MockResponse>(requests);
       const endTime = Date.now();
       const totalTime = endTime - startTime;
 
-      const successful = responses.filter(r => r.status === "fulfilled" && (r.value as any).status === 200);
-      const failed = responses.filter(r => r.status === "rejected" || (r.value as any).status !== 200);
+      const successful = responses.filter(
+        r => r.status === "fulfilled" && (r as PromiseFulfilledResult<MockResponse>).value.statusCode === 200
+      );
+      const failed = responses.filter(
+        r => r.status === "rejected" || (r as PromiseFulfilledResult<MockResponse>).value?.statusCode !== 200
+      );
 
       console.log(`Load Test Results:
         - Total Requests: ${concurrentRequests}
@@ -109,7 +111,7 @@ describe("Load Testing", () => {
       const durationSeconds = 10;
       const totalRequests = requestsPerSecond * durationSeconds;
 
-      const responses: any[] = [];
+      const responses: PromiseSettledResult<MockResponse>[] = [];
       const startTime = Date.now();
 
       for (let second = 0; second < durationSeconds; second++) {
@@ -122,7 +124,7 @@ describe("Load Testing", () => {
             return response;
           });
 
-        const secondResponses = await Promise.allSettled(secondRequests);
+        const secondResponses = await Promise.allSettled<MockResponse>(secondRequests);
         responses.push(...secondResponses);
 
         const elapsed = Date.now() - secondStart;
@@ -134,7 +136,9 @@ describe("Load Testing", () => {
       const endTime = Date.now();
       const actualDuration = endTime - startTime;
 
-      const successful = responses.filter(r => r.status === "fulfilled" && (r.value as any).status === 200);
+      const successful = responses.filter(
+        r => r.status === "fulfilled" && (r as PromiseFulfilledResult<MockResponse>).value.statusCode === 200
+      );
       const actualRps = (successful.length / actualDuration) * 1000;
 
       console.log(`Sustained Load Test Results:
@@ -158,7 +162,14 @@ describe("Load Testing", () => {
       };
 
       const burstSizes = [50, 100, 200, 500, 100, 50];
-      const results: any[] = [];
+      type BurstTestResult = {
+        size: number;
+        duration: number;
+        successful: number;
+        successRate: number;
+        rps: number;
+      };
+      const results: BurstTestResult[] = [];
 
       for (const burstSize of burstSizes) {
         const burstStart = Date.now();
@@ -167,11 +178,13 @@ describe("Load Testing", () => {
           .fill(null)
           .map(() => mockServer.handleRequest(requestBody));
 
-        const burstResponses = await Promise.allSettled(burstRequests);
+        const burstResponses = await Promise.allSettled<MockResponse>(burstRequests);
         const burstEnd = Date.now();
         const burstDuration = burstEnd - burstStart;
 
-        const successful = burstResponses.filter(r => r.status === "fulfilled" && (r.value as any).status === 200);
+        const successful = burstResponses.filter(
+          r => r.status === "fulfilled" && (r as PromiseFulfilledResult<MockResponse>).value.statusCode === 200
+        );
 
         results.push({
           size: burstSize,
@@ -296,13 +309,13 @@ describe("Load Testing", () => {
       }
 
       const startTime = Date.now();
-      const responses = await Promise.allSettled(allRequests.map(req => mockServer.handleRequest(req)));
+      const responses = await Promise.allSettled<MockResponse>(allRequests.map(req => mockServer.handleRequest(req)));
       const totalTime = Date.now() - startTime;
 
       const statusCounts: Record<number, number> = {};
       responses.forEach(response => {
         if (response.status === "fulfilled") {
-          const status = (response.value as any).status;
+          const status = (response as PromiseFulfilledResult<MockResponse>).value.statusCode;
           statusCounts[status] = (statusCounts[status] || 0) + 1;
         }
       });
@@ -325,7 +338,13 @@ describe("Load Testing", () => {
   describe("Scalability Tests", () => {
     it("should demonstrate linear scalability with feed count", async () => {
       const feedCounts = [1, 5, 10, 25, 50];
-      const results: any[] = [];
+      type ScalabilityResult = {
+        feedCount: number;
+        responseTime: number;
+        statusCode: number;
+        responseTimePerFeed: number;
+      };
+      const results: ScalabilityResult[] = [];
 
       for (const feedCount of feedCounts) {
         const feeds = Array(feedCount)
@@ -344,7 +363,7 @@ describe("Load Testing", () => {
         results.push({
           feedCount,
           responseTime,
-          status: response.status,
+          statusCode: response.statusCode,
           responseTimePerFeed: responseTime / feedCount,
         });
       }
@@ -352,7 +371,7 @@ describe("Load Testing", () => {
       console.log("Scalability Test Results:", results);
 
       results.forEach(result => {
-        expect(result.status).toBe(200);
+        expect(result.statusCode).toBe(200);
         expect(result.responseTimePerFeed).toBeLessThan(100);
       });
 

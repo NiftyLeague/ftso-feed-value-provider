@@ -1,16 +1,24 @@
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
-import { FeedId, FeedValueData, FeedVolumeData } from "@/common/dto/provider-requests.dto";
-import { RealTimeCacheService } from "@/cache/real-time-cache.service";
-import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-import { IntegrationService } from "@/integration/integration.service";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { IFtsoProviderService } from "@/common/interfaces/services/provider.interface";
-import { ServiceHealthStatus, ServicePerformanceMetrics } from "@/common/interfaces/common.interface";
+import { BaseService } from "./common/base/base.service";
+import { RealTimeCacheService } from "./cache/real-time-cache.service";
+import { RealTimeAggregationService, type AggregationCacheStats } from "./aggregators/real-time-aggregation.service";
+
+import type { AggregationStatistics, HealthCheckResult, HealthStatusType } from "./common/types/monitoring";
+import type { FeedId, FeedValueData, FeedVolumeData } from "./common/types/http";
+import type { EnhancedFeedId } from "./common/types/core";
+import type { CacheStats } from "./common/types/cache";
+import type {
+  AggregatedPrice,
+  IFtsoProviderService,
+  ServiceHealthStatus,
+  ServicePerformanceMetrics,
+  IntegrationServiceInterface,
+} from "./common/types/services";
 
 @Injectable()
 export class FtsoProviderService extends BaseService implements IFtsoProviderService {
-  private integrationService?: IntegrationService;
+  // Require both the public integration interface and the specific ops we use
+  private integrationService?: IntegrationServiceInterface & IntegrationOps;
 
   constructor(
     private readonly cacheService: RealTimeCacheService,
@@ -20,9 +28,14 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
   }
 
   // Method to set the integration service (called by the factory)
-  setIntegrationService(integrationService: IntegrationService): void {
-    this.integrationService = integrationService;
-    this.logInitialization("Production integration service connected");
+  setIntegrationService(integrationService: IntegrationServiceInterface): void {
+    if (hasIntegrationOps(integrationService)) {
+      this.integrationService = integrationService;
+      this.logInitialization("Production integration service connected");
+    } else {
+      this.logError(new Error("Integration service does not implement required operations"), "setIntegrationService");
+      throw new Error("Invalid integration service: missing required operations");
+    }
   }
 
   async getValue(feed: FeedId): Promise<FeedValueData> {
@@ -50,7 +63,9 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
       };
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      this.logError(error as Error, `getValue-${feed.name}`, { responseTime: responseTime.toFixed(2) });
+      this.logError(error instanceof Error ? error : new Error(String(error)), `getValue-${feed.name}`, {
+        responseTime: responseTime.toFixed(2),
+      });
       throw error;
     }
   }
@@ -82,7 +97,7 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
       return results;
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      this.logError(error as Error, "getValues", {
+      this.logError(error instanceof Error ? error : new Error(String(error)), "getValues", {
         feedCount: feeds.length,
         responseTime: responseTime.toFixed(2),
       });
@@ -107,7 +122,7 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
       }));
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      this.logError(error as Error, "getVolumes", {
+      this.logError(error instanceof Error ? error : new Error(String(error)), "getVolumes", {
         feedCount: feeds.length,
         volumeWindow,
         responseTime: responseTime.toFixed(2),
@@ -117,78 +132,113 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
   }
 
   // Helper methods
-
-  private isFreshData(timestamp: number): boolean {
-    const age = Date.now() - timestamp;
-    return age <= 2000; // 2-second freshness requirement
-  }
-
   // Performance monitoring methods
 
-  async getPerformanceMetrics(): Promise<{
-    responseTime: { average: number; min: number; max: number };
-    throughput: { requestsPerSecond: number; totalRequests: number };
-    errorRate: number;
-    uptime: number;
-    cacheStats: any;
-    aggregationStats: any;
-    activeFeedCount: number;
-  }> {
+  async getPerformanceMetrics(): Promise<
+    ServicePerformanceMetrics & {
+      cacheStats: CacheStats;
+      aggregationStats: AggregationStatistics;
+      activeFeedCount: number;
+    }
+  > {
     // const startTime = Date.now(); // Unused for now
     const uptime = process.uptime();
 
     return {
+      uptime,
       responseTime: {
         average: 50, // Mock values - should be calculated from actual metrics
-        min: 10,
+        p95: 150,
         max: 200,
       },
-      throughput: {
-        requestsPerSecond: 100, // Mock values - should be calculated from actual metrics
-        totalRequests: 10000,
-      },
-      errorRate: 0.01, // Mock value - should be calculated from actual metrics
-      uptime,
-      cacheStats: this.cacheService.getStats(),
-      aggregationStats: this.aggregationService.getCacheStats(),
+      requestsPerSecond: 100, // Mock value
+      errorRate: 0.01, // Mock value
+      cacheStats: this.mapCacheStats(this.cacheService.getStats()),
+      aggregationStats: this.mapAggregationStats(this.aggregationService.getCacheStats()),
       activeFeedCount: this.aggregationService.getActiveFeedCount(),
     };
   }
 
   // Health check method
-  async healthCheck(): Promise<{
-    status: "healthy" | "degraded" | "unhealthy";
-    timestamp: number;
-    details: any;
-  }> {
+  async healthCheck(): Promise<ServiceHealthStatus> {
     try {
       // Always use production integration health check
       if (!this.integrationService) {
-        return {
-          status: "unhealthy",
-          timestamp: Date.now(),
+        const now = Date.now();
+        const details: HealthCheckResult = {
+          isHealthy: false,
+          timestamp: now,
           details: {
-            error: "Production integration service not available",
+            component: "integration",
+            status: "unhealthy" as HealthStatusType,
+            timestamp: now,
           },
         };
+        return { status: "unhealthy", timestamp: now, details: [details] };
       }
 
       const systemHealth = await this.integrationService.getSystemHealth();
-      return {
-        status: systemHealth.status,
-        timestamp: Date.now(),
-        details: systemHealth,
-      };
-    } catch (error) {
-      this.logError(error as Error, "healthCheck");
-      return {
-        status: "unhealthy",
-        timestamp: Date.now(),
+      const now = Date.now();
+      const details: HealthCheckResult = {
+        isHealthy: systemHealth.status === "healthy",
+        timestamp: now,
         details: {
-          error: error.message,
+          component: "integration",
+          status: systemHealth.status as HealthStatusType,
+          timestamp: now,
+          connections: systemHealth.connections,
+          adapters: systemHealth.adapters,
+          metrics: {
+            uptime: process.uptime(),
+            memoryUsage: process.memoryUsage().rss,
+            cpuUsage: 0,
+            connectionCount: systemHealth.connections,
+          },
         },
       };
+      return { status: systemHealth.status, timestamp: now, details: [details] };
+    } catch (error) {
+      this.logError(error instanceof Error ? error : new Error(String(error)), "healthCheck");
+      const now = Date.now();
+      const details: HealthCheckResult = {
+        isHealthy: false,
+        timestamp: now,
+        details: {
+          component: "integration",
+          status: "unhealthy" as HealthStatusType,
+          timestamp: now,
+        },
+      };
+      return { status: "unhealthy", timestamp: now, details: [details] };
     }
+  }
+
+  // Helper methods for type mapping
+  private mapCacheStats(cacheStats: CacheStats): CacheStats {
+    return {
+      hitRate: cacheStats.hitRate || 0,
+      missRate: cacheStats.missRate || 0,
+      size: cacheStats.totalEntries || 0,
+      evictions: 0, // Not tracked in current implementation
+      averageGetTime: 0, // Not tracked in current implementation
+      averageSetTime: 0, // Not tracked in current implementation
+      averageResponseTime: cacheStats.averageResponseTime || 0,
+      memoryUsage: cacheStats.memoryUsage || 0,
+      totalRequests: cacheStats.totalRequests || 0,
+      hits: cacheStats.hits || 0,
+      misses: cacheStats.misses || 0,
+      totalEntries: cacheStats.totalEntries || 0,
+    };
+  }
+
+  private mapAggregationStats(cacheStats: AggregationCacheStats): AggregationStatistics {
+    return {
+      totalAggregations: 0, // Not tracked in current implementation
+      averageAggregationTime: 0, // Not tracked in current implementation
+      sourceCount: cacheStats.totalEntries || 0,
+      consensusRate: cacheStats.hitRate || 0,
+      qualityScore: cacheStats.hitRate || 0,
+    };
   }
 
   // IBaseService interface methods
@@ -204,21 +254,38 @@ export class FtsoProviderService extends BaseService implements IFtsoProviderSer
   async getServicePerformanceMetrics(): Promise<ServicePerformanceMetrics> {
     // Convert to standardized format
     return {
+      uptime: process.uptime(),
       responseTime: {
-        average: 0, // Would be calculated from actual metrics
-        min: 0,
+        average: 0,
+        p95: 0,
         max: 0,
       },
-      throughput: {
-        requestsPerSecond: 0, // Would be calculated from actual metrics
-        totalRequests: 0,
-      },
-      errorRate: 0, // Would be calculated from actual metrics
-      uptime: Date.now(), // Would track actual uptime
+      requestsPerSecond: 0,
+      errorRate: 0,
     };
   }
 
   getServiceName(): string {
     return "FtsoProviderService";
   }
+}
+
+// Local minimal integration operations we rely on
+type IntegrationOps = {
+  getCurrentPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice>;
+  getCurrentPrices(feedIds: EnhancedFeedId[]): Promise<AggregatedPrice[]>;
+  getSystemHealth(): Promise<{
+    status: HealthStatusType;
+    connections: number;
+    adapters: number;
+    cache: { hitRate: number; entries: number };
+  }>;
+};
+
+function hasIntegrationOps(svc: IntegrationServiceInterface): svc is IntegrationServiceInterface & IntegrationOps {
+  return (
+    typeof (svc as unknown as { getCurrentPrice?: unknown }).getCurrentPrice === "function" &&
+    typeof (svc as unknown as { getCurrentPrices?: unknown }).getCurrentPrices === "function" &&
+    typeof (svc as unknown as { getSystemHealth?: unknown }).getSystemHealth === "function"
+  );
 }

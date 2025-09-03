@@ -7,51 +7,22 @@ import { PerformanceMonitorService } from "@/monitoring/performance-monitor.serv
 import { AlertingService } from "@/monitoring/alerting.service";
 
 // Types and interfaces
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-
-interface HealthAlert {
-  type: string;
-  sourceId?: string;
-  reason?: string;
-  timestamp: number;
-  severity: "info" | "warning" | "error" | "critical";
-  message: string;
-}
-
-interface SourceHealthStatus {
-  sourceId: string;
-  status: "healthy" | "unhealthy" | "recovered";
-  lastUpdate: number;
-  errorCount: number;
-  recoveryCount: number;
-}
-
-interface SystemHealthMetrics {
-  status: "healthy" | "degraded" | "unhealthy";
-  timestamp: number;
-  sources: SourceHealthStatus[];
-  aggregation: {
-    successRate: number;
-    errorCount: number;
-    lastError?: string;
-  };
-  performance: {
-    averageResponseTime: number;
-    errorRate: number;
-  };
-  accuracy: {
-    averageConfidence: number;
-    outlierRate: number;
-  };
-}
+import type { AggregatedPrice } from "@/common/types/services";
+import {
+  type HealthAlert,
+  type SourceHealthStatus,
+  type DetailedSystemHealthMetrics,
+  type PerformanceAlertData,
+  type Alert,
+  AlertSeverity,
+} from "@/common/types/monitoring";
+import type { AccuracyAlertData } from "@/common/types/monitoring";
 
 @Injectable()
 export class SystemHealthService extends BaseEventService {
-  private isInitialized = false;
-
   private sourceHealthMap = new Map<string, SourceHealthStatus>();
   private aggregationErrors: Error[] = [];
-  private healthMetrics: SystemHealthMetrics;
+  private healthMetrics: DetailedSystemHealthMetrics;
 
   constructor(
     private readonly accuracyMonitor: AccuracyMonitorService,
@@ -98,7 +69,7 @@ export class SystemHealthService extends BaseEventService {
       // Step 3: Start health monitoring loop
       this.startHealthMonitoring();
 
-      this.isInitialized = true;
+      // initialized
 
       this.logCriticalOperation(
         "system_health_initialization",
@@ -112,8 +83,9 @@ export class SystemHealthService extends BaseEventService {
 
       this.endPerformanceTimer(operationId, true, { initialized: true });
     } catch (error) {
-      this.endPerformanceTimer(operationId, false, { error: error.message });
-      this.logError(error as Error, "system_health_initialization", { severity: "critical" });
+      const errObj = error instanceof Error ? error : new Error(String(error));
+      this.endPerformanceTimer(operationId, false, { error: errObj.message });
+      this.logError(errObj, "system_health_initialization", { severity: "critical" });
       throw error;
     }
   }
@@ -200,7 +172,7 @@ export class SystemHealthService extends BaseEventService {
     }
   }
 
-  getOverallHealth(): SystemHealthMetrics {
+  getOverallHealth(): DetailedSystemHealthMetrics {
     // Update metrics before returning
     this.updateHealthMetrics();
     return { ...this.healthMetrics };
@@ -239,8 +211,8 @@ export class SystemHealthService extends BaseEventService {
       });
 
       // Connect accuracy monitoring to alerting
-      this.accuracyMonitor.on("accuracyAlert", alert => {
-        this.handleAccuracyAlert(alert);
+      this.accuracyMonitor.on("accuracyAlert", (alert: unknown) => {
+        this.handleAccuracyAlert(alert as AccuracyAlertData);
       });
 
       this.logger.log("Monitoring alerts configured");
@@ -389,8 +361,29 @@ export class SystemHealthService extends BaseEventService {
 
   private sendAlert(alert: HealthAlert): void {
     try {
+      // Map HealthAlert to generic Alert for delivery service
+      const mapped: Alert = {
+        id: `health_${Date.now()}`,
+        ruleId: alert.type,
+        type: "health",
+        title: alert.type,
+        description: undefined,
+        message: alert.message,
+        timestamp: alert.timestamp,
+        status: "active",
+        resolved: false,
+        severity:
+          alert.severity === "critical"
+            ? AlertSeverity.CRITICAL
+            : alert.severity === "error"
+              ? AlertSeverity.ERROR
+              : alert.severity === "warning"
+                ? AlertSeverity.WARNING
+                : AlertSeverity.INFO,
+      };
+
       // Send through alerting service
-      void this.alertingService.sendAlert(alert);
+      void this.alertingService.sendAlert(mapped);
 
       // Emit for external consumers
       this.emit("healthAlert", alert);
@@ -401,13 +394,20 @@ export class SystemHealthService extends BaseEventService {
     }
   }
 
-  private handlePerformanceAlert(alert: any): void {
+  private handlePerformanceAlert(alert: PerformanceAlertData): void {
     try {
       const healthAlert: HealthAlert = {
         type: "performance_alert",
         timestamp: Date.now(),
-        severity: alert.severity || "warning",
-        message: `Performance alert: ${alert.message}`,
+        severity:
+          alert.severity === AlertSeverity.CRITICAL
+            ? "critical"
+            : alert.severity === AlertSeverity.ERROR
+              ? "error"
+              : alert.severity === AlertSeverity.WARNING
+                ? "warning"
+                : "info",
+        message: `Performance alert: ${alert.metric}=${alert.value} threshold=${alert.threshold}`,
       };
 
       this.sendAlert(healthAlert);
@@ -416,13 +416,13 @@ export class SystemHealthService extends BaseEventService {
     }
   }
 
-  private handleAccuracyAlert(alert: unknown): void {
+  private handleAccuracyAlert(alert: AccuracyAlertData): void {
     try {
       const healthAlert: HealthAlert = {
         type: "accuracy_alert",
         timestamp: Date.now(),
-        severity: (alert as any).severity || "warning",
-        message: `Accuracy alert: ${(alert as any).message}`,
+        severity: "warning",
+        message: `Accuracy alert: deviation=${alert.deviation} threshold=${alert.threshold} feedId=${alert.feedId}`,
       };
 
       this.sendAlert(healthAlert);

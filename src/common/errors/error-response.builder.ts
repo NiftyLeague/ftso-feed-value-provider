@@ -1,5 +1,7 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
-import { ApiErrorResponse, ApiErrorCodes } from "@/error-handling/api-error-handler.service";
+import type { ApiErrorResponse } from "@/common/types/error-handling";
+import { ApiErrorCodes } from "@/common/types/error-handling";
+import type { ValidationRuleError } from "../types/utils";
 
 /**
  * Error response builder to standardize error formats
@@ -25,7 +27,7 @@ export class ErrorResponseBuilder {
     errorCode: ApiErrorCodes,
     message: string,
     requestId?: string,
-    details?: any
+    details?: Record<string, unknown>
   ): ApiErrorResponse {
     return {
       error: ApiErrorCodes[errorCode],
@@ -40,8 +42,14 @@ export class ErrorResponseBuilder {
   /**
    * Create validation error response
    */
-  static createValidationError(message: string, requestId?: string, details?: any): HttpException {
-    const errorResponse = this.createErrorResponse(ApiErrorCodes.INVALID_FEED_REQUEST, message, requestId, details);
+  static createValidationError(message: string, requestId?: string, details?: ValidationRuleError): HttpException {
+    const wrappedDetails = details ? { ...details } : undefined;
+    const errorResponse = this.createErrorResponse(
+      ApiErrorCodes.INVALID_FEED_REQUEST,
+      message,
+      requestId,
+      wrappedDetails
+    );
 
     return new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
   }
@@ -49,7 +57,7 @@ export class ErrorResponseBuilder {
   /**
    * Create feed not found error response
    */
-  static createFeedNotFoundError(feedId: any, requestId?: string): HttpException {
+  static createFeedNotFoundError(feedId: unknown, requestId?: string): HttpException {
     const errorResponse = this.createErrorResponse(
       ApiErrorCodes.FEED_NOT_FOUND,
       `Feed not found: ${JSON.stringify(feedId)}`,
@@ -63,7 +71,7 @@ export class ErrorResponseBuilder {
   /**
    * Create invalid voting round error response
    */
-  static createInvalidVotingRoundError(votingRoundId: any, requestId?: string): HttpException {
+  static createInvalidVotingRoundError(votingRoundId: unknown, requestId?: string): HttpException {
     const errorResponse = this.createErrorResponse(
       ApiErrorCodes.INVALID_VOTING_ROUND,
       `Invalid voting round ID: ${votingRoundId}`,
@@ -77,7 +85,7 @@ export class ErrorResponseBuilder {
   /**
    * Create invalid time window error response
    */
-  static createInvalidTimeWindowError(windowSec: any, requestId?: string): HttpException {
+  static createInvalidTimeWindowError(windowSec: unknown, requestId?: string): HttpException {
     const errorResponse = this.createErrorResponse(
       ApiErrorCodes.INVALID_TIME_WINDOW,
       `Invalid time window: ${windowSec}`,
@@ -166,7 +174,7 @@ export class ErrorResponseBuilder {
    */
   static createFromUnknownError(error: unknown, requestId?: string, context?: string): HttpException {
     let message = "Unknown error occurred";
-    let details: any = {};
+    let details: Record<string, unknown> = {};
 
     if (error instanceof Error) {
       message = error.message;
@@ -195,7 +203,7 @@ export class ErrorResponseBuilder {
     statusCode: HttpStatus,
     errorCode?: ApiErrorCodes,
     requestId?: string,
-    details?: any
+    details?: Record<string, unknown>
   ): HttpException {
     const code = errorCode || this.getDefaultErrorCodeForStatus(statusCode);
     const errorResponse = this.createErrorResponse(code, message, requestId, details);
@@ -229,7 +237,7 @@ export class ErrorResponseBuilder {
     try {
       const response = error.getResponse();
       if (typeof response === "object" && response !== null && "requestId" in response) {
-        return (response as any).requestId;
+        return (response as { requestId: string }).requestId;
       }
     } catch {
       // Ignore extraction errors

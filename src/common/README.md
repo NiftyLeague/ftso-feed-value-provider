@@ -106,10 +106,6 @@ const clientInfo = ClientIdentificationUtils.getClientInfo(request);
 console.log(clientInfo.id); // Full client ID
 console.log(clientInfo.type); // 'api', 'bearer', 'client', or 'ip'
 console.log(clientInfo.sanitized); // Sanitized for logging
-
-// Legacy methods for backward compatibility
-const clientId = ClientIdentificationUtils.getClientId(request);
-const sanitized = ClientIdentificationUtils.sanitizeClientId(clientId);
 ```
 
 **Features:**
@@ -117,7 +113,6 @@ const sanitized = ClientIdentificationUtils.sanitizeClientId(clientId);
 - Unified client identification from API keys, bearer tokens, client IDs, and IP
   addresses
 - Automatic sanitization for secure logging
-- Backward compatibility with existing code
 
 ## Rate Limiting Services
 

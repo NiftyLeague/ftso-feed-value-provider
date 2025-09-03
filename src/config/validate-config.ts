@@ -14,8 +14,12 @@
  */
 
 import { ConfigService } from "./config.service";
+import type { ConfigValidationResult } from "@/common/types";
 
-function formatValidationResult(title: string, result: any): string {
+type ConfigurationStatus = ReturnType<ConfigService["getConfigurationStatus"]>;
+type DetailedValidation = ReturnType<ConfigService["validateCurrentConfiguration"]>;
+
+function formatValidationResult(title: string, result: ConfigValidationResult): string {
   let output = `\n=== ${title} ===\n`;
 
   if (result.isValid) {
@@ -55,7 +59,7 @@ function formatValidationResult(title: string, result: any): string {
   return output;
 }
 
-function formatConfigurationStatus(status: any): string {
+function formatConfigurationStatus(status: ConfigurationStatus): string {
   let output = "\n=== Configuration Status ===\n";
 
   output += `\n📊 Environment Configuration:\n`;
@@ -76,7 +80,7 @@ function formatConfigurationStatus(status: any): string {
   return output;
 }
 
-function formatDetailedValidation(validation: any): string {
+function formatDetailedValidation(validation: DetailedValidation): string {
   let output = "\n=== Detailed Validation Report ===\n";
 
   output += `\n📈 Overall Status:\n`;
@@ -90,10 +94,10 @@ function formatDetailedValidation(validation: any): string {
   output += `  - Total Feeds: ${validation.feeds.totalFeeds}\n`;
   output += `  - Total Sources: ${validation.feeds.totalSources}\n`;
 
-  const invalidFeeds = validation.feeds.validationResults.filter((f: any) => !f.isValid);
+  const invalidFeeds = validation.feeds.validationResults.filter(f => !f.isValid);
   if (invalidFeeds.length > 0) {
     output += `\n❌ Invalid Feeds (${invalidFeeds.length}):\n`;
-    invalidFeeds.forEach((feed: any) => {
+    invalidFeeds.forEach(feed => {
       output += `  - ${feed.feedName}:\n`;
       feed.errors.forEach((error: string) => {
         output += `    • ${error}\n`;
@@ -101,10 +105,10 @@ function formatDetailedValidation(validation: any): string {
     });
   }
 
-  const feedsWithWarnings = validation.feeds.validationResults.filter((f: any) => f.warnings.length > 0);
+  const feedsWithWarnings = validation.feeds.validationResults.filter(f => f.warnings.length > 0);
   if (feedsWithWarnings.length > 0) {
     output += `\n⚠️  Feeds with Warnings (${feedsWithWarnings.length}):\n`;
-    feedsWithWarnings.forEach((feed: any) => {
+    feedsWithWarnings.forEach(feed => {
       output += `  - ${feed.feedName}:\n`;
       feed.warnings.forEach((warning: string) => {
         output += `    • ${warning}\n`;
@@ -145,13 +149,16 @@ async function main() {
 
     // Exit with appropriate code
     process.exit(validation.overall.isValid ? 0 : 1);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("\n💥 Configuration validation failed:");
-    console.error(error.message);
-
-    if (error.stack) {
-      console.error("\nStack trace:");
-      console.error(error.stack);
+    if (error instanceof Error) {
+      console.error(error.message);
+      if (error.stack) {
+        console.error("\nStack trace:");
+        console.error(error.stack);
+      }
+    } else {
+      console.error(String(error));
     }
 
     console.log("\n💡 Tips:");

@@ -1,8 +1,7 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { AlertingService } from "../alerting.service";
-import { MonitoringConfig, AlertSeverity, AlertAction, AlertRule } from "../interfaces/monitoring.interfaces";
-import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import axios from "axios";
+import { Test, TestingModule } from "@nestjs/testing";
+import { type MonitoringConfig, AlertSeverity, AlertAction } from "@/common/types/monitoring";
+import { AlertingService } from "../alerting.service";
 
 // Mock axios
 jest.mock("axios");
@@ -21,35 +20,46 @@ describe("AlertingService", () => {
 
   beforeEach(async () => {
     mockConfig = {
-      accuracyThresholds: {
-        maxConsensusDeviation: 0.5,
-        minAccuracyRate: 80,
-        minQualityScore: 70,
+      enabled: true,
+      interval: 1000,
+      thresholds: {
+        accuracy: {
+          // Required AccuracyThresholds
+          warning: 0.5,
+          critical: 1,
+          maxDeviation: 1,
+          minParticipants: 3,
+          // Extended fields used by monitors
+          maxConsensusDeviation: 0.5,
+          minAccuracyRate: 80,
+          minQualityScore: 70,
+        },
+        performance: {
+          maxResponseLatency: 100,
+          maxDataAge: 2000,
+          minThroughput: 100,
+          minCacheHitRate: 80,
+        },
+        health: {
+          maxErrorRate: 5,
+          maxCpuUsage: 80,
+          maxMemoryUsage: 80,
+          minConnectionRate: 90,
+        },
       },
-      performanceThresholds: {
-        maxResponseLatency: 100,
-        maxDataAge: 2000,
-        minThroughput: 100,
-        minCacheHitRate: 80,
-      },
-      healthThresholds: {
-        maxErrorRate: 5,
-        maxCpuUsage: 80,
-        maxMemoryUsage: 80,
-        minConnectionRate: 90,
-      },
-      monitoringInterval: 1000,
       alerting: {
+        enabled: true,
         rules: [
           {
             id: "consensus_deviation",
             name: "Consensus Deviation Alert",
             description: "Alert when consensus deviation exceeds threshold",
-            metric: "consensus_deviation",
-            threshold: 0.5,
-            operator: "gt",
+            condition: {
+              metric: "consensus_deviation",
+              threshold: 0.5,
+              operator: "gt",
+            },
             severity: AlertSeverity.ERROR,
-            duration: 0,
             actions: [AlertAction.LOG, AlertAction.EMAIL],
             enabled: true,
             cooldown: 300000, // 5 minutes
@@ -58,19 +68,25 @@ describe("AlertingService", () => {
             id: "response_latency",
             name: "Response Latency Alert",
             description: "Alert when response latency is too high",
-            metric: "response_latency",
-            threshold: 100,
-            operator: "gt",
+            condition: {
+              metric: "response_latency",
+              threshold: 100,
+              operator: "gt",
+            },
             severity: AlertSeverity.WARNING,
-            duration: 0,
             actions: [AlertAction.LOG],
             enabled: true,
             cooldown: 60000, // 1 minute
           },
         ],
+        rateLimits: {
+          windowMs: 60_000,
+          maxRequests: 1000,
+        },
         deliveryConfig: {
           email: {
             enabled: false,
+            subject: "FTSO Alerts",
             smtpHost: "smtp.test.com",
             smtpPort: 587,
             username: "test@test.com",
@@ -81,6 +97,8 @@ describe("AlertingService", () => {
           webhook: {
             enabled: true,
             url: "https://webhook.test.com/alerts",
+            method: "POST",
+            headers: {},
             timeout: 5000,
           },
         },
@@ -176,7 +194,7 @@ describe("AlertingService", () => {
 
       // Create new service instance with updated config
       const testService = new AlertingService(mockConfig);
-      const rateLimitSpy = jest.spyOn(testService["enhancedLogger"], "warn");
+      const rateLimitSpy = jest.spyOn(testService["logger"], "warn");
 
       // Trigger first alert (should work)
       testService.evaluateMetric("consensus_deviation", 0.8);

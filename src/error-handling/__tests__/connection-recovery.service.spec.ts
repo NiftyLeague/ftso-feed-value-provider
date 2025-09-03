@@ -1,9 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { FailoverManager } from "@/data-manager/failover-manager";
+import { type DataSource, type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+
 import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CircuitBreakerService } from "../circuit-breaker.service";
-import { FailoverManager } from "@/data-manager/failover-manager";
-import { DataSource } from "@/common/interfaces/core/data-source.interface";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
 
 // Mock DataSource implementation
 class MockDataSource implements DataSource {
@@ -14,7 +14,6 @@ class MockDataSource implements DataSource {
   private connected: boolean = false;
   private latency: number = 50;
   private connectionChangeCallback?: (connected: boolean) => void;
-  private priceUpdateCallback?: (update: any) => void;
 
   constructor(id: string, type: "websocket" | "rest" = "websocket", category: FeedCategory = FeedCategory.Crypto) {
     this.id = id;
@@ -31,16 +30,18 @@ class MockDataSource implements DataSource {
     return this.latency;
   }
 
-  async subscribe(symbols: string[]): Promise<void> {
+  async subscribe(_symbols: string[]): Promise<void> {
+    void _symbols;
     // Mock implementation
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
+  async unsubscribe(_symbols: string[]): Promise<void> {
+    void _symbols;
     // Mock implementation
   }
 
-  onPriceUpdate(callback: (update: any) => void): void {
-    this.priceUpdateCallback = callback;
+  onPriceUpdate(_callback: (update: any) => void): void {
+    // Mock implementation
   }
 
   onConnectionChange(callback: (connected: boolean) => void): void {
@@ -253,9 +254,8 @@ describe("ConnectionRecoveryService", () => {
       await service.triggerFailover("source1", "Test");
       await service.triggerFailover("source2", "Test");
 
-      let degradationEmitted = false;
       service.on("partialServiceDegradation", () => {
-        degradationEmitted = true;
+        // No-op for this test
       });
 
       await service.implementGracefulDegradation(feedId);

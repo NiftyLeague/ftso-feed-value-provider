@@ -1,13 +1,13 @@
 // ESLint v9 flat config format
 module.exports = [
   {
-    files: ["**/*.ts"],
+    files: ["**/*.ts", "**/*.d.ts"],
     languageOptions: {
       parser: require("@typescript-eslint/parser"),
       parserOptions: {
         ecmaVersion: "latest",
         sourceType: "module",
-        project: "./tsconfig.json",
+        project: "./tsconfig.eslint.json",
       },
     },
     plugins: {

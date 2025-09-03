@@ -11,13 +11,11 @@ import { CachePerformanceMonitorService } from "@/cache/cache-performance-monito
 
 // Configuration
 import { ConfigService } from "@/config/config.service";
+import { FeedConfiguration } from "@/config/config.service";
 
 // Types and interfaces
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-
-import { FeedConfiguration } from "@/config/config.service";
+import type { AggregatedPrice } from "@/common/types/services";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 
 @Injectable()
 export class PriceAggregationCoordinatorService extends BaseEventService {
@@ -66,8 +64,9 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
 
       this.endPerformanceTimer(operationId, true, { initialized: true });
     } catch (error) {
-      this.endPerformanceTimer(operationId, false, { error: error.message });
-      this.logError(error as Error, "price_aggregation_initialization", { severity: "critical" });
+      const errObj = error instanceof Error ? error : new Error(String(error));
+      this.endPerformanceTimer(operationId, false, { error: errObj.message });
+      this.logError(errObj, "price_aggregation_initialization", { severity: "critical" });
       throw error;
     }
   }
@@ -203,7 +202,12 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
     }
   }
 
-  getCacheStats(): any {
+  getCacheStats(): {
+    stats: ReturnType<RealTimeCacheService["getStats"]>;
+    performance: ReturnType<CachePerformanceMonitorService["getPerformanceMetrics"]>;
+    health: ReturnType<CachePerformanceMonitorService["checkPerformanceThresholds"]>;
+    warmup: ReturnType<CacheWarmerService["getWarmupStats"]>;
+  } {
     return {
       stats: this.cacheService.getStats(),
       performance: this.cachePerformanceMonitor.getPerformanceMetrics(),
@@ -212,10 +216,18 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
     };
   }
 
-  getAggregationStats(): any {
+  getAggregationStats(): {
+    activeFeedCount: number;
+    totalAggregations: number;
+    averageAggregationTime: number;
+    cacheStats: ReturnType<RealTimeAggregationService["getCacheStats"]>;
+  } {
+    const cacheStats = this.aggregationService.getCacheStats();
     return {
       activeFeedCount: this.aggregationService.getActiveFeedCount(),
-      cacheStats: this.aggregationService.getCacheStats(),
+      totalAggregations: 0,
+      averageAggregationTime: 0,
+      cacheStats,
     };
   }
 

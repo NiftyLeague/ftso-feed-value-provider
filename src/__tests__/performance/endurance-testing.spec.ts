@@ -1,4 +1,4 @@
-import { FeedCategory } from "@/common/types/feed.types";
+import { FeedCategory } from "@/common/types/core";
 
 // Mock HTTP server for endurance testing
 class MockEnduranceServer {
@@ -358,7 +358,6 @@ describe("Endurance Testing", () => {
     it("should detect and prevent file descriptor leaks", async () => {
       const testDurationMinutes = 0.5; // Reduced from 2 minutes to 30 seconds for testing
       const requestsPerMinute = 60;
-      const totalRequests = testDurationMinutes * requestsPerMinute;
 
       const requestBody = {
         feeds: [{ category: FeedCategory.Crypto, name: "BTC/USD" }],

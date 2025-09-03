@@ -1,44 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-
-export interface ApiMetrics {
-  endpoint: string;
-  method: string;
-  statusCode: number;
-  responseTime: number;
-  responseSize: number;
-  timestamp: number;
-  clientId?: string;
-  requestId?: string;
-  error?: string;
-}
-
-export interface EndpointStats {
-  endpoint: string;
-  totalRequests: number;
-  successfulRequests: number;
-  failedRequests: number;
-  averageResponseTime: number;
-  maxResponseTime: number;
-  minResponseTime: number;
-  p95ResponseTime: number;
-  p99ResponseTime: number;
-  averageResponseSize: number;
-  errorRate: number;
-  lastRequest: number;
-  statusCodeDistribution: Record<number, number>;
-}
-
-export interface ApiHealthMetrics {
-  totalRequests: number;
-  requestsPerMinute: number;
-  averageResponseTime: number;
-  errorRate: number;
-  slowRequestRate: number; // Requests > 100ms
-  criticalRequestRate: number; // Requests > 1000ms
-  topEndpoints: Array<{ endpoint: string; requests: number; avgResponseTime: number }>;
-  recentErrors: Array<{ endpoint: string; error: string; timestamp: number; count: number }>;
-}
+import type { EndpointStats, SlowResponseData, ServerErrorData, HighErrorRateData } from "@/common/types/monitoring";
+import type { ApiMetrics, ApiHealthMetrics } from "@/common/types/monitoring";
 
 @Injectable()
 export class ApiMonitorService extends BaseEventService {
@@ -148,6 +111,7 @@ export class ApiMonitorService extends BaseEventService {
       .slice(0, 20);
 
     return {
+      timestamp: Date.now(),
       totalRequests,
       requestsPerMinute,
       averageResponseTime,
@@ -362,20 +326,25 @@ export class ApiMonitorService extends BaseEventService {
     // Alert on very slow responses
     if (metrics.responseTime > 5000) {
       this.emit("slowResponse", {
-        endpoint: metrics.endpoint,
+        endpoint: metrics.endpoint || "unknown",
         responseTime: metrics.responseTime,
         threshold: 5000,
         timestamp: metrics.timestamp,
+        requestId: `req-${Date.now()}`,
+        method: metrics.method || "GET",
+        statusCode: metrics.statusCode || 200,
       });
     }
 
     // Alert on server errors
     if (metrics.statusCode >= 500) {
       this.emit("serverError", {
-        endpoint: metrics.endpoint,
-        statusCode: metrics.statusCode,
-        error: metrics.error,
+        endpoint: metrics.endpoint || "unknown",
+        statusCode: metrics.statusCode || 500,
+        error: metrics.error || "Server Error",
         timestamp: metrics.timestamp,
+        requestId: `req-${Date.now()}`,
+        method: metrics.method || "GET",
       });
     }
 
@@ -385,8 +354,11 @@ export class ApiMonitorService extends BaseEventService {
       this.emit("highErrorRate", {
         endpoint: stats.endpoint,
         errorRate: stats.errorRate,
-        totalRequests: stats.totalRequests,
+        threshold: 50,
+        timeWindow: 60000, // 1 minute
         timestamp: metrics.timestamp,
+        errorCount: Math.floor((stats.totalRequests * stats.errorRate) / 100),
+        totalRequests: stats.totalRequests,
       });
     }
   }
@@ -424,22 +396,24 @@ export class ApiMonitorService extends BaseEventService {
   /**
    * Emit API monitoring events
    */
-  emit(event: "apiRequest", metrics: ApiMetrics): boolean;
-  emit(event: "slowResponse", data: any): boolean;
-  emit(event: "serverError", data: any): boolean;
-  emit(event: "highErrorRate", data: any): boolean;
-  emit(event: string | symbol, ...args: any[]): boolean {
+  override emit(event: "apiRequest", metrics: ApiMetrics): boolean;
+  override emit(event: "slowResponse", data: SlowResponseData): boolean;
+  override emit(event: "serverError", data: ServerErrorData): boolean;
+  override emit(event: "highErrorRate", data: HighErrorRateData): boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override emit(event: string | symbol, ...args: any[]): boolean {
     return super.emit(event, ...args);
   }
 
   /**
    * Listen for API monitoring events
    */
-  on(event: "apiRequest", callback: (metrics: ApiMetrics) => void): this;
-  on(event: "slowResponse", callback: (data: any) => void): this;
-  on(event: "serverError", callback: (data: any) => void): this;
-  on(event: "highErrorRate", callback: (data: any) => void): this;
-  on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on(event: "apiRequest", callback: (metrics: ApiMetrics) => void): this;
+  override on(event: "slowResponse", callback: (data: SlowResponseData) => void): this;
+  override on(event: "serverError", callback: (data: ServerErrorData) => void): this;
+  override on(event: "highErrorRate", callback: (data: HighErrorRateData) => void): this;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override on(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(event, listener);
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "../base/base.service";
-import { RateLimitConfig, RateLimitInfo, ClientRecord, RateLimitStats } from "./rate-limit.types";
+import type { RateLimitConfig, RateLimitInfo, ClientRecord, RateLimitMetrics } from "../types/utils";
 
 @Injectable()
 export class RateLimiterService extends BaseService {
@@ -98,12 +98,11 @@ export class RateLimiterService extends BaseService {
   /**
    * Get rate limit statistics
    */
-  getStats(): RateLimitStats {
+  getStats(): RateLimitMetrics {
     const now = Date.now();
     const windowStart = now - this.config.windowMs;
 
     let totalRequests = 0;
-    let activeClients = 0;
     let blockedRequests = 0;
 
     for (const [, client] of this.clients) {
@@ -111,21 +110,20 @@ export class RateLimiterService extends BaseService {
 
       // Count active clients (those with requests in current window)
       const recentRequests = client.requests.filter(timestamp => timestamp > windowStart);
-      if (recentRequests.length > 0) {
-        activeClients++;
-
-        // Count blocked requests
-        if (recentRequests.length >= this.config.maxRequests) {
-          blockedRequests += recentRequests.length - this.config.maxRequests;
-        }
+      if (recentRequests.length >= this.config.maxRequests) {
+        blockedRequests += recentRequests.length - this.config.maxRequests;
       }
     }
 
+    const allowedRequests = Math.max(0, totalRequests - blockedRequests);
+    const hitRate = totalRequests > 0 ? allowedRequests / totalRequests : 1;
+
     return {
-      totalClients: this.clients.size,
-      activeClients,
       totalRequests,
+      allowedRequests,
       blockedRequests,
+      hitRate,
+      averageResponseTime: 0,
     };
   }
 

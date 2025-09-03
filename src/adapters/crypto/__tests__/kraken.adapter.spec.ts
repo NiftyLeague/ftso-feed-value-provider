@@ -1,5 +1,5 @@
 import { KrakenAdapter, KrakenTickerData } from "../kraken.adapter";
-import { FeedCategory } from "@/common/types/feed.types";
+import { FeedCategory } from "@/common/types/core";
 
 // Mock WebSocket
 class MockWebSocket {
@@ -11,7 +11,7 @@ class MockWebSocket {
   readyState = MockWebSocket.CONNECTING;
   onopen?: () => void;
   onclose?: () => void;
-  onerror?: (error: any) => void;
+  onerror?: (error: Error | Event) => void;
   onmessage?: (event: { data: string }) => void;
 
   constructor(public url: string) {
@@ -21,7 +21,7 @@ class MockWebSocket {
     }, 10);
   }
 
-  send(data: string) {
+  send(_data: string) {
     // Mock send implementation
   }
 

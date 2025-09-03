@@ -98,7 +98,7 @@ Interface for data validation and quality assurance.
   Validate multiple updates
 - `filterValidUpdates(updates: PriceUpdate[], results: Map<string, ValidationResult>): PriceUpdate[]` -
   Filter valid updates
-- `getValidationStatistics(): ValidationStatistics` - Get validation statistics
+- `getValidationStats(): ValidationStats` - Get validation statistics
 - `clearCache(): void` - Clear validation cache
 - `clearHistoricalData(): void` - Clear historical validation data
 

@@ -1,14 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import {
-  AggregatedPrice,
-  QualityMetrics,
-  PriceAggregator,
-  AggregationConfig,
-  ValidationConfig,
-} from "./base/aggregation.interfaces";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { AggregatedPrice, QualityMetrics, PriceAggregator, AggregationConfig } from "@/common/types/services";
+import type { DataValidatorConfig } from "@/common/types/data-manager";
 
 export enum ExchangeTier {
   CUSTOM_ADAPTER = 1, // Top exchanges with custom adapters
@@ -44,11 +38,14 @@ export interface ConsensusAggregatorConfig extends AggregationConfig {
 @Injectable()
 export class ConsensusAggregator extends BaseService implements PriceAggregator {
   private readonly defaultConfig: ConsensusAggregatorConfig = {
+    enabled: true,
     method: "consensus_optimized",
     timeDecayFactor: 0.00005, // LAMBDA parameter from existing CCXT implementation
     lambda: 0.00005,
     minSources: 3,
     maxStaleness: 2000, // 2 seconds
+    maxDeviation: 0.1,
+    timeout: 2000,
     maxStalenessMs: 2000,
     tierWeights: {
       [ExchangeTier.CUSTOM_ADAPTER]: 1.2, // 20% bonus for custom adapters
@@ -58,11 +55,19 @@ export class ConsensusAggregator extends BaseService implements PriceAggregator 
   };
 
   private config: ConsensusAggregatorConfig;
-  private validationConfig: ValidationConfig = {
-    maxAge: 2000, // 2 seconds
-    priceRange: { min: 0.000001, max: 1000000 }, // Reasonable price range
-    outlierThreshold: 0.1, // 10% deviation threshold
+  private DataValidatorConfig: DataValidatorConfig = {
     consensusWeight: 0.3, // 30% weight for consensus alignment
+    crossSourceWindow: 3,
+    enableBatchValidation: true,
+    enableRealTimeValidation: true,
+    historicalDataWindow: 50,
+    maxAge: 2000, // 2 seconds
+    maxBatchSize: 100,
+    outlierThreshold: 0.1, // 10% deviation threshold
+    priceRange: { min: 0.000001, max: 1000000 }, // Reasonable price range
+    validationCacheSize: 1000,
+    validationCacheTTL: 5000,
+    validationTimeout: 1000,
   };
 
   constructor() {
@@ -271,7 +276,10 @@ export class ConsensusAggregator extends BaseService implements PriceAggregator 
       }
 
       // Check price range
-      if (price.price <= this.validationConfig.priceRange.min || price.price >= this.validationConfig.priceRange.max) {
+      if (
+        price.price <= this.DataValidatorConfig.priceRange.min ||
+        price.price >= this.DataValidatorConfig.priceRange.max
+      ) {
         this.logger.debug(`Rejecting out-of-range price from ${price.exchange}: ${price.price}`);
         return false;
       }
@@ -318,7 +326,7 @@ export class ConsensusAggregator extends BaseService implements PriceAggregator 
         : deviations.reduce((sum, dev) => sum + dev, 0) / deviations.length;
 
     // Convert deviation to consensus score (lower deviation = higher consensus)
-    const consensusScore = Math.max(0, 1 - avgWeightedDeviation / this.validationConfig.outlierThreshold);
+    const consensusScore = Math.max(0, 1 - avgWeightedDeviation / this.DataValidatorConfig.outlierThreshold);
 
     return Math.min(1, consensusScore);
   }
@@ -338,8 +346,8 @@ export class ConsensusAggregator extends BaseService implements PriceAggregator 
 
     // Combine source confidence with consensus alignment
     const combinedConfidence =
-      weightedConfidence * (1 - this.validationConfig.consensusWeight) +
-      consensusScore * this.validationConfig.consensusWeight;
+      weightedConfidence * (1 - this.DataValidatorConfig.consensusWeight) +
+      consensusScore * this.DataValidatorConfig.consensusWeight;
 
     // Apply source count bonus (more sources = higher confidence)
     const sourceCountBonus = Math.min(0.2, prices.length * 0.05); // Max 20% bonus
@@ -355,7 +363,7 @@ export class ConsensusAggregator extends BaseService implements PriceAggregator 
     const age = now - update.timestamp;
 
     // Check staleness
-    if (age > this.validationConfig.maxAge) {
+    if (age > this.DataValidatorConfig.maxAge) {
       return false;
     }
 

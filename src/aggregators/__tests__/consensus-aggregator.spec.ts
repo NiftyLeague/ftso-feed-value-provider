@@ -1,6 +1,6 @@
 import { ConsensusAggregator } from "../consensus-aggregator";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 describe("ConsensusAggregator", () => {
   let aggregator: ConsensusAggregator;

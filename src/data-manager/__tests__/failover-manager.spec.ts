@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { FailoverManager, FailoverConfig } from "../failover-manager";
-import { DataSource } from "@/common/interfaces/core/data-source.interface";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { FailoverManager } from "../failover-manager";
+import type { FailoverConfig } from "@/common/types/data-manager";
+import type { DataSource, PriceUpdate, EnhancedFeedId } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 // Mock DataSource for testing
 class MockDataSource implements DataSource {
@@ -29,15 +30,15 @@ class MockDataSource implements DataSource {
     return this.latency;
   }
 
-  async subscribe(symbols: string[]): Promise<void> {
+  async subscribe(_symbols: string[]): Promise<void> {
     // Mock implementation
   }
 
-  async unsubscribe(symbols: string[]): Promise<void> {
+  async unsubscribe(_symbols: string[]): Promise<void> {
     // Mock implementation
   }
 
-  onPriceUpdate(callback: any): void {
+  onPriceUpdate(_callback: (update: PriceUpdate) => void): void {
     // Mock implementation
   }
 
@@ -248,8 +249,8 @@ describe("FailoverManager", () => {
 
     it("should trigger failover when source fails", async () => {
       const failoverPromise = new Promise<void>(resolve => {
-        manager.on("failoverCompleted", (completedFeedId, details) => {
-          expect(completedFeedId).toEqual(feedId);
+        manager.on("failoverCompleted", (_completedFeedId, details) => {
+          expect(_completedFeedId).toEqual(feedId);
           expect((details as any).failedSource).toBe("binance");
           resolve();
         });
@@ -267,7 +268,7 @@ describe("FailoverManager", () => {
     it("should activate backup sources when all primary sources fail", async () => {
       const failoverPromise = new Promise<void>(resolve => {
         let failoverCount = 0;
-        manager.on("failoverCompleted", (completedFeedId, details) => {
+        manager.on("failoverCompleted", (_completedFeedId, details) => {
           failoverCount++;
           if (failoverCount === 2) {
             // After both primary sources fail

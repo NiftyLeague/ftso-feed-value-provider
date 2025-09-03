@@ -1,7 +1,7 @@
-import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 export interface OkxTickerData {
   instType: string; // Instrument type
@@ -79,8 +79,10 @@ export class OkxAdapter extends BaseExchangeAdapter {
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
+      reconnectInterval: 5000,
       maxReconnectAttempts: 5,
       pingInterval: 30000, // OKX requires periodic ping
+      pongTimeout: 10000,
     });
 
     this.startPingInterval();
@@ -91,12 +93,12 @@ export class OkxAdapter extends BaseExchangeAdapter {
     await this.disconnectWebSocket();
   }
 
-  isConnected(): boolean {
+  override isConnected(): boolean {
     return super.isConnected() && this.isWebSocketConnected();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
-  protected handleWebSocketMessage(data: unknown): void {
+  protected override handleWebSocketMessage(data: unknown): void {
     this.safeProcessData(
       data,
       rawData => {
@@ -126,12 +128,12 @@ export class OkxAdapter extends BaseExchangeAdapter {
     );
   }
 
-  protected handleWebSocketClose(): void {
+  protected override handleWebSocketClose(): void {
     this.stopPingInterval();
     super.handleWebSocketClose(); // Call base implementation
   }
 
-  protected handleWebSocketError(error: Error): void {
+  protected override handleWebSocketError(error: Error): void {
     this.stopPingInterval();
     super.handleWebSocketError(error); // Call base implementation
   }
@@ -279,7 +281,7 @@ export class OkxAdapter extends BaseExchangeAdapter {
   }
 
   // Override symbol mapping for OKX format
-  getSymbolMapping(normalizedSymbol: string): string {
+  override getSymbolMapping(normalizedSymbol: string): string {
     // Convert "BTC/USDT" to "BTC-USDT" for OKX
     return normalizedSymbol.replace("/", "-");
   }

@@ -1,8 +1,17 @@
-import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
-import { LogContext } from "@/common/logging/logger.types";
-import { PerformanceMetrics, HealthMetrics, MonitoringConfig } from "./interfaces/monitoring.interfaces";
-import { BaseEventService } from "@/common/base/base-event.service";
 import * as os from "os";
+import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
+import { BaseEventService } from "@/common/base/base-event.service";
+import type { LogContext } from "@/common/types/logging";
+import {
+  AlertSeverity,
+  type HealthMetrics,
+  type MonitorableComponent,
+  type MonitoringConfig,
+  type PerformanceAlertData,
+  type PerformanceMetrics,
+} from "@/common/types/monitoring";
+import type { MetricMetadata } from "@/common/types/utils";
+import type { PriceUpdate } from "@/common/types/core";
 
 @Injectable()
 export class PerformanceMonitorService extends BaseEventService implements OnModuleDestroy {
@@ -43,24 +52,24 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
       metadata: {
         endpoint,
         latency,
-        threshold: this.config.performanceThresholds.maxResponseLatency,
+        threshold: this.config.thresholds.performance.maxResponseLatency,
         measurementCount: history.length,
       },
     };
 
     // Log slow responses with detailed context
-    if (latency > this.config.performanceThresholds.maxResponseLatency) {
-      this.enhancedLogger.warn(`Response latency threshold exceeded for ${endpoint}`, {
+    if (latency > this.config.thresholds.performance.maxResponseLatency) {
+      this.enhancedLogger?.warn(`Response latency threshold exceeded for ${endpoint}`, {
         ...context,
-        severity: "medium",
+        severity: AlertSeverity.MEDIUM,
         metadata: {
-          ...context.metadata,
-          exceedsThresholdBy: latency - this.config.performanceThresholds.maxResponseLatency,
+          ...(context.metadata ?? {}),
+          exceedsThresholdBy: latency - this.config.thresholds.performance.maxResponseLatency,
           averageLatency: history.reduce((sum, lat) => sum + lat, 0) / history.length,
         },
       });
     } else {
-      this.enhancedLogger.debug(`Response latency tracked for ${endpoint}: ${latency}ms`, context);
+      this.enhancedLogger?.debug(`Response latency tracked for ${endpoint}: ${latency}ms`, context);
     }
   }
 
@@ -80,9 +89,9 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
     this.dataFreshnessHistory.set(feedId, history);
 
     // Log stale data
-    if (dataAge > this.config.performanceThresholds.maxDataAge) {
+    if (dataAge > this.config.thresholds.performance.maxDataAge) {
       this.logger.warn(
-        `Stale data detected for ${feedId}: ${dataAge}ms > ${this.config.performanceThresholds.maxDataAge}ms`
+        `Stale data detected for ${feedId}: ${dataAge}ms > ${this.config.thresholds.performance.maxDataAge}ms`
       );
     }
   }
@@ -118,15 +127,14 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
 
     // Emit performance alert if error rate is high
     const errorStats = this.getErrorStats();
-    if (errorStats.errorRate > this.config.healthThresholds.maxErrorRate) {
-      const alert = {
-        type: "high_error_rate",
-        source,
-        errorRate: errorStats.errorRate,
-        threshold: this.config.healthThresholds.maxErrorRate,
+    if (errorStats.errorRate > this.config.thresholds.health.maxErrorRate) {
+      const alert: PerformanceAlertData = {
+        component: source,
+        metric: "error_rate",
+        value: errorStats.errorRate,
+        threshold: this.config.thresholds.health.maxErrorRate,
         timestamp: Date.now(),
-        severity: "error",
-        message: `High error rate detected: ${errorStats.errorRate.toFixed(2)} errors/min > ${this.config.healthThresholds.maxErrorRate}`,
+        severity: AlertSeverity.HIGH,
         metadata: { source, error: error.message, errorStats },
       };
       this.emit("performanceAlert", alert);
@@ -156,11 +164,14 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
     const cacheHitRate = this.calculateCacheHitRate();
 
     return {
+      responseTime: avgLatency,
       responseLatency: avgLatency,
       dataFreshness: avgFreshness,
       throughput,
       cacheHitRate,
       timestamp: now,
+      errorRate: this.calculateErrorRate(),
+      availability: this.calculateAvailability(),
     };
   }
 
@@ -182,6 +193,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
 
     return {
       connectionStatus: new Map(this.connectionStatus),
+      connectionCount: this.connectionStatus.size,
       errorRate,
       cpuUsage,
       memoryUsage,
@@ -244,7 +256,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
       };
     }
 
-    const staleCount = history.filter(age => age > this.config.performanceThresholds.maxDataAge).length;
+    const staleCount = history.filter(age => age > this.config.thresholds.performance.maxDataAge).length;
     const staleDataPercentage = (staleCount / history.length) * 100;
 
     return {
@@ -315,10 +327,10 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
   } {
     const metrics = this.getCurrentPerformanceMetrics();
 
-    const latencyOk = metrics.responseLatency <= this.config.performanceThresholds.maxResponseLatency;
-    const freshnessOk = metrics.dataFreshness <= this.config.performanceThresholds.maxDataAge;
-    const throughputOk = metrics.throughput >= this.config.performanceThresholds.minThroughput;
-    const cacheHitRateOk = metrics.cacheHitRate >= this.config.performanceThresholds.minCacheHitRate;
+    const latencyOk = metrics.responseLatency <= this.config.thresholds.performance.maxResponseLatency;
+    const freshnessOk = metrics.dataFreshness <= this.config.thresholds.performance.maxDataAge;
+    const throughputOk = metrics.throughput >= this.config.thresholds.performance.minThroughput;
+    const cacheHitRateOk = metrics.cacheHitRate >= this.config.thresholds.performance.minCacheHitRate;
 
     return {
       latencyOk,
@@ -342,10 +354,10 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
     const metrics = this.getCurrentHealthMetrics();
     const connectionSummary = this.getConnectionSummary();
 
-    const errorRateOk = metrics.errorRate <= this.config.healthThresholds.maxErrorRate;
-    const cpuUsageOk = metrics.cpuUsage <= this.config.healthThresholds.maxCpuUsage;
-    const memoryUsageOk = metrics.memoryUsage <= this.config.healthThresholds.maxMemoryUsage;
-    const connectionRateOk = connectionSummary.connectionRate >= this.config.healthThresholds.minConnectionRate;
+    const errorRateOk = metrics.errorRate <= this.config.thresholds.health.maxErrorRate;
+    const cpuUsageOk = metrics.cpuUsage <= this.config.thresholds.health.maxCpuUsage;
+    const memoryUsageOk = metrics.memoryUsage <= this.config.thresholds.health.maxMemoryUsage;
+    const connectionRateOk = connectionSummary.connectionRate >= this.config.thresholds.health.minConnectionRate;
 
     return {
       errorRateOk,
@@ -371,7 +383,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
   /**
    * Record a generic metric with metadata
    */
-  recordMetric(metricName: string, value: number, metadata?: Record<string, any>): void {
+  recordMetric(metricName: string, value: number, metadata?: MetricMetadata): void {
     try {
       switch (metricName) {
         case "price_update_latency":
@@ -393,7 +405,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
   /**
    * Record price update for performance tracking
    */
-  recordPriceUpdate(update: any): void {
+  recordPriceUpdate(update: PriceUpdate): void {
     try {
       const latency = Date.now() - (update.timestamp || Date.now());
       const source = update.source || "unknown";
@@ -403,7 +415,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
       this.trackDataFreshness(symbol, latency);
 
       // Enhanced logging for price update recording
-      this.enhancedLogger.logPriceUpdate(
+      this.enhancedLogger?.logPriceUpdate(
         symbol,
         source,
         update.price || 0,
@@ -411,7 +423,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
         update.confidence || 0
       );
 
-      this.enhancedLogger.debug(`Price update performance recorded`, {
+      this.enhancedLogger?.debug(`Price update performance recorded`, {
         component: "PerformanceMonitor",
         operation: "record_price_update",
         sourceId: source,
@@ -424,10 +436,10 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
         },
       });
     } catch (error) {
-      this.enhancedLogger.error(error, {
+      this.enhancedLogger?.error(error as unknown as Error, {
         component: "PerformanceMonitor",
         operation: "record_price_update",
-        severity: "medium",
+        severity: AlertSeverity.MEDIUM,
         metadata: {
           updateData: update,
         },
@@ -438,7 +450,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
   /**
    * Monitor a component for performance metrics
    */
-  monitorComponent(name: string, component: any): void {
+  monitorComponent(name: string, component: MonitorableComponent): void {
     try {
       this.logger.log(`Started monitoring component: ${name}`);
 
@@ -453,18 +465,23 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
   /**
    * Emit performance alert event
    */
-  emit(event: "performanceAlert", alert: any): boolean;
-  emit(event: "componentMonitoringStarted", name: string, component: any): boolean;
-  emit(event: string | symbol, ...args: any[]): boolean {
+  override emit(event: "performanceAlert", alert: PerformanceAlertData): boolean;
+  override emit(event: "componentMonitoringStarted", name: string, component: MonitorableComponent): boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override emit(event: string | symbol, ...args: any[]): boolean {
     return super.emit(event, ...args);
   }
 
   /**
    * Listen for performance alert events
    */
-  on(event: "performanceAlert", callback: (alert: any) => void): this;
-  on(event: "componentMonitoringStarted", callback: (name: string, component: any) => void): this;
-  on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on(event: "performanceAlert", callback: (alert: PerformanceAlertData) => void): this;
+  override on(
+    event: "componentMonitoringStarted",
+    callback: (name: string, component: MonitorableComponent) => void
+  ): this;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override on(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(event, listener);
   }
 
@@ -514,7 +531,7 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
 
       // Check thresholds and emit alerts if needed
       this.checkAndEmitAlerts(performanceMetrics, healthMetrics);
-    }, this.config.monitoringInterval);
+    }, this.config.interval);
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -533,11 +550,13 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
       // Check performance thresholds
       const perfThresholds = this.checkPerformanceThresholds();
       if (!perfThresholds.overallOk) {
-        const alert = {
-          type: "performance_alert",
-          severity: "warning",
-          message: `Performance thresholds exceeded`,
+        const alert: PerformanceAlertData = {
+          component: "performance_monitor",
+          metric: "performance_thresholds",
+          value: 0,
+          threshold: 1,
           timestamp: Date.now(),
+          severity: AlertSeverity.MEDIUM,
           metadata: {
             latencyOk: perfThresholds.latencyOk,
             freshnessOk: perfThresholds.freshnessOk,
@@ -552,11 +571,13 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
       // Check health thresholds
       const healthThresholds = this.checkHealthThresholds();
       if (!healthThresholds.overallOk) {
-        const alert = {
-          type: "health_alert",
-          severity: "error",
-          message: `Health thresholds exceeded`,
+        const alert: PerformanceAlertData = {
+          component: "health_monitor",
+          metric: "health_thresholds",
+          value: 0,
+          threshold: 1,
           timestamp: Date.now(),
+          severity: AlertSeverity.HIGH,
           metadata: {
             errorRateOk: healthThresholds.errorRateOk,
             cpuUsageOk: healthThresholds.cpuUsageOk,
@@ -596,6 +617,24 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
     return 85; // 85% hit rate
   }
 
+  private calculateErrorRate(): number {
+    // Calculate error rate from recent metrics
+    const recentMetrics = this.performanceHistory.slice(-10);
+    if (recentMetrics.length === 0) return 0;
+
+    const totalErrors = recentMetrics.reduce((sum, metric) => sum + (metric.errorRate || 0), 0);
+    return totalErrors / recentMetrics.length;
+  }
+
+  private calculateAvailability(): number {
+    // Calculate availability based on connection status
+    const connections = Array.from(this.connectionStatus.values());
+    if (connections.length === 0) return 1.0;
+
+    const activeConnections = connections.filter(status => status).length;
+    return activeConnections / connections.length;
+  }
+
   /**
    * Get CPU usage percentage
    */
@@ -605,10 +644,8 @@ export class PerformanceMonitorService extends BaseEventService implements OnMod
     let totalTick = 0;
 
     cpus.forEach(cpu => {
-      for (const type in cpu.times) {
-        if (Object.prototype.hasOwnProperty.call(cpu.times, type)) {
-          totalTick += cpu.times[type];
-        }
+      for (const t of Object.values(cpu.times)) {
+        totalTick += t;
       }
       totalIdle += cpu.times.idle;
     });

@@ -4,19 +4,18 @@ import { BaseEventService } from "@/common/base/base-event.service";
 // Core components
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
-import { IExchangeAdapter } from "@/adapters/base/exchange-adapter.interface";
 
 // Error handling
 import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
+// Types and interfaces
+import type { EnhancedFeedId, DataSource, PriceUpdate } from "@/common/types/core";
+import type { IExchangeAdapter } from "@/common/types/adapters";
+
 // Data source factory
 import { DataSourceFactory } from "./data-source.factory";
-
-// Types and interfaces
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 @Injectable()
 export class DataSourceIntegrationService extends BaseEventService {
@@ -69,7 +68,7 @@ export class DataSourceIntegrationService extends BaseEventService {
       await this.disconnectDataSources();
 
       // Cleanup data manager
-      this.dataManager.cleanup();
+      this.dataManager.cleanupForTests();
 
       this.logger.log("Data Source Integration shutdown completed");
     } catch (error) {
@@ -98,7 +97,8 @@ export class DataSourceIntegrationService extends BaseEventService {
       this.logger.error(`Failed to subscribe to feed ${feedId.name}:`, error);
 
       // Handle error through error handler
-      this.errorHandler.handleError(error, {
+      const errObj = error instanceof Error ? error : new Error(String(error));
+      this.errorHandler.handleError(errObj, {
         component: "feedSubscription",
         sourceId: feedId.name,
       });
@@ -107,11 +107,17 @@ export class DataSourceIntegrationService extends BaseEventService {
     }
   }
 
-  getDataSourceHealth(): any {
+  getDataSourceHealth(): Promise<{
+    totalSources: number;
+    connectedSources: number;
+    averageLatency: number;
+    failedSources: string[];
+    healthScore: number;
+  }> {
     return this.dataManager.getConnectionHealth();
   }
 
-  getAdapterStats(): any {
+  getAdapterStats(): ReturnType<ExchangeAdapterRegistry["getStats"]> {
     return this.adapterRegistry.getStats();
   }
 
@@ -160,8 +166,9 @@ export class DataSourceIntegrationService extends BaseEventService {
         missingCount: missingAdapters.length,
       });
     } catch (error) {
-      this.endPerformanceTimer(operationId, false, { error: error.message });
-      this.logError(error as Error, "verify_exchange_adapters", { severity: "critical" });
+      const errObj = error instanceof Error ? error : new Error(String(error));
+      this.endPerformanceTimer(operationId, false, { error: errObj.message });
+      this.logError(errObj, "verify_exchange_adapters", { severity: "critical" });
       throw error;
     }
   }
@@ -213,13 +220,19 @@ export class DataSourceIntegrationService extends BaseEventService {
       });
 
       // Connect connection recovery events
-      this.connectionRecovery.on("failoverCompleted", (sourceId: string, result: any) => {
-        this.handleConnectionRecoveryEvent("failoverCompleted", sourceId, result);
-      });
+      this.connectionRecovery.on(
+        "failoverCompleted",
+        (sourceId: string, result: { success: boolean; timestamp: number; attempts: number }) => {
+          this.handleConnectionRecoveryEvent("failoverCompleted", sourceId, result);
+        }
+      );
 
-      this.connectionRecovery.on("failoverFailed", (sourceId: string, result: any) => {
-        this.handleConnectionRecoveryEvent("failoverFailed", sourceId, result);
-      });
+      this.connectionRecovery.on(
+        "failoverFailed",
+        (sourceId: string, result: { success: boolean; error: string; attempts: number }) => {
+          this.handleConnectionRecoveryEvent("failoverFailed", sourceId, result);
+        }
+      );
 
       this.connectionRecovery.on("connectionRestored", (sourceId: string) => {
         this.handleConnectionRestored(sourceId);
@@ -275,7 +288,8 @@ export class DataSourceIntegrationService extends BaseEventService {
           this.logger.error(`Failed to start data source ${adapter.exchangeName}:`, error);
 
           // Handle error through error handler
-          this.errorHandler.handleError(error, {
+          const errObj = error instanceof Error ? error : new Error(String(error));
+          this.errorHandler.handleError(errObj, {
             sourceId: adapter.exchangeName,
             component: "dataSourceStartup",
           });
@@ -337,7 +351,8 @@ export class DataSourceIntegrationService extends BaseEventService {
     } catch (error) {
       this.logger.error(`Error handling price update from ${update.source}:`, error);
       this.adapterRegistry.updateHealthStatus(update.source, "unhealthy");
-      this.handleSourceError(update.source, error);
+      const errObj = error instanceof Error ? error : new Error(String(error));
+      this.handleSourceError(update.source, errObj);
     }
   }
 

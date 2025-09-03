@@ -1,7 +1,7 @@
-import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 export interface CoinbaseTickerData {
   type: "ticker";
@@ -43,7 +43,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   };
 
   // Simple symbol mapping - use exact pairs from feeds.json
-  getSymbolMapping(feedSymbol: string): string {
+  override getSymbolMapping(feedSymbol: string): string {
     // For Coinbase, replace "/" with "-" - use the exact symbol from feeds.json
     return feedSymbol.replace("/", "-");
   }
@@ -59,7 +59,10 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
+      reconnectInterval: 5000,
       maxReconnectAttempts: 5,
+      pingInterval: 30000,
+      pongTimeout: 10000,
     });
   }
 
@@ -67,12 +70,12 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     await this.disconnectWebSocket();
   }
 
-  isConnected(): boolean {
+  override isConnected(): boolean {
     return super.isConnected() && this.isWebSocketConnected();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
-  protected handleWebSocketMessage(data: any): void {
+  protected override handleWebSocketMessage(data: unknown): void {
     this.safeProcessData(
       data,
       rawData => {
@@ -120,7 +123,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     };
   }
 
-  validateResponse(rawData: any): boolean {
+  validateResponse(rawData: unknown): boolean {
     if (!rawData || typeof rawData !== "object") {
       return false;
     }

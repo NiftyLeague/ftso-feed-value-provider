@@ -1,37 +1,17 @@
-import { Injectable } from "@nestjs/common";
 import WebSocket from "ws";
+import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-
-export interface WebSocketConnectionConfig {
-  url: string;
-  protocols?: string[];
-  headers?: Record<string, string>;
-  pingInterval?: number;
-  pongTimeout?: number;
-  reconnectDelay?: number;
-  maxReconnectAttempts?: number;
-}
-
-export interface ConnectionStats {
-  connectedAt?: number;
-  lastPingAt?: number;
-  lastPongAt?: number;
-  reconnectAttempts: number;
-  messagesReceived: number;
-  messagesSent: number;
-  bytesReceived: number;
-  bytesSent: number;
-}
+import type { WSConnectionConfig, WSConnectionStats } from "@/common/types/data-manager";
 
 @Injectable()
 export class WebSocketConnectionManager extends BaseEventService {
   private connections = new Map<string, WebSocket>();
-  private connectionConfigs = new Map<string, WebSocketConnectionConfig>();
-  private connectionStats = new Map<string, ConnectionStats>();
+  private connectionConfigs = new Map<string, WSConnectionConfig>();
+  private connectionStats = new Map<string, WSConnectionStats>();
   private pingTimers = new Map<string, NodeJS.Timeout>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
 
-  private readonly defaultConfig: Partial<WebSocketConnectionConfig> = {
+  private readonly defaultConfig: Partial<WSConnectionConfig> = {
     pingInterval: 30000, // 30 seconds
     pongTimeout: 10000, // 10 seconds
     reconnectDelay: 5000, // 5 seconds
@@ -42,7 +22,7 @@ export class WebSocketConnectionManager extends BaseEventService {
     super(WebSocketConnectionManager.name);
   }
 
-  async createConnection(connectionId: string, config: WebSocketConnectionConfig): Promise<void> {
+  async createConnection(connectionId: string, config: WSConnectionConfig): Promise<void> {
     try {
       this.logger.log(`Creating WebSocket connection: ${connectionId}`);
 
@@ -52,11 +32,15 @@ export class WebSocketConnectionManager extends BaseEventService {
 
       // Initialize stats
       this.connectionStats.set(connectionId, {
+        connectionId,
         reconnectAttempts: 0,
         messagesReceived: 0,
         messagesSent: 0,
         bytesReceived: 0,
         bytesSent: 0,
+        totalMessages: 0,
+        totalErrors: 0,
+        wsState: "connecting",
       });
 
       await this.connect(connectionId);
@@ -119,11 +103,11 @@ export class WebSocketConnectionManager extends BaseEventService {
     }
   }
 
-  getConnectionStats(connectionId: string): ConnectionStats | undefined {
+  getConnectionStats(connectionId: string): WSConnectionStats | undefined {
     return this.connectionStats.get(connectionId);
   }
 
-  getAllConnectionStats(): Map<string, ConnectionStats> {
+  getAllConnectionStats(): Map<string, WSConnectionStats> {
     return new Map(this.connectionStats);
   }
 
@@ -147,6 +131,7 @@ export class WebSocketConnectionManager extends BaseEventService {
 
           stats.connectedAt = Date.now();
           stats.reconnectAttempts = 0;
+          stats.wsState = "open";
 
           this.connections.set(connectionId, ws);
           this.setupPingPong(connectionId);
@@ -165,6 +150,7 @@ export class WebSocketConnectionManager extends BaseEventService {
 
         ws.on("error", (error: Error) => {
           this.logger.error(`WebSocket error on ${connectionId}:`, error);
+          stats.totalErrors++;
           this.emit("connectionError", connectionId, error);
           reject(error);
         });
@@ -194,6 +180,7 @@ export class WebSocketConnectionManager extends BaseEventService {
     if (stats) {
       stats.messagesReceived++;
       stats.bytesReceived += Buffer.isBuffer(data) ? data.length : Buffer.byteLength(data.toString());
+      stats.totalMessages++;
     }
 
     // Emit message event with parsed data
@@ -212,6 +199,10 @@ export class WebSocketConnectionManager extends BaseEventService {
 
     this.clearTimers(connectionId);
     this.connections.delete(connectionId);
+    const stats = this.connectionStats.get(connectionId);
+    if (stats) {
+      stats.wsState = "closed";
+    }
 
     this.emit("connectionClosed", connectionId, code, reason);
 

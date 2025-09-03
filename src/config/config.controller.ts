@@ -30,15 +30,18 @@ export class ConfigController {
     // Sanitize sensitive information
     const sanitized = {
       ...config,
-      exchangeApiKeys: Object.keys(config.exchangeApiKeys).reduce((acc, exchange) => {
-        acc[exchange] = {
-          hasApiKey: !!config.exchangeApiKeys[exchange].apiKey,
-          hasSecret: !!config.exchangeApiKeys[exchange].secret,
-          hasPassphrase: !!config.exchangeApiKeys[exchange].passphrase,
-          sandbox: config.exchangeApiKeys[exchange].sandbox,
-        };
-        return acc;
-      }, {} as any),
+      exchangeApiKeys: Object.keys(config.exchangeApiKeys).reduce(
+        (acc, exchange) => {
+          acc[exchange] = {
+            hasApiKey: !!config.exchangeApiKeys[exchange].apiKey,
+            hasSecret: !!config.exchangeApiKeys[exchange].secret,
+            hasPassphrase: !!config.exchangeApiKeys[exchange].passphrase,
+            sandbox: !!config.exchangeApiKeys[exchange].sandbox,
+          };
+          return acc;
+        },
+        {} as Record<string, { hasApiKey: boolean; hasSecret: boolean; hasPassphrase: boolean; sandbox: boolean }>
+      ),
       alerting: {
         ...config.alerting,
         email: {
@@ -105,10 +108,11 @@ export class ConfigController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
         message: "Failed to reload feed configurations",
-        error: error.message,
+        error: message,
         timestamp: new Date().toISOString(),
       };
     }
@@ -126,10 +130,11 @@ export class ConfigController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
         message: "Failed to reload environment configuration",
-        error: error.message,
+        error: message,
         timestamp: new Date().toISOString(),
       };
     }
@@ -147,10 +152,11 @@ export class ConfigController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
         message: "Failed to enable hot-reload",
-        error: error.message,
+        error: message,
         timestamp: new Date().toISOString(),
       };
     }
@@ -168,10 +174,11 @@ export class ConfigController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         success: false,
         message: "Failed to disable hot-reload",
-        error: error.message,
+        error: message,
         timestamp: new Date().toISOString(),
       };
     }

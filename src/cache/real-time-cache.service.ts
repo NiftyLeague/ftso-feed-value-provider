@@ -1,34 +1,37 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-import { RealTimeCache, CacheEntry, CacheStats, CacheConfig } from "./interfaces/cache.interfaces";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-
-interface CacheItem {
-  entry: CacheEntry;
-  expiresAt: number;
-  accessCount: number;
-  lastAccessed: number;
-}
+import type { RealTimeCache, CacheEntry, CacheStats, CacheConfig, CacheItem } from "@/common/types/cache";
+import type { EnhancedFeedId } from "@/common/types/core";
 
 @Injectable()
 export class RealTimeCacheService extends BaseService implements RealTimeCache, OnModuleDestroy {
   private readonly cache = new Map<string, CacheItem>();
   private config: CacheConfig;
   private readonly cleanupInterval: NodeJS.Timeout;
-  private stats = {
+  private stats: CacheStats = {
     hits: 0,
     misses: 0,
-    totalRequests: 0,
+    hitRate: 0,
+    size: 0,
     evictions: 0,
+    averageGetTime: 0,
+    averageSetTime: 0,
+    averageResponseTime: 0, // Initialize average response time
+    memoryUsage: 0,
+    totalRequests: 0,
+    missRate: 0,
+    totalEntries: 0,
   };
 
   constructor() {
     super("RealTimeCacheService"); // Basic caching operations don't need enhanced logging
     this.config = {
-      maxTTL: 1000, // 1 second maximum TTL as per requirement 6.2
-      maxEntries: 10000,
+      ttl: 1000, // 1 second maximum TTL as per requirement 6.2
+      maxSize: 10000,
       evictionPolicy: "LRU",
       memoryLimit: 100 * 1024 * 1024, // 100MB
+      enabled: true,
+      compression: false,
     };
 
     // Start cleanup interval for expired entries
@@ -39,10 +42,12 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   static withConfig(config: Partial<CacheConfig>): RealTimeCacheService {
     const service = new RealTimeCacheService();
     service.config = {
-      maxTTL: 1000,
-      maxEntries: 10000,
+      ttl: 1000,
+      maxSize: 10000,
       evictionPolicy: "LRU",
       memoryLimit: 100 * 1024 * 1024,
+      enabled: true,
+      compression: false,
       ...config,
     };
     return service;
@@ -50,7 +55,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
 
   set(key: string, value: CacheEntry, ttl: number): void {
     // Enforce maximum TTL of 1 second as per requirement 6.2
-    const effectiveTTL = Math.min(ttl, this.config.maxTTL);
+    const effectiveTTL = Math.min(ttl, this.config.ttl);
 
     // If TTL is 0 or negative, don't cache the item
     if (effectiveTTL <= 0) {
@@ -61,7 +66,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     const expiresAt = Date.now() + effectiveTTL;
 
     // Check if we need to evict entries before adding new one
-    if (this.cache.size >= this.config.maxEntries) {
+    if (this.cache.size >= this.config.maxSize) {
       this.evictLRU();
     }
 
@@ -77,19 +82,17 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   }
 
   get(key: string): CacheEntry | null {
-    this.stats.totalRequests++;
-
     const item = this.cache.get(key);
 
     if (!item) {
-      this.stats.misses++;
+      this.trackRequest(false);
       return null;
     }
 
     // Check if item has expired
     if (Date.now() > item.expiresAt) {
       this.cache.delete(key);
-      this.stats.misses++;
+      this.trackRequest(false);
       this.logger.debug(`Cache expired: ${key}`);
       return null;
     }
@@ -97,7 +100,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     // Update access statistics for LRU
     item.accessCount++;
     item.lastAccessed = Date.now();
-    this.stats.hits++;
+    this.trackRequest(true);
 
     this.logger.debug(`Cache hit: ${key}`);
     return item.entry;
@@ -106,20 +109,33 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   invalidate(key: string): void {
     const deleted = this.cache.delete(key);
     if (deleted) {
+      this.stats.size = this.cache.size;
       this.logger.debug(`Cache invalidated: ${key}`);
     }
   }
 
   getStats(): CacheStats {
-    const hitRate = this.stats.totalRequests > 0 ? this.stats.hits / this.stats.totalRequests : 0;
+    // Calculate hit rate and other metrics
+    const totalRequests = this.stats.hits + this.stats.misses;
+    const hitRate = totalRequests > 0 ? this.stats.hits / totalRequests : 0;
+    const missRate = 1 - hitRate;
 
-    const missRate = this.stats.totalRequests > 0 ? this.stats.misses / this.stats.totalRequests : 0;
+    // Calculate average response time as a weighted average of get and set times
+    const totalOperations = this.stats.hits + this.stats.misses;
+    const averageResponseTime =
+      totalOperations > 0
+        ? (this.stats.averageGetTime * this.stats.hits + this.stats.averageSetTime * this.stats.misses) /
+          totalOperations
+        : 0;
 
     return {
+      ...this.stats,
       hitRate,
       missRate,
-      totalRequests: this.stats.totalRequests,
+      totalRequests,
+      averageResponseTime,
       totalEntries: this.cache.size,
+      size: this.cache.size,
       memoryUsage: this.estimateMemoryUsage(),
     };
   }
@@ -143,7 +159,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   setPrice(feedId: EnhancedFeedId, value: CacheEntry): void {
     const key = this.generatePriceKey(feedId);
     // Use maximum allowed TTL for price data
-    this.set(key, value, this.config.maxTTL);
+    this.set(key, value, this.config.ttl);
 
     // Invalidate any existing voting round cache for this feed
     this.invalidateFeedCache(feedId);
@@ -233,14 +249,30 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     return totalSize;
   }
 
+  private trackRequest(hit: boolean): void {
+    if (hit) {
+      this.stats.hits++;
+    } else {
+      this.stats.misses++;
+    }
+  }
+
   // Utility methods for testing and monitoring
   clear(): void {
     this.cache.clear();
     this.stats = {
       hits: 0,
       misses: 0,
-      totalRequests: 0,
+      hitRate: 0,
+      size: 0,
       evictions: 0,
+      averageGetTime: 0,
+      averageSetTime: 0,
+      averageResponseTime: 0,
+      memoryUsage: 0,
+      totalRequests: 0,
+      missRate: 0,
+      totalEntries: 0,
     };
     this.logger.debug("Cache cleared");
   }

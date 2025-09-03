@@ -1,8 +1,6 @@
-import { HybridErrorHandlerService, DataSourceTier, ErrorClassification } from "../hybrid-error-handler.service";
-import { CircuitBreakerService } from "../circuit-breaker.service";
-import { ConnectionRecoveryService } from "../connection-recovery.service";
-import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { HybridErrorHandlerService } from "../hybrid-error-handler.service";
+import { DataSourceTier, ErrorClassification } from "@/common/types/error-handling";
 
 // Mock implementations
 const mockCircuitBreaker = {
@@ -26,9 +24,6 @@ const mockCcxtAdapter = {
 
 describe("HybridErrorHandlerService", () => {
   let service: HybridErrorHandlerService;
-  let circuitBreaker: CircuitBreakerService;
-  let connectionRecovery: ConnectionRecoveryService;
-  let ccxtAdapter: CcxtMultiExchangeAdapter;
 
   const testFeedId: EnhancedFeedId = {
     category: FeedCategory.Crypto,
@@ -54,9 +49,7 @@ describe("HybridErrorHandlerService", () => {
       mockCcxtAdapter as any
     );
 
-    circuitBreaker = mockCircuitBreaker as any;
-    connectionRecovery = mockConnectionRecovery as any;
-    ccxtAdapter = mockCcxtAdapter as any;
+    // Instances retained internally by service; no local references needed
   });
 
   afterEach(() => {

@@ -3,18 +3,13 @@ import { FtsoProviderService } from "../../app.service";
 import { RealTimeAggregationService } from "../../aggregators/real-time-aggregation.service";
 import { ConfigService } from "../../config/config.service";
 import { ValidationService } from "../../data-manager/validation/validation.service";
-import {
-  IFtsoProviderService,
-  IAggregationService,
-  IConfigurationService,
-  IDataValidationService,
-} from "../interfaces";
+import type { IFtsoProviderService, IAggregationService, IConfigurationService, IDataValidatorService } from "../types";
 
 describe("Service Interface Implementation", () => {
   let ftsoProviderService: IFtsoProviderService;
   let aggregationService: IAggregationService;
   let configService: IConfigurationService;
-  let validationService: IDataValidationService;
+  let validationService: IDataValidatorService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -73,7 +68,7 @@ describe("Service Interface Implementation", () => {
             validatePriceUpdate: jest.fn(),
             validateBatch: jest.fn(),
             filterValidUpdates: jest.fn(),
-            getValidationStatistics: jest.fn(),
+            getValidationStats: jest.fn(),
             clearCache: jest.fn(),
             clearHistoricalData: jest.fn(),
             validateRealTime: jest.fn(),
@@ -88,7 +83,7 @@ describe("Service Interface Implementation", () => {
     ftsoProviderService = module.get<IFtsoProviderService>(FtsoProviderService);
     aggregationService = module.get<IAggregationService>(RealTimeAggregationService);
     configService = module.get<IConfigurationService>(ConfigService);
-    validationService = module.get<IDataValidationService>(ValidationService);
+    validationService = module.get<IDataValidatorService>(ValidationService);
   });
 
   describe("IFtsoProviderService", () => {
@@ -133,12 +128,12 @@ describe("Service Interface Implementation", () => {
     });
   });
 
-  describe("IDataValidationService", () => {
+  describe("IDataValidatorService", () => {
     it("should implement all required methods", () => {
       expect(validationService.validatePriceUpdate).toBeDefined();
       expect(validationService.validateBatch).toBeDefined();
       expect(validationService.filterValidUpdates).toBeDefined();
-      expect(validationService.getValidationStatistics).toBeDefined();
+      expect(validationService.getValidationStats).toBeDefined();
       expect(validationService.clearCache).toBeDefined();
       expect(validationService.clearHistoricalData).toBeDefined();
       expect(validationService.validateRealTime).toBeDefined();

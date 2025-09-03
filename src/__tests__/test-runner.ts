@@ -290,8 +290,8 @@ class TestRunner {
       }
     } catch (error: unknown) {
       const duration = Date.now() - startTime;
-      const output = (error as any)?.stdout || "";
-      const errorOutput = (error as any)?.stderr || (error as Error)?.message || "Unknown error";
+      const output = (error as { stdout?: string })?.stdout || "";
+      const errorOutput = (error as { stderr: string })?.stderr || (error as Error)?.message || "Unknown error";
 
       this.results.push({
         suite,

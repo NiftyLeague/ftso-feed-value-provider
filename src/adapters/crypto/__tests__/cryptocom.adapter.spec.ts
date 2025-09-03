@@ -1,5 +1,5 @@
 import { CryptocomAdapter, CryptocomTickerData, CryptocomRestResponse } from "../cryptocom.adapter";
-import { FeedCategory } from "@/common/types/feed.types";
+import { FeedCategory } from "@/common/types/core";
 
 // Mock WebSocket
 class MockWebSocket {
@@ -11,7 +11,7 @@ class MockWebSocket {
   readyState = MockWebSocket.CONNECTING;
   onopen?: () => void;
   onclose?: () => void;
-  onerror?: (error: any) => void;
+  onerror?: (error: Error | Event) => void;
   onmessage?: (event: { data: string }) => void;
 
   constructor(public url: string) {
@@ -22,7 +22,7 @@ class MockWebSocket {
     }, 10);
   }
 
-  send(data: string) {
+  send(_data: string) {
     // Mock send method
   }
 
@@ -32,12 +32,12 @@ class MockWebSocket {
   }
 
   // Simulate receiving a message
-  simulateMessage(data: any) {
+  simulateMessage(data: unknown) {
     this.onmessage?.({ data: JSON.stringify(data) });
   }
 
   // Simulate connection error
-  simulateError(error: any) {
+  simulateError(error: Error | Event) {
     this.readyState = MockWebSocket.CLOSED;
     this.onerror?.(error);
   }

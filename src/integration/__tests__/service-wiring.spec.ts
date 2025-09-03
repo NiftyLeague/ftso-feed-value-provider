@@ -1,15 +1,15 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { IntegrationModule } from "../integration.module";
-import { IntegrationService } from "../integration.service";
+import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
+import { AlertingService } from "@/monitoring/alerting.service";
+import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
-import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
-import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
-import { AlertingService } from "@/monitoring/alerting.service";
-import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { type EnhancedFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
+
+import { IntegrationModule } from "../integration.module";
+import { IntegrationService } from "../integration.service";
 
 describe("Service Wiring Integration", () => {
   let integrationService: IntegrationService;
@@ -43,7 +43,7 @@ describe("Service Wiring Integration", () => {
   afterEach(async () => {
     // Clean up services
     if (dataManager) {
-      dataManager.cleanup();
+      dataManager.cleanupForTests();
     }
     if (errorHandler) {
       errorHandler.destroy();
@@ -74,11 +74,6 @@ describe("Service Wiring Integration", () => {
 
   describe("Event Wiring", () => {
     it("should wire data manager price update events to aggregation service", async () => {
-      const testFeedId: EnhancedFeedId = {
-        category: FeedCategory.Crypto,
-        name: "BTC/USD",
-      };
-
       const testUpdate: PriceUpdate = {
         symbol: "BTC/USD",
         price: 50000,

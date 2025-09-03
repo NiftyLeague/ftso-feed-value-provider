@@ -1,28 +1,26 @@
 import { Injectable } from "@nestjs/common";
-import { DataValidator, ValidationResult, ValidationContext } from "./data-validator";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { ValidationConfig } from "@/aggregators/base/aggregation.interfaces";
-import { IDataValidationService } from "@/common/interfaces/services/validation.interface";
-
 import { BaseEventService } from "@/common/base/base-event.service";
+import type { PriceUpdate, EnhancedFeedId } from "@/common/types/core";
+import { ErrorSeverity, ErrorCode } from "@/common/types/error-handling";
+import type { ValidationResult } from "@/common/types/utils";
+import type { ServicePerformanceMetrics, ServiceHealthStatus } from "@/common/types/services";
+import type { HealthCheckResult } from "@/common/types/monitoring";
+import type {
+  DataValidatorConfig,
+  DataValidatorResult,
+  IDataValidatorService,
+  ValidationContext,
+} from "@/common/types/data-manager";
 
-export interface ValidationServiceConfig {
-  enableRealTimeValidation: boolean;
-  enableBatchValidation: boolean;
-  validationCacheSize: number;
-  validationCacheTTL: number;
-  historicalDataWindow: number; // Number of historical prices to keep
-  crossSourceWindow: number; // Time window for cross-source validation (ms)
-}
+import { DataValidator } from "./data-validator";
 
 @Injectable()
-export class ValidationService extends BaseEventService implements IDataValidationService {
+export class ValidationService extends BaseEventService implements IDataValidatorService {
   private readonly validator: DataValidator;
-  private readonly config: ValidationServiceConfig;
+  private readonly config: DataValidatorConfig;
 
   // Cache for validation results
-  private validationCache = new Map<string, { result: ValidationResult; timestamp: number }>();
+  private validationCache = new Map<string, { result: DataValidatorResult; timestamp: number }>();
 
   // Historical data storage for validation context
   private historicalPrices = new Map<string, PriceUpdate[]>();
@@ -39,41 +37,131 @@ export class ValidationService extends BaseEventService implements IDataValidati
   // Cleanup interval
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(validator: DataValidator, config?: Partial<ValidationServiceConfig>) {
+  constructor(validator: DataValidator, config?: Partial<DataValidatorConfig>) {
     super(ValidationService.name);
 
     this.validator = validator;
     this.config = {
-      enableRealTimeValidation: true,
+      // Required by DataValidatorConfig
+      consensusWeight: 0.8,
+      crossSourceWindow: 10000, // 10 seconds
       enableBatchValidation: true,
+      enableRealTimeValidation: true,
+      historicalDataWindow: 50, // Keep last 50 prices
+      maxAge: 2000,
+      maxBatchSize: 100,
+      outlierThreshold: 0.05,
+      priceRange: { min: 0.01, max: 1_000_000 },
       validationCacheSize: 1000,
       validationCacheTTL: 5000, // 5 seconds
-      historicalDataWindow: 50, // Keep last 50 prices
-      crossSourceWindow: 10000, // 10 seconds
+      validationTimeout: 5000,
       ...config,
     };
 
     this.setupCleanupInterval();
   }
 
-  // Cleanup method for tests
-  cleanup(): void {
+  /**
+   * Typed event overloads for emit() — must be declared immediately before the implementation
+   */
+  override emit(
+    event: "validationPassed",
+    payload: { update: PriceUpdate; feedId: EnhancedFeedId; result: DataValidatorResult }
+  ): boolean;
+  override emit(
+    event: "validationFailed",
+    payload: {
+      update: PriceUpdate;
+      feedId: EnhancedFeedId;
+      result: DataValidatorResult;
+      errors: DataValidatorResult["errors"];
+    }
+  ): boolean;
+  override emit(
+    event: "criticalValidationError",
+    payload: { update: PriceUpdate; feedId: EnhancedFeedId; error: DataValidatorResult["errors"][number] }
+  ): boolean;
+  override emit(
+    event: "batchValidationCompleted",
+    payload: {
+      feedId: EnhancedFeedId;
+      totalUpdates: number;
+      validUpdates: number;
+      results: Map<string, DataValidatorResult>;
+    }
+  ): boolean;
+  // Base signature overload to ensure compatibility with implementation
+  override emit(event: string | symbol, ...args: unknown[]): boolean;
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
+    return super.emit(event, ...args);
+  }
+
+  /**
+   * Typed event overloads for on()
+   */
+  override on(
+    event: "validationPassed",
+    callback: (payload: { update: PriceUpdate; feedId: EnhancedFeedId; result: DataValidatorResult }) => void
+  ): this;
+  override on(
+    event: "validationFailed",
+    callback: (payload: {
+      update: PriceUpdate;
+      feedId: EnhancedFeedId;
+      result: DataValidatorResult;
+      errors: DataValidatorResult["errors"];
+    }) => void
+  ): this;
+  override on(
+    event: "criticalValidationError",
+    callback: (payload: {
+      update: PriceUpdate;
+      feedId: EnhancedFeedId;
+      error: DataValidatorResult["errors"][number];
+    }) => void
+  ): this;
+  override on(
+    event: "batchValidationCompleted",
+    callback: (payload: {
+      feedId: EnhancedFeedId;
+      totalUpdates: number;
+      validUpdates: number;
+      results: Map<string, DataValidatorResult>;
+    }) => void
+  ): this;
+  // Base signature overload to ensure compatibility with implementation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override on(event: string | symbol, listener: (...args: any[]) => void): this;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override on(event: string | symbol, listener: (...args: any[]) => void): this {
+    return super.on(event, listener);
+  }
+
+  // Cleanup method exposed for tests (wrapper)
+  cleanupForTests(): void {
+    this.cleanup();
+  }
+
+  protected override cleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = undefined;
     }
+    super.cleanup();
   }
 
   // Real-time validation for individual price updates
   async validateRealTime(
     update: PriceUpdate,
     feedId: EnhancedFeedId,
-    validationConfig?: Partial<ValidationConfig>
-  ): Promise<ValidationResult> {
+    DataValidatorConfig?: Partial<DataValidatorConfig>
+  ): Promise<DataValidatorResult> {
     if (!this.config.enableRealTimeValidation) {
       return {
         isValid: true,
         errors: [],
+        warnings: [],
+        timestamp: Date.now(),
         confidence: update.confidence,
         adjustedUpdate: update,
       };
@@ -94,10 +182,21 @@ export class ValidationService extends BaseEventService implements IDataValidati
       const context = this.buildValidationContext(update, feedId);
 
       // Perform validation
-      const result = await this.validator.validateUpdate(update, context, validationConfig);
+      // Map provided partial config to validator config with sensible defaults
+      const mappedConfig = DataValidatorConfig
+        ? {
+            maxAge: 2000,
+            priceRange: { min: 0.01, max: 1_000_000 },
+            outlierThreshold: 0.05,
+            consensusWeight: 0.8,
+            ...DataValidatorConfig,
+          }
+        : undefined;
+
+      const result = await this.validator.validateUpdate(update, context, mappedConfig);
 
       // Cache result
-      this.cacheValidationResult(cacheKey, result);
+      this.cacheDataValidatorResult(cacheKey, result);
 
       // Update historical data
       this.updateHistoricalData(update, feedId);
@@ -109,18 +208,23 @@ export class ValidationService extends BaseEventService implements IDataValidati
       this.emitValidationEvents(update, feedId, result);
 
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Real-time validation failed for ${update.source}:`, error);
 
       return {
         isValid: false,
         errors: [
           {
-            type: "format_error" as any,
-            message: `Validation service error: ${error.message}`,
-            severity: "critical",
+            code: ErrorCode.DATA_VALIDATION_FAILED,
+            message: `Validation service error: ${message}`,
+            severity: ErrorSeverity.CRITICAL,
+            operation: "validateRealTime",
+            validationErrors: [message],
           },
         ],
+        warnings: [],
+        timestamp: Date.now(),
         confidence: 0,
       };
     }
@@ -130,15 +234,17 @@ export class ValidationService extends BaseEventService implements IDataValidati
   async validateBatch(
     updates: PriceUpdate[],
     feedId: EnhancedFeedId,
-    validationConfig?: Partial<ValidationConfig>
-  ): Promise<Map<string, ValidationResult>> {
+    DataValidatorConfig?: Partial<DataValidatorConfig>
+  ): Promise<Map<string, DataValidatorResult>> {
     if (!this.config.enableBatchValidation) {
-      const results = new Map<string, ValidationResult>();
+      const results = new Map<string, DataValidatorResult>();
       for (const update of updates) {
         const key = `${update.source}-${update.timestamp}`;
         results.set(key, {
           isValid: true,
           errors: [],
+          warnings: [],
+          timestamp: Date.now(),
           confidence: update.confidence,
           adjustedUpdate: update,
         });
@@ -153,7 +259,17 @@ export class ValidationService extends BaseEventService implements IDataValidati
       const context = this.buildBatchValidationContext(updates, feedId);
 
       // Perform batch validation
-      const results = await this.validator.validateBatch(updates, context, validationConfig);
+      // Convert DataValidatorConfiguration to DataValidatorConfig
+      const mappedConfig = DataValidatorConfig
+        ? {
+            maxAge: 2000, // Default from validator
+            priceRange: { min: 0.01, max: 1000000 }, // Default from validator
+            outlierThreshold: 0.05, // Default from validator
+            consensusWeight: 0.8, // Default from validator
+          }
+        : undefined;
+
+      const results = await this.validator.validateBatch(updates, context, mappedConfig);
 
       // Update historical data for all updates
       for (const update of updates) {
@@ -182,15 +298,20 @@ export class ValidationService extends BaseEventService implements IDataValidati
   }
 
   // Filter valid updates from a batch
-  filterValidUpdates(updates: PriceUpdate[], validationResults: Map<string, ValidationResult>): PriceUpdate[] {
+  filterValidUpdates(updates: PriceUpdate[], DataValidatorResults: Map<string, DataValidatorResult>): PriceUpdate[] {
     const validUpdates: PriceUpdate[] = [];
 
     for (const update of updates) {
       const key = `${update.source}-${update.symbol}-${update.timestamp}`;
-      const result = validationResults.get(key);
+      const result = DataValidatorResults.get(key);
 
-      if (result?.isValid && result.adjustedUpdate) {
-        validUpdates.push(result.adjustedUpdate);
+      if (
+        result?.isValid &&
+        result.adjustedUpdate &&
+        typeof result.adjustedUpdate === "object" &&
+        "symbol" in result.adjustedUpdate
+      ) {
+        validUpdates.push(result.adjustedUpdate as PriceUpdate);
       }
     }
 
@@ -198,7 +319,15 @@ export class ValidationService extends BaseEventService implements IDataValidati
   }
 
   // Get validation statistics
-  getValidationStatistics(): ValidationStatistics {
+  getValidationStats(): {
+    totalValidations: number;
+    validUpdates: number;
+    invalidUpdates: number;
+    validationRate: number;
+    averageValidationTime: number;
+    cacheSize: number;
+    historicalDataSize: number;
+  } {
     const validationRate =
       this.validationStats.totalValidations > 0
         ? this.validationStats.validUpdates / this.validationStats.totalValidations
@@ -234,6 +363,8 @@ export class ValidationService extends BaseEventService implements IDataValidati
 
     return {
       feedId,
+      timestamp: Date.now(),
+      source: update.source,
       historicalPrices: this.historicalPrices.get(feedKey) || [],
       crossSourcePrices: this.getCrossSourcePrices(update, feedId),
       consensusMedian: this.getConsensusMedian(feedId),
@@ -248,6 +379,8 @@ export class ValidationService extends BaseEventService implements IDataValidati
 
     return {
       feedId,
+      timestamp: Date.now(),
+      source: updates[0]?.source || "batch",
       historicalPrices: this.historicalPrices.get(feedKey) || [],
       crossSourcePrices: allCrossSourcePrices,
       consensusMedian: this.getConsensusMedian(feedId),
@@ -297,11 +430,13 @@ export class ValidationService extends BaseEventService implements IDataValidati
     this.crossSourcePrices.set(feedKey, filteredCrossSource);
   }
 
-  private cacheValidationResult(key: string, result: ValidationResult): void {
+  private cacheDataValidatorResult(key: string, result: DataValidatorResult): void {
     // Remove oldest entries if cache is full
     if (this.validationCache.size >= this.config.validationCacheSize) {
-      const oldestKey = this.validationCache.keys().next().value;
-      this.validationCache.delete(oldestKey);
+      const oldestKey = this.validationCache.keys().next().value as string | undefined;
+      if (oldestKey !== undefined) {
+        this.validationCache.delete(oldestKey);
+      }
     }
 
     this.validationCache.set(key, {
@@ -310,7 +445,7 @@ export class ValidationService extends BaseEventService implements IDataValidati
     });
   }
 
-  private updateValidationStats(result: ValidationResult, validationTime: number): void {
+  private updateValidationStats(result: DataValidatorResult, validationTime: number): void {
     this.validationStats.totalValidations++;
 
     if (result.isValid) {
@@ -325,7 +460,7 @@ export class ValidationService extends BaseEventService implements IDataValidati
       alpha * validationTime + (1 - alpha) * this.validationStats.averageValidationTime;
   }
 
-  private emitValidationEvents(update: PriceUpdate, feedId: EnhancedFeedId, result: ValidationResult): void {
+  private emitValidationEvents(update: PriceUpdate, feedId: EnhancedFeedId, result: DataValidatorResult): void {
     if (result.isValid) {
       this.emit("validationPassed", {
         update,
@@ -342,7 +477,7 @@ export class ValidationService extends BaseEventService implements IDataValidati
 
       // Emit specific error events
       for (const error of result.errors) {
-        if (error.severity === "critical") {
+        if (error.severity === ErrorSeverity.CRITICAL) {
           this.emit("criticalValidationError", {
             update,
             feedId,
@@ -410,49 +545,57 @@ export class ValidationService extends BaseEventService implements IDataValidati
   }
 
   // IDataValidationService interface methods
+  async validate(update: PriceUpdate, feedId?: EnhancedFeedId): Promise<ValidationResult> {
+    // Fallback feedId if not provided to satisfy internal usage
+    const effectiveFeedId: EnhancedFeedId =
+      feedId ?? ({ category: "unknown", name: update.symbol } as unknown as EnhancedFeedId);
+
+    const result = await this.validateRealTime(update, effectiveFeedId);
+
+    return {
+      isValid: result.isValid,
+      errors: result.errors.map(e => e.message),
+      warnings: result.warnings,
+    };
+  }
+
   async validatePriceUpdate(
     update: PriceUpdate,
     feedId: EnhancedFeedId,
-    validationConfig?: any
-  ): Promise<ValidationResult> {
-    return this.validateRealTime(update, feedId, validationConfig);
+    DataValidatorConfig?: Partial<DataValidatorConfig>
+  ): Promise<DataValidatorResult> {
+    return this.validateRealTime(update, feedId, DataValidatorConfig);
   }
 
   getServiceName(): string {
     return "ValidationService";
   }
 
+  getDataValidatorConfig(): DataValidatorConfig {
+    return this.config;
+  }
+
   // IBaseService interface methods
-  async getPerformanceMetrics(): Promise<{
-    responseTime: { average: number; min: number; max: number };
-    throughput: { requestsPerSecond: number; totalRequests: number };
-    errorRate: number;
-    uptime: number;
-  }> {
+  async getPerformanceMetrics(): Promise<ServicePerformanceMetrics> {
     const uptime = process.uptime();
-    const stats = this.getValidationStatistics();
+    const stats = this.getValidationStats();
+
+    const requestsPerSecond = uptime > 0 ? stats.totalValidations / uptime : 0;
 
     return {
+      uptime,
       responseTime: {
         average: stats.averageValidationTime,
-        min: 1, // Mock value
-        max: 50, // Mock value
+        p95: stats.averageValidationTime, // Approximation until distribution tracking is added
+        max: stats.averageValidationTime, // Approximation placeholder
       },
-      throughput: {
-        requestsPerSecond: stats.totalValidations / uptime,
-        totalRequests: stats.totalValidations,
-      },
+      requestsPerSecond,
       errorRate: 1 - stats.validationRate,
-      uptime,
     };
   }
 
-  async getHealthStatus(): Promise<{
-    status: "healthy" | "degraded" | "unhealthy";
-    timestamp: number;
-    details?: any;
-  }> {
-    const stats = this.getValidationStatistics();
+  async getHealthStatus(): Promise<ServiceHealthStatus> {
+    const stats = this.getValidationStats();
 
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
 
@@ -462,22 +605,28 @@ export class ValidationService extends BaseEventService implements IDataValidati
       status = "degraded";
     }
 
+    const details: HealthCheckResult[] = [
+      {
+        isHealthy: status !== "unhealthy",
+        details: {
+          component: "validation",
+          status,
+          timestamp: Date.now(),
+          metrics: {
+            uptime: process.uptime(),
+            memoryUsage: process.memoryUsage().heapUsed,
+            cpuUsage: 0,
+            connectionCount: 0,
+          },
+        },
+        timestamp: Date.now(),
+      },
+    ];
+
     return {
       status,
       timestamp: Date.now(),
-      details: {
-        validationStatistics: stats,
-      },
+      details,
     };
   }
-}
-
-export interface ValidationStatistics {
-  totalValidations: number;
-  validUpdates: number;
-  invalidUpdates: number;
-  validationRate: number;
-  averageValidationTime: number;
-  cacheSize: number;
-  historicalDataSize: number;
 }

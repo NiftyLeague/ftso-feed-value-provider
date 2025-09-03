@@ -1,7 +1,8 @@
 import { ExchangeAdapterRegistry } from "../exchange-adapter.registry";
-import { IExchangeAdapter, ExchangeCapabilities } from "../exchange-adapter.interface";
-import { FeedCategory } from "@/common/types/feed.types";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
+import type { IExchangeAdapter, ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type { RawPriceData, RawVolumeData } from "@/common/types/adapters";
+import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 // Mock adapter for testing
 class MockExchangeAdapter implements IExchangeAdapter {
@@ -27,7 +28,7 @@ class MockExchangeAdapter implements IExchangeAdapter {
     return true;
   }
 
-  normalizePriceData(_rawData: any): PriceUpdate {
+  normalizePriceData(_rawData: RawPriceData): PriceUpdate {
     return {
       symbol: "BTC/USD",
       price: 50000,
@@ -37,7 +38,7 @@ class MockExchangeAdapter implements IExchangeAdapter {
     };
   }
 
-  normalizeVolumeData(_rawData: any): VolumeUpdate {
+  normalizeVolumeData(_rawData: RawVolumeData): VolumeUpdate {
     return {
       symbol: "BTC/USD",
       volume: 1000,
@@ -46,7 +47,7 @@ class MockExchangeAdapter implements IExchangeAdapter {
     };
   }
 
-  validateResponse(_rawData: any): boolean {
+  validateResponse(_rawData: unknown): boolean {
     return true;
   }
 
@@ -70,11 +71,11 @@ class MockExchangeAdapter implements IExchangeAdapter {
     return feedSymbol;
   }
 
-  getConfig(): any {
+  getConfig(): ExchangeConnectionConfig | undefined {
     return undefined;
   }
 
-  updateConfig(_config: any): void {
+  updateConfig(_config: ExchangeConnectionConfig): void {
     // Mock implementation
   }
 }

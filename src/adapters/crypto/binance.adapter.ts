@@ -1,7 +1,7 @@
-import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 export interface BinanceTickerData {
   e: "24hrTicker"; // Event type
@@ -67,7 +67,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   private pingInterval?: NodeJS.Timeout;
 
   // Simple symbol mapping - use exact pairs from feeds.json
-  getSymbolMapping(feedSymbol: string): string {
+  override getSymbolMapping(feedSymbol: string): string {
     // For Binance, remove the slash - use the exact symbol from feeds.json
     return feedSymbol.replace("/", "");
   }
@@ -82,9 +82,10 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
-      reconnectDelay: 5000,
+      reconnectInterval: 5000,
       maxReconnectAttempts: 5,
       pingInterval: 30000, // Binance requires periodic ping
+      pongTimeout: 10000, // Default pong timeout
     });
 
     this.startPingInterval();
@@ -95,7 +96,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     await this.disconnectWebSocket();
   }
 
-  isConnected(): boolean {
+  override isConnected(): boolean {
     return super.isConnected() && this.isWebSocketConnected();
   }
 
@@ -133,7 +134,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     };
   }
 
-  validateResponse(rawData: any): boolean {
+  validateResponse(rawData: unknown): boolean {
     if (!rawData || typeof rawData !== "object") {
       return false;
     }
@@ -165,21 +166,21 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   }
 
   // Override subscription tracking to maintain lowercase behavior for Binance
-  protected trackSubscriptions(symbols: string[]): void {
+  protected override trackSubscriptions(symbols: string[]): void {
     symbols.forEach(symbol => {
       const exchangeSymbol = this.getSymbolMapping(symbol);
       this.subscriptions.add(exchangeSymbol.toLowerCase());
     });
   }
 
-  protected untrackSubscriptions(symbols: string[]): void {
+  protected override untrackSubscriptions(symbols: string[]): void {
     symbols.forEach(symbol => {
       const exchangeSymbol = this.getSymbolMapping(symbol);
       this.subscriptions.delete(exchangeSymbol.toLowerCase());
     });
   }
 
-  protected isSubscribed(symbol: string): boolean {
+  protected override isSubscribed(symbol: string): boolean {
     const exchangeSymbol = this.getSymbolMapping(symbol);
     return this.subscriptions.has(exchangeSymbol.toLowerCase());
   }
@@ -243,7 +244,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
-  protected handleWebSocketMessage(data: any): void {
+  protected override handleWebSocketMessage(data: unknown): void {
     this.safeProcessData(
       data,
       rawData => {
@@ -265,12 +266,12 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     );
   }
 
-  protected handleWebSocketClose(): void {
+  protected override handleWebSocketClose(): void {
     this.stopPingInterval();
     super.handleWebSocketClose(); // Call base implementation
   }
 
-  protected handleWebSocketError(error: Error): void {
+  protected override handleWebSocketError(error: Error): void {
     this.stopPingInterval();
     super.handleWebSocketError(error); // Call base implementation
   }

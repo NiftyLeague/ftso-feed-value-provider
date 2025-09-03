@@ -1,5 +1,13 @@
 import { BadRequestException } from "@nestjs/common";
-import { FeedId } from "../dto/provider-requests.dto";
+import type { FeedId } from "@/common/types/http";
+import type {
+  UnknownInput,
+  ArrayValidationOptions,
+  ValidatedFeedValuesRequest,
+  ValidatedVolumesRequest,
+  ValidatedPagination,
+  ValidatedTimeRange,
+} from "../types/utils/validation.types";
 
 /**
  * Validation utilities to eliminate request validation duplication
@@ -9,30 +17,32 @@ export class ValidationUtils {
   /**
    * Validate feed ID structure and content
    */
-  static validateFeedId(feed: any, fieldName = "feed"): FeedId {
+  static validateFeedId(feed: unknown, fieldName = "feed"): FeedId {
     if (!feed || typeof feed !== "object") {
       throw new BadRequestException(`${fieldName} must be an object`);
     }
 
-    if (typeof feed.category !== "number") {
+    const feedObj = feed as Record<string, unknown>;
+
+    if (typeof feedObj.category !== "number") {
       throw new BadRequestException(`${fieldName}.category must be a number`);
     }
 
-    if (feed.category < 1 || feed.category > 4) {
+    if (feedObj.category < 1 || feedObj.category > 4) {
       throw new BadRequestException(
         `${fieldName}.category must be between 1 and 4 (1=Crypto, 2=Forex, 3=Commodity, 4=Stock)`
       );
     }
 
-    if (!feed.name || typeof feed.name !== "string") {
+    if (!feedObj.name || typeof feedObj.name !== "string") {
       throw new BadRequestException(`${fieldName}.name must be a non-empty string`);
     }
 
-    if (!feed.name.includes("/")) {
+    if (!feedObj.name.includes("/")) {
       throw new BadRequestException(`${fieldName}.name must be in format "BASE/QUOTE" (e.g., "BTC/USD")`);
     }
 
-    const parts = feed.name.split("/");
+    const parts = feedObj.name.split("/");
     if (parts.length !== 2 || !parts[0] || !parts[1]) {
       throw new BadRequestException(
         `${fieldName}.name must be in format "BASE/QUOTE" with valid base and quote currencies`
@@ -40,15 +50,15 @@ export class ValidationUtils {
     }
 
     return {
-      category: feed.category,
-      name: feed.name,
+      category: feedObj.category,
+      name: feedObj.name,
     };
   }
 
   /**
    * Validate array of feed IDs
    */
-  static validateFeedIds(feeds: any, fieldName = "feeds"): FeedId[] {
+  static validateFeedIds(feeds: unknown, fieldName = "feeds"): FeedId[] {
     if (!Array.isArray(feeds)) {
       throw new BadRequestException(`${fieldName} must be an array`);
     }
@@ -67,7 +77,7 @@ export class ValidationUtils {
   /**
    * Validate voting round ID
    */
-  static validateVotingRoundId(votingRoundId: any): number {
+  static validateVotingRoundId(votingRoundId: unknown): number {
     if (typeof votingRoundId !== "number") {
       throw new BadRequestException("votingRoundId must be a number");
     }
@@ -90,7 +100,7 @@ export class ValidationUtils {
   /**
    * Validate time window for volume requests
    */
-  static validateTimeWindow(windowSec: any): number {
+  static validateTimeWindow(windowSec: unknown): number {
     if (typeof windowSec !== "number") {
       throw new BadRequestException("windowSec must be a number");
     }
@@ -114,7 +124,7 @@ export class ValidationUtils {
   /**
    * Validate timestamp
    */
-  static validateTimestamp(timestamp: any, fieldName: string): number {
+  static validateTimestamp(timestamp: unknown, fieldName: string): number {
     if (typeof timestamp !== "number") {
       throw new BadRequestException(`${fieldName} must be a number`);
     }
@@ -142,7 +152,7 @@ export class ValidationUtils {
   /**
    * Validate time range for volume requests
    */
-  static validateTimeRange(startTime?: any, endTime?: any): { startTime?: number; endTime?: number } {
+  static validateTimeRange(startTime?: unknown, endTime?: unknown): ValidatedTimeRange {
     const result: { startTime?: number; endTime?: number } = {};
 
     if (startTime !== undefined) {
@@ -163,7 +173,7 @@ export class ValidationUtils {
   /**
    * Validate request body structure
    */
-  static validateRequestBody(body: any): any {
+  static validateRequestBody(body: unknown): UnknownInput {
     if (!body || typeof body !== "object") {
       throw new BadRequestException("Request body must be a valid JSON object");
     }
@@ -172,13 +182,13 @@ export class ValidationUtils {
       throw new BadRequestException("Request body must be an object, not an array");
     }
 
-    return body;
+    return body as UnknownInput;
   }
 
   /**
    * Validate feed values request
    */
-  static validateFeedValuesRequest(body: any): { feeds: FeedId[] } {
+  static validateFeedValuesRequest(body: unknown): ValidatedFeedValuesRequest {
     const validatedBody = this.validateRequestBody(body);
 
     if (!validatedBody.feeds) {
@@ -193,11 +203,7 @@ export class ValidationUtils {
   /**
    * Validate volumes request
    */
-  static validateVolumesRequest(body: any): {
-    feeds: FeedId[];
-    startTime?: number;
-    endTime?: number;
-  } {
+  static validateVolumesRequest(body: unknown): ValidatedVolumesRequest {
     const validatedBody = this.validateRequestBody(body);
 
     if (!validatedBody.feeds) {
@@ -216,7 +222,7 @@ export class ValidationUtils {
   /**
    * Sanitize string input
    */
-  static sanitizeString(input: any, fieldName: string, maxLength = 100): string {
+  static sanitizeString(input: unknown, fieldName: string, maxLength = 100): string {
     if (typeof input !== "string") {
       throw new BadRequestException(`${fieldName} must be a string`);
     }
@@ -244,7 +250,13 @@ export class ValidationUtils {
   /**
    * Validate numeric value with range
    */
-  static validateNumericRange(value: any, fieldName: string, min?: number, max?: number, allowFloat = true): number {
+  static validateNumericRange(
+    value: unknown,
+    fieldName: string,
+    min?: number,
+    max?: number,
+    allowFloat = true
+  ): number {
     if (typeof value !== "number") {
       throw new BadRequestException(`${fieldName} must be a number`);
     }
@@ -271,7 +283,7 @@ export class ValidationUtils {
   /**
    * Validate pagination parameters
    */
-  static validatePagination(page?: any, limit?: any): { page: number; limit: number; offset: number } {
+  static validatePagination(page?: unknown, limit?: unknown): ValidatedPagination {
     const validatedPage = page !== undefined ? this.validateNumericRange(page, "page", 1, undefined, false) : 1;
     const validatedLimit = limit !== undefined ? this.validateNumericRange(limit, "limit", 1, 100, false) : 10;
 
@@ -295,15 +307,7 @@ export class ValidationUtils {
   /**
    * Validate array with constraints
    */
-  static validateArray<T>(
-    value: any,
-    fieldName: string,
-    options: {
-      minLength?: number;
-      maxLength?: number;
-      itemValidator?: (item: any, index: number) => T;
-    } = {}
-  ): T[] {
+  static validateArray<T>(value: unknown, fieldName: string, options: ArrayValidationOptions<T> = {}): T[] {
     if (!Array.isArray(value)) {
       throw new BadRequestException(`${fieldName} must be an array`);
     }
@@ -334,7 +338,7 @@ export class ValidationUtils {
   /**
    * Validate email format
    */
-  static validateEmail(email: any, fieldName = "email"): string {
+  static validateEmail(email: unknown, fieldName = "email"): string {
     const emailStr = this.sanitizeString(email, fieldName, 254);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -348,7 +352,7 @@ export class ValidationUtils {
   /**
    * Validate URL format
    */
-  static validateUrl(url: any, fieldName = "url", allowedProtocols = ["http", "https"]): string {
+  static validateUrl(url: unknown, fieldName = "url", allowedProtocols = ["http", "https"]): string {
     const urlStr = this.sanitizeString(url, fieldName, 2048);
 
     try {
@@ -367,20 +371,20 @@ export class ValidationUtils {
   /**
    * Validate enum value
    */
-  static validateEnum<T>(value: any, enumObject: Record<string, T>, fieldName: string): T {
+  static validateEnum<T>(value: unknown, enumObject: Record<string, T>, fieldName: string): T {
     const enumValues = Object.values(enumObject);
 
-    if (!enumValues.includes(value)) {
+    if (!enumValues.includes(value as T)) {
       throw new BadRequestException(`${fieldName} must be one of: ${enumValues.join(", ")}`);
     }
 
-    return value;
+    return value as T;
   }
 
   /**
    * Validate date string or timestamp
    */
-  static validateDate(date: any, fieldName: string): Date {
+  static validateDate(date: unknown, fieldName: string): Date {
     let dateObj: Date;
 
     if (typeof date === "number") {
@@ -403,7 +407,7 @@ export class ValidationUtils {
   /**
    * Validate object structure
    */
-  static validateObject<T>(value: any, fieldName: string, validator: (obj: any) => T): T {
+  static validateObject<T>(value: unknown, fieldName: string, validator: (obj: unknown) => T): T {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       throw new BadRequestException(`${fieldName} must be an object`);
     }

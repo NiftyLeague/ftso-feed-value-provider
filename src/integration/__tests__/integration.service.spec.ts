@@ -1,10 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { IntegrationService } from "../integration.service";
+import { ConfigService } from "@/config/config.service";
+import type { EnhancedFeedId } from "@/common/types/core";
+
 import { DataSourceIntegrationService } from "../services/data-source-integration.service";
+import { IntegrationService } from "../integration.service";
 import { PriceAggregationCoordinatorService } from "../services/price-aggregation-coordinator.service";
 import { SystemHealthService } from "../services/system-health.service";
-import { ConfigService } from "@/config/config.service";
-import { EnhancedFeedId } from "@/common/types/feed.types";
 
 describe("IntegrationService", () => {
   let service: IntegrationService;

@@ -1,11 +1,19 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { AggregatedPrice, QualityMetrics } from "./base/aggregation.interfaces";
-import { ConsensusAggregator } from "./consensus-aggregator";
 import { ConfigService } from "@/config/config.service";
-import { IAggregationService } from "@/common/interfaces/services/aggregation.interface";
+
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { AggregatedPrice, QualityMetrics } from "@/common/types/services";
+import type { ServicePerformanceMetrics, ServiceHealthStatus } from "@/common/types/services";
+import type { HealthCheckResult, HealthStatusType } from "@/common/types/monitoring";
+
+import { ConsensusAggregator } from "./consensus-aggregator";
+
+interface IAggregationService {
+  getActiveFeedCount(): number;
+  getCacheStats(): AggregationCacheStats;
+  getSubscriptionCount(): number;
+}
 
 export interface CacheEntry {
   value: AggregatedPrice;
@@ -16,7 +24,7 @@ export interface CacheEntry {
   votingRound?: number;
 }
 
-export interface CacheStats {
+export interface AggregationCacheStats {
   totalEntries: number;
   hitRate: number;
   missRate: number;
@@ -128,14 +136,14 @@ export class RealTimeAggregationService
       // Get active price updates for this feed
       const updates = this.activePriceUpdates.get(feedKey) || [];
       if (updates.length === 0) {
-        this.enhancedLogger.warn(`No price updates available for ${feedId.name}`, {
+        this.enhancedLogger?.warn(`No price updates available for ${feedId.name}`, {
           component: "RealTimeAggregation",
           operation: "get_aggregated_price",
           symbol: feedId.name,
           metadata: { availableUpdates: 0 },
         });
 
-        this.enhancedLogger.endPerformanceTimer(operationId, false, { error: "no_updates_available" });
+        this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: "no_updates_available" });
         return null;
       }
 
@@ -146,7 +154,7 @@ export class RealTimeAggregationService
       this.setCachedPrice(feedKey, aggregatedPrice);
 
       // Log successful aggregation
-      this.enhancedLogger.logAggregation(
+      this.enhancedLogger?.logAggregation(
         feedId.name,
         updates.length,
         aggregatedPrice.price,
@@ -159,7 +167,7 @@ export class RealTimeAggregationService
 
       // Log performance warning if exceeding target
       if (responseTime > this.config.performanceTargetMs) {
-        this.enhancedLogger.warn(`Aggregation performance threshold exceeded`, {
+        this.enhancedLogger?.warn(`Aggregation performance threshold exceeded`, {
           component: "RealTimeAggregation",
           operation: "get_aggregated_price",
           symbol: feedId.name,
@@ -176,7 +184,7 @@ export class RealTimeAggregationService
       const recordedTime = Math.max(responseTime, 0.01); // Minimum 0.01ms
       this.recordPerformance(feedKey, recordedTime);
 
-      this.enhancedLogger.endPerformanceTimer(operationId, true, {
+      this.enhancedLogger?.endPerformanceTimer(operationId, true, {
         price: aggregatedPrice.price,
         sourceCount: updates.length,
         confidence: aggregatedPrice.confidence,
@@ -184,7 +192,8 @@ export class RealTimeAggregationService
 
       return aggregatedPrice;
     } catch (error) {
-      this.enhancedLogger.error(error, {
+      const err = error as Error;
+      this.enhancedLogger?.error(err, {
         component: "RealTimeAggregation",
         operation: "get_aggregated_price",
         symbol: feedId.name,
@@ -196,9 +205,9 @@ export class RealTimeAggregationService
       });
 
       // Emit error event for error handling services
-      this.emit("error", error);
+      this.emit("error", err);
 
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
+      this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: err.message });
       return null;
     }
   }
@@ -308,7 +317,7 @@ export class RealTimeAggregationService
   /**
    * Get cache statistics
    */
-  getCacheStats(): CacheStats {
+  getCacheStats(): AggregationCacheStats {
     const totalRequests = this.cacheStats.totalRequests;
     const hitRate = totalRequests > 0 ? this.cacheStats.hits / totalRequests : 0;
     const missRate = totalRequests > 0 ? this.cacheStats.misses / totalRequests : 0;
@@ -389,7 +398,7 @@ export class RealTimeAggregationService
    */
   async processPriceUpdate(update: PriceUpdate): Promise<void> {
     const operationId = `process_update_${update.symbol}_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "process_price_update", "RealTimeAggregation", {
+    this.enhancedLogger?.startPerformanceTimer(operationId, "process_price_update", "RealTimeAggregation", {
       symbol: update.symbol,
       source: update.source,
       price: update.price,
@@ -404,7 +413,7 @@ export class RealTimeAggregationService
       }
 
       // Log the incoming price update
-      this.enhancedLogger.logPriceUpdate(
+      this.enhancedLogger?.logPriceUpdate(
         update.symbol,
         update.source,
         update.price,
@@ -420,7 +429,7 @@ export class RealTimeAggregationService
 
       if (aggregatedPrice) {
         // Log successful aggregation
-        this.enhancedLogger.logDataFlow("RealTimeAggregation", "AggregatedPriceEvent", "AggregatedPrice", 1, {
+        this.enhancedLogger?.logDataFlow("RealTimeAggregation", "AggregatedPriceEvent", "AggregatedPrice", 1, {
           symbol: update.symbol,
           originalPrice: update.price,
           aggregatedPrice: aggregatedPrice.price,
@@ -430,7 +439,7 @@ export class RealTimeAggregationService
         // Emit aggregated price event for other services
         this.emit("aggregatedPrice", aggregatedPrice);
 
-        this.enhancedLogger.debug(`Price update processed successfully`, {
+        this.enhancedLogger?.debug(`Price update processed successfully`, {
           component: "RealTimeAggregation",
           operation: "process_price_update",
           symbol: update.symbol,
@@ -444,12 +453,12 @@ export class RealTimeAggregationService
           },
         });
 
-        this.enhancedLogger.endPerformanceTimer(operationId, true, {
+        this.enhancedLogger?.endPerformanceTimer(operationId, true, {
           aggregatedPrice: aggregatedPrice.price,
           sourceCount: aggregatedPrice.sources.length,
         });
       } else {
-        this.enhancedLogger.warn(`Failed to generate aggregated price for ${update.symbol}`, {
+        this.enhancedLogger?.warn(`Failed to generate aggregated price for ${update.symbol}`, {
           component: "RealTimeAggregation",
           operation: "process_price_update",
           symbol: update.symbol,
@@ -460,12 +469,13 @@ export class RealTimeAggregationService
           },
         });
 
-        this.enhancedLogger.endPerformanceTimer(operationId, false, {
+        this.enhancedLogger?.endPerformanceTimer(operationId, false, {
           error: "no_aggregated_price_generated",
         });
       }
     } catch (error) {
-      this.enhancedLogger.error(error, {
+      const err = error as Error;
+      this.enhancedLogger?.error(err, {
         component: "RealTimeAggregation",
         operation: "process_price_update",
         symbol: update.symbol,
@@ -479,28 +489,25 @@ export class RealTimeAggregationService
       });
 
       // Emit error event for error handling services
-      this.emit("error", error);
+      this.emit("error", err);
 
-      this.enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
-      throw error;
+      this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: err.message });
+      throw err;
     }
   }
 
   /**
-   * Emit aggregated price event
+   * Emit events (uses BaseEventService implementation)
    */
-  emit(event: "aggregatedPrice", price: AggregatedPrice): boolean;
-  emit(event: "error", error: Error): boolean;
-  emit(event: string | symbol, ...args: any[]): boolean {
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
     return super.emit(event, ...args);
   }
 
   /**
-   * Listen for aggregated price events
+   * Listen for events (uses BaseEventService implementation)
    */
-  on(event: "aggregatedPrice", callback: (price: AggregatedPrice) => void): this;
-  on(event: "error", callback: (error: Error) => void): this;
-  on(event: string | symbol, listener: (...args: any[]) => void): this {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  override on(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(event, listener);
   }
 
@@ -713,48 +720,69 @@ export class RealTimeAggregationService
   }
 
   // IBaseService interface methods
-  async getPerformanceMetrics(): Promise<{
-    responseTime: { average: number; min: number; max: number };
-    throughput: { requestsPerSecond: number; totalRequests: number };
-    errorRate: number;
-    uptime: number;
-  }> {
+  async getPerformanceMetrics(): Promise<ServicePerformanceMetrics> {
     const uptime = process.uptime();
     const totalRequests = this.cacheStats.totalRequests;
     const requestsPerSecond = totalRequests / uptime;
 
-    // Calculate average response time from all feeds
+    // Calculate response time metrics from all feeds
     const allMetrics = Array.from(this.performanceMetrics.values()).flat();
     const averageResponseTime =
       allMetrics.length > 0 ? allMetrics.reduce((sum, time) => sum + time, 0) / allMetrics.length : 0;
-    const minResponseTime = allMetrics.length > 0 ? Math.min(...allMetrics) : 0;
-    const maxResponseTime = allMetrics.length > 0 ? Math.max(...allMetrics) : 0;
+
+    // Sort metrics for percentile calculation
+    const sortedMetrics = [...allMetrics].sort((a, b) => a - b);
+    const p95Index = Math.floor(sortedMetrics.length * 0.95);
+    const p95 = sortedMetrics.length > 0 ? sortedMetrics[p95Index] : 0;
+    const maxResponseTime = sortedMetrics.length > 0 ? sortedMetrics[sortedMetrics.length - 1] : 0;
 
     return {
+      uptime,
       responseTime: {
         average: averageResponseTime,
-        min: minResponseTime,
+        p95,
         max: maxResponseTime,
       },
-      throughput: {
-        requestsPerSecond,
-        totalRequests,
-      },
+      requestsPerSecond,
       errorRate: 0, // Mock value - should be calculated from actual error metrics
-      uptime,
     };
   }
 
-  async getHealthStatus(): Promise<{
-    status: "healthy" | "degraded" | "unhealthy";
-    timestamp: number;
-    details?: any;
-  }> {
+  async getHealthStatus(): Promise<ServiceHealthStatus> {
     const activeFeedCount = this.getActiveFeedCount();
     const cacheStats = this.getCacheStats();
+    const now = Date.now();
 
-    let status: "healthy" | "degraded" | "unhealthy" = "healthy";
+    // Create health check results for each component
+    const cacheHealth: HealthCheckResult = {
+      isHealthy: cacheStats.hitRate >= 0.8,
+      timestamp: now,
+      details: {
+        component: "cache",
+        status: cacheStats.hitRate >= 0.8 ? "healthy" : "degraded",
+        timestamp: now,
+        metrics: {
+          uptime: process.uptime() * 1000, // Convert to milliseconds
+          memoryUsage: process.memoryUsage().heapUsed / (1024 * 1024), // Convert to MB
+          cpuUsage: 0, // This would require actual CPU usage monitoring
+          connectionCount: 0, // This would require actual connection tracking
+        },
+      },
+    };
 
+    const subscriptionHealth: HealthCheckResult = {
+      isHealthy: activeFeedCount > 0,
+      timestamp: now,
+      details: {
+        component: "subscriptions",
+        status: activeFeedCount > 0 ? "healthy" : "unhealthy",
+        timestamp: now,
+        connections: activeFeedCount,
+      },
+    };
+
+    // Determine overall status
+    let status: HealthStatusType = "healthy";
     if (activeFeedCount === 0) {
       status = "unhealthy";
     } else if (cacheStats.hitRate < 0.8) {
@@ -763,12 +791,8 @@ export class RealTimeAggregationService
 
     return {
       status,
-      timestamp: Date.now(),
-      details: {
-        activeFeedCount,
-        cacheStats,
-        subscriptionCount: this.getSubscriptionCount(),
-      },
+      timestamp: now,
+      details: [cacheHealth, subscriptionHealth],
     };
   }
 }

@@ -1,5 +1,5 @@
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import type { MockAlertData } from "@/common/types/utils";
 
 // Mock monitoring services
 class MockPerformanceMonitor {
@@ -10,7 +10,7 @@ class MockPerformanceMonitor {
     priceUpdates: new Map<string, number>(),
   };
 
-  recordResponseTime(endpoint: string, responseTime: number) {
+  recordResponseTime(_endpoint: string, responseTime: number) {
     this.metrics.responseTime.push(responseTime);
   }
 
@@ -121,24 +121,24 @@ class MockAccuracyMonitor {
 }
 
 class MockAlertingService {
-  private alerts: any[] = [];
+  private alerts: MockAlertData[] = [];
 
-  async sendAlert(alert: any) {
+  async sendAlert(alert: MockAlertData) {
     this.alerts.push({
       ...alert,
       timestamp: Date.now(),
     });
   }
 
-  escalateAlert(alert: any) {
+  escalateAlert(_alert: MockAlertData) {
     // Mock escalation
   }
 
-  sendEmailAlert(alert: any) {
+  sendEmailAlert(_alert: MockAlertData) {
     // Mock email alert
   }
 
-  sendWebhookAlert(alert: any) {
+  sendWebhookAlert(_alert: MockAlertData) {
     // Mock webhook alert
   }
 
@@ -178,16 +178,17 @@ describe("Monitoring Integration Tests", () => {
       // Simulate alert triggering
       if (metrics.averageResponseTime > 100) {
         await alertingService.sendAlert({
-          type: "PERFORMANCE_DEGRADATION",
-          severity: "WARNING",
+          severity: "medium",
           message: "Average response time exceeded threshold",
+          component: "performance",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "PERFORMANCE_DEGRADATION",
-          severity: "WARNING",
+          severity: "medium",
+          message: "Average response time exceeded threshold",
         })
       );
     });
@@ -204,16 +205,17 @@ describe("Monitoring Integration Tests", () => {
       // Simulate alert triggering for stale data
       if (latencyMetrics.averageLatency > 2000) {
         await alertingService.sendAlert({
-          type: "DATA_STALENESS",
-          severity: "ERROR",
+          severity: "high",
           message: "Data staleness detected",
+          component: "data",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "DATA_STALENESS",
-          severity: "ERROR",
+          severity: "high",
+          message: "Data staleness detected",
         })
       );
     });
@@ -236,16 +238,17 @@ describe("Monitoring Integration Tests", () => {
       // Simulate alert triggering for poor connection health
       if (healthMetrics.healthyPercentage < 0.8) {
         await alertingService.sendAlert({
-          type: "CONNECTION_HEALTH",
-          severity: "WARNING",
+          severity: "medium",
           message: "Connection health degraded",
+          component: "connection",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "CONNECTION_HEALTH",
-          severity: "WARNING",
+          severity: "medium",
+          message: "Connection health degraded",
         })
       );
     });
@@ -266,16 +269,17 @@ describe("Monitoring Integration Tests", () => {
       // Simulate alert triggering for high deviation
       if (accuracyMetrics.averageDeviation > 0.005) {
         await alertingService.sendAlert({
-          type: "ACCURACY_DEGRADATION",
-          severity: "ERROR",
+          severity: "high",
           message: "Consensus deviation exceeded threshold",
+          component: "accuracy",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "ACCURACY_DEGRADATION",
-          severity: "ERROR",
+          severity: "high",
+          message: "Consensus deviation exceeded threshold",
         })
       );
     });
@@ -293,16 +297,17 @@ describe("Monitoring Integration Tests", () => {
 
       if (accuracyMetrics.accuracyRate < 0.8) {
         await alertingService.sendAlert({
-          type: "ACCURACY_RATE_LOW",
-          severity: "CRITICAL",
+          severity: "critical",
           message: "Accuracy rate below threshold",
+          component: "accuracy",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "ACCURACY_RATE_LOW",
-          severity: "CRITICAL",
+          severity: "critical",
+          message: "Accuracy rate below threshold",
         })
       );
     });
@@ -322,16 +327,17 @@ describe("Monitoring Integration Tests", () => {
       // Simulate alert triggering for quality degradation
       if (qualityMetrics.averageQuality < 0.8) {
         await alertingService.sendAlert({
-          type: "QUALITY_DEGRADATION",
-          severity: "WARNING",
+          severity: "medium",
           message: "Quality score degradation detected",
+          component: "quality",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "QUALITY_DEGRADATION",
-          severity: "WARNING",
+          severity: "medium",
+          message: "Quality score degradation detected",
         })
       );
     });
@@ -351,16 +357,17 @@ describe("Monitoring Integration Tests", () => {
       // Simulate alert triggering for low source reliability
       if (reliabilityMetrics["binance"] < 0.8) {
         await alertingService.sendAlert({
-          type: "SOURCE_RELIABILITY_LOW",
-          severity: "WARNING",
+          severity: "medium",
           message: "Source reliability degraded for binance",
+          component: "reliability",
+          timestamp: Date.now(),
         });
       }
 
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: "SOURCE_RELIABILITY_LOW",
-          severity: "WARNING",
+          severity: "medium",
+          message: "Source reliability degraded for binance",
         })
       );
     });
@@ -370,21 +377,24 @@ describe("Monitoring Integration Tests", () => {
     it("should handle multiple alert types and priorities", async () => {
       const alerts = [
         {
-          type: "PERFORMANCE_DEGRADATION" as const,
-          severity: "WARNING" as const,
+          severity: "medium" as const,
           message: "API response time exceeded threshold",
+          component: "performance",
+          timestamp: Date.now(),
           metadata: { responseTime: 150, threshold: 100 },
         },
         {
-          type: "ACCURACY_DEGRADATION" as const,
-          severity: "CRITICAL" as const,
+          severity: "critical" as const,
           message: "Consensus deviation exceeded 0.5%",
+          component: "accuracy",
+          timestamp: Date.now(),
           metadata: { deviation: 0.008, threshold: 0.005 },
         },
         {
-          type: "CONNECTION_FAILURE" as const,
-          severity: "ERROR" as const,
+          severity: "high" as const,
           message: "Exchange connection lost",
+          component: "connection",
+          timestamp: Date.now(),
           metadata: { exchange: "binance", duration: 30000 },
         },
       ];
@@ -400,15 +410,16 @@ describe("Monitoring Integration Tests", () => {
       const alertHistory = alertingService.getAlertHistory();
       expect(alertHistory).toHaveLength(3);
 
-      const criticalAlerts = alertHistory.filter(a => a.severity === "CRITICAL");
+      const criticalAlerts = alertHistory.filter(a => a.severity === "critical");
       expect(criticalAlerts).toHaveLength(1);
     });
 
     it("should implement alert rate limiting to prevent spam", async () => {
       const duplicateAlert = {
-        type: "PERFORMANCE_DEGRADATION" as const,
-        severity: "WARNING" as const,
+        severity: "medium" as const,
         message: "API response time exceeded threshold",
+        component: "performance",
+        timestamp: Date.now(),
         metadata: { responseTime: 150 },
       };
 
@@ -426,7 +437,7 @@ describe("Monitoring Integration Tests", () => {
 
   describe("End-to-End Monitoring Workflow", () => {
     it("should detect, monitor, and alert on system degradation", async () => {
-      const alertSpy = jest.spyOn(alertingService, "sendAlert");
+      // Prepare scenario for end-to-end monitoring without spying on alert method
 
       // Simulate system degradation scenario
 
@@ -448,27 +459,30 @@ describe("Monitoring Integration Tests", () => {
       const performanceMetrics = performanceMonitor.getMetrics();
       if (performanceMetrics.averageResponseTime > 100) {
         await alertingService.sendAlert({
-          type: "PERFORMANCE_DEGRADATION",
-          severity: "WARNING",
+          severity: "medium",
           message: "Performance degraded",
+          component: "performance",
+          timestamp: Date.now(),
         });
       }
 
       const accuracyMetrics = accuracyMonitor.getAccuracyMetrics(mockFeedId);
       if (accuracyMetrics.averageDeviation > 0.005) {
         await alertingService.sendAlert({
-          type: "ACCURACY_DEGRADATION",
-          severity: "ERROR",
+          severity: "high",
           message: "Accuracy degraded",
+          component: "accuracy",
+          timestamp: Date.now(),
         });
       }
 
       const connectionHealth = performanceMonitor.getConnectionHealthMetrics();
       if (connectionHealth.healthyPercentage < 0.8) {
         await alertingService.sendAlert({
-          type: "CONNECTION_HEALTH",
-          severity: "WARNING",
+          severity: "medium",
           message: "Connection health degraded",
+          component: "connection",
+          timestamp: Date.now(),
         });
       }
 

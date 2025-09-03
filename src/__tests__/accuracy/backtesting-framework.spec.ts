@@ -1,5 +1,5 @@
-import { FeedCategory, EnhancedFeedId } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import { FeedCategory } from "@/common/types/core";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 
 // Mock historical data generator
 const generateHistoricalData = (
@@ -66,7 +66,7 @@ class MockConsensusAggregator {
 
 // Mock data validator
 class MockDataValidator {
-  async validateUpdate(update: PriceUpdate, context: any) {
+  async validateUpdate(update: PriceUpdate, _context: any) {
     const isValid =
       update.price > 0 && update.timestamp > 0 && update.source.length > 0 && update.timestamp > Date.now() - 10000;
 
@@ -80,7 +80,6 @@ class MockDataValidator {
 
 describe("Backtesting Framework", () => {
   let consensusAggregator: MockConsensusAggregator;
-  let dataValidator: MockDataValidator;
 
   const mockFeedId: EnhancedFeedId = {
     category: FeedCategory.Crypto,
@@ -89,7 +88,7 @@ describe("Backtesting Framework", () => {
 
   beforeEach(() => {
     consensusAggregator = new MockConsensusAggregator();
-    dataValidator = new MockDataValidator();
+    new MockDataValidator();
   });
 
   describe("Historical Accuracy Validation", () => {
@@ -173,7 +172,7 @@ describe("Backtesting Framework", () => {
 
         const windowResults: any[] = [];
 
-        for (const [windowStart, updates] of windows) {
+        for (const [_windowStart, updates] of windows) {
           if (updates.length < 3) continue;
 
           const aggregatedResult = await consensusAggregator.aggregate(mockFeedId, updates);
@@ -184,7 +183,7 @@ describe("Backtesting Framework", () => {
             deviationsFromMedian.reduce((sum, dev) => sum + dev, 0) / deviationsFromMedian.length;
 
           windowResults.push({
-            timestamp: windowStart,
+            timestamp: _windowStart,
             consensusScore: aggregatedResult.consensusScore,
             sourceAgreement: 1 - averageDeviation,
             sourceCount: updates.length,
@@ -241,7 +240,7 @@ describe("Backtesting Framework", () => {
         const aggregationTimes: number[] = [];
         let successfulAggregations = 0;
 
-        for (const [windowStart, updates] of windows) {
+        for (const [_windowStart, updates] of windows) {
           if (updates.length < 3) continue;
 
           const startTime = process.hrtime.bigint();

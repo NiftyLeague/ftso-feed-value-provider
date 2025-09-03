@@ -8,7 +8,7 @@ export interface FileWatcherOptions {
 }
 
 export interface FileChangeCallback {
-  (filePath: string, current: any, previous: any): void;
+  (filePath: string, current: unknown, previous: unknown): void;
 }
 
 @Injectable()
@@ -127,7 +127,7 @@ export class FileWatcherService extends BaseService implements OnModuleDestroy {
   async getHealthStatus(): Promise<{
     status: "healthy" | "degraded" | "unhealthy";
     timestamp: number;
-    details?: any;
+    details?: Record<string, unknown>;
   }> {
     const watchedCount = this.watchedFiles.size;
 

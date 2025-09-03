@@ -1,83 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
 import { ConfigUtils } from "@/common/utils/config.utils";
-
-export interface ConfigValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-  missingRequired: string[];
-  invalidValues: string[];
-}
-
-export interface EnvironmentConfig {
-  // Core application settings
-  logLevel: string;
-  port: number;
-  basePath: string;
-  nodeEnv: string;
-
-  // Provider implementation settings (production only)
-  useProductionIntegration: boolean;
-
-  // Data processing settings
-  medianDecay: number;
-  tradesHistorySize: number;
-
-  // Alerting configuration
-  alerting: {
-    email: {
-      enabled: boolean;
-      smtpHost: string;
-      smtpPort: number;
-      username: string;
-      password: string;
-      from: string;
-      to: string[];
-    };
-    webhook: {
-      enabled: boolean;
-      url: string;
-      headers: Record<string, string>;
-      timeout: number;
-    };
-    maxAlertsPerHour: number;
-    alertRetentionDays: number;
-  };
-
-  // Exchange API configuration
-  exchangeApiKeys: Record<
-    string,
-    {
-      apiKey?: string;
-      secret?: string;
-      passphrase?: string;
-      sandbox?: boolean;
-    }
-  >;
-
-  // Cache configuration
-  cache: {
-    ttlMs: number;
-    maxEntries: number;
-    warmupInterval: number;
-  };
-
-  // Monitoring configuration
-  monitoring: {
-    enabled: boolean;
-    metricsPort: number;
-    healthCheckInterval: number;
-  };
-
-  // Error handling configuration
-  errorHandling: {
-    maxRetries: number;
-    retryDelayMs: number;
-    circuitBreakerThreshold: number;
-    circuitBreakerTimeout: number;
-  };
-}
+import type { ConfigValidationResult, EnvironmentConfiguration } from "@/common/types";
 
 @Injectable()
 export class ConfigValidationService extends BaseService {
@@ -88,8 +12,8 @@ export class ConfigValidationService extends BaseService {
   /**
    * Load and validate environment configuration
    */
-  loadAndValidateEnvironmentConfig(): EnvironmentConfig {
-    const config: EnvironmentConfig = {
+  loadAndValidateEnvironmentConfig(): EnvironmentConfiguration {
+    const config: EnvironmentConfiguration = {
       // Core application settings
       logLevel: process.env.LOG_LEVEL || "log",
       port: ConfigUtils.parsePort(process.env.VALUE_PROVIDER_CLIENT_PORT, 3101, "VALUE_PROVIDER_CLIENT_PORT"),
@@ -233,7 +157,7 @@ export class ConfigValidationService extends BaseService {
   /**
    * Validate environment configuration
    */
-  validateEnvironmentConfig(config: EnvironmentConfig): ConfigValidationResult {
+  validateEnvironmentConfig(config: EnvironmentConfiguration): ConfigValidationResult {
     const result = ConfigUtils.createValidationResult();
 
     // Validate log level
@@ -291,7 +215,7 @@ export class ConfigValidationService extends BaseService {
   /**
    * Validate feed configuration JSON structure
    */
-  validateFeedConfigurationStructure(feedsJson: any[]): ConfigValidationResult {
+  validateFeedConfigurationStructure(feedsJson: unknown[]): ConfigValidationResult {
     const result = ConfigUtils.createValidationResult();
 
     // Check if it's an array (the expected format)
@@ -301,36 +225,66 @@ export class ConfigValidationService extends BaseService {
       return result;
     }
 
+    // Type guards
+    const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+
+    const isFeed = (v: unknown): v is { category: number; name: string } =>
+      isRecord(v) && typeof v.category === "number" && typeof v.name === "string" && v.name.trim().length > 0;
+
+    const isSource = (v: unknown): v is { exchange: string; symbol: string } =>
+      isRecord(v) &&
+      typeof v.exchange === "string" &&
+      v.exchange.trim().length > 0 &&
+      typeof v.symbol === "string" &&
+      v.symbol.trim().length > 0;
+
     // Validate each feed configuration
     feedsJson.forEach((feedConfig, index) => {
       const feedPrefix = `Feed ${index + 1}`;
 
+      if (!isRecord(feedConfig)) {
+        result.errors.push(`${feedPrefix}: Each feed config must be an object`);
+        return;
+      }
+
       // Check required fields
-      if (!feedConfig.feed) {
-        result.errors.push(`${feedPrefix}: Missing 'feed' object`);
-      } else {
-        if (typeof feedConfig.feed.category !== "number") {
-          result.errors.push(`${feedPrefix}: feed.category must be a number`);
-        }
-        if (typeof feedConfig.feed.name !== "string" || !feedConfig.feed.name.trim()) {
-          result.errors.push(`${feedPrefix}: feed.name must be a non-empty string`);
+      const feed = feedConfig["feed"];
+      if (!isFeed(feed)) {
+        // Provide granular messages where possible
+        if (!isRecord(feed)) {
+          result.errors.push(`${feedPrefix}: Missing 'feed' object`);
+        } else {
+          if (typeof feed.category !== "number") {
+            result.errors.push(`${feedPrefix}: feed.category must be a number`);
+          }
+          if (typeof feed.name !== "string" || !feed.name.trim()) {
+            result.errors.push(`${feedPrefix}: feed.name must be a non-empty string`);
+          }
         }
       }
 
-      if (!Array.isArray(feedConfig.sources)) {
+      const sources = feedConfig["sources"] as unknown;
+      if (!Array.isArray(sources)) {
         result.errors.push(`${feedPrefix}: 'sources' must be an array`);
-      } else if (feedConfig.sources.length === 0) {
-        result.warnings.push(`${feedPrefix}: No sources defined for feed ${feedConfig.feed?.name || "unknown"}`);
+      } else if (sources.length === 0) {
+        const feedName = isFeed(feed) ? feed.name : "unknown";
+        result.warnings.push(`${feedPrefix}: No sources defined for feed ${feedName}`);
       } else {
         // Validate each source
-        feedConfig.sources.forEach((source: any, sourceIndex: number) => {
+        sources.forEach((source: unknown, sourceIndex: number) => {
           const sourcePrefix = `${feedPrefix}, Source ${sourceIndex + 1}`;
 
-          if (typeof source.exchange !== "string" || !source.exchange.trim()) {
-            result.errors.push(`${sourcePrefix}: exchange must be a non-empty string`);
-          }
-          if (typeof source.symbol !== "string" || !source.symbol.trim()) {
-            result.errors.push(`${sourcePrefix}: symbol must be a non-empty string`);
+          if (!isSource(source)) {
+            if (!isRecord(source)) {
+              result.errors.push(`${sourcePrefix}: source must be an object with 'exchange' and 'symbol'`);
+            } else {
+              if (typeof source.exchange !== "string" || !source.exchange?.trim()) {
+                result.errors.push(`${sourcePrefix}: exchange must be a non-empty string`);
+              }
+              if (typeof source.symbol !== "string" || !source.symbol?.trim()) {
+                result.errors.push(`${sourcePrefix}: symbol must be a non-empty string`);
+              }
+            }
           }
         });
       }
@@ -345,7 +299,7 @@ export class ConfigValidationService extends BaseService {
    */
   validateSources(
     sources: { exchange: string; symbol: string }[],
-    adapterMappings: Record<string, any>
+    adapterMappings: Record<string, { ccxtId?: string; adapter?: string }>
   ): ConfigValidationResult {
     const result = ConfigUtils.createValidationResult();
 

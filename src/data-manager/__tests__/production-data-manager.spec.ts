@@ -1,10 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ProductionDataManagerService } from "../production-data-manager";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
+
+import type { IExchangeAdapter, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type { RawPriceData, RawVolumeData } from "@/common/types/adapters";
+import type { EnhancedFeedId, PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
+
+import { ProductionDataManagerService } from "../production-data-manager";
 import { DataValidator } from "../validation/data-validator";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { IExchangeAdapter, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 // Mock adapter for testing that implements DataSource interface
 class MockExchangeAdapter implements IExchangeAdapter {
@@ -45,27 +48,28 @@ class MockExchangeAdapter implements IExchangeAdapter {
     return 50; // Mock latency in ms
   }
 
-  normalizePriceData(rawData: any): PriceUpdate {
+  normalizePriceData(rawData: RawPriceData): PriceUpdate {
     return {
       symbol: "BTC/USD",
-      price: rawData.price || 50000,
+      price: Number((rawData as any)?.price ?? 50000),
       timestamp: Date.now(),
       source: this.exchangeName,
       confidence: 0.9,
     };
   }
 
-  normalizeVolumeData(rawData: any): any {
+  normalizeVolumeData(rawData: RawVolumeData): VolumeUpdate {
     return {
       symbol: "BTC/USD",
-      volume: rawData.volume || 1000,
+      volume: Number((rawData as any)?.volume ?? 1000),
       timestamp: Date.now(),
       source: this.exchangeName,
     };
   }
 
-  validateResponse(rawData: any): boolean {
-    return rawData && typeof rawData.price === "number";
+  validateResponse(rawData: unknown): boolean {
+    const price = (rawData as any)?.price;
+    return typeof price === "number" || (typeof price === "string" && !Number.isNaN(Number(price)));
   }
 
   async subscribe(_symbols: string[]): Promise<void> {
@@ -117,8 +121,7 @@ class MockExchangeAdapter implements IExchangeAdapter {
 describe("ProductionDataManagerService", () => {
   let dataManager: ProductionDataManagerService;
   let module: TestingModule;
-  let adapterRegistry: jest.Mocked<ExchangeAdapterRegistry>;
-  let dataValidator: jest.Mocked<DataValidator>;
+  // Removed unused variables to satisfy lints
 
   const mockFeedId: EnhancedFeedId = {
     category: FeedCategory.Crypto,
@@ -159,12 +162,10 @@ describe("ProductionDataManagerService", () => {
     }).compile();
 
     dataManager = module.get<ProductionDataManagerService>(ProductionDataManagerService);
-    adapterRegistry = module.get(ExchangeAdapterRegistry);
-    dataValidator = module.get(DataValidator);
   });
 
   afterEach(async () => {
-    dataManager.cleanup();
+    dataManager.cleanupForTests();
     await module.close();
   });
 

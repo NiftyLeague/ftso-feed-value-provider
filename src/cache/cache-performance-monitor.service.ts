@@ -1,27 +1,8 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
+import type { CachePerformanceMetrics, ResponseTimeMetric, MemoryUsageMetric } from "@/common/types/cache";
+
 import { RealTimeCacheService } from "./real-time-cache.service";
-
-interface PerformanceMetrics {
-  hitRate: number;
-  missRate: number;
-  averageResponseTime: number;
-  memoryUsage: number;
-  evictionRate: number;
-  totalRequests: number;
-  requestsPerSecond: number;
-}
-
-interface ResponseTimeMetric {
-  timestamp: number;
-  responseTime: number;
-}
-
-interface MemoryUsageMetric {
-  timestamp: number;
-  usage: number;
-  entryCount: number;
-}
 
 @Injectable()
 export class CachePerformanceMonitorService extends BaseService implements OnModuleDestroy {
@@ -53,20 +34,25 @@ export class CachePerformanceMonitorService extends BaseService implements OnMod
   }
 
   // Get current performance metrics
-  getPerformanceMetrics(): PerformanceMetrics {
+  getPerformanceMetrics(): CachePerformanceMetrics {
     const cacheStats = this.cacheService.getStats();
     const currentTime = Date.now();
     const timeDiff = (currentTime - this.lastRequestTime) / 1000; // seconds
     const requestDiff = cacheStats.totalRequests - this.lastRequestCount;
+    const requestsPerSecond = timeDiff > 0 ? requestDiff / timeDiff : 0;
 
-    const metrics: PerformanceMetrics = {
+    const metrics: CachePerformanceMetrics = {
+      timestamp: currentTime,
       hitRate: cacheStats.hitRate,
       missRate: cacheStats.missRate,
+      totalRequests: cacheStats.totalRequests,
+      requestRate: requestsPerSecond,
+      requestsPerSecond,
+      averageGetTime: cacheStats.averageGetTime,
       averageResponseTime: this.calculateAverageResponseTime(),
       memoryUsage: cacheStats.memoryUsage,
+      entryCount: cacheStats.totalEntries,
       evictionRate: this.calculateEvictionRate(),
-      totalRequests: cacheStats.totalRequests,
-      requestsPerSecond: timeDiff > 0 ? requestDiff / timeDiff : 0,
     };
 
     // Update tracking variables
@@ -183,7 +169,6 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
     this.memoryUsageHistory.push({
       timestamp: Date.now(),
       usage: cacheStats.memoryUsage,
-      entryCount: cacheStats.totalEntries,
     });
 
     // Keep only recent history

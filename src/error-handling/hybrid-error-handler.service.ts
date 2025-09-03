@@ -1,65 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
+import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import { DataSourceTier, ErrorClassification } from "@/common/types/error-handling";
+import type {
+  DataSourceError,
+  HybridErrorResponse,
+  HybridErrorStats,
+  TierFailoverConfig,
+} from "@/common/types/error-handling";
 
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
-import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
-
-export enum DataSourceTier {
-  TIER_1_CUSTOM = 1, // Custom adapters (Binance, Coinbase, Kraken, OKX, Crypto.com)
-  TIER_2_CCXT = 2, // CCXT individual exchanges (Bitmart, Bybit, Gate, Kucoin, etc.)
-}
-
-export enum ErrorClassification {
-  CONNECTION_ERROR = "connection_error",
-  DATA_VALIDATION_ERROR = "data_validation_error",
-  TIMEOUT_ERROR = "timeout_error",
-  RATE_LIMIT_ERROR = "rate_limit_error",
-  AUTHENTICATION_ERROR = "authentication_error",
-  EXCHANGE_ERROR = "exchange_error",
-  PARSING_ERROR = "parsing_error",
-  STALE_DATA_ERROR = "stale_data_error",
-}
-
-export interface DataSourceError {
-  sourceId: string;
-  tier: DataSourceTier;
-  classification: ErrorClassification;
-  error: Error;
-  timestamp: number;
-  feedId?: EnhancedFeedId;
-  severity: "low" | "medium" | "high" | "critical";
-  recoverable: boolean;
-}
-
-export interface ErrorResponse {
-  strategy: "retry" | "failover" | "ccxt_backup" | "tier_fallback" | "graceful_degradation";
-  action: string;
-  estimatedRecoveryTime: number;
-  fallbackSources: string[];
-  degradationLevel: "none" | "partial" | "severe";
-}
-
-export interface HybridErrorStats {
-  tier1Errors: number;
-  tier2Errors: number;
-  totalErrors: number;
-  errorsByClassification: Record<ErrorClassification, number>;
-  recoveryAttempts: number;
-  successfulRecoveries: number;
-  failoverEvents: number;
-  ccxtBackupActivations: number;
-}
-
-export interface TierFailoverConfig {
-  tier1ToTier2Delay: number; // Delay before falling back to Tier 2 (ms)
-  tier2ToCcxtDelay: number; // Delay before using CCXT backup (ms)
-  maxTier1Failures: number; // Max failures before tier failover
-  maxTier2Failures: number; // Max failures before CCXT backup
-  recoveryCheckInterval: number; // How often to check for recovery (ms)
-}
 
 @Injectable()
 export class HybridErrorHandlerService extends BaseEventService {
@@ -107,10 +59,10 @@ export class HybridErrorHandlerService extends BaseEventService {
     sourceId: string,
     error: Error,
     feedId: EnhancedFeedId,
-    context?: any
-  ): Promise<ErrorResponse> {
+    context?: Record<string, unknown>
+  ): Promise<HybridErrorResponse> {
     const operationId = `handle_tier1_error_${sourceId}_${Date.now()}`;
-    this.enhancedLogger.startPerformanceTimer(operationId, "handle_custom_adapter_error", "HybridErrorHandler", {
+    this.enhancedLogger?.startPerformanceTimer(operationId, "handle_custom_adapter_error", "HybridErrorHandler", {
       sourceId,
       feedId: feedId.name,
       errorType: error.constructor.name,
@@ -132,7 +84,7 @@ export class HybridErrorHandlerService extends BaseEventService {
 
     try {
       // Enhanced error logging with detailed context
-      this.enhancedLogger.error(error, {
+      this.enhancedLogger?.error(error, {
         component: "HybridErrorHandler",
         operation: "handle_custom_adapter_error",
         sourceId,
@@ -160,7 +112,7 @@ export class HybridErrorHandlerService extends BaseEventService {
       }
 
       // Log error classification and severity determination
-      this.enhancedLogger.log(`Error classified and severity determined`, {
+      this.enhancedLogger?.log(`Error classified and severity determined`, {
         component: "HybridErrorHandler",
         operation: "error_classification",
         sourceId,
@@ -177,7 +129,7 @@ export class HybridErrorHandlerService extends BaseEventService {
       const response = await this.determineErrorResponse(dataSourceError);
 
       // Log the chosen response strategy
-      this.enhancedLogger.log(`Error response strategy determined`, {
+      this.enhancedLogger?.log(`Error response strategy determined`, {
         component: "HybridErrorHandler",
         operation: "response_strategy",
         sourceId,
@@ -195,14 +147,14 @@ export class HybridErrorHandlerService extends BaseEventService {
       await this.executeErrorResponse(response, dataSourceError);
 
       // Log successful error handling
-      this.enhancedLogger.logErrorRecovery(sourceId, classification, response.strategy, true, {
+      this.enhancedLogger?.logErrorRecovery(sourceId, classification, response.strategy, true, {
         feedId: feedId.name,
         tier: "TIER_1_CUSTOM",
         responseAction: response.action,
         fallbackSourceCount: response.fallbackSources.length,
       });
 
-      this.enhancedLogger.endPerformanceTimer(operationId, true, {
+      this.enhancedLogger?.endPerformanceTimer(operationId, true, {
         strategy: response.strategy,
         severity: dataSourceError.severity,
         recoverable: dataSourceError.recoverable,
@@ -211,7 +163,8 @@ export class HybridErrorHandlerService extends BaseEventService {
       this.emit("tier1ErrorHandled", sourceId, dataSourceError, response);
       return response;
     } catch (handlingError) {
-      this.enhancedLogger.error(handlingError, {
+      const err = handlingError as Error;
+      this.enhancedLogger?.error(err, {
         component: "HybridErrorHandler",
         operation: "handle_custom_adapter_error",
         sourceId,
@@ -223,12 +176,12 @@ export class HybridErrorHandlerService extends BaseEventService {
         },
       });
 
-      this.enhancedLogger.endPerformanceTimer(operationId, false, {
-        error: handlingError.message,
+      this.enhancedLogger?.endPerformanceTimer(operationId, false, {
+        error: err.message,
         originalError: error.message,
       });
 
-      throw handlingError;
+      throw err;
     }
   }
 
@@ -239,8 +192,8 @@ export class HybridErrorHandlerService extends BaseEventService {
     exchangeId: string,
     error: Error,
     feedId: EnhancedFeedId,
-    context?: any
-  ): Promise<ErrorResponse> {
+    context?: Record<string, unknown>
+  ): Promise<HybridErrorResponse> {
     const startTime = Date.now();
     this.logger.warn(`Handling Tier 2 CCXT exchange error for ${exchangeId}:`, error.message);
 
@@ -286,7 +239,7 @@ export class HybridErrorHandlerService extends BaseEventService {
   /**
    * Implement graceful degradation when custom adapters fail (fallback to CCXT for same exchanges)
    */
-  async implementTierFailover(feedId: EnhancedFeedId, failedTier1Sources: string[]): Promise<ErrorResponse> {
+  async implementTierFailover(feedId: EnhancedFeedId, failedTier1Sources: string[]): Promise<HybridErrorResponse> {
     const startTime = Date.now();
     this.logger.warn(`Implementing tier failover for ${feedId.name}: failed sources ${failedTier1Sources.join(", ")}`);
 
@@ -305,7 +258,7 @@ export class HybridErrorHandlerService extends BaseEventService {
       const failoverTime = Date.now() - startTime;
       this.stats.failoverEvents++;
 
-      const response: ErrorResponse = {
+      const response: HybridErrorResponse = {
         strategy: "ccxt_backup",
         action: `Activated CCXT backup for ${failedTier1Sources.length} failed Tier 1 sources`,
         estimatedRecoveryTime: failoverTime,
@@ -346,10 +299,14 @@ export class HybridErrorHandlerService extends BaseEventService {
   /**
    * Get comprehensive error response strategies (Requirement 7.3)
    */
-  async getErrorResponseStrategies(sourceId: string, feedId: EnhancedFeedId, error: Error): Promise<ErrorResponse[]> {
+  async getErrorResponseStrategies(
+    sourceId: string,
+    feedId: EnhancedFeedId,
+    error: Error
+  ): Promise<HybridErrorResponse[]> {
     const classification = this.classifyError(error);
     const tier = this.getTierForSource(sourceId);
-    const strategies: ErrorResponse[] = [];
+    const strategies: HybridErrorResponse[] = [];
 
     // Strategy 1: Immediate retry with exponential backoff
     if (this.isRecoverable(classification)) {
@@ -460,7 +417,7 @@ export class HybridErrorHandlerService extends BaseEventService {
 
   // Private helper methods
 
-  private classifyError(error: Error, context?: any): ErrorClassification {
+  private classifyError(error: Error, context?: Record<string, unknown>): ErrorClassification {
     const message = (error?.message || error?.toString() || "unknown error").toLowerCase();
 
     if (message.includes("timeout") || message.includes("timed out")) {
@@ -489,7 +446,8 @@ export class HybridErrorHandlerService extends BaseEventService {
       return ErrorClassification.PARSING_ERROR;
     }
 
-    if (message.includes("stale") || message.includes("old data") || context?.dataAge > 2000) {
+    const dataAge = (context as { dataAge?: unknown } | undefined)?.dataAge;
+    if (message.includes("stale") || message.includes("old data") || (typeof dataAge === "number" && dataAge > 2000)) {
       return ErrorClassification.STALE_DATA_ERROR;
     }
 
@@ -575,7 +533,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     this.emit("errorRecorded", error);
   }
 
-  private async determineErrorResponse(error: DataSourceError): Promise<ErrorResponse> {
+  private async determineErrorResponse(error: DataSourceError): Promise<HybridErrorResponse> {
     const strategies = await this.getErrorResponseStrategies(error.sourceId, error.feedId!, error.error);
 
     // Select the best strategy based on error severity and context
@@ -603,7 +561,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     );
   }
 
-  private async determineTier2ErrorResponse(error: DataSourceError): Promise<ErrorResponse> {
+  private async determineTier2ErrorResponse(error: DataSourceError): Promise<HybridErrorResponse> {
     // Tier 2 errors have different response strategies
     if (error.classification === ErrorClassification.RATE_LIMIT_ERROR) {
       return {
@@ -638,7 +596,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     };
   }
 
-  private async executeErrorResponse(response: ErrorResponse, error: DataSourceError): Promise<void> {
+  private async executeErrorResponse(response: HybridErrorResponse, error: DataSourceError): Promise<void> {
     this.stats.recoveryAttempts++;
 
     switch (response.strategy) {
@@ -660,7 +618,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     }
   }
 
-  private async executeRetryStrategy(error: DataSourceError, response: ErrorResponse): Promise<void> {
+  private async executeRetryStrategy(error: DataSourceError, response: HybridErrorResponse): Promise<void> {
     const delay = response.estimatedRecoveryTime;
 
     this.logger.log(`Scheduling retry for ${error.sourceId} in ${delay}ms`);
@@ -684,7 +642,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     this.recoveryTimers.set(error.sourceId, timer);
   }
 
-  private async executeFailoverStrategy(error: DataSourceError, response: ErrorResponse): Promise<void> {
+  private async executeFailoverStrategy(error: DataSourceError, response: HybridErrorResponse): Promise<void> {
     this.logger.log(`Executing failover for ${error.sourceId} to sources: ${response.fallbackSources.join(", ")}`);
 
     // Trigger connection recovery service failover
@@ -694,7 +652,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     this.emit("failoverExecuted", error.sourceId, response.fallbackSources);
   }
 
-  private async executeCcxtBackupStrategy(error: DataSourceError, response: ErrorResponse): Promise<void> {
+  private async executeCcxtBackupStrategy(error: DataSourceError, response: HybridErrorResponse): Promise<void> {
     if (!error.feedId) return;
 
     this.logger.log(`Activating CCXT backup for ${error.sourceId} on feed ${error.feedId.name}`);
@@ -705,7 +663,7 @@ export class HybridErrorHandlerService extends BaseEventService {
     this.emit("ccxtBackupActivated", error.feedId, error.sourceId);
   }
 
-  private async executeTierFallbackStrategy(error: DataSourceError, _response: ErrorResponse): Promise<void> {
+  private async executeTierFallbackStrategy(error: DataSourceError, _response: HybridErrorResponse): Promise<void> {
     if (!error.feedId) return;
 
     this.logger.log(`Executing tier fallback for ${error.sourceId} on feed ${error.feedId.name}`);
@@ -715,7 +673,10 @@ export class HybridErrorHandlerService extends BaseEventService {
     this.emit("tierFallbackExecuted", error.feedId, error.sourceId);
   }
 
-  private async executeGracefulDegradationStrategy(error: DataSourceError, _response: ErrorResponse): Promise<void> {
+  private async executeGracefulDegradationStrategy(
+    error: DataSourceError,
+    _response: HybridErrorResponse
+  ): Promise<void> {
     if (!error.feedId) return;
 
     this.logger.warn(`Implementing graceful degradation for ${error.sourceId} on feed ${error.feedId.name}`);
@@ -773,7 +734,10 @@ export class HybridErrorHandlerService extends BaseEventService {
     this.emit("ccxtBackupActivated", feedId, failedSources, backupSources);
   }
 
-  private async implementGracefulDegradation(feedId: EnhancedFeedId, failedSources: string[]): Promise<ErrorResponse> {
+  private async implementGracefulDegradation(
+    feedId: EnhancedFeedId,
+    failedSources: string[]
+  ): Promise<HybridErrorResponse> {
     this.logger.warn(`Implementing graceful degradation for ${feedId.name}: ${failedSources.length} sources failed`);
 
     // Use connection recovery service for graceful degradation
@@ -887,7 +851,8 @@ export class HybridErrorHandlerService extends BaseEventService {
       }
     } catch (error) {
       // Source still not recovered
-      this.logger.debug(`Source ${sourceId} recovery check failed:`, error.message);
+      const err = error as Error;
+      this.logger.debug(`Source ${sourceId} recovery check failed:`, err.message);
     }
   }
 

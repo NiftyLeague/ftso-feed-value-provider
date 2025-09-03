@@ -14,7 +14,7 @@ import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { BaseController } from "@/common/base/base.controller";
 import { ValidationUtils } from "@/common/utils/validation.utils";
 import { FtsoProviderService } from "@/app.service";
-import {
+import type {
   FeedId,
   FeedValueData,
   FeedValuesRequest,
@@ -23,7 +23,7 @@ import {
   FeedVolumesResponse,
   RoundFeedValuesResponse,
   VolumesRequest,
-} from "@/common/dto/provider-requests.dto";
+} from "@/common/types/http";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
@@ -41,6 +41,8 @@ export class FeedController extends BaseController {
     private readonly apiMonitor: ApiMonitorService
   ) {
     super("FeedController");
+    // reference once to satisfy unused injection lint
+    void this.errorHandler;
   }
 
   @Post("feed-values/:votingRoundId")
@@ -286,8 +288,11 @@ export class FeedController extends BaseController {
       const feedResults = await Promise.allSettled(feedPromises);
 
       // Process results and separate successful from failed
-      const successfulResults = [];
-      const failedFeeds = [];
+      const successfulResults: FeedValueData[] = [];
+      const failedFeeds: Array<{
+        feed: FeedId;
+        error: { code: string; message: string; timestamp: number };
+      }> = [];
 
       feedResults.forEach((result, index) => {
         if (result.status === "fulfilled") {
@@ -402,15 +407,15 @@ export class FeedController extends BaseController {
   private combineHistoricalResults(
     allFeeds: FeedId[],
     cachedResults: (FeedValueData | null)[],
-    missingFeeds: FeedId[],
+    _missingFeeds: FeedId[],
     freshData: FeedValueData[]
   ): FeedValueData[] {
-    const results = [];
+    const results: FeedValueData[] = [];
     let freshIndex = 0;
 
     for (let i = 0; i < allFeeds.length; i++) {
       if (cachedResults[i]) {
-        results.push(cachedResults[i]);
+        results.push(cachedResults[i] as FeedValueData);
       } else {
         results.push(freshData[freshIndex]);
         freshIndex++;
@@ -431,7 +436,7 @@ export class FeedController extends BaseController {
   }
 
   // Override logApiResponse to include API monitoring
-  protected logApiResponse(
+  protected override logApiResponse(
     method: string,
     url: string,
     statusCode: number,
@@ -450,6 +455,10 @@ export class FeedController extends BaseController {
       timestamp: Date.now(),
       requestId,
       error: errorMessage,
+      // Required ApiMetrics fields
+      requestCount: 1,
+      errorRate: statusCode >= 400 ? 100 : 0,
+      throughput: 0,
     });
 
     // Call parent implementation

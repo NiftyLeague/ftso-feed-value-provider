@@ -10,7 +10,7 @@ export class ResponseTimeInterceptor extends BaseService implements NestIntercep
     super("ResponseTimeInterceptor");
   }
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const startTime = Date.now();
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();

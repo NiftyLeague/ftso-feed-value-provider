@@ -1,32 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-
-export interface ApiErrorResponse {
-  error: string;
-  code: number;
-  message: string;
-  timestamp: number;
-  requestId: string;
-  details?: any;
-}
-
-export enum ApiErrorCodes {
-  // Client errors (4xxx)
-  INVALID_FEED_REQUEST = 4000,
-  INVALID_FEED_CATEGORY = 4001,
-  INVALID_FEED_NAME = 4002,
-  INVALID_VOTING_ROUND = 4003,
-  INVALID_TIME_WINDOW = 4004,
-  FEED_NOT_FOUND = 4041,
-  RATE_LIMIT_EXCEEDED = 4291,
-
-  // Server errors (5xxx)
-  INTERNAL_ERROR = 5001,
-  DATA_SOURCE_UNAVAILABLE = 5021,
-  SERVICE_UNAVAILABLE = 5031,
-  AGGREGATION_FAILED = 5041,
-  CACHE_ERROR = 5051,
-}
+import type { ApiErrorResponse } from "@/common/types/error-handling";
+import { ApiErrorCodes } from "@/common/types/error-handling";
 
 @Injectable()
 export class ApiErrorHandlerService extends BaseService {
@@ -34,7 +9,12 @@ export class ApiErrorHandlerService extends BaseService {
     super(ApiErrorHandlerService.name);
   }
 
-  createErrorResponse(errorCode: ApiErrorCodes, message: string, requestId: string, details?: any): ApiErrorResponse {
+  createErrorResponse(
+    errorCode: ApiErrorCodes,
+    message: string,
+    requestId: string,
+    details?: Record<string, unknown>
+  ): ApiErrorResponse {
     return {
       error: ApiErrorCodes[errorCode],
       code: errorCode,
@@ -45,7 +25,7 @@ export class ApiErrorHandlerService extends BaseService {
     };
   }
 
-  handleValidationError(message: string, requestId: string, details?: any): HttpException {
+  handleValidationError(message: string, requestId: string, details?: Record<string, unknown>): HttpException {
     const errorResponse = this.createErrorResponse(ApiErrorCodes.INVALID_FEED_REQUEST, message, requestId, details);
 
     this.logger.warn(`Validation error: ${message}`, { requestId, details });
@@ -53,7 +33,7 @@ export class ApiErrorHandlerService extends BaseService {
     return new HttpException(errorResponse, HttpStatus.BAD_REQUEST);
   }
 
-  handleFeedNotFoundError(feedId: any, requestId: string): HttpException {
+  handleFeedNotFoundError(feedId: unknown, requestId: string): HttpException {
     const errorResponse = this.createErrorResponse(
       ApiErrorCodes.FEED_NOT_FOUND,
       `Feed not found: ${JSON.stringify(feedId)}`,

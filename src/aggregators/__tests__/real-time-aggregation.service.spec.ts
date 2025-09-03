@@ -1,10 +1,12 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import { ConfigService } from "@/config/config.service";
+
+import type { AggregatedPrice } from "@/common/types/services";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
+
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
 import { ConsensusAggregator } from "../consensus-aggregator";
-import { ConfigService } from "@/config/config.service";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 
 describe("RealTimeAggregationService", () => {
   let service: RealTimeAggregationService;

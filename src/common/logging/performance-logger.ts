@@ -4,7 +4,7 @@
  */
 
 import { Logger } from "@nestjs/common";
-import { PerformanceLogEntry } from "./logger.types";
+import type { PerformanceLogEntry } from "../types/logging";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -26,7 +26,7 @@ export class PerformanceLogger {
   /**
    * Start performance timer for an operation
    */
-  startTimer(operationId: string, operation: string, component: string, metadata?: Record<string, any>): void {
+  startTimer(operationId: string, operation: string, component: string, metadata?: Record<string, unknown>): void {
     if (!this.enablePerformanceLogging) {
       return;
     }
@@ -41,6 +41,7 @@ export class PerformanceLogger {
       endTime: 0,
       duration: 0,
       success: false,
+      timestamp: Date.now(),
       metadata,
     };
 
@@ -57,7 +58,7 @@ export class PerformanceLogger {
   /**
    * End performance timer and log results
    */
-  endTimer(operationId: string, success = true, additionalMetadata?: Record<string, any>): void {
+  endTimer(operationId: string, success = true, additionalMetadata?: Record<string, unknown>): void {
     if (!this.enablePerformanceLogging) {
       return;
     }

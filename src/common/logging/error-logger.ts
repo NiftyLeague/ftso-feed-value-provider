@@ -4,13 +4,33 @@
  */
 
 import { Logger } from "@nestjs/common";
-import { ErrorLogEntry, LogContext } from "./logger.types";
+import type { EnhancedErrorLogEntry, LogContext, LogLevel } from "../types/logging";
+import { ErrorSeverity } from "../types/error-handling/error.types";
+
+/**
+ * Maps ErrorSeverity to LogLevel for consistent logging
+ */
+function mapSeverityToLogLevel(severity: ErrorSeverity): LogLevel {
+  switch (severity) {
+    case ErrorSeverity.CRITICAL:
+      return "error";
+    case ErrorSeverity.HIGH:
+    case ErrorSeverity.ERROR: // For backward compatibility
+      return "error";
+    case ErrorSeverity.MEDIUM:
+      return "warn";
+    case ErrorSeverity.LOW:
+      return "info";
+    default:
+      return "error";
+  }
+}
 import * as fs from "fs";
 import * as path from "path";
 
 export class ErrorLogger {
   private readonly logger: Logger;
-  private readonly errorHistory: ErrorLogEntry[] = [];
+  private readonly errorHistory: EnhancedErrorLogEntry[] = [];
   private readonly maxErrorHistory: number;
   private readonly enableFileLogging: boolean;
   private readonly errorLogFile: string;
@@ -26,15 +46,20 @@ export class ErrorLogger {
    * Log error with enhanced context and tracking
    */
   logError(error: Error, context?: LogContext): void {
-    const errorEntry: ErrorLogEntry = {
+    const typedError = error as Error & { code?: string; type?: string };
+    const errorSeverity = this.determineSeverity(error, context);
+    const errorEntry: EnhancedErrorLogEntry = {
       error,
       context: context || {},
       stackTrace: error.stack || "No stack trace available",
       timestamp: Date.now(),
-      severity: this.determineSeverity(error, context),
+      severity: mapSeverityToLogLevel(errorSeverity),
       recoverable: this.isRecoverableError(error),
-      errorCode: (error as any).code || context?.errorCode,
-      errorType: (error as any).type || error.constructor.name,
+      errorCode: (() => {
+        const code = typedError.code || context?.errorCode;
+        return typeof code === "string" ? code : "UNKNOWN_ERROR";
+      })(),
+      errorType: typedError.type || error.constructor.name,
     };
 
     this.errorHistory.push(errorEntry);
@@ -61,7 +86,7 @@ export class ErrorLogger {
     errorsBySeverity: Record<string, number>;
     errorsByType: Record<string, number>;
     errorsByComponent: Record<string, number>;
-    recentErrors: ErrorLogEntry[];
+    recentErrors: EnhancedErrorLogEntry[];
   } {
     const errorsBySeverity: Record<string, number> = {};
     const errorsByType: Record<string, number> = {};
@@ -80,7 +105,7 @@ export class ErrorLogger {
       errorsByType[errorType] = (errorsByType[errorType] || 0) + 1;
 
       // Count by component
-      const component = entry.context.component || "unknown";
+      const component = entry.context?.component || "unknown";
       errorsByComponent[component] = (errorsByComponent[component] || 0) + 1;
     }
 
@@ -101,33 +126,43 @@ export class ErrorLogger {
   }
 
   /**
+   * Check if a value is a valid ErrorSeverity
+   */
+  private isValidErrorSeverity(value: unknown): value is ErrorSeverity {
+    return typeof value === "string" && Object.values(ErrorSeverity).includes(value as ErrorSeverity);
+  }
+
+  /**
    * Determine error severity based on error and context
    */
-  private determineSeverity(error: Error, context?: LogContext): "low" | "medium" | "high" | "critical" {
+  private determineSeverity(error: Error, context?: LogContext): ErrorSeverity {
     // Check context for explicit severity
     if (context?.severity) {
-      return context.severity as "low" | "medium" | "high" | "critical";
+      // Safely check if the severity is a valid ErrorSeverity
+      if (this.isValidErrorSeverity(context.severity)) {
+        return context.severity;
+      }
     }
 
     const message = error.message.toLowerCase();
 
     // Critical errors
     if (message.includes("fatal") || message.includes("critical") || message.includes("system failure")) {
-      return "critical";
+      return ErrorSeverity.CRITICAL;
     }
 
     // High severity errors
     if (message.includes("connection") || message.includes("timeout") || message.includes("authentication")) {
-      return "high";
+      return ErrorSeverity.HIGH;
     }
 
     // Medium severity errors
     if (message.includes("validation") || message.includes("parsing") || message.includes("rate limit")) {
-      return "medium";
+      return ErrorSeverity.MEDIUM;
     }
 
     // Default to low severity
-    return "low";
+    return ErrorSeverity.LOW;
   }
 
   /**
@@ -152,7 +187,7 @@ export class ErrorLogger {
   /**
    * Format error message with context
    */
-  private formatErrorMessage(errorEntry: ErrorLogEntry): string {
+  private formatErrorMessage(errorEntry: EnhancedErrorLogEntry): string {
     const { error, context, severity, recoverable, errorCode, errorType } = errorEntry;
 
     let message = `[${severity.toUpperCase()}] ${error.message}`;
@@ -165,15 +200,15 @@ export class ErrorLogger {
       message += ` (Type: ${errorType})`;
     }
 
-    if (context.component) {
+    if (context?.component) {
       message += ` [Component: ${context.component}]`;
     }
 
-    if (context.sourceId) {
+    if (context?.sourceId) {
       message += ` [Source: ${context.sourceId}]`;
     }
 
-    if (context.operation) {
+    if (context?.operation) {
       message += ` [Operation: ${context.operation}]`;
     }
 
@@ -185,7 +220,7 @@ export class ErrorLogger {
   /**
    * Write error entry to file
    */
-  private writeToFile(errorEntry: ErrorLogEntry): void {
+  private writeToFile(errorEntry: EnhancedErrorLogEntry): void {
     try {
       const logLine =
         JSON.stringify({

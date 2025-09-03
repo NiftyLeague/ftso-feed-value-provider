@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { HttpException, HttpStatus } from "@nestjs/common";
-import { ApiErrorHandlerService, ApiErrorCodes } from "../api-error-handler.service";
+import { ApiErrorCodes } from "@/common/types/error-handling";
+import { ApiErrorHandlerService } from "../api-error-handler.service";
 
 describe("ApiErrorHandlerService", () => {
   let service: ApiErrorHandlerService;

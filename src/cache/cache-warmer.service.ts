@@ -1,23 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { RealTimeCacheService } from "./real-time-cache.service";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { CacheEntry } from "./interfaces/cache.interfaces";
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
 import { BaseService } from "@/common/base/base.service";
 import { executeWithConcurrency } from "@/common/utils/async.utils";
 
-interface WarmupConfig {
-  popularFeeds: EnhancedFeedId[];
-  warmupInterval: number; // milliseconds
-  enabled: boolean;
-}
+import type { EnhancedFeedId } from "@/common/types/core";
+import type { CacheEntry, WarmupConfig, FeedPopularityMetrics } from "@/common/types/cache";
+import type { AggregatedPrice } from "@/common/types/services";
 
-interface FeedPopularityMetrics {
-  feedId: EnhancedFeedId;
-  requestCount: number;
-  lastRequested: number;
-  priority: number;
-}
+import { RealTimeCacheService } from "./real-time-cache.service";
 
 @Injectable()
 export class CacheWarmerService extends BaseService {
@@ -106,9 +95,13 @@ export class CacheWarmerService extends BaseService {
         this.cacheService.setPrice(feedId, freshData);
         this.logger.debug(`Warmed cache for feed: ${this.generateFeedKey(feedId)}`);
       }
-    } catch (error) {
-      this.logger.error(`Error warming cache for feed ${this.generateFeedKey(feedId)}: ${error.message}`);
-      throw error;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(`Error warming cache for feed ${this.generateFeedKey(feedId)}: ${errorMessage}`);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("An unknown error occurred while warming cache");
     }
   }
 
@@ -166,8 +159,9 @@ export class CacheWarmerService extends BaseService {
     this.warmupInterval = setInterval(async () => {
       try {
         await this.warmPopularFeeds();
-      } catch (error) {
-        this.logger.error(`Cache warmup process failed: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        this.logger.error(`Cache warmup process failed: ${errorMessage}`);
       }
     }, this.config.warmupInterval);
 
@@ -229,9 +223,13 @@ export class CacheWarmerService extends BaseService {
         }
 
         return null;
-      } catch (error) {
-        this.logger.error(`Error fetching fresh data for ${this.generateFeedKey(feedId)}: ${error.message}`);
-        throw error; // Re-throw the error for proper error handling
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        this.logger.error(`Error fetching fresh data for ${this.generateFeedKey(feedId)}: ${errorMessage}`);
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error("An unknown error occurred while fetching fresh data");
       }
     }
 

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
+import type { MonitoringConfig } from "@/common/types/monitoring";
 import { AccuracyMonitorService } from "../accuracy-monitor.service";
-import { MonitoringConfig } from "../interfaces/monitoring.interfaces";
 
 describe("AccuracyMonitorService", () => {
   let service: AccuracyMonitorService;
@@ -8,27 +8,53 @@ describe("AccuracyMonitorService", () => {
 
   beforeEach(async () => {
     mockConfig = {
-      accuracyThresholds: {
-        maxConsensusDeviation: 0.5, // 0.5% FTSO requirement
-        minAccuracyRate: 80, // 80% target
-        minQualityScore: 70,
+      enabled: true,
+      interval: 1000,
+      thresholds: {
+        accuracy: {
+          warning: 0.5,
+          critical: 1,
+          maxDeviation: 1,
+          minParticipants: 3,
+          maxConsensusDeviation: 0.5, // 0.5% FTSO requirement
+          minAccuracyRate: 80, // 80% target
+          minQualityScore: 70,
+        },
+        performance: {
+          maxResponseLatency: 100,
+          maxDataAge: 2000,
+          minThroughput: 100,
+          minCacheHitRate: 80,
+        },
+        health: {
+          maxErrorRate: 5,
+          maxCpuUsage: 80,
+          maxMemoryUsage: 80,
+          minConnectionRate: 90,
+        },
       },
-      performanceThresholds: {
-        maxResponseLatency: 100,
-        maxDataAge: 2000,
-        minThroughput: 100,
-        minCacheHitRate: 80,
-      },
-      healthThresholds: {
-        maxErrorRate: 5,
-        maxCpuUsage: 80,
-        maxMemoryUsage: 80,
-        minConnectionRate: 90,
-      },
-      monitoringInterval: 1000,
       alerting: {
+        enabled: true,
         rules: [],
-        deliveryConfig: {},
+        rateLimits: {
+          windowMs: 60_000,
+          maxRequests: 1000,
+        },
+        deliveryConfig: {
+          email: {
+            enabled: false,
+            subject: "FTSO Alerts",
+            from: "alerts@ftso.com",
+            to: ["admin@ftso.com"],
+          },
+          webhook: {
+            enabled: false,
+            url: "",
+            method: "POST",
+            headers: {},
+            timeout: 5000,
+          },
+        },
         maxAlertsPerHour: 10,
         alertRetention: 30,
       },

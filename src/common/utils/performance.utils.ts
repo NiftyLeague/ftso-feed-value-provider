@@ -3,19 +3,7 @@
  * Consolidates duplicate performance timing and monitoring patterns
  */
 
-export interface PerformanceTimer {
-  start(): void;
-  end(): number;
-  elapsed(): number;
-  reset(): void;
-}
-
-export interface PerformanceMetric {
-  operation: string;
-  duration: number;
-  timestamp: number;
-  metadata?: Record<string, any>;
-}
+import type { PerformanceTimer, PerformanceMetric, PerformanceThresholds } from "../types/utils";
 
 /**
  * High-resolution performance timer
@@ -125,12 +113,39 @@ export function measureSync<T>(
 /**
  * Performance threshold checker
  */
-export interface PerformanceThresholds {
-  warning: number;
-  error: number;
+export function checkPerformanceThreshold(
+  duration: number,
+  threshold: number,
+  operation: string
+): {
+  level: "ok" | "warning" | "error";
+  message?: string;
+} {
+  // Use threshold as warning level, and 2x threshold as error level
+  const warningThreshold = threshold;
+  const errorThreshold = threshold * 2;
+
+  if (duration >= errorThreshold) {
+    return {
+      level: "error",
+      message: `${operation} took ${duration.toFixed(2)}ms (error threshold: ${errorThreshold}ms)`,
+    };
+  }
+
+  if (duration >= warningThreshold) {
+    return {
+      level: "warning",
+      message: `${operation} took ${duration.toFixed(2)}ms (warning threshold: ${warningThreshold}ms)`,
+    };
+  }
+
+  return { level: "ok" };
 }
 
-export function checkPerformanceThreshold(
+/**
+ * Check response latency against performance thresholds
+ */
+export function checkResponseLatency(
   duration: number,
   thresholds: PerformanceThresholds,
   operation: string
@@ -138,21 +153,7 @@ export function checkPerformanceThreshold(
   level: "ok" | "warning" | "error";
   message?: string;
 } {
-  if (duration >= thresholds.error) {
-    return {
-      level: "error",
-      message: `${operation} took ${duration.toFixed(2)}ms (error threshold: ${thresholds.error}ms)`,
-    };
-  }
-
-  if (duration >= thresholds.warning) {
-    return {
-      level: "warning",
-      message: `${operation} took ${duration.toFixed(2)}ms (warning threshold: ${thresholds.warning}ms)`,
-    };
-  }
-
-  return { level: "ok" };
+  return checkPerformanceThreshold(duration, thresholds.maxResponseLatency, operation);
 }
 
 /**

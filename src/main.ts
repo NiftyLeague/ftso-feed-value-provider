@@ -3,13 +3,14 @@ dotenv.config();
 
 import helmet from "helmet";
 import { NestFactory } from "@nestjs/core";
+import type { INestApplication } from "@nestjs/common";
 import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
 import { LogLevel, Logger, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 
 // Global application instance for graceful shutdown
-let app: any = null;
+let app: INestApplication | null = null;
 const logger = new Logger("Bootstrap");
 const enhancedLogger = new EnhancedLoggerService("Bootstrap");
 
@@ -135,7 +136,8 @@ async function bootstrap() {
       environment: process.env.NODE_ENV || "development",
     });
   } catch (error) {
-    enhancedLogger.error(error, {
+    const errObj = error instanceof Error ? error : new Error(String(error));
+    enhancedLogger.error(errObj, {
       component: "Bootstrap",
       operation: "application_startup",
       severity: "critical",
@@ -145,7 +147,7 @@ async function bootstrap() {
       },
     });
 
-    enhancedLogger.endPerformanceTimer(operationId, false, { error: error.message });
+    enhancedLogger.endPerformanceTimer(operationId, false, { error: errObj.message });
 
     // Attempt graceful cleanup
     if (app) {
@@ -156,7 +158,8 @@ async function bootstrap() {
           operation: "cleanup_on_failure",
         });
       } catch (closeError) {
-        enhancedLogger.error(closeError, {
+        const closeErrObj = closeError instanceof Error ? closeError : new Error(String(closeError));
+        enhancedLogger.error(closeErrObj, {
           component: "Bootstrap",
           operation: "cleanup_on_failure",
           severity: "high",
@@ -203,7 +206,7 @@ function getLogLevels(): LogLevel[] {
   }
 }
 
-async function setupSwaggerDocumentation(app: any, basePath: string): Promise<void> {
+async function setupSwaggerDocumentation(app: INestApplication, basePath: string): Promise<void> {
   try {
     const config = new DocumentBuilder()
       .setTitle("Production FTSO Feed Value Provider API")
@@ -216,7 +219,7 @@ async function setupSwaggerDocumentation(app: any, basePath: string): Promise<vo
       .build();
 
     const options: SwaggerDocumentOptions = {
-      operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
+      operationIdFactory: (_controllerKey: string, methodKey: string) => methodKey,
     };
 
     const document = SwaggerModule.createDocument(app, config, options);
@@ -313,7 +316,8 @@ async function waitForApplicationReady(): Promise<void> {
       }
     } catch (error) {
       // Health check not ready yet, continue waiting
-      logger.debug(`Readiness check failed: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.debug(`Readiness check failed: ${msg}`);
     }
 
     await new Promise(resolve => setTimeout(resolve, checkInterval));

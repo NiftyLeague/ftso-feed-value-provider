@@ -42,6 +42,7 @@ describe("MetricsController - Metrics and Monitoring Endpoints", () => {
   describe("getApiMetrics", () => {
     it("should return comprehensive API metrics", async () => {
       const mockHealthMetrics = {
+        timestamp: Date.now(),
         totalRequests: 1000,
         requestsPerMinute: 50,
         averageResponseTime: 75,
@@ -196,11 +197,12 @@ describe("MetricsController - Metrics and Monitoring Endpoints", () => {
           averageResponseSize: 512,
           errorRate: 0.0,
           lastRequest: Date.now(),
-          statusCodeDistribution: { 200: 200 },
+          statusCodeDistribution: { 200: 200, 400: 0, 500: 0 },
         },
       ];
 
       const mockHealthMetrics = {
+        timestamp: Date.now(),
         totalRequests: 1000,
         requestsPerMinute: 50,
         averageResponseTime: 75,

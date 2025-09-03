@@ -1,14 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import {
-  HybridErrorHandlerService,
-  DataSourceTier,
-  ErrorClassification,
-} from "@/error-handling/hybrid-error-handler.service";
+import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { ErrorClassification } from "@/common/types/error-handling";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 import { CcxtMultiExchangeAdapter } from "@/adapters/crypto/ccxt.adapter";
 import { FailoverManager } from "@/data-manager/failover-manager";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
 
 describe("Hybrid Error Handling Integration", () => {
   let hybridErrorHandler: HybridErrorHandlerService;

@@ -1,7 +1,7 @@
+import type { CacheEntry } from "@/common/types/cache";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+
 import { RealTimeCacheService } from "../real-time-cache.service";
-import { CacheEntry } from "../interfaces/cache.interfaces";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 
 describe("RealTimeCacheService", () => {
   let service: RealTimeCacheService;
@@ -68,7 +68,7 @@ describe("RealTimeCacheService", () => {
 
       // But should expire within 1 second (max TTL)
       // We can't easily test this without waiting, so we check the config
-      expect(service.getConfig().maxTTL).toBe(1000);
+      expect(service.getConfig().ttl).toBe(1000);
     });
 
     it("should expire entries after TTL", async () => {
@@ -184,33 +184,32 @@ describe("RealTimeCacheService", () => {
 
       // Initial stats
       let stats = service.getStats();
-      expect(stats.totalRequests).toBe(0);
+      expect(stats.hits + stats.misses).toBe(0);
       expect(stats.hitRate).toBe(0);
-      expect(stats.missRate).toBe(0);
 
       // Miss
       service.get(key);
       stats = service.getStats();
-      expect(stats.totalRequests).toBe(1);
-      expect(stats.missRate).toBe(1);
-      expect(stats.hitRate).toBe(0);
+      expect(stats.hits + stats.misses).toBe(1);
+      expect(stats.misses).toBe(1);
+      expect(stats.hits).toBe(0);
 
       // Set and hit
       service.set(key, mockCacheEntry, 1000);
       service.get(key);
       stats = service.getStats();
-      expect(stats.totalRequests).toBe(2);
+      expect(stats.hits + stats.misses).toBe(2);
       expect(stats.hitRate).toBe(0.5);
-      expect(stats.missRate).toBe(0.5);
+      expect(stats.misses).toBe(0.5);
     });
 
     it("should track total entries", () => {
-      expect(service.getStats().totalEntries).toBe(0);
+      expect(service.getStats().size).toBe(0);
 
       service.set("key1", mockCacheEntry, 1000);
       service.set("key2", mockCacheEntry, 1000);
 
-      expect(service.getStats().totalEntries).toBe(2);
+      expect(service.getStats().size).toBe(2);
     });
 
     it("should estimate memory usage", () => {
@@ -227,7 +226,7 @@ describe("RealTimeCacheService", () => {
   describe("LRU Eviction", () => {
     it("should evict least recently used entries when at capacity", async () => {
       // Create service with small capacity
-      const smallCacheService = RealTimeCacheService.withConfig({ maxEntries: 2 });
+      const smallCacheService = RealTimeCacheService.withConfig({ maxSize: 2 });
 
       smallCacheService.set("key1", mockCacheEntry, 1000);
       // Small delay to ensure different timestamps
@@ -254,15 +253,15 @@ describe("RealTimeCacheService", () => {
   describe("Configuration", () => {
     it("should use default configuration", () => {
       const config = service.getConfig();
-      expect(config.maxTTL).toBe(1000);
-      expect(config.maxEntries).toBe(10000);
+      expect(config.ttl).toBe(1000);
+      expect(config.maxSize).toBe(10000);
       expect(config.evictionPolicy).toBe("LRU");
     });
 
     it("should accept custom configuration", () => {
       const customConfig = {
-        maxTTL: 500,
-        maxEntries: 5000,
+        ttl: 500,
+        maxSize: 5000,
         evictionPolicy: "LRU" as const,
         memoryLimit: 50 * 1024 * 1024,
       };
@@ -270,8 +269,8 @@ describe("RealTimeCacheService", () => {
       const customService = RealTimeCacheService.withConfig(customConfig);
       const config = customService.getConfig();
 
-      expect(config.maxTTL).toBe(500);
-      expect(config.maxEntries).toBe(5000);
+      expect(config.ttl).toBe(500);
+      expect(config.maxSize).toBe(5000);
       expect(config.evictionPolicy).toBe("LRU");
       expect(config.memoryLimit).toBe(50 * 1024 * 1024);
 

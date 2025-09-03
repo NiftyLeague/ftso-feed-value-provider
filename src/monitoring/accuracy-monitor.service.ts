@@ -1,12 +1,8 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { BaseEventService } from "@/common/base/base-event.service";
-import {
-  AccuracyMetrics,
-  QualityScore,
-  ConsensusData,
-  // AccuracyThresholds,
-  MonitoringConfig,
-} from "./interfaces/monitoring.interfaces";
+import type { AccuracyMetrics, QualityScore, ConsensusData, MonitoringConfig } from "@/common/types/monitoring";
+import type { AggregatedPrice } from "@/common/types/services";
+import type { AccuracyAlertData } from "@/common/types/monitoring";
 
 @Injectable()
 export class AccuracyMonitorService extends BaseEventService {
@@ -29,7 +25,7 @@ export class AccuracyMonitorService extends BaseEventService {
     votingRound?: number
   ): AccuracyMetrics {
     const deviation = Math.abs((actualValue - consensusMedian) / consensusMedian) * 100;
-    const isWithinThreshold = deviation <= this.config.accuracyThresholds.maxConsensusDeviation;
+    const isWithinThreshold = deviation <= this.config.thresholds.accuracy.maxConsensusDeviation;
 
     // Update accuracy rate calculation
     const currentRate = this.calculateAccuracyRate(feedId, isWithinThreshold);
@@ -38,11 +34,15 @@ export class AccuracyMonitorService extends BaseEventService {
     const qualityScore = this.calculateQualityScore(feedId, deviation, currentRate);
 
     const metrics: AccuracyMetrics = {
+      // Fields required by AccuracyMetrics
+      deviation, // simple mapping to overall deviation
+      consensusAlignment: Math.max(0, 100 - deviation),
+      outlierCount: 0,
+      qualityScore: qualityScore.overall,
       consensusDeviation: deviation,
       accuracyRate: currentRate,
-      qualityScore: qualityScore.overall,
-      timestamp: Date.now(),
       feedId,
+      timestamp: Date.now(),
       votingRound,
     };
 
@@ -52,15 +52,18 @@ export class AccuracyMonitorService extends BaseEventService {
     // Update consensus data
     this.consensusData.set(feedId, {
       median: consensusMedian,
+      mean: consensusMedian,
+      standardDeviation: 0,
+      participantCount: 1,
+      consensusReached: true,
       deviation,
-      sourceCount: 1, // Will be updated by aggregation service
-      timestamp: Date.now(),
+      sourceCount: 1, // optional
     });
 
     // Log accuracy issues
-    if (deviation > this.config.accuracyThresholds.maxConsensusDeviation) {
+    if (deviation > this.config.thresholds.accuracy.maxConsensusDeviation) {
       this.logger.warn(
-        `Consensus deviation exceeded threshold for ${feedId}: ${deviation.toFixed(4)}% > ${this.config.accuracyThresholds.maxConsensusDeviation}%`
+        `Consensus deviation exceeded threshold for ${feedId}: ${deviation.toFixed(4)}% > ${this.config.thresholds.accuracy.maxConsensusDeviation}%`
       );
     }
 
@@ -77,7 +80,7 @@ export class AccuracyMonitorService extends BaseEventService {
     // Add current measurement to calculation
     const recentMeasurements = history.slice(-100); // Last 100 measurements
     const withinThresholdCount =
-      recentMeasurements.filter(m => m.consensusDeviation <= this.config.accuracyThresholds.maxConsensusDeviation)
+      recentMeasurements.filter(m => m.consensusDeviation <= this.config.thresholds.accuracy.maxConsensusDeviation)
         .length + (isCurrentWithinThreshold ? 1 : 0);
 
     const totalCount = recentMeasurements.length + 1;
@@ -91,7 +94,7 @@ export class AccuracyMonitorService extends BaseEventService {
   calculateQualityScore(
     feedId: string,
     consensusDeviation: number,
-    accuracyRate: number,
+    _accuracyRate: number,
     additionalMetrics?: {
       latency?: number;
       sourceCount?: number;
@@ -99,12 +102,12 @@ export class AccuracyMonitorService extends BaseEventService {
     }
   ): QualityScore {
     // Accuracy component (0-100, higher is better)
-    const maxDeviation = this.config.accuracyThresholds.maxConsensusDeviation;
+    const maxDeviation = this.config.thresholds.accuracy.maxConsensusDeviation;
     const accuracy = Math.max(0, 100 - (consensusDeviation / maxDeviation) * 100);
 
     // Latency component (0-100, lower latency is better)
     const latency = additionalMetrics?.latency
-      ? Math.max(0, 100 - (additionalMetrics.latency / this.config.performanceThresholds.maxResponseLatency) * 100)
+      ? Math.max(0, 100 - (additionalMetrics.latency / this.config.thresholds.performance.maxResponseLatency) * 100)
       : 100;
 
     // Coverage component (0-100, more sources is better)
@@ -124,11 +127,14 @@ export class AccuracyMonitorService extends BaseEventService {
       reliability * weights.reliability;
 
     const qualityScore: QualityScore = {
+      overall,
       accuracy,
+      timeliness: latency, // map latency metric to timeliness score
+      completeness: coverage, // use coverage as completeness proxy
+      consistency: reliability, // simple mapping
       latency,
       coverage,
       reliability,
-      overall,
     };
 
     this.qualityScores.set(feedId, qualityScore);
@@ -190,7 +196,7 @@ export class AccuracyMonitorService extends BaseEventService {
 
     const feedsWithinThreshold = Array.from(this.accuracyHistory.keys()).filter(feedId => {
       const latest = this.getAccuracyMetrics(feedId);
-      return latest && latest.consensusDeviation <= this.config.accuracyThresholds.maxConsensusDeviation;
+      return latest && latest.consensusDeviation <= this.config.thresholds.accuracy.maxConsensusDeviation;
     }).length;
 
     return {
@@ -237,9 +243,9 @@ export class AccuracyMonitorService extends BaseEventService {
       };
     }
 
-    const consensusDeviationOk = metrics.consensusDeviation <= this.config.accuracyThresholds.maxConsensusDeviation;
-    const accuracyRateOk = metrics.accuracyRate >= this.config.accuracyThresholds.minAccuracyRate;
-    const qualityScoreOk = metrics.qualityScore >= this.config.accuracyThresholds.minQualityScore;
+    const consensusDeviationOk = metrics.consensusDeviation <= this.config.thresholds.accuracy.maxConsensusDeviation;
+    const accuracyRateOk = metrics.accuracyRate >= this.config.thresholds.accuracy.minAccuracyRate;
+    const qualityScoreOk = metrics.qualityScore >= this.config.thresholds.accuracy.minQualityScore;
 
     return {
       consensusDeviationOk,
@@ -267,7 +273,7 @@ export class AccuracyMonitorService extends BaseEventService {
   /**
    * Record aggregated price for accuracy monitoring
    */
-  recordPrice(aggregatedPrice: any): void {
+  recordPrice(aggregatedPrice: AggregatedPrice): void {
     try {
       const feedId = aggregatedPrice.symbol || "unknown";
 
@@ -283,15 +289,11 @@ export class AccuracyMonitorService extends BaseEventService {
       );
 
       // Check if we should emit an accuracy alert
-      if (metrics.consensusDeviation > this.config.accuracyThresholds.maxConsensusDeviation) {
-        const alert = {
-          type: "accuracy_alert",
+      if (metrics.consensusDeviation > this.config.thresholds.accuracy.maxConsensusDeviation) {
+        const alert: AccuracyAlertData = {
           feedId,
           deviation: metrics.consensusDeviation,
-          threshold: this.config.accuracyThresholds.maxConsensusDeviation,
-          timestamp: Date.now(),
-          severity: "warning",
-          message: `High consensus deviation for ${feedId}: ${metrics.consensusDeviation.toFixed(4)}%`,
+          threshold: this.config.thresholds.accuracy.maxConsensusDeviation,
         };
 
         this.emit("accuracyAlert", alert);
@@ -306,16 +308,16 @@ export class AccuracyMonitorService extends BaseEventService {
   /**
    * Emit accuracy alert event
    */
-  emit(event: "accuracyAlert", alert: any): boolean;
-  emit(event: string | symbol, ...args: any[]): boolean {
+  override emit(event: "accuracyAlert", alert: AccuracyAlertData): boolean;
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
     return super.emit(event, ...args);
   }
 
   /**
    * Listen for accuracy alert events
    */
-  on(event: "accuracyAlert", callback: (alert: any) => void): this;
-  on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on(event: "accuracyAlert", callback: (...args: unknown[]) => void): this;
+  override on(event: string | symbol, listener: (...args: unknown[]) => void): this {
     return super.on(event, listener);
   }
 

@@ -4,17 +4,18 @@
  * Eliminates ~100 lines of duplication between rate-limit guard and response-time interceptor
  */
 
-export interface ClientInfo {
-  id: string;
-  type: "api" | "bearer" | "client" | "ip";
-  sanitized: string;
-}
+import type { ClientInfo } from "../types/http/client.types";
 
 export class ClientIdentificationUtils {
   /**
    * Get client identifier from request headers and connection info
    */
-  static getClientInfo(request: any): ClientInfo {
+  static getClientInfo(request: {
+    headers: Record<string, string>;
+    connection?: { remoteAddress?: string };
+    socket?: { remoteAddress?: string };
+    ip?: string;
+  }): ClientInfo {
     const clientId = this.extractClientId(request);
     const type = this.getClientType(clientId);
     const sanitized = this.sanitizeClientId(clientId);
@@ -29,7 +30,7 @@ export class ClientIdentificationUtils {
   /**
    * Extract client ID from various sources in order of preference
    */
-  private static extractClientId(request: any): string {
+  private static extractClientId(request: { headers: Record<string, string> }): string {
     // 1. API Key (highest priority)
     const apiKey = request.headers["x-api-key"];
     if (apiKey && typeof apiKey === "string" && apiKey.length > 0) {
@@ -59,7 +60,12 @@ export class ClientIdentificationUtils {
   /**
    * Extract client IP address from various sources
    */
-  private static extractClientIP(request: any): string {
+  private static extractClientIP(request: {
+    headers: Record<string, string>;
+    connection?: { remoteAddress?: string };
+    socket?: { remoteAddress?: string };
+    ip?: string;
+  }): string {
     // Try multiple sources for IP address
     const candidates = [
       request.ip,
@@ -123,21 +129,5 @@ export class ClientIdentificationUtils {
     }
     // Truncate very long user agent strings
     return userAgent.length > 100 ? `${userAgent.substring(0, 100)}...` : userAgent;
-  }
-
-  /**
-   * Get client identifier (legacy method for backward compatibility)
-   * @deprecated Use getClientInfo() instead
-   */
-  static getClientId(request: any): string {
-    return this.extractClientId(request);
-  }
-
-  /**
-   * Get client identifier for interceptor (legacy method for backward compatibility)
-   * @deprecated Use getClientInfo() instead
-   */
-  static getClientIdentifier(request: any): string {
-    return this.extractClientId(request);
   }
 }

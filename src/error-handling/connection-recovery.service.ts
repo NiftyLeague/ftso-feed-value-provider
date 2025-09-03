@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
-import { DataSource } from "@/common/interfaces/core/data-source.interface";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { CircuitBreakerService, CircuitBreakerState } from "./circuit-breaker.service";
 import { FailoverManager } from "@/data-manager/failover-manager";
+import { BaseEventService } from "@/common/base/base-event.service";
+import type { DataSource, EnhancedFeedId } from "@/common/types/core";
+import { CircuitBreakerState } from "@/common/types/error-handling";
+import { CircuitBreakerService } from "./circuit-breaker.service";
 
 export interface ConnectionRecoveryConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2

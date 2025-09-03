@@ -47,7 +47,7 @@ export abstract class BaseService {
   /**
    * Log error with context
    */
-  protected logError(error: Error, context?: string, additionalData?: any): void {
+  protected logError(error: Error, context?: string, additionalData?: Record<string, unknown>): void {
     const contextMessage = context ? `[${context}] ` : "";
     this.logger.error(`${contextMessage}${error.message}`, error.stack, additionalData);
   }
@@ -55,7 +55,7 @@ export abstract class BaseService {
   /**
    * Log warning with context
    */
-  protected logWarning(message: string, context?: string, additionalData?: any): void {
+  protected logWarning(message: string, context?: string, additionalData?: Record<string, unknown>): void {
     const contextMessage = context ? `[${context}] ` : "";
     this.logger.warn(`${contextMessage}${message}`, additionalData);
   }
@@ -71,9 +71,9 @@ export abstract class BaseService {
   /**
    * Log critical operation with enhanced logging if available, otherwise regular logging
    */
-  protected logCriticalOperation(operation: string, details: Record<string, any>, success: boolean = true): void {
+  protected logCriticalOperation(operation: string, details: Record<string, unknown>, success: boolean = true): void {
     if (this.enhancedLogger) {
-      this.enhancedLogger.logCriticalOperation(operation, this.constructor.name, details, success);
+      this.enhancedLogger?.logCriticalOperation(operation, this.constructor.name, details, success);
     } else {
       const message = `Critical Operation: ${operation} ${success ? "completed successfully" : "failed"}`;
       if (success) {
@@ -87,9 +87,9 @@ export abstract class BaseService {
   /**
    * Start performance timer with enhanced logging if available
    */
-  protected startPerformanceTimer(operationId: string, operation: string, metadata?: Record<string, any>): void {
+  protected startPerformanceTimer(operationId: string, operation: string, metadata?: Record<string, unknown>): void {
     if (this.enhancedLogger) {
-      this.enhancedLogger.startPerformanceTimer(operationId, operation, this.constructor.name, metadata);
+      this.enhancedLogger?.startPerformanceTimer(operationId, operation, this.constructor.name, metadata);
     }
     // Regular logger doesn't have performance timers, so we just skip
   }
@@ -103,7 +103,7 @@ export abstract class BaseService {
     additionalMetadata?: Record<string, unknown>
   ): void {
     if (this.enhancedLogger) {
-      this.enhancedLogger.endPerformanceTimer(operationId, success, additionalMetadata);
+      this.enhancedLogger?.endPerformanceTimer(operationId, success, additionalMetadata);
     }
     // Regular logger doesn't have performance timers, so we just skip
   }

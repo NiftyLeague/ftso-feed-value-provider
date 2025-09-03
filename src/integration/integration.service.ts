@@ -10,12 +10,15 @@ import { SystemHealthService } from "./services/system-health.service";
 import { ConfigService } from "@/config/config.service";
 
 // Types and interfaces
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
+import type { AggregatedPrice } from "@/common/types/services";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { IntegrationServiceInterface } from "@/common/types/services/provider.types";
 
 @Injectable()
-export class IntegrationService extends BaseEventService implements OnModuleInit, OnModuleDestroy {
+export class IntegrationService
+  extends BaseEventService
+  implements OnModuleInit, OnModuleDestroy, IntegrationServiceInterface
+{
   private isInitialized = false;
   private shutdownInProgress = false;
 
@@ -106,7 +109,7 @@ export class IntegrationService extends BaseEventService implements OnModuleInit
     return this.priceAggregationCoordinator.getCurrentPrices(feedIds);
   }
 
-  async getSystemHealth(): Promise<any> {
+  async getSystemHealth(): Promise<ReturnType<SystemHealthService["getOverallHealth"]>> {
     if (!this.isInitialized) {
       throw new Error("Integration orchestrator not initialized");
     }
@@ -185,5 +188,31 @@ export class IntegrationService extends BaseEventService implements OnModuleInit
       this.logError(error as Error, "subscribeToFeeds");
       throw error;
     }
+  }
+
+  // IntegrationServiceInterface implementation
+  isHealthy(): boolean {
+    const health = this.systemHealth.getOverallHealth();
+    return health.status === "healthy" || health.status === "degraded"; // consider degraded as operational
+  }
+
+  getStatus(): string {
+    const health = this.systemHealth.getOverallHealth();
+    return health.status;
+  }
+
+  getMetrics(): Record<string, number | string> {
+    const h = this.systemHealth.getOverallHealth();
+    return {
+      status: h.status,
+      timestamp: String(h.timestamp),
+      sources: String(h.sources.length),
+      aggregation_errorCount: h.aggregation.errorCount,
+      aggregation_successRate: h.aggregation.successRate,
+      performance_avgResponseTime: h.performance.averageResponseTime,
+      performance_errorRate: h.performance.errorRate,
+      accuracy_avgConfidence: h.accuracy.averageConfidence,
+      accuracy_outlierRate: h.accuracy.outlierRate,
+    } as Record<string, number | string>;
   }
 }

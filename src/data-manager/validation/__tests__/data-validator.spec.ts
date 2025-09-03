@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { DataValidator, ValidationErrorType, ValidationContext } from "../data-validator";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import { type PriceUpdate, FeedCategory } from "@/common/types/core";
+import { ValidationErrorType } from "@/common/types/error-handling";
+import { DataValidator, ValidationContext } from "../data-validator";
 
 describe("DataValidator", () => {
   let validator: DataValidator;
@@ -29,6 +29,8 @@ describe("DataValidator", () => {
 
   const createValidContext = (): ValidationContext => ({
     feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
+    timestamp: Date.now(),
+    source: "binance",
     historicalPrices: [
       { symbol: "BTC/USD", price: 49800, timestamp: Date.now() - 5000, source: "coinbase", confidence: 0.9 },
       { symbol: "BTC/USD", price: 50100, timestamp: Date.now() - 3000, source: "kraken", confidence: 0.92 },
@@ -421,13 +423,29 @@ describe("DataValidator", () => {
   describe("Validation Statistics", () => {
     it("should calculate validation statistics", async () => {
       const results = [
-        { isValid: true, errors: [], confidence: 0.9 },
+        {
+          isValid: true,
+          errors: [],
+          confidence: 0.9,
+          warnings: [],
+          timestamp: Date.now(),
+        },
         {
           isValid: false,
-          errors: [{ type: ValidationErrorType.RANGE_ERROR, message: "test", severity: "high" as const }],
+          errors: [
+            { code: "RANGE_ERROR", type: ValidationErrorType.RANGE_ERROR, message: "test", severity: "high" as const },
+          ],
           confidence: 0.1,
+          warnings: [],
+          timestamp: Date.now(),
         },
-        { isValid: true, errors: [], confidence: 0.8 },
+        {
+          isValid: true,
+          errors: [],
+          confidence: 0.8,
+          warnings: [],
+          timestamp: Date.now(),
+        },
       ];
 
       const stats = validator.getValidationStats(results);

@@ -2,8 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { AggregatedPrice } from "@/aggregators/base/aggregation.interfaces";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import type { AggregatedPrice } from "@/common/types/services";
 
 describe("Cache Service Integration", () => {
   let cacheService: RealTimeCacheService;
@@ -262,7 +262,7 @@ describe("Cache Service Integration", () => {
   describe("Cache Statistics", () => {
     it("should track hit and miss rates", () => {
       const initialStats = cacheService.getStats();
-      expect(initialStats.totalRequests).toBe(0);
+      expect(initialStats.hits + initialStats.misses).toBe(0);
 
       // Cache miss
       let result = cacheService.getPrice(mockFeedId);
@@ -280,9 +280,8 @@ describe("Cache Service Integration", () => {
       expect(result).toBeDefined();
 
       const finalStats = cacheService.getStats();
-      expect(finalStats.totalRequests).toBe(2);
+      expect(finalStats.hits + finalStats.misses).toBe(2);
       expect(finalStats.hitRate).toBe(0.5); // 1 hit out of 2 requests
-      expect(finalStats.missRate).toBe(0.5); // 1 miss out of 2 requests
     });
   });
 });

@@ -1,7 +1,8 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from "@nestjs/common";
-import { RateLimiterService } from "./rate-limiter.service";
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { ApiErrorCodes } from "@/common/types/error-handling";
 import { ClientIdentificationUtils } from "../utils/client-identification.utils";
+import { RateLimiterService } from "./rate-limiter.service";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -43,7 +44,7 @@ export class RateLimitGuard implements CanActivate {
       const rateLimitError = new HttpException(
         {
           error: "RATE_LIMIT_EXCEEDED",
-          code: 4291,
+          code: ApiErrorCodes.RATE_LIMIT_EXCEEDED,
           message: `Rate limit exceeded. Too many requests from client.`,
           timestamp: Date.now(),
           requestId,

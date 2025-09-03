@@ -1,6 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ILogger } from "./logger.interface";
-import { LogContext } from "./logger.types";
+import type {
+  ILogger,
+  LogMessage,
+  EnhancedLogContext,
+  LogParameters,
+  StructuredLogEntry,
+  LogLevel,
+} from "../types/logging";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
 import * as fs from "fs";
@@ -51,7 +57,7 @@ export class EnhancedLoggerService implements ILogger {
    * Enhanced logging with context and structured data
    * Requirement 6.1: Detailed logging for critical operations
    */
-  log(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  log(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     const logEntry = this.createLogEntry("LOG", message, context, optionalParams);
     this.logger.log(logEntry.message, logEntry.context);
 
@@ -64,7 +70,7 @@ export class EnhancedLoggerService implements ILogger {
    * Enhanced error logging with root cause analysis information
    * Requirement 6.1: Error logging with sufficient detail for root cause analysis
    */
-  error(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  error(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     const logEntry = this.createLogEntry("ERROR", message, context, optionalParams);
 
     // Extract error details if message is an Error object
@@ -82,7 +88,7 @@ export class EnhancedLoggerService implements ILogger {
   /**
    * Enhanced warning logging with context
    */
-  warn(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  warn(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     const logEntry = this.createLogEntry("WARN", message, context, optionalParams);
     this.logger.warn(logEntry.message, logEntry.context);
 
@@ -95,7 +101,7 @@ export class EnhancedLoggerService implements ILogger {
    * Enhanced debug logging with detailed context
    * Requirement 6.5: Debug logging for troubleshooting
    */
-  debug(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  debug(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     if (!this.enableDebugLogging) {
       return;
     }
@@ -111,7 +117,7 @@ export class EnhancedLoggerService implements ILogger {
   /**
    * Verbose logging for detailed system behavior
    */
-  verbose(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  verbose(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     const logEntry = this.createLogEntry("VERBOSE", message, context, optionalParams);
     this.logger.verbose(logEntry.message, logEntry.context);
 
@@ -123,7 +129,7 @@ export class EnhancedLoggerService implements ILogger {
   /**
    * Fatal error logging for critical system failures
    */
-  fatal(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  fatal(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     const logEntry = this.createLogEntry("FATAL", message, context, optionalParams);
     this.logger.error(`[FATAL] ${logEntry.message}`, logEntry.context);
 
@@ -135,7 +141,7 @@ export class EnhancedLoggerService implements ILogger {
   /**
    * Directory listing for debugging
    */
-  dir(message: any, context?: LogContext, ...optionalParams: any[]): void {
+  dir(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
     const logEntry = this.createLogEntry("DIR", message, context, optionalParams);
     console.dir(message, { depth: 3, colors: true });
 
@@ -152,7 +158,7 @@ export class EnhancedLoggerService implements ILogger {
     operationId: string,
     operation: string,
     component: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): void {
     this.performanceLogger.startTimer(operationId, operation, component, metadata);
   }
@@ -160,7 +166,11 @@ export class EnhancedLoggerService implements ILogger {
   /**
    * End performance timer and log results
    */
-  endPerformanceTimer(operationId: string, success: boolean = true, additionalMetadata?: Record<string, any>): void {
+  endPerformanceTimer(
+    operationId: string,
+    success: boolean = true,
+    additionalMetadata?: Record<string, unknown>
+  ): void {
     this.performanceLogger.endTimer(operationId, success, additionalMetadata);
   }
 
@@ -171,13 +181,13 @@ export class EnhancedLoggerService implements ILogger {
   logCriticalOperation(
     operation: string,
     component: string,
-    details: Record<string, any>,
+    details: Record<string, unknown>,
     success: boolean = true
   ): void {
-    const context: LogContext = {
+    const context: EnhancedLogContext = {
       component,
       operation,
-      severity: success ? "info" : "high",
+      severity: success ? "low" : "high",
       metadata: details,
     };
 
@@ -203,9 +213,9 @@ export class EnhancedLoggerService implements ILogger {
     destination: string,
     dataType: string,
     count: number,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): void {
-    const context: LogContext = {
+    const context: EnhancedLogContext = {
       component: "DataFlow",
       operation: "data_transfer",
       sourceId: source,
@@ -225,7 +235,7 @@ export class EnhancedLoggerService implements ILogger {
    */
   logPriceUpdate(symbol: string, source: string, price: number, timestamp: number, confidence: number): void {
     const age = Date.now() - timestamp;
-    const context: LogContext = {
+    const context: EnhancedLogContext = {
       component: "PriceUpdate",
       operation: "price_received",
       sourceId: source,
@@ -255,7 +265,7 @@ export class EnhancedLoggerService implements ILogger {
     confidence: number,
     consensusScore: number
   ): void {
-    const context: LogContext = {
+    const context: EnhancedLogContext = {
       component: "Aggregation",
       operation: "price_aggregated",
       symbol,
@@ -279,9 +289,9 @@ export class EnhancedLoggerService implements ILogger {
   logConnection(
     sourceId: string,
     event: "connected" | "disconnected" | "reconnecting" | "failed",
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): void {
-    const context: LogContext = {
+    const context: EnhancedLogContext = {
       component: "Connection",
       operation: `connection_${event}`,
       sourceId,
@@ -314,9 +324,9 @@ export class EnhancedLoggerService implements ILogger {
     errorType: string,
     recoveryAction: string,
     success: boolean,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ): void {
-    const context: LogContext = {
+    const context: EnhancedLogContext = {
       component: "ErrorRecovery",
       operation: "error_recovery",
       sourceId,
@@ -355,19 +365,14 @@ export class EnhancedLoggerService implements ILogger {
 
   private createLogEntry(
     level: string,
-    message: any,
-    context?: LogContext,
-    optionalParams?: any[]
-  ): {
-    message: string;
-    context: Record<string, any>;
-  } {
-    const timestamp = new Date().toISOString();
+    message: LogMessage,
+    context?: EnhancedLogContext,
+    optionalParams?: LogParameters
+  ): StructuredLogEntry {
+    const timestamp = Date.now();
     const formattedMessage = typeof message === "string" ? message : JSON.stringify(message);
 
     const logContext = {
-      timestamp,
-      level,
       pid: process.pid,
       ...context,
     };
@@ -377,8 +382,11 @@ export class EnhancedLoggerService implements ILogger {
     }
 
     return {
+      level: level.toLowerCase() as LogLevel,
       message: formattedMessage,
+      timestamp,
       context: logContext,
+      data: optionalParams && optionalParams.length > 0 ? { additionalParams: optionalParams } : undefined,
     };
   }
 

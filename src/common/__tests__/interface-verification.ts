@@ -10,12 +10,7 @@ import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.
 import { ConfigService } from "@/config/config.service";
 import { ValidationService } from "@/data-manager/validation/validation.service";
 
-import {
-  IFtsoProviderService,
-  IAggregationService,
-  IConfigurationService,
-  IDataValidationService,
-} from "../interfaces";
+import type { IFtsoProviderService, IAggregationService, IConfigurationService, IDataValidatorService } from "../types";
 
 // Type assertions to verify interface compliance
 // These will cause TypeScript compilation errors if interfaces are not properly implemented
@@ -29,8 +24,8 @@ const aggregationService: IAggregationService = {} as RealTimeAggregationService
 // Verify ConfigService implements IConfigurationService
 const configService: IConfigurationService = {} as ConfigService;
 
-// Verify ValidationService implements IDataValidationService
-const validationService: IDataValidationService = {} as ValidationService;
+// Verify ValidationService implements IDataValidatorService
+const validationService: IDataValidatorService = {} as ValidationService;
 
 // Export verification functions for runtime checks
 export function verifyInterfaceCompliance(): {
@@ -77,7 +72,7 @@ export function verifyInterfaceCompliance(): {
       typeof validationService.validatePriceUpdate === "function" &&
       typeof validationService.validateBatch === "function" &&
       typeof validationService.filterValidUpdates === "function" &&
-      typeof validationService.getValidationStatistics === "function" &&
+      typeof validationService.getValidationStats === "function" &&
       typeof validationService.clearCache === "function" &&
       typeof validationService.clearHistoricalData === "function" &&
       typeof validationService.validateRealTime === "function" &&
@@ -92,7 +87,7 @@ export const INTERFACE_COMPLIANCE_SUMMARY = {
     "IFtsoProviderService",
     "IAggregationService",
     "IConfigurationService",
-    "IDataValidationService",
+    "IDataValidatorService",
   ],
   services: [
     { name: "FtsoProviderService", interface: "IFtsoProviderService", file: "src/app.service.ts" },
@@ -104,7 +99,7 @@ export const INTERFACE_COMPLIANCE_SUMMARY = {
     { name: "ConfigService", interface: "IConfigurationService", file: "src/config/config.service.ts" },
     {
       name: "ValidationService",
-      interface: "IDataValidationService",
+      interface: "IDataValidatorService",
       file: "src/data-manager/validation/validation.service.ts",
     },
   ],

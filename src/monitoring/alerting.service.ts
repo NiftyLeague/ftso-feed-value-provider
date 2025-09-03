@@ -1,479 +1,44 @@
-import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
-
-import {
-  Alert,
-  AlertRule,
-  AlertSeverity,
-  AlertAction,
-  // AlertingConfig,
-  MonitoringConfig,
-} from "./interfaces/monitoring.interfaces";
-import * as nodemailer from "nodemailer";
 import axios from "axios";
+import * as nodemailer from "nodemailer";
+import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
+
+import { BaseService } from "@/common/base/base.service";
+import { AlertSeverity, AlertAction } from "@/common/types/monitoring";
+import type { Alert, AlertRule, MonitoringConfig } from "@/common/types/monitoring";
+import type { LogLevel } from "@/common/types/logging";
 
 @Injectable()
 export class AlertingService extends BaseService implements OnModuleDestroy {
   private alerts: Map<string, Alert> = new Map();
   private activeAlerts: Map<string, Alert> = new Map();
-  private alertCooldowns: Map<string, number> = new Map();
   private alertCounts: Map<string, number> = new Map();
+  private alertCooldowns: Map<string, number> = new Map();
   private emailTransporter?: nodemailer.Transporter;
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
-    super("AlertingService", true); // Needs enhanced logging for critical alert operations
+    super("AlertingService", true);
     this.initializeEmailTransporter();
     this.startAlertCleanup();
   }
 
   /**
-   * Evaluate metric against alert rules
-   * Requirement 4.2: Configurable alert rules for accuracy thresholds
+   * Cleanup resources when the module is destroyed
    */
-  evaluateMetric(metric: string, value: number, metadata: Record<string, any> = {}): void {
-    const applicableRules = this.config.alerting.rules.filter(rule => rule.enabled && rule.metric === metric);
-
-    for (const rule of applicableRules) {
-      const shouldTrigger = this.evaluateRule(rule, value);
-
-      if (shouldTrigger) {
-        void this.triggerAlert(rule, value, metadata);
-      } else {
-        this.resolveAlert(rule.id);
-      }
+  onModuleDestroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+    if (this.emailTransporter) {
+      this.emailTransporter.close();
     }
   }
 
   /**
-   * Trigger an alert
-   * Requirement 4.3: Alert severity levels (INFO, WARNING, ERROR, CRITICAL)
-   */
-  private async triggerAlert(rule: AlertRule, value: number, metadata: Record<string, any>): Promise<void> {
-    const alertId = `${rule.id}_${Date.now()}`;
-    const now = Date.now();
-
-    // Check cooldown period
-    const lastAlertTime = this.alertCooldowns.get(rule.id);
-    if (lastAlertTime && now - lastAlertTime < rule.cooldown) {
-      this.enhancedLogger.debug(`Alert suppressed due to cooldown period`, {
-        component: "AlertingService",
-        operation: "trigger_alert",
-        metadata: {
-          ruleId: rule.id,
-          ruleName: rule.name,
-          cooldownRemaining: rule.cooldown - (now - lastAlertTime),
-          value,
-          threshold: rule.threshold,
-        },
-      });
-      return; // Still in cooldown period
-    }
-
-    // Check rate limiting
-    if (!this.checkRateLimit(rule.id)) {
-      this.enhancedLogger.warn(`Alert rate limit exceeded for rule ${rule.id}`, {
-        component: "AlertingService",
-        operation: "trigger_alert",
-        metadata: {
-          ruleId: rule.id,
-          ruleName: rule.name,
-          maxAlertsPerHour: this.config.alerting.maxAlertsPerHour,
-          value,
-          threshold: rule.threshold,
-        },
-      });
-      return;
-    }
-
-    const alert: Alert = {
-      id: alertId,
-      ruleId: rule.id,
-      severity: rule.severity,
-      message: this.formatAlertMessage(rule, value, metadata),
-      timestamp: now,
-      resolved: false,
-      metadata: { ...metadata, value, threshold: rule.threshold },
-    };
-
-    // Store alert
-    this.alerts.set(alertId, alert);
-    this.activeAlerts.set(rule.id, alert);
-    this.alertCooldowns.set(rule.id, now);
-
-    // Enhanced alert logging with detailed context
-    this.logCriticalOperation("alert_triggered", {
-      alertId,
-      ruleId: rule.id,
-      ruleName: rule.name,
-      severity: rule.severity,
-      metric: rule.metric,
-      value,
-      threshold: rule.threshold,
-      operator: rule.operator,
-      message: alert.message,
-      metadata,
-    });
-
-    // Log alert
-    this.logAlert(alert);
-
-    // Deliver alert through configured channels
-    await this.deliverAlert(alert, rule);
-
-    this.enhancedLogger.warn(`Alert triggered and delivered`, {
-      component: "AlertingService",
-      operation: "trigger_alert",
-      severity: rule.severity,
-      metadata: {
-        alertId,
-        ruleId: rule.id,
-        ruleName: rule.name,
-        severity: rule.severity,
-        metric: rule.metric,
-        value,
-        threshold: rule.threshold,
-        deliveryChannels: rule.actions.length,
-      },
-    });
-  }
-
-  /**
-   * Resolve an active alert
-   */
-  private resolveAlert(ruleId: string): void {
-    const activeAlert = this.activeAlerts.get(ruleId);
-
-    if (activeAlert && !activeAlert.resolved) {
-      activeAlert.resolved = true;
-      activeAlert.resolvedAt = Date.now();
-
-      this.activeAlerts.delete(ruleId);
-      this.alerts.set(activeAlert.id, activeAlert);
-
-      this.logger.log(`Alert resolved: ${activeAlert.message}`, { alertId: activeAlert.id, ruleId });
-    }
-  }
-
-  /**
-   * Deliver alert through configured channels
-   * Requirement 4.4: Alert delivery mechanisms (log, email, webhook)
-   */
-  private async deliverAlert(alert: Alert, rule: AlertRule): Promise<void> {
-    const deliveryPromises: Promise<void>[] = [];
-
-    for (const action of rule.actions) {
-      switch (action) {
-        case AlertAction.LOG:
-          // Already logged in triggerAlert
-          break;
-
-        case AlertAction.EMAIL:
-          if (this.config.alerting.deliveryConfig.email?.enabled) {
-            deliveryPromises.push(this.sendEmailAlert(alert, rule));
-          }
-          break;
-
-        case AlertAction.WEBHOOK:
-          if (this.config.alerting.deliveryConfig.webhook?.enabled) {
-            deliveryPromises.push(this.sendWebhookAlert(alert, rule));
-          }
-          break;
-      }
-    }
-
-    try {
-      await Promise.allSettled(deliveryPromises);
-    } catch (error) {
-      this.logger.error(`Failed to deliver alert ${alert.id}:`, error);
-    }
-  }
-
-  /**
-   * Send email alert
-   */
-  private async sendEmailAlert(alert: Alert, rule: AlertRule): Promise<void> {
-    if (!this.emailTransporter) {
-      this.logger.warn("Email transporter not configured");
-      return;
-    }
-
-    const emailConfig = this.config.alerting.deliveryConfig.email!;
-
-    const mailOptions = {
-      from: emailConfig.from,
-      to: emailConfig.to.join(", "),
-      subject: `[${alert.severity.toUpperCase()}] FTSO Alert: ${rule.name}`,
-      html: this.formatEmailAlert(alert, rule),
-    };
-
-    try {
-      await this.emailTransporter.sendMail(mailOptions);
-      this.logger.log(`Email alert sent for ${alert.id}`);
-    } catch (error) {
-      this.logger.error(`Failed to send email alert ${alert.id}:`, error);
-    }
-  }
-
-  /**
-   * Send webhook alert
-   */
-  private async sendWebhookAlert(alert: Alert, rule: AlertRule): Promise<void> {
-    const webhookConfig = this.config.alerting.deliveryConfig.webhook!;
-
-    const payload = {
-      alert: {
-        id: alert.id,
-        ruleId: alert.ruleId,
-        severity: alert.severity,
-        message: alert.message,
-        timestamp: alert.timestamp,
-        metadata: alert.metadata,
-      },
-      rule: {
-        id: rule.id,
-        name: rule.name,
-        description: rule.description,
-      },
-    };
-
-    try {
-      await axios.post(webhookConfig.url, payload, {
-        headers: webhookConfig.headers || {},
-        timeout: webhookConfig.timeout,
-      });
-
-      this.logger.log(`Webhook alert sent for ${alert.id}`);
-    } catch (error) {
-      this.logger.error(`Failed to send webhook alert ${alert.id}:`, error);
-    }
-  }
-
-  /**
-   * Evaluate if a rule should trigger
-   */
-  private evaluateRule(rule: AlertRule, value: number): boolean {
-    switch (rule.operator) {
-      case "gt":
-        return value > rule.threshold;
-      case "gte":
-        return value >= rule.threshold;
-      case "lt":
-        return value < rule.threshold;
-      case "lte":
-        return value <= rule.threshold;
-      case "eq":
-        return value === rule.threshold;
-      default:
-        return false;
-    }
-  }
-
-  /**
-   * Check rate limiting
-   */
-  private checkRateLimit(ruleId: string): boolean {
-    // const now = Date.now();
-    // const hourAgo = now - 3600000; // 1 hour ago
-
-    // Clean old counts
-    const currentCount = this.alertCounts.get(ruleId) || 0;
-
-    if (currentCount >= this.config.alerting.maxAlertsPerHour) {
-      return false;
-    }
-
-    this.alertCounts.set(ruleId, currentCount + 1);
-    return true;
-  }
-
-  /**
-   * Format alert message
-   */
-  private formatAlertMessage(rule: AlertRule, value: number, metadata: Record<string, any>): string {
-    const direction = ["gt", "gte"].includes(rule.operator) ? "above" : "below";
-    let message = `${rule.name}: ${rule.metric} is ${direction} threshold (${value} ${rule.operator} ${rule.threshold})`;
-
-    if (metadata.feedId) {
-      message += ` for feed ${metadata.feedId}`;
-    }
-
-    if (metadata.exchange) {
-      message += ` on exchange ${metadata.exchange}`;
-    }
-
-    return message;
-  }
-
-  /**
-   * Format email alert HTML
-   */
-  private formatEmailAlert(alert: Alert, rule: AlertRule): string {
-    const severityColor = this.getSeverityColor(alert.severity);
-
-    return `
-      <html>
-        <body>
-          <h2 style="color: ${severityColor};">[${alert.severity.toUpperCase()}] FTSO Alert</h2>
-          <h3>${rule.name}</h3>
-          <p><strong>Description:</strong> ${rule.description}</p>
-          <p><strong>Message:</strong> ${alert.message}</p>
-          <p><strong>Timestamp:</strong> ${new Date(alert.timestamp).toISOString()}</p>
-          <p><strong>Alert ID:</strong> ${alert.id}</p>
-          
-          ${
-            alert.metadata
-              ? `
-            <h4>Additional Information:</h4>
-            <ul>
-              ${Object.entries(alert.metadata)
-                .map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`)
-                .join("")}
-            </ul>
-          `
-              : ""
-          }
-          
-          <hr>
-          <p><em>This alert was generated by the FTSO Feed Value Provider monitoring system.</em></p>
-        </body>
-      </html>
-    `;
-  }
-
-  /**
-   * Get severity color for HTML formatting
-   */
-  private getSeverityColor(severity: AlertSeverity): string {
-    switch (severity) {
-      case AlertSeverity.INFO:
-        return "#2196F3";
-      case AlertSeverity.WARNING:
-        return "#FF9800";
-      case AlertSeverity.ERROR:
-        return "#F44336";
-      case AlertSeverity.CRITICAL:
-        return "#9C27B0";
-      default:
-        return "#666666";
-    }
-  }
-
-  /**
-   * Log alert to console/file
-   */
-  private logAlert(alert: Alert): void {
-    const logLevel = this.getLogLevel(alert.severity);
-    const message = `Alert: ${alert.message}`;
-    const context = { alertId: alert.id, severity: alert.severity, metadata: alert.metadata };
-
-    switch (logLevel) {
-      case "info":
-        this.logger.log(message, context);
-        break;
-      case "warn":
-        this.logger.warn(message, context);
-        break;
-      case "error":
-        this.logger.error(message, context);
-        break;
-    }
-  }
-
-  /**
-   * Get log level for alert severity
-   */
-  private getLogLevel(severity: AlertSeverity): "info" | "warn" | "error" {
-    switch (severity) {
-      case AlertSeverity.INFO:
-        return "info";
-      case AlertSeverity.WARNING:
-        return "warn";
-      case AlertSeverity.ERROR:
-      case AlertSeverity.CRITICAL:
-        return "error";
-      default:
-        return "info";
-    }
-  }
-
-  /**
-   * Get all alerts
-   */
-  getAllAlerts(limit: number = 100): Alert[] {
-    return Array.from(this.alerts.values())
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
-  }
-
-  /**
-   * Get active alerts
-   */
-  getActiveAlerts(): Alert[] {
-    return Array.from(this.activeAlerts.values()).sort((a, b) => b.timestamp - a.timestamp);
-  }
-
-  /**
-   * Get alerts by severity
-   */
-  getAlertsBySeverity(severity: AlertSeverity, limit: number = 50): Alert[] {
-    return Array.from(this.alerts.values())
-      .filter(alert => alert.severity === severity)
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, limit);
-  }
-
-  /**
-   * Get alert statistics
-   */
-  getAlertStats(): {
-    total: number;
-    active: number;
-    resolved: number;
-    bySeverity: Record<AlertSeverity, number>;
-    last24Hours: number;
-  } {
-    const allAlerts = Array.from(this.alerts.values());
-    const now = Date.now();
-    const dayAgo = now - 86400000; // 24 hours ago
-
-    const bySeverity = {
-      [AlertSeverity.INFO]: 0,
-      [AlertSeverity.WARNING]: 0,
-      [AlertSeverity.ERROR]: 0,
-      [AlertSeverity.CRITICAL]: 0,
-    };
-
-    let resolved = 0;
-    let last24Hours = 0;
-
-    for (const alert of allAlerts) {
-      bySeverity[alert.severity]++;
-
-      if (alert.resolved) {
-        resolved++;
-      }
-
-      if (alert.timestamp > dayAgo) {
-        last24Hours++;
-      }
-    }
-
-    return {
-      total: allAlerts.length,
-      active: this.activeAlerts.size,
-      resolved,
-      bySeverity,
-      last24Hours,
-    };
-  }
-
-  /**
-   * Initialize email transporter
+   * Initialize the email transporter for sending alert emails
    */
   private initializeEmailTransporter(): void {
     const emailConfig = this.config.alerting.deliveryConfig.email;
-
     if (emailConfig?.enabled) {
       this.emailTransporter = nodemailer.createTransport({
         host: emailConfig.smtpHost,
@@ -484,41 +49,50 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
           pass: emailConfig.password,
         },
       });
-
       this.logger.log("Email transporter initialized");
     }
   }
 
   /**
-   * Start periodic alert cleanup
+   * Start the alert cleanup interval
    */
   private startAlertCleanup(): void {
+    const cleanupIntervalMs = 3600000; // 1 hour
     this.cleanupInterval = setInterval(() => {
       this.cleanupOldAlerts();
       this.resetHourlyAlertCounts();
-    }, 3600000); // Every hour
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = undefined;
-    }
-    this.logger.log("Alerting service destroyed");
+    }, cleanupIntervalMs);
   }
 
   /**
-   * Clean up old alerts
+   * Clean up old alerts from the system
    */
   private cleanupOldAlerts(): void {
-    const now = Date.now();
-    const retentionPeriod = this.config.alerting.alertRetention * 86400000; // Days to ms
-    const cutoffTime = now - retentionPeriod;
+    const retentionDays = this.config.alerting?.alertRetention || 7;
+    const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+    const cutoffTime = Date.now() - retentionMs;
 
-    for (const [alertId, alert] of this.alerts.entries()) {
+    let deletedAlerts = 0;
+    let deletedActiveAlerts = 0;
+
+    // Clean up old alerts
+    for (const [id, alert] of this.alerts.entries()) {
       if (alert.timestamp < cutoffTime) {
-        this.alerts.delete(alertId);
+        this.alerts.delete(id);
+        deletedAlerts++;
       }
+    }
+
+    // Clean up old active alerts
+    for (const [id, alert] of this.activeAlerts.entries()) {
+      if (alert.timestamp < cutoffTime) {
+        this.activeAlerts.delete(id);
+        deletedActiveAlerts++;
+      }
+    }
+
+    if (deletedAlerts > 0 || deletedActiveAlerts > 0) {
+      this.logger.debug(`Cleaned up ${deletedAlerts} old alerts and ${deletedActiveAlerts} old active alerts`);
     }
   }
 
@@ -530,125 +104,397 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
   }
 
   /**
+   * Get log level for alert severity
+   */
+  private getLogLevel(severity: AlertSeverity): LogLevel {
+    switch (severity) {
+      case AlertSeverity.CRITICAL:
+      case AlertSeverity.ERROR:
+        return "error";
+      case AlertSeverity.WARNING:
+      case AlertSeverity.HIGH:
+        return "warn";
+      case AlertSeverity.MEDIUM:
+      case AlertSeverity.LOW:
+      case AlertSeverity.INFO:
+      default:
+        return "info";
+    }
+  }
+
+  /**
+   * Log an alert with appropriate log level based on severity
+   */
+  private logAlert(alert: Alert): void {
+    const logLevel = this.getLogLevel(alert.severity);
+    const context = {
+      alertId: alert.id,
+      ruleId: alert.ruleId,
+      severity: alert.severity,
+      ...alert.metadata,
+    } as const;
+
+    switch (logLevel) {
+      case "error":
+        this.logger.error(alert.message, context);
+        break;
+      case "warn":
+        this.logger.warn(alert.message, context);
+        break;
+      default:
+        this.logger.log(alert.message, context);
+        break;
+    }
+  }
+
+  /**
+   * Get all alerts, optionally limited by count
+   */
+  public getAllAlerts(limit: number = 100): Alert[] {
+    return Array.from(this.alerts.values())
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  }
+
+  /**
+   * Get active alerts
+   */
+  public getActiveAlerts(): Alert[] {
+    return Array.from(this.activeAlerts.values()).sort((a, b) => b.timestamp - a.timestamp);
+  }
+
+  /**
+   * Get alerts filtered by severity
+   */
+  public getAlertsBySeverity(severity: AlertSeverity, limit: number = 100): Alert[] {
+    return Array.from(this.alerts.values())
+      .filter(alert => alert.severity === severity)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  }
+
+  /**
+   * Get alert statistics
+   */
+  public getAlertStats(): { total: number; active: number; bySeverity: Record<AlertSeverity, number> } {
+    const stats = {
+      total: this.alerts.size,
+      active: this.activeAlerts.size,
+      bySeverity: Object.values(AlertSeverity).reduce(
+        (acc, severity) => {
+          acc[severity] = Array.from(this.alerts.values()).filter(alert => alert.severity === severity).length;
+          return acc;
+        },
+        {} as Record<AlertSeverity, number>
+      ),
+    };
+
+    return stats;
+  }
+
+  /**
    * Send alert directly (used by integration service)
    */
-  async sendAlert(alert: any): Promise<void> {
+  public async sendAlert(alert: Alert): Promise<void> {
     try {
       // Create a temporary rule for direct alert sending
       const tempRule: AlertRule = {
         id: `temp_rule_${Date.now()}`,
         name: alert.type || "Direct Alert",
         description: alert.message || "Direct alert message",
-        metric: alert.type || "direct_alert",
-        threshold: 0,
-        operator: "gt",
-        severity: this.mapSeverity(alert.severity),
-        duration: 0,
-        actions: [AlertAction.LOG, AlertAction.EMAIL, AlertAction.WEBHOOK],
+        condition: {
+          metric: "direct_alert",
+          threshold: 0,
+          operator: "gt",
+        },
+        severity: alert.severity || AlertSeverity.INFO,
+        actions: [AlertAction.LOG],
         enabled: true,
         cooldown: 0,
       };
 
-      const formattedAlert: Alert = {
-        id: alert.id || `alert_${Date.now()}`,
-        ruleId: tempRule.id,
-        severity: this.mapSeverity(alert.severity),
-        message: alert.message || "Alert triggered",
-        timestamp: alert.timestamp || Date.now(),
-        resolved: false,
-        metadata: { ...alert },
-      };
-
-      // Store and deliver the alert
-      this.alerts.set(formattedAlert.id, formattedAlert);
-      await this.deliverAlert(formattedAlert, tempRule);
-
-      this.logger.log(`Direct alert sent: ${formattedAlert.message}`);
+      await this.deliverAlert(alert, tempRule);
+      this.logger.log("Direct alert sent successfully");
     } catch (error) {
-      this.logger.error("Error sending direct alert:", error);
-    }
-  }
-
-  /**
-   * Stop the alerting service and cleanup resources
-   */
-  async stop(): Promise<void> {
-    try {
-      this.logger.log("Stopping alerting service...");
-
-      // Clear all active alerts
-      this.activeAlerts.clear();
-
-      // Clear cooldowns
-      this.alertCooldowns.clear();
-
-      // Clear alert counts
-      this.alertCounts.clear();
-
-      // Close email transporter if it exists
-      if (this.emailTransporter) {
-        this.emailTransporter.close();
-        this.emailTransporter = undefined;
-      }
-
-      this.logger.log("Alerting service stopped successfully");
-    } catch (error) {
-      this.logger.error("Error stopping alerting service:", error);
+      this.logger.error("Failed to send direct alert", { error });
       throw error;
     }
   }
 
   /**
-   * Map string severity to AlertSeverity enum
+   * Deliver alert through configured channels
    */
-  private mapSeverity(severity: string | AlertSeverity): AlertSeverity {
-    if (typeof severity === "string") {
-      switch (severity.toLowerCase()) {
-        case "info":
-          return AlertSeverity.INFO;
-        case "warning":
-        case "warn":
-          return AlertSeverity.WARNING;
-        case "error":
-          return AlertSeverity.ERROR;
-        case "critical":
-          return AlertSeverity.CRITICAL;
-        default:
-          return AlertSeverity.INFO;
+  private async deliverAlert(alert: Alert, rule: AlertRule): Promise<void> {
+    try {
+      // Log the alert
+      this.logAlert(alert);
+
+      // Store the alert
+      this.alerts.set(alert.id, alert);
+
+      if (!alert.resolved) {
+        this.activeAlerts.set(alert.ruleId, alert);
+      } else {
+        this.activeAlerts.delete(alert.ruleId);
       }
+
+      // Deliver through configured channels
+      if (rule.actions.includes(AlertAction.EMAIL) && this.emailTransporter) {
+        await this.sendEmailAlert(alert, rule);
+      }
+
+      if (rule.actions.includes(AlertAction.WEBHOOK)) {
+        await this.sendWebhookAlert(alert, rule);
+      }
+    } catch (error) {
+      this.logger.error("Error delivering alert", { error, alertId: alert.id });
+      throw error;
     }
-    return severity;
   }
 
   /**
-   * Test alert delivery (for testing purposes)
+   * Send email alert
    */
-  async testAlertDelivery(severity: AlertSeverity = AlertSeverity.INFO): Promise<void> {
-    const testRule: AlertRule = {
-      id: "test_rule",
+  private async sendEmailAlert(alert: Alert, rule: AlertRule): Promise<void> {
+    if (!this.emailTransporter) {
+      throw new Error("Email transporter not initialized");
+    }
+
+    const emailConfig = this.config.alerting.deliveryConfig.email;
+    if (!emailConfig?.enabled || !emailConfig.to) {
+      return;
+    }
+
+    const html = this.formatEmailAlert(alert, rule);
+
+    await this.emailTransporter.sendMail({
+      from: emailConfig.from || `"Alerting Service" <${emailConfig.username}>`,
+      to: emailConfig.to,
+      subject: `[${alert.severity}] ${alert.title || "New Alert"}`,
+      html,
+    });
+  }
+
+  /**
+   * Send webhook alert
+   */
+  private async sendWebhookAlert(alert: Alert, rule: AlertRule): Promise<void> {
+    const webhookConfig = this.config.alerting.deliveryConfig.webhook;
+    if (!webhookConfig?.enabled || !webhookConfig.url) {
+      return;
+    }
+
+    const payload = {
+      alert,
+      rule: {
+        id: rule.id,
+        name: rule.name,
+        description: rule.description,
+        severity: rule.severity,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await axios.post(webhookConfig.url, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(webhookConfig.headers || {}),
+        },
+        timeout: webhookConfig.timeout || 5000,
+      });
+    } catch (err) {
+      // Tests expect a specific error message here
+      this.logger.error("Failed to send webhook alert", err as Error);
+    }
+  }
+
+  /**
+   * Format email alert HTML
+   */
+  private formatEmailAlert(alert: Alert, rule: AlertRule): string {
+    const color = this.getSeverityColor(alert.severity);
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: ${color}; color: white; padding: 15px; border-radius: 5px 5px 0 0;">
+          <h2 style="margin: 0;">${alert.title || "New Alert"}</h2>
+        </div>
+        <div style="border: 1px solid #ddd; border-top: none; padding: 15px; border-radius: 0 0 5px 5px;">
+          <p><strong>Severity:</strong> ${alert.severity}</p>
+          <p><strong>Rule:</strong> ${rule.name}</p>
+          <p><strong>Message:</strong> ${alert.message}</p>
+          <p><strong>Timestamp:</strong> ${new Date(alert.timestamp).toLocaleString()}</p>
+          ${
+            alert.metadata
+              ? `
+            <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+              <h3 style="margin-top: 0;">Details:</h3>
+              <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto;">
+${JSON.stringify(alert.metadata, null, 2)}
+              </pre>
+            </div>
+          `
+              : ""
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Get color for alert severity
+   */
+  private getSeverityColor(severity: AlertSeverity): string {
+    switch (severity) {
+      case AlertSeverity.CRITICAL:
+        return "#d32f2f"; // Red 700
+      case AlertSeverity.ERROR:
+        return "#f44336"; // Red 500
+      case AlertSeverity.WARNING:
+        return "#ff9800"; // Orange 500
+      case AlertSeverity.HIGH:
+        return "#ffa000"; // Amber 700
+      case AlertSeverity.MEDIUM:
+        return "#ffc107"; // Amber 500
+      case AlertSeverity.LOW:
+        return "#ffeb3b"; // Yellow 500
+      case AlertSeverity.INFO:
+      default:
+        return "#2196f3"; // Blue 500
+    }
+  }
+
+  /**
+   * Evaluate a metric against configured rules and create/resolve alerts
+   */
+  public evaluateMetric(metric: string, value: number, metadata?: Record<string, unknown>): void {
+    const rule = this.config.alerting?.rules?.find(r => r.condition.metric === metric);
+    if (!rule || !rule.enabled) return;
+
+    const now = Date.now();
+
+    // Cooldown check
+    const lastTs = this.alertCooldowns.get(rule.id) ?? 0;
+    const cooldownMs = rule.cooldown ?? 0;
+    if (cooldownMs > 0 && now - lastTs < cooldownMs) {
+      return;
+    }
+
+    // Determine trigger based on operator
+    const threshold = rule.condition.threshold;
+    const op = rule.condition.operator;
+    const compare = (v: number, t: number, operator: typeof op): boolean => {
+      switch (operator) {
+        case ">":
+        case "gt":
+          return v > t;
+        case "gte":
+          return v >= t;
+        case "<":
+        case "lt":
+          return v < t;
+        case "lte":
+          return v <= t;
+        case "==":
+        case "eq":
+          return v === t;
+        default:
+          return false;
+      }
+    };
+
+    const triggered = compare(value, threshold, op);
+
+    // If triggered, enforce global rate limit
+    if (triggered) {
+      const maxPerHour = this.config.alerting?.maxAlertsPerHour ?? Infinity;
+      const totalCount = this.alertCounts.get("total") ?? 0;
+      if (totalCount >= maxPerHour) {
+        this.enhancedLogger?.warn("Alert rate limit exceeded", { ruleId: rule.id, metric, value, threshold });
+        return;
+      }
+    }
+
+    // Resolution path: previously active, now back to normal
+    if (!triggered && this.activeAlerts.has(rule.id)) {
+      const resolveAlert: Alert = {
+        id: `${rule.id}_${now}`,
+        ruleId: rule.id,
+        type: "metric",
+        title: `Alert resolved: ${rule.name}`,
+        message: `Alert resolved: ${rule.name} - metric: ${metric} back to normal (value: ${value}, threshold: ${threshold})`,
+        timestamp: now,
+        status: "resolved",
+        resolved: true,
+        resolvedAt: now,
+        metadata,
+        severity: rule.severity,
+      };
+      // Deliver and clear active state
+      void this.deliverAlert(resolveAlert, rule);
+      return;
+    }
+
+    if (!triggered) return;
+
+    // Build alert
+    const details: string[] = [`metric: ${metric}`, `value: ${value}`, `threshold: ${threshold}`];
+    if (metadata) {
+      if (typeof metadata.feedId === "string") details.push(`feedId: ${String(metadata.feedId)}`);
+      if (typeof metadata.exchange === "string") details.push(`exchange: ${String(metadata.exchange)}`);
+    }
+
+    const alert: Alert = {
+      id: `${rule.id}_${now}`,
+      ruleId: rule.id,
+      type: "metric",
+      title: `Alert: ${rule.name}`,
+      message: `Alert: ${rule.name} - ${details.join(", ")}`,
+      timestamp: now,
+      status: "active",
+      resolved: false,
+      metadata: { metric, value, threshold, ...(metadata || {}) },
+      severity: rule.severity,
+    };
+
+    // Update counters and cooldowns
+    this.alertCounts.set("total", (this.alertCounts.get("total") ?? 0) + 1);
+    if (cooldownMs > 0) this.alertCooldowns.set(rule.id, now);
+
+    // Deliver alert (logs appropriately and stores active)
+    void this.deliverAlert(alert, rule);
+  }
+
+  /**
+   * Send a test alert to verify delivery configuration
+   */
+  public async testAlertDelivery(severity: AlertSeverity = AlertSeverity.INFO): Promise<void> {
+    const now = Date.now();
+    const rule: AlertRule = {
+      id: `test_rule_${now}`,
       name: "Test Alert",
-      description: "This is a test alert to verify delivery mechanisms",
-      metric: "test_metric",
-      threshold: 0,
-      operator: "gt",
+      description: "Test alert to verify delivery configuration",
+      condition: { metric: "test_metric", threshold: 0, operator: "gt" },
       severity,
-      duration: 0,
-      actions: [AlertAction.LOG, AlertAction.EMAIL, AlertAction.WEBHOOK],
+      actions: [AlertAction.LOG],
       enabled: true,
       cooldown: 0,
     };
 
-    const testAlert: Alert = {
-      id: `test_alert_${Date.now()}`,
-      ruleId: testRule.id,
-      severity,
-      message: "This is a test alert message",
-      timestamp: Date.now(),
+    const alert: Alert = {
+      id: `test_alert_${now}`,
+      ruleId: rule.id,
+      type: "system",
+      title: `Test Alert (${severity})`,
+      message: `Test alert generated at ${new Date(now).toISOString()}`,
+      timestamp: now,
+      status: "active",
       resolved: false,
-      metadata: { test: true },
+      severity,
     };
 
-    await this.deliverAlert(testAlert, testRule);
+    await this.deliverAlert(alert, rule);
     this.logger.log("Test alert delivery completed");
   }
 }

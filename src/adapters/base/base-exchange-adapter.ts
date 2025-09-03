@@ -1,7 +1,9 @@
 import { Logger } from "@nestjs/common";
-import { IExchangeAdapter, ExchangeConnectionConfig } from "./exchange-adapter.interface";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
-import { WebSocketConnectionManager, WebSocketConnectionConfig } from "@/data-manager/websocket-connection-manager";
+import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager";
+import { FeedCategory } from "@/common/types/core";
+import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import type { WSConnectionConfig } from "@/common/types/data-manager";
+import type { IExchangeAdapter, ExchangeConnectionConfig, ExchangeCapabilities } from "@/common/types/adapters";
 
 /**
  * Base exchange adapter class that eliminates adapter boilerplate
@@ -33,13 +35,13 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
 
   // Abstract properties that must be implemented
   abstract readonly exchangeName: string;
-  abstract readonly category: any;
-  abstract readonly capabilities: any;
+  abstract readonly category: FeedCategory;
+  abstract readonly capabilities: ExchangeCapabilities;
 
   // Abstract methods that must be implemented by concrete adapters
-  abstract normalizePriceData(rawData: any): PriceUpdate;
-  abstract normalizeVolumeData(rawData: any): VolumeUpdate;
-  abstract validateResponse(rawData: any): boolean;
+  abstract normalizePriceData(rawData: unknown): PriceUpdate;
+  abstract normalizeVolumeData(rawData: unknown): VolumeUpdate;
+  abstract validateResponse(rawData: unknown): boolean;
 
   /**
    * Standard connection implementation with retry logic
@@ -231,7 +233,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   /**
    * Utility method for safe data processing
    */
-  protected safeProcessData<T>(data: any, processor: (data: unknown) => T, context: string): T | null {
+  protected safeProcessData<T>(data: unknown, processor: (data: unknown) => T, context: string): T | null {
     try {
       if (!this.validateResponse(data)) {
         this.logger.warn(`Invalid data received in ${context}:`, data);
@@ -267,7 +269,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
       const exchangeSymbol = this.getSymbolMapping(feedSymbol);
       // Basic validation: ensure we got a non-empty string and it contains valid characters
       const isValid =
-        exchangeSymbol &&
+        typeof exchangeSymbol === "string" &&
         exchangeSymbol.length > 0 &&
         feedSymbol.includes("/") && // Must be a proper pair format
         feedSymbol.split("/").length === 2; // Must have exactly one separator
@@ -286,7 +288,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
    * Enhanced confidence calculation with multiple factors
    */
   protected calculateConfidence(
-    rawData: any,
+    rawData: unknown,
     additionalFactors?: {
       latency?: number;
       volume?: number;
@@ -324,7 +326,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   /**
    * Utility method to normalize timestamps
    */
-  protected normalizeTimestamp(timestamp: any): number {
+  protected normalizeTimestamp(timestamp: unknown): number {
     if (typeof timestamp === "number") {
       // Handle both seconds and milliseconds
       return timestamp > 1e12 ? timestamp : timestamp * 1000;
@@ -388,27 +390,30 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   /**
    * Connect to WebSocket using the centralized connection manager
    */
-  protected async connectWebSocket(config: WebSocketConnectionConfig): Promise<void> {
+  protected async connectWebSocket(config: WSConnectionConfig): Promise<void> {
     this.initializeWebSocket();
 
     try {
       await this.wsManager!.createConnection(this.wsConnectionId!, config);
 
       // Set up message handler
-      this.wsManager!.on("message", (connectionId: string, data: any) => {
+      this.wsManager!.on("message", (...args: unknown[]) => {
+        const [connectionId, data] = args as [string, unknown];
         if (connectionId === this.wsConnectionId) {
           this.handleWebSocketMessage(data);
         }
       });
 
       // Set up connection event handlers
-      this.wsManager!.on("connectionClosed", (connectionId: string) => {
+      this.wsManager!.on("connectionClosed", (...args: unknown[]) => {
+        const [connectionId] = args as [string];
         if (connectionId === this.wsConnectionId) {
           this.handleWebSocketClose();
         }
       });
 
-      this.wsManager!.on("connectionError", (connectionId: string, error: Error) => {
+      this.wsManager!.on("connectionError", (...args: unknown[]) => {
+        const [connectionId, error] = args as [string, Error];
         if (connectionId === this.wsConnectionId) {
           this.handleWebSocketError(error);
         }

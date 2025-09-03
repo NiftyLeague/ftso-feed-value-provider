@@ -1,5 +1,4 @@
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import type { PriceUpdate } from "@/common/types/core";
 
 // Mock WebSocket for integration testing
 class MockWebSocket {
@@ -203,7 +202,6 @@ describe("WebSocket Integration Tests", () => {
 
     it("should handle partial connection failures gracefully", async () => {
       // Simulate connection failure for one adapter
-      const originalConnect = binanceAdapter.connect;
       jest.spyOn(binanceAdapter, "connect").mockRejectedValue(new Error("Connection failed"));
 
       const results = await Promise.allSettled([
@@ -311,8 +309,6 @@ describe("WebSocket Integration Tests", () => {
     it("should maintain data freshness under 2 seconds", async () => {
       const priceUpdates: PriceUpdate[] = [];
       binanceAdapter.onPriceUpdate(update => priceUpdates.push(update));
-
-      const sendTime = Date.now();
       binanceAdapter.simulatePriceUpdate(50000, "BTC/USD");
 
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -491,7 +487,6 @@ describe("WebSocket Integration Tests", () => {
     });
 
     it("should handle connection errors gracefully", async () => {
-      const originalConnect = binanceAdapter.connect;
       jest.spyOn(binanceAdapter, "connect").mockRejectedValue(new Error("Connection failed"));
 
       await expect(binanceAdapter.connect()).rejects.toThrow("Connection failed");

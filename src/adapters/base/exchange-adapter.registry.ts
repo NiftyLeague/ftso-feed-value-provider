@@ -1,5 +1,5 @@
-import { IExchangeAdapter, ExchangeCapabilities } from "./exchange-adapter.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import type { IExchangeAdapter, ExchangeCapabilities } from "@/common/types/adapters";
+import { FeedCategory } from "@/common/types/core";
 
 export interface AdapterRegistryEntry {
   adapter: IExchangeAdapter;

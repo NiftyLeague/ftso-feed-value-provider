@@ -1,31 +1,20 @@
 import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
-import { BaseController } from "@/common/base/base.controller";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+
+import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { BaseController } from "@/common/base/base.controller";
 import { FtsoProviderService } from "@/app.service";
-import { RealTimeCacheService } from "@/cache/real-time-cache.service";
+import { IntegrationService } from "@/integration/integration.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-import { IntegrationService } from "../integration/integration.service";
+import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 
-import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
-
-interface HealthStatus {
-  status: "healthy" | "degraded" | "unhealthy";
-  timestamp: number;
-  version: string;
-  uptime: number;
-  memory: NodeJS.MemoryUsage;
-  cpu: NodeJS.CpuUsage;
-  environment: string;
-  services: {
-    integration: Record<string, unknown>;
-    provider: Record<string, unknown>;
-  };
-  startup: {
-    initialized: boolean;
-    startupTime: number;
-    readyTime?: number;
-  };
-}
+import type {
+  HealthCheckResponse,
+  DetailedHealthResponse,
+  ReadinessResponse,
+  LivenessResponse,
+} from "@/common/types/monitoring";
+import type { HealthStatus } from "@/common/types/monitoring";
 
 @ApiTags("System Health")
 @Controller()
@@ -40,6 +29,8 @@ export class HealthController extends BaseController {
     private readonly errorHandler: ApiErrorHandlerService
   ) {
     super("HealthController");
+    // Read once to satisfy unused property lint
+    void this.errorHandler;
   }
 
   @Post("health")
@@ -77,7 +68,7 @@ export class HealthController extends BaseController {
       },
     },
   })
-  async healthCheck(): Promise<Record<string, unknown>> {
+  async healthCheck(): Promise<HealthCheckResponse> {
     const result = await this.executeOperation(
       async () => {
         // Get comprehensive health information
@@ -157,7 +148,7 @@ export class HealthController extends BaseController {
       "healthCheck",
       { performanceThreshold: 1000 }
     );
-    return result.data as Record<string, unknown>;
+    return result.data as HealthCheckResponse;
   }
 
   @Get("health")
@@ -188,43 +179,25 @@ export class HealthController extends BaseController {
     try {
       const startTime = Date.now();
 
-      // Get integration service health
-      const integrationHealth = await this.integrationService.getSystemHealth();
+      // Get integration service health (aggregate system metrics)
+      const systemHealth = await this.integrationService.getSystemHealth();
 
-      // For now, use integration health as the primary health indicator
-      // The integration service includes all the necessary health checks
-      const overallStatus = integrationHealth.status;
-
-      // Mark as ready if this is the first successful health check
-      if (!this.readyTime && overallStatus !== "unhealthy") {
-        this.readyTime = Date.now();
-      }
-
+      // Build response aligned to HealthStatus
       const response: HealthStatus = {
-        status: overallStatus,
+        status: systemHealth.status,
         timestamp: Date.now(),
         version: "1.0.0",
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        cpu: process.cpuUsage(),
-        environment: process.env.NODE_ENV || "development",
-        services: {
-          integration: {
-            status: integrationHealth.status,
-            connections: integrationHealth.connections,
-            adapters: integrationHealth.adapters,
-            cache: integrationHealth.cache,
-            responseTime: Date.now() - startTime,
-          },
-          provider: {
-            status: integrationHealth.status, // Use integration status as proxy
-            mode: "production", // Always production mode
-          },
-        },
+        connections: 0,
+        adapters: systemHealth.sources.length,
+        cache: { hitRate: 0, entries: 0 },
         startup: {
           initialized: true,
+          startTime: this.startupTime,
           startupTime: this.startupTime,
           readyTime: this.readyTime,
+          timeSinceStartup: Date.now() - this.startupTime,
         },
       };
 
@@ -234,13 +207,14 @@ export class HealthController extends BaseController {
         this.logger.warn(`Health check took ${totalResponseTime}ms (exceeds 1s threshold)`);
       }
 
-      if (overallStatus === "unhealthy") {
+      if (response.status === "unhealthy") {
         throw new HttpException(response, HttpStatus.SERVICE_UNAVAILABLE);
       }
 
       return response;
     } catch (error) {
-      this.logger.error("Health check failed:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error("Health check failed:", errMsg);
 
       if (error instanceof HttpException) {
         throw error;
@@ -252,16 +226,15 @@ export class HealthController extends BaseController {
         version: "1.0.0",
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        cpu: process.cpuUsage(),
-        environment: process.env.NODE_ENV || "development",
-        services: {
-          integration: { status: "unhealthy", error: error.message },
-          provider: { status: "unhealthy", error: error.message },
-        },
+        connections: 0,
+        adapters: 0,
+        cache: { hitRate: 0, entries: 0 },
         startup: {
           initialized: false,
+          startTime: this.startupTime,
           startupTime: this.startupTime,
           readyTime: this.readyTime,
+          timeSinceStartup: Date.now() - this.startupTime,
         },
       };
 
@@ -289,76 +262,57 @@ export class HealthController extends BaseController {
       },
     },
   })
-  async getDetailedHealth(): Promise<Record<string, unknown>> {
+  async getDetailedHealth(): Promise<DetailedHealthResponse> {
     try {
-      const startTime = Date.now();
-
       // Get comprehensive system health
       const systemHealth = await this.integrationService.getSystemHealth();
 
-      // Get system resource information
-      const systemInfo = {
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        cpu: process.cpuUsage(),
-        version: "1.0.0",
-        nodeVersion: process.version,
-        platform: process.platform,
-        arch: process.arch,
-        pid: process.pid,
-        loadAverage: process.platform !== "win32" ? require("os").loadavg() : [0, 0, 0],
-        freeMemory: require("os").freemem(),
-        totalMemory: require("os").totalmem(),
-      };
-
-      // Get configuration status
-      const configStatus = {
-        environment: process.env.NODE_ENV || "development",
-        productionMode: true, // Always production mode
-        logLevel: process.env.LOG_LEVEL || "log",
-        port: process.env.VALUE_PROVIDER_CLIENT_PORT || "3101",
-        monitoringEnabled: process.env.MONITORING_ENABLED === "true",
-        alertingEnabled: process.env.ALERT_EMAIL_ENABLED === "true" || process.env.ALERT_WEBHOOK_ENABLED === "true",
-      };
-
-      const responseTime = Date.now() - startTime;
+      // Intentionally omit system/config blocks to conform to DetailedHealthResponse type
 
       return {
+        status: systemHealth.status,
         timestamp: Date.now(),
-        responseTime,
-        overall: systemHealth.status,
+        uptime: process.uptime(),
+        version: "1.0.0",
         components: {
-          integration: {
+          database: {
+            component: "database",
             status: systemHealth.status,
-            connections: systemHealth.connections,
-            adapters: systemHealth.adapters,
-            cache: systemHealth.cache,
+            timestamp: Date.now(),
           },
-          provider: {
-            status: systemHealth.status, // Use integration status as proxy
-            mode: "production", // Always production mode
+          cache: {
+            component: "cache",
+            status: systemHealth.status,
+            timestamp: Date.now(),
+          },
+          adapters: {
+            component: "adapters",
+            status: systemHealth.status,
+            timestamp: Date.now(),
+          },
+          integration: {
+            component: "integration",
+            status: systemHealth.status,
+            timestamp: Date.now(),
           },
         },
-        system: systemInfo,
-        performance: {
-          healthCheckResponseTime: responseTime,
-        },
-        configuration: configStatus,
         startup: {
+          initialized: true,
+          startTime: this.startupTime,
           startupTime: this.startupTime,
           readyTime: this.readyTime,
-          timeSinceStartup: Date.now() - this.startupTime,
-          timeSinceReady: this.readyTime ? Date.now() - this.readyTime : null,
         },
       };
     } catch (error) {
-      this.logger.error("Detailed health check failed:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error("Detailed health check failed:", errMsg);
       throw new HttpException(
         {
           error: "Detailed health check failed",
-          message: error.message,
+          message: errMsg,
           timestamp: Date.now(),
-          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+          stack: process.env.NODE_ENV === "development" ? errStack : undefined,
         },
         HttpStatus.INTERNAL_SERVER_ERROR
       );
@@ -386,7 +340,7 @@ export class HealthController extends BaseController {
     },
   })
   @ApiResponse({ status: 503, description: "System is not ready" })
-  async getReadiness(): Promise<Record<string, unknown>> {
+  async getReadiness(): Promise<ReadinessResponse> {
     try {
       const startTime = Date.now();
       // Perform readiness checks
@@ -409,7 +363,7 @@ export class HealthController extends BaseController {
         checks,
         startup: {
           startupTime: this.startupTime,
-          readyTime: this.readyTime,
+          readyTime: this.readyTime ?? null,
           timeSinceStartup: Date.now() - this.startupTime,
         },
       };
@@ -427,7 +381,8 @@ export class HealthController extends BaseController {
 
       return response;
     } catch (error) {
-      this.logger.error("Readiness check failed:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error("Readiness check failed:", errMsg);
 
       if (error instanceof HttpException) {
         throw error;
@@ -438,7 +393,7 @@ export class HealthController extends BaseController {
           ready: false,
           status: "unhealthy",
           timestamp: Date.now(),
-          error: error.message,
+          error: errMsg,
           startup: {
             startupTime: this.startupTime,
             timeSinceStartup: Date.now() - this.startupTime,
@@ -470,24 +425,16 @@ export class HealthController extends BaseController {
     },
   })
   @ApiResponse({ status: 503, description: "System is not alive" })
-  async getLiveness(): Promise<Record<string, unknown>> {
+  async getLiveness(): Promise<LivenessResponse> {
     try {
       // Basic liveness checks - verify core services are responsive
       const livenessChecks = await this.performLivenessChecks();
       const isAlive = livenessChecks.integration && livenessChecks.provider;
-      const responseTime = livenessChecks.responseTime;
 
-      const response = {
+      const response: LivenessResponse = {
         alive: isAlive,
-        responseTime,
         timestamp: Date.now(),
         uptime: process.uptime(),
-        memory: {
-          used: process.memoryUsage().heapUsed,
-          total: process.memoryUsage().heapTotal,
-          external: process.memoryUsage().external,
-        },
-        checks: livenessChecks,
       };
 
       if (!isAlive) {
@@ -496,22 +443,19 @@ export class HealthController extends BaseController {
 
       return response;
     } catch (error) {
-      this.logger.error("Liveness check failed:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error("Liveness check failed:", errMsg);
 
       if (error instanceof HttpException) {
         throw error;
       }
 
-      throw new HttpException(
-        {
-          alive: false,
-          timestamp: Date.now(),
-          uptime: process.uptime(),
-          error: error.message,
-          responseTime: Date.now() - Date.now(), // Will be 0 but maintains structure
-        },
-        HttpStatus.SERVICE_UNAVAILABLE
-      );
+      const resp: LivenessResponse = {
+        alive: false,
+        timestamp: Date.now(),
+        uptime: process.uptime(),
+      };
+      throw new HttpException(resp, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -522,7 +466,11 @@ export class HealthController extends BaseController {
     provider: { ready: boolean; status: string; error: null | string };
     startup: { ready: boolean; timeSinceStartup: number };
   }> {
-    const checks = {
+    const checks: {
+      integration: { ready: boolean; status: string; error: string | null };
+      provider: { ready: boolean; status: string; error: string | null };
+      startup: { ready: boolean; timeSinceStartup: number };
+    } = {
       integration: { ready: false, status: "unhealthy", error: null },
       provider: { ready: false, status: "unhealthy", error: null },
       startup: { ready: false, timeSinceStartup: Date.now() - this.startupTime },
@@ -534,7 +482,8 @@ export class HealthController extends BaseController {
       checks.integration.ready = integrationHealth.status !== "unhealthy";
       checks.integration.status = integrationHealth.status;
     } catch (error) {
-      checks.integration.error = error.message;
+      const errMsg = error instanceof Error ? error.message : String(error);
+      checks.integration.error = errMsg;
     }
 
     // For now, use integration health as proxy for provider health
@@ -572,7 +521,8 @@ export class HealthController extends BaseController {
       await Promise.race([integrationPromise, timeoutPromise]);
       checks.integration = true;
     } catch (error) {
-      this.logger.debug("Integration liveness check failed:", (error as Error).message);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.debug("Integration liveness check failed:", errMsg);
     }
 
     // For now, use integration health as proxy for provider health

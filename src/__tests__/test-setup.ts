@@ -108,28 +108,28 @@ function shouldSuppressLog(message: string): boolean {
 }
 
 // Override console methods to suppress expected test logs
-console.error = (...args: any[]) => {
+console.error = (...args: unknown[]) => {
   const message = args.join(" ");
   if (!shouldSuppressLog(message)) {
     originalConsoleError(...args);
   }
 };
 
-console.warn = (...args: any[]) => {
+console.warn = (...args: unknown[]) => {
   const message = args.join(" ");
   if (!shouldSuppressLog(message)) {
     originalConsoleWarn(...args);
   }
 };
 
-console.log = (...args: any[]) => {
+console.log = (...args: unknown[]) => {
   const message = args.join(" ");
   if (!shouldSuppressLog(message)) {
     originalConsoleLog(...args);
   }
 };
 
-console.debug = (...args: any[]) => {
+console.debug = (...args: unknown[]) => {
   const message = args.join(" ");
   if (!shouldSuppressLog(message)) {
     originalConsoleDebug(...args);
@@ -137,36 +137,38 @@ console.debug = (...args: any[]) => {
 };
 
 // Track active timers and intervals for cleanup
-const activeTimers = new Set<NodeJS.Timeout>();
-const activeIntervals = new Set<NodeJS.Timeout>();
+const activeTimers = new Set<ReturnType<typeof setTimeout>>();
+const activeIntervals = new Set<ReturnType<typeof setInterval>>();
 
-// Override setTimeout and setInterval to track them
+// Store original timer functions
 const originalSetTimeout = global.setTimeout;
 const originalSetInterval = global.setInterval;
 const originalClearTimeout = global.clearTimeout;
 const originalClearInterval = global.clearInterval;
 
-global.setTimeout = ((callback: any, delay?: number, ...args: any[]) => {
-  const timer = originalSetTimeout(callback, delay, ...args);
+// Override setTimeout to track active timers
+global.setTimeout = ((...args: Parameters<typeof setTimeout>) => {
+  const timer = originalSetTimeout(...args);
   activeTimers.add(timer);
   return timer;
-}) as any;
+}) as typeof setTimeout;
 
-global.setInterval = ((callback: any, delay?: number, ...args: any[]) => {
-  const interval = originalSetInterval(callback, delay, ...args);
+// Override setInterval to track active intervals
+global.setInterval = ((...args: Parameters<typeof setInterval>) => {
+  const interval = originalSetInterval(...args);
   activeIntervals.add(interval);
   return interval;
-}) as any;
+}) as typeof setInterval;
 
-global.clearTimeout = ((timer: any) => {
+global.clearTimeout = ((timer: NodeJS.Timeout) => {
   activeTimers.delete(timer);
   return originalClearTimeout(timer);
-}) as any;
+}) as typeof clearTimeout;
 
-global.clearInterval = ((interval: any) => {
+global.clearInterval = ((interval: NodeJS.Timeout) => {
   activeIntervals.delete(interval);
   return originalClearInterval(interval);
-}) as any;
+}) as typeof clearInterval;
 
 // Clean up all active timers and intervals after each test
 afterEach(() => {

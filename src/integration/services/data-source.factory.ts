@@ -1,9 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
 import { EventEmitter } from "events";
-import { DataSource, PriceUpdate } from "@/common/interfaces/core/data-source.interface";
-import { IExchangeAdapter } from "@/adapters/base";
-import { FeedCategory } from "@/common/types/feed.types";
+import { Injectable, Logger } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
+import type { IExchangeAdapter } from "@/common/types/adapters";
+import { type DataSource, type PriceUpdate, FeedCategory } from "@/common/types/core";
 
 /**
  * Factory for creating DataSource instances from ExchangeAdapter instances
@@ -143,8 +142,9 @@ class AdapterDataSource extends EventEmitter implements DataSource {
   async performHealthCheck(): Promise<boolean> {
     try {
       // Use adapter's health check if available
-      if ("healthCheck" in this.adapter && typeof (this.adapter as any).healthCheck === "function") {
-        return await (this.adapter as any).healthCheck();
+      type WithHealthCheck = { healthCheck: () => Promise<boolean> };
+      if ("healthCheck" in this.adapter && typeof (this.adapter as WithHealthCheck).healthCheck === "function") {
+        return await (this.adapter as WithHealthCheck).healthCheck();
       }
 
       // Fallback: check connection status and recent activity
@@ -213,8 +213,12 @@ class AdapterDataSource extends EventEmitter implements DataSource {
   async fetchPriceViaREST(symbol: string): Promise<PriceUpdate | null> {
     try {
       // Use adapter's REST fallback if available
-      if ("fetchTickerREST" in this.adapter && typeof (this.adapter as any).fetchTickerREST === "function") {
-        return await (this.adapter as any).fetchTickerREST(symbol);
+      type WithFetchTickerREST = { fetchTickerREST: (symbol: string) => Promise<PriceUpdate> };
+      if (
+        "fetchTickerREST" in this.adapter &&
+        typeof (this.adapter as WithFetchTickerREST).fetchTickerREST === "function"
+      ) {
+        return await (this.adapter as WithFetchTickerREST).fetchTickerREST(symbol);
       }
 
       this.logger.warn(`No REST fallback available for ${this.adapter.exchangeName}`);
@@ -390,28 +394,37 @@ class AdapterDataSource extends EventEmitter implements DataSource {
   }
 
   private classifyAdapterError(error: Error): Error {
+    type ErrorType = "CONNECTION_ERROR" | "TIMEOUT_ERROR" | "RATE_LIMIT_ERROR" | "PARSING_ERROR" | "EXCHANGE_ERROR";
+
+    type ClassifiedAdapterError = Error & {
+      exchangeName: string;
+      adapterType: string;
+      timestamp: number;
+      errorType: ErrorType;
+    };
+
     const message = error.message.toLowerCase();
 
-    // Add error classification metadata
-    const classifiedError = new Error(error.message);
-    classifiedError.stack = error.stack;
-
-    // Add classification properties
-    (classifiedError as any).exchangeName = this.adapter.exchangeName;
-    (classifiedError as any).adapterType = this.type;
-    (classifiedError as any).timestamp = Date.now();
-
+    let errorType: ErrorType;
     if (message.includes("websocket") || message.includes("connection") || message.includes("network")) {
-      (classifiedError as any).errorType = "CONNECTION_ERROR";
+      errorType = "CONNECTION_ERROR";
     } else if (message.includes("timeout") || message.includes("timed out")) {
-      (classifiedError as any).errorType = "TIMEOUT_ERROR";
+      errorType = "TIMEOUT_ERROR";
     } else if (message.includes("rate limit") || message.includes("too many requests")) {
-      (classifiedError as any).errorType = "RATE_LIMIT_ERROR";
+      errorType = "RATE_LIMIT_ERROR";
     } else if (message.includes("parse") || message.includes("json") || message.includes("invalid")) {
-      (classifiedError as any).errorType = "PARSING_ERROR";
+      errorType = "PARSING_ERROR";
     } else {
-      (classifiedError as any).errorType = "EXCHANGE_ERROR";
+      errorType = "EXCHANGE_ERROR";
     }
+
+    const classifiedError: ClassifiedAdapterError = Object.assign(new Error(error.message), {
+      stack: error.stack,
+      exchangeName: this.adapter.exchangeName,
+      adapterType: this.type,
+      timestamp: Date.now(),
+      errorType,
+    });
 
     return classifiedError;
   }

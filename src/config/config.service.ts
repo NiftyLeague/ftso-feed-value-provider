@@ -1,11 +1,14 @@
+import { join } from "path";
+import { readFileSync } from "fs";
 import { Injectable } from "@nestjs/common";
 import { BaseService } from "@/common/base/base.service";
-import { readFileSync } from "fs";
-import { join } from "path";
-import { EnhancedFeedId, FeedCategory } from "@/common/types/feed.types";
-import { IConfigurationService } from "@/common/interfaces/services/configuration.interface";
 
-import { ConfigValidationService, EnvironmentConfig, ConfigValidationResult } from "./config-validation.service";
+import type { IConfigurationService } from "@/common/types/services";
+import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+
+import { ConfigValidationService } from "./config-validation.service";
+import type { EnvironmentConfiguration, ConfigValidationResult } from "@/common/types";
+import type { HealthCheckResult } from "@/common/types/monitoring";
 import { FileWatcherService } from "./file-watcher.service";
 
 export interface AdapterMapping {
@@ -40,14 +43,11 @@ export interface RawFeedData {
   }[];
 }
 
-// Re-export types from validation service for backward compatibility
-export type { EnvironmentConfig, ConfigValidationResult } from "./config-validation.service";
-
 @Injectable()
 export class ConfigService extends BaseService implements IConfigurationService {
   private readonly adapterMappings: AdapterMapping;
   private feedConfigurations: FeedConfiguration[] = [];
-  private environmentConfig: EnvironmentConfig;
+  private environmentConfig: EnvironmentConfiguration;
   private feedsFilePath: string;
   private configValidationService: ConfigValidationService;
   private fileWatcherService: FileWatcherService;
@@ -66,7 +66,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
    * Get environment configuration
    * Requirements: 5.1, 5.2
    */
-  getEnvironmentConfig(): EnvironmentConfig {
+  getEnvironmentConfig(): EnvironmentConfiguration {
     return { ...this.environmentConfig };
   }
 
@@ -280,8 +280,11 @@ export class ConfigService extends BaseService implements IConfigurationService 
 
       if (error instanceof SyntaxError) {
         this.logger.error("feeds.json contains invalid JSON syntax");
-      } else if (error.code === "ENOENT") {
-        this.logger.error(`feeds.json file not found at ${this.feedsFilePath}`);
+      } else if (typeof error === "object" && error !== null && "code" in error) {
+        const code = (error as { code?: unknown }).code;
+        if (code === "ENOENT") {
+          this.logger.error(`feeds.json file not found at ${this.feedsFilePath}`);
+        }
       }
 
       this.logger.error("No feed configurations available - feeds.json is required");
@@ -597,25 +600,22 @@ export class ConfigService extends BaseService implements IConfigurationService 
 
   // IBaseService interface methods
   async getPerformanceMetrics(): Promise<{
-    responseTime: { average: number; min: number; max: number };
-    throughput: { requestsPerSecond: number; totalRequests: number };
-    errorRate: number;
     uptime: number;
+    responseTime: { average: number; p95: number; max: number };
+    requestsPerSecond: number;
+    errorRate: number;
   }> {
     const uptime = process.uptime();
 
     return {
+      uptime,
       responseTime: {
         average: 5, // Mock values - config service is typically very fast
-        min: 1,
+        p95: 10,
         max: 20,
       },
-      throughput: {
-        requestsPerSecond: 1000, // Mock value
-        totalRequests: 50000, // Mock value
-      },
+      requestsPerSecond: 1000, // Mock value
       errorRate: 0, // Mock value
-      uptime,
     };
   }
 
@@ -629,7 +629,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
   async getHealthStatus(): Promise<{
     status: "healthy" | "degraded" | "unhealthy";
     timestamp: number;
-    details?: any;
+    details?: HealthCheckResult[];
   }> {
     const validation = this.validateConfiguration();
 
@@ -641,15 +641,60 @@ export class ConfigService extends BaseService implements IConfigurationService 
       status = "degraded";
     }
 
+    const timestamp = Date.now();
+    const details: HealthCheckResult[] = [];
+
+    // Environment validation result
+    details.push({
+      isHealthy: validation.isValid,
+      timestamp,
+      details: {
+        component: "configuration:environment",
+        status: validation.isValid ? "healthy" : "unhealthy",
+        timestamp,
+        metrics: {
+          uptime: process.uptime(),
+          memoryUsage: process.memoryUsage().rss,
+          cpuUsage: 0,
+          connectionCount: 0,
+        },
+      },
+    });
+
+    // Feeds validation summary
+    const feedCount = this.getFeedConfigurations().length;
+    details.push({
+      isHealthy: feedCount > 0,
+      timestamp,
+      details: {
+        component: "configuration:feeds",
+        status: feedCount > 0 ? "healthy" : "unhealthy",
+        timestamp,
+        metrics: {
+          uptime: process.uptime(),
+          memoryUsage: process.memoryUsage().rss,
+          cpuUsage: 0,
+          connectionCount: 0,
+        },
+      },
+    });
+
+    // File watcher health
+    const fileWatcherHealth = await this.fileWatcherService.getHealthStatus();
+    details.push({
+      isHealthy: fileWatcherHealth.status === "healthy",
+      timestamp,
+      details: {
+        component: "configuration:fileWatcher",
+        status: fileWatcherHealth.status,
+        timestamp,
+      },
+    });
+
     return {
       status,
-      timestamp: Date.now(),
-      details: {
-        validation,
-        feedCount: this.getFeedConfigurations().length,
-        environment: this.getEnvironmentConfig().nodeEnv,
-        fileWatcher: await this.fileWatcherService.getHealthStatus(),
-      },
+      timestamp,
+      details,
     };
   }
 }

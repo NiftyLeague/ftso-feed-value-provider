@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from "uuid";
 import { HttpException, HttpStatus } from "@nestjs/common";
 import { BaseService } from "./base.service";
 import { ValidationUtils } from "../utils/validation.utils";
-import { createSuccessResponse, handleAsyncOperation, ApiResponse } from "../utils/http-response.utils";
+import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
+import type { ApiResponse } from "../types/http/http.types";
 import { createTimer, PerformanceUtils } from "../utils/performance.utils";
 
 /**
@@ -116,18 +117,16 @@ export abstract class BaseController extends BaseService {
     status: "healthy" | "unhealthy" | "degraded",
     details: Record<string, unknown> = {},
     responseTime?: number
-  ): ApiResponse<unknown> {
-    return {
+  ): ApiResponse<Record<string, unknown>> {
+    const data = {
       status,
-      timestamp: Date.now(),
-      responseTime,
-      data: {
-        version: "1.0.0",
-        uptime: process.uptime(),
-        controllerUptime: this.getUptime(),
-        ...details,
-      },
-    };
+      version: "1.0.0",
+      uptime: process.uptime(),
+      controllerUptime: this.getUptime(),
+      ...details,
+    } as Record<string, unknown>;
+
+    return createSuccessResponse(data, { responseTime });
   }
 
   /**
@@ -287,14 +286,17 @@ export abstract class BaseController extends BaseService {
     requestId?: string,
     details?: unknown
   ): Record<string, unknown> {
-    return {
+    const response: Record<string, unknown> = {
       error,
       code,
       message,
       timestamp: Date.now(),
       requestId,
-      ...(details && { details }),
     };
+    if (details !== undefined) {
+      response.details = details;
+    }
+    return response;
   }
 
   /**

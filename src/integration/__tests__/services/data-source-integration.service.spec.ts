@@ -1,13 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { DataSourceIntegrationService } from "../../services/data-source-integration.service";
-import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
-import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
-import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
+import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
+import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
+import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+
+import { DataSourceIntegrationService } from "../../services/data-source-integration.service";
 import { DataSourceFactory } from "../../services/data-source.factory";
-import { EnhancedFeedId } from "@/common/types/feed.types";
-import { PriceUpdate } from "@/common/interfaces/core/data-source.interface";
 
 describe("DataSourceIntegrationService", () => {
   let service: DataSourceIntegrationService;
@@ -25,7 +25,7 @@ describe("DataSourceIntegrationService", () => {
       getConnectedSources: jest.fn(),
       addDataSource: jest.fn(),
       removeDataSource: jest.fn(),
-      cleanup: jest.fn(),
+      cleanupForTests: jest.fn(),
       on: jest.fn(),
       emit: jest.fn(),
     };
@@ -317,7 +317,7 @@ describe("DataSourceIntegrationService", () => {
       expect(circuitBreaker.unregisterCircuit).toHaveBeenCalledWith("coinbase");
       expect(dataManager.removeDataSource).toHaveBeenCalledWith("binance");
       expect(dataManager.removeDataSource).toHaveBeenCalledWith("coinbase");
-      expect(dataManager.cleanup).toHaveBeenCalled();
+      expect(dataManager.cleanupForTests).toHaveBeenCalled();
     });
   });
 

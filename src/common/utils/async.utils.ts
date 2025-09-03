@@ -4,7 +4,7 @@
  */
 
 import { retryWithBackoff, isRetryableError } from "./error.utils";
-import { ILogger } from "../logging/logger.interface";
+import type { ILogger } from "../types/logging";
 
 /**
  * Execute multiple async operations with controlled concurrency
@@ -251,13 +251,13 @@ export class SimpleCircuitBreaker {
 /**
  * Debounce async function calls
  */
-export function debounceAsync<T extends any[], R>(
+export function debounceAsync<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
   delay: number
 ): (...args: T) => Promise<R> {
   let timeoutId: NodeJS.Timeout | null = null;
   let resolvePromise: ((value: R) => void) | null = null;
-  let rejectPromise: ((reason: any) => void) | null = null;
+  let rejectPromise: ((reason: unknown) => void) | null = null;
 
   return (...args: T): Promise<R> => {
     return new Promise<R>((resolve, reject) => {
@@ -283,7 +283,7 @@ export function debounceAsync<T extends any[], R>(
 /**
  * Throttle async function calls
  */
-export function throttleAsync<T extends any[], R>(
+export function throttleAsync<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
   interval: number
 ): (...args: T) => Promise<R | null> {

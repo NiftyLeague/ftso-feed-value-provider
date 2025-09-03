@@ -1,7 +1,7 @@
-import { ExchangeCapabilities, ExchangeConnectionConfig } from "@/adapters/base/exchange-adapter.interface";
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { PriceUpdate, VolumeUpdate } from "@/common/interfaces/core/data-source.interface";
-import { FeedCategory } from "@/common/types/feed.types";
+import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 
 export interface CryptocomTickerData {
   i: string; // Instrument name (symbol)
@@ -72,8 +72,10 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
+      reconnectInterval: 5000,
       maxReconnectAttempts: 5,
       pingInterval: 30000, // Crypto.com requires periodic heartbeat
+      pongTimeout: 10000,
     });
 
     this.startPingInterval();
@@ -84,12 +86,12 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     await this.disconnectWebSocket();
   }
 
-  isConnected(): boolean {
+  override isConnected(): boolean {
     return super.isConnected() && this.isWebSocketConnected();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
-  protected handleWebSocketMessage(data: any): void {
+  protected override handleWebSocketMessage(data: unknown): void {
     try {
       const message: CryptocomWebSocketMessage = JSON.parse(data as string);
 
@@ -122,12 +124,12 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     }
   }
 
-  protected handleWebSocketClose(): void {
+  protected override handleWebSocketClose(): void {
     this.stopPingInterval();
     super.handleWebSocketClose(); // Call base implementation
   }
 
-  protected handleWebSocketError(error: Error): void {
+  protected override handleWebSocketError(error: Error): void {
     this.stopPingInterval();
     super.handleWebSocketError(error); // Call base implementation
   }
@@ -277,7 +279,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   }
 
   // Override symbol mapping for Crypto.com format
-  getSymbolMapping(normalizedSymbol: string): string {
+  override getSymbolMapping(normalizedSymbol: string): string {
     // Convert "BTC/USDT" to "BTC_USDT" for Crypto.com
     return normalizedSymbol.replace("/", "_");
   }

@@ -24,7 +24,8 @@ export abstract class BaseEventService extends BaseService {
     return this.eventEmitter.emit(event, ...args);
   }
 
-  on(event: string | symbol, listener: (...args: unknown[]) => void): this {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(event: string | symbol, listener: (...args: any[]) => void): this {
     this.eventEmitter.on(event, listener);
     // Track listeners added via standard on() method
     if (typeof event === "string") {
@@ -42,12 +43,14 @@ export abstract class BaseEventService extends BaseService {
     return this;
   }
 
-  once(event: string | symbol, listener: (...args: unknown[]) => void): this {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  once(event: string | symbol, listener: (...args: any[]) => void): this {
     this.eventEmitter.once(event, listener);
     return this;
   }
 
-  off(event: string | symbol, listener: (...args: unknown[]) => void): this {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  off(event: string | symbol, listener: (...args: any[]) => void): this {
     this.eventEmitter.off(event, listener);
     // Track listeners removed via standard off() method
     if (typeof event === "string") {
@@ -89,7 +92,8 @@ export abstract class BaseEventService extends BaseService {
   /**
    * Add listener with logging and tracking
    */
-  protected addListenerWithTracking(event: string, listener: (...args: unknown[]) => void): this {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected addListenerWithTracking(event: string, listener: (...args: any[]) => void): this {
     this.logger.debug(`Adding listener for event: ${event}`);
     this.eventEmitter.on(event, listener);
     this.trackListener(event);
@@ -100,7 +104,8 @@ export abstract class BaseEventService extends BaseService {
   /**
    * Remove listener with logging and tracking
    */
-  protected removeListenerWithTracking(event: string, listener: (...args: unknown[]) => void): this {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected removeListenerWithTracking(event: string, listener: (...args: any[]) => void): this {
     this.logger.debug(`Removing listener for event: ${event}`);
     this.eventEmitter.off(event, listener);
     this.untrackListener(event);

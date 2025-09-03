@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus } from "@nestjs/common";
+import { ApiErrorCodes } from "@/common/types/error-handling";
 import { ErrorResponseBuilder } from "../errors/error-response.builder";
-import { ApiErrorCodes } from "@/error-handling/api-error-handler.service";
 
 describe("ErrorResponseBuilder", () => {
   describe("generateRequestId", () => {

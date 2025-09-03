@@ -1,8 +1,9 @@
 import { Module } from "@nestjs/common";
+import type { AlertSeverity, AlertAction } from "@/common/types/monitoring";
+
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
 import { AlertingService } from "./alerting.service";
-// import { MonitoringConfig } from "./interfaces/monitoring.interfaces";
 
 @Module({
   providers: [
@@ -39,9 +40,9 @@ import { AlertingService } from "./alerting.service";
               metric: "consensus_deviation",
               threshold: 1.0,
               operator: "gt",
-              severity: "critical" as any,
+              severity: "critical" as AlertSeverity,
               duration: 0,
-              actions: ["log" as any, "email" as any, "webhook" as any],
+              actions: ["log", "email", "webhook"] as AlertAction[],
               enabled: true,
               cooldown: 300000, // 5 minutes
             },
@@ -52,9 +53,9 @@ import { AlertingService } from "./alerting.service";
               metric: "consensus_deviation",
               threshold: 0.5,
               operator: "gt",
-              severity: "error" as any,
+              severity: "error" as AlertSeverity,
               duration: 0,
-              actions: ["log" as any, "email" as any],
+              actions: ["log", "email"] as AlertAction[],
               enabled: true,
               cooldown: 300000, // 5 minutes
             },
@@ -65,9 +66,9 @@ import { AlertingService } from "./alerting.service";
               metric: "accuracy_rate",
               threshold: 80,
               operator: "lt",
-              severity: "warning" as any,
+              severity: "warning" as AlertSeverity,
               duration: 60000, // 1 minute
-              actions: ["log" as any, "email" as any],
+              actions: ["log", "email"] as AlertAction[],
               enabled: true,
               cooldown: 600000, // 10 minutes
             },
@@ -78,9 +79,9 @@ import { AlertingService } from "./alerting.service";
               metric: "response_latency",
               threshold: 100,
               operator: "gt",
-              severity: "warning" as any,
+              severity: "warning" as AlertSeverity,
               duration: 30000, // 30 seconds
-              actions: ["log" as any],
+              actions: ["log"] as AlertAction[],
               enabled: true,
               cooldown: 300000, // 5 minutes
             },
@@ -91,9 +92,9 @@ import { AlertingService } from "./alerting.service";
               metric: "data_freshness",
               threshold: 2000,
               operator: "gt",
-              severity: "error" as any,
+              severity: "error" as AlertSeverity,
               duration: 0,
-              actions: ["log" as any, "webhook" as any],
+              actions: ["log", "webhook"] as AlertAction[],
               enabled: true,
               cooldown: 60000, // 1 minute
             },
@@ -104,9 +105,9 @@ import { AlertingService } from "./alerting.service";
               metric: "connection_rate",
               threshold: 90,
               operator: "lt",
-              severity: "error" as any,
+              severity: "error" as AlertSeverity,
               duration: 30000, // 30 seconds
-              actions: ["log" as any, "email" as any, "webhook" as any],
+              actions: ["log", "email", "webhook"] as AlertAction[],
               enabled: true,
               cooldown: 300000, // 5 minutes
             },
@@ -117,9 +118,9 @@ import { AlertingService } from "./alerting.service";
               metric: "error_rate",
               threshold: 5,
               operator: "gt",
-              severity: "error" as any,
+              severity: "error" as AlertSeverity,
               duration: 60000, // 1 minute
-              actions: ["log" as any, "email" as any],
+              actions: ["log", "email"] as AlertAction[],
               enabled: true,
               cooldown: 300000, // 5 minutes
             },
@@ -130,9 +131,9 @@ import { AlertingService } from "./alerting.service";
               metric: "quality_score",
               threshold: 70,
               operator: "lt",
-              severity: "warning" as any,
+              severity: "warning" as AlertSeverity,
               duration: 120000, // 2 minutes
-              actions: ["log" as any],
+              actions: ["log"] as AlertAction[],
               enabled: true,
               cooldown: 600000, // 10 minutes
             },
