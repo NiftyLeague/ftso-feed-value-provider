@@ -221,4 +221,166 @@ describe("ValidationUtils", () => {
       expect(() => ValidationUtils.validateNumericRange(NaN, "test")).toThrow(BadRequestException);
     });
   });
+
+  // FTSO-specific validation tests
+  describe("FTSO Feed Category Validation", () => {
+    it("should accept all valid FTSO categories", () => {
+      const validCategories = [1, 2, 3, 4];
+
+      validCategories.forEach(category => {
+        expect(() => ValidationUtils.validateFeedCategory(category, "category")).not.toThrow();
+        expect(ValidationUtils.validateFeedCategory(category, "category")).toBe(category);
+      });
+    });
+
+    it("should reject invalid categories", () => {
+      const invalidCategories = [0, 5, -1, 999, 1.5, "1", null, undefined];
+
+      invalidCategories.forEach(category => {
+        expect(() => ValidationUtils.validateFeedCategory(category, "category")).toThrow(BadRequestException);
+      });
+    });
+
+    it("should provide descriptive error messages", () => {
+      expect(() => ValidationUtils.validateFeedCategory(5, "category")).toThrow(
+        /1 \(Crypto\), 2 \(Forex\), 3 \(Commodity\), 4 \(Stock\)/
+      );
+    });
+  });
+
+  describe("FTSO Feed Name Validation", () => {
+    it("should accept valid feed names", () => {
+      const validNames = ["BTC/USD", "ETH/USDT", "XRP/EUR", "ALGO/USD", "FLR/USD", "EUR/USD", "XAU/USD"];
+
+      validNames.forEach(name => {
+        expect(() => ValidationUtils.validateFeedName(name, "name")).not.toThrow();
+        expect(ValidationUtils.validateFeedName(name, "name")).toBe(name.toUpperCase());
+      });
+    });
+
+    it("should normalize feed names to uppercase", () => {
+      expect(ValidationUtils.validateFeedName("btc/usd", "name")).toBe("BTC/USD");
+    });
+
+    it("should reject invalid feed name formats", () => {
+      const invalidNames = [
+        "",
+        "BTC",
+        "BTC/",
+        "/USD",
+        "BTC-USD",
+        "BTC USD",
+        "BTC/US",
+        "BTC/USDDD",
+        "VERYLONGNAME/USD",
+        "BTC/123",
+        "123/USD",
+        "BTC/USD/EUR",
+      ];
+
+      invalidNames.forEach(name => {
+        expect(() => ValidationUtils.validateFeedName(name, "name")).toThrow(BadRequestException);
+      });
+    });
+
+    it("should provide format guidance in error messages", () => {
+      expect(() => ValidationUtils.validateFeedName("INVALID", "name")).toThrow(/BASE\/QUOTE.*BTC\/USD/);
+    });
+  });
+
+  describe("Enhanced Feed ID Validation", () => {
+    it("should validate complete feed ID with enhanced validation", () => {
+      const validFeed = { category: 1, name: "BTC/USD" };
+
+      const result = ValidationUtils.validateFeedId(validFeed);
+
+      expect(result).toEqual({ category: 1, name: "BTC/USD" });
+    });
+
+    it("should reject invalid feed objects", () => {
+      const invalidFeeds = [
+        null,
+        undefined,
+        "string",
+        123,
+        [],
+        {},
+        { category: 1 }, // missing name
+        { name: "BTC/USD" }, // missing category
+        { category: "1", name: "BTC/USD" }, // invalid category type
+        { category: 1, name: 123 }, // invalid name type
+      ];
+
+      invalidFeeds.forEach(feed => {
+        expect(() => ValidationUtils.validateFeedId(feed)).toThrow(BadRequestException);
+      });
+    });
+  });
+
+  describe("Enhanced Feed Array Validation", () => {
+    it("should detect duplicate feeds", () => {
+      const duplicateFeeds = [
+        { category: 1, name: "BTC/USD" },
+        { category: 1, name: "BTC/USD" }, // Duplicate
+      ];
+
+      expect(() => ValidationUtils.validateFeedIds(duplicateFeeds)).toThrow(/Duplicate feed detected/);
+    });
+
+    it("should allow same name with different categories", () => {
+      const validFeeds = [
+        { category: 1, name: "USD/EUR" }, // Crypto pair
+        { category: 2, name: "USD/EUR" }, // Forex pair
+      ];
+
+      expect(() => ValidationUtils.validateFeedIds(validFeeds)).not.toThrow();
+    });
+
+    it("should enforce FTSO limit of 100 feeds", () => {
+      const tooManyFeeds = Array.from({ length: 101 }, (_, i) => ({
+        category: 1,
+        name: `COIN${i}/USD`,
+      }));
+
+      expect(() => ValidationUtils.validateFeedIds(tooManyFeeds)).toThrow(/cannot contain more than 100.*FTSO limit/);
+    });
+  });
+
+  describe("FTSO Utility Methods", () => {
+    describe("getCategoryDescription", () => {
+      it("should return correct descriptions", () => {
+        expect(ValidationUtils.getCategoryDescription(1)).toBe("Crypto");
+        expect(ValidationUtils.getCategoryDescription(2)).toBe("Forex");
+        expect(ValidationUtils.getCategoryDescription(3)).toBe("Commodity");
+        expect(ValidationUtils.getCategoryDescription(4)).toBe("Stock");
+        expect(ValidationUtils.getCategoryDescription(999)).toBe("Unknown");
+      });
+    });
+
+    describe("isValidFeedNameFormat", () => {
+      it("should return true for valid names", () => {
+        expect(ValidationUtils.isValidFeedNameFormat("BTC/USD")).toBe(true);
+        expect(ValidationUtils.isValidFeedNameFormat("ETH/USDT")).toBe(true);
+      });
+
+      it("should return false for invalid names", () => {
+        expect(ValidationUtils.isValidFeedNameFormat("INVALID")).toBe(false);
+        expect(ValidationUtils.isValidFeedNameFormat("BTC-USD")).toBe(false);
+      });
+    });
+
+    describe("isValidCategory", () => {
+      it("should return true for valid categories", () => {
+        [1, 2, 3, 4].forEach(category => {
+          expect(ValidationUtils.isValidCategory(category)).toBe(true);
+        });
+      });
+
+      it("should return false for invalid categories", () => {
+        [0, 5, -1, 999].forEach(category => {
+          expect(ValidationUtils.isValidCategory(category)).toBe(false);
+        });
+      });
+    });
+  });
 });

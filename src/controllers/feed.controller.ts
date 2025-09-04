@@ -63,7 +63,7 @@ export class FeedController extends BaseController {
   ): Promise<RoundFeedValuesResponse> {
     return this.handleControllerOperation(
       async () => {
-        // Validate voting round ID
+        // Validate voting round ID with enhanced validation
         ValidationUtils.validateVotingRoundId(votingRoundId);
 
         // Validate feed requests
@@ -175,16 +175,16 @@ export class FeedController extends BaseController {
   // Private helper methods
 
   private validateFeedRequest(body: FeedValuesRequest): void {
-    // Use existing ValidationUtils for comprehensive feed validation
+    // Use enhanced validation for FTSO API compliance
     ValidationUtils.validateFeedValuesRequest(body);
   }
 
   private validateVolumeRequest(body: VolumesRequest, windowSec: number): void {
-    // Use existing ValidationUtils for comprehensive volume validation
+    // Use enhanced validation for FTSO API compliance
     ValidationUtils.validateVolumesRequest(body);
 
-    // Validate time window (ValidationUtils has validateTimeWindow but with different max)
-    ValidationUtils.validateNumericRange(windowSec, "windowSec", 1, 3600, false);
+    // Validate time window with FTSO-specific limits
+    ValidationUtils.validateTimeWindow(windowSec);
 
     // Log valid volume request
     this.logger.debug(`Volume request validated`, {

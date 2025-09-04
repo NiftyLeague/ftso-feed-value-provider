@@ -12,51 +12,204 @@ import type {
 /**
  * Validation utilities to eliminate request validation duplication
  * Reduces validation boilerplate by 150+ lines across controllers
+ * Enhanced with FTSO API compliance validation
  */
 export class ValidationUtils {
   /**
-   * Validate feed ID structure and content
+   * Valid feed categories as per FTSO specification
+   */
+  private static readonly VALID_CATEGORIES = [1, 2, 3, 4] as const;
+
+  /**
+   * Category descriptions for error messages
+   */
+  private static readonly CATEGORY_DESCRIPTIONS = {
+    1: "Crypto",
+    2: "Forex",
+    3: "Commodity",
+    4: "Stock",
+  } as const;
+
+  /**
+   * Valid feed name pattern (BASE/QUOTE format)
+   */
+  private static readonly FEED_NAME_PATTERN = /^[A-Z0-9]{1,10}\/[A-Z]{3,4}$/;
+
+  /**
+   * Supported base currencies for FTSO feeds
+   */
+  private static readonly VALID_BASE_CURRENCIES = new Set([
+    // Crypto
+    "BTC",
+    "ETH",
+    "XRP",
+    "LTC",
+    "ADA",
+    "DOT",
+    "LINK",
+    "UNI",
+    "AVAX",
+    "SOL",
+    "MATIC",
+    "POL",
+    "ATOM",
+    "ALGO",
+    "FIL",
+    "ICP",
+    "NEAR",
+    "SHIB",
+    "DOGE",
+    "BCH",
+    "TRX",
+    "ETC",
+    "XLM",
+    "BNB",
+    "USDC",
+    "USDT",
+    "USDS",
+    "FLR",
+    "SGB",
+    "XDC",
+    "ARB",
+    "INJ",
+    "TON",
+    "LEO",
+    "WIF",
+    "BONK",
+    "JUP",
+    "ETHFI",
+    "ENA",
+    "PYTH",
+    "HNT",
+    "SUI",
+    "PEPE",
+    "QNT",
+    "AAVE",
+    "ONDO",
+    "TAO",
+    "FET",
+    "RENDER",
+    "NOT",
+    // Forex
+    "EUR",
+    "GBP",
+    "JPY",
+    "CHF",
+    "CAD",
+    "AUD",
+    "NZD",
+    "USD",
+    // Commodities
+    "XAU",
+    "XAG",
+    "XPT",
+    "XPD",
+    "OIL",
+    "GAS",
+    // Stocks (examples)
+    "AAPL",
+    "GOOGL",
+    "MSFT",
+    "TSLA",
+    "AMZN",
+    "META",
+    "NVDA",
+  ]);
+
+  /**
+   * Valid quote currencies
+   */
+  private static readonly VALID_QUOTE_CURRENCIES = new Set(["USD", "USDT", "USDC", "EUR", "BTC", "ETH"]);
+  /**
+   * Validate feed ID structure and content with FTSO compliance
    */
   static validateFeedId(feed: unknown, fieldName = "feed"): FeedId {
     if (!feed || typeof feed !== "object") {
-      throw new BadRequestException(`${fieldName} must be an object`);
+      throw new BadRequestException(`${fieldName} must be an object with category and name properties`);
     }
 
     const feedObj = feed as Record<string, unknown>;
 
-    if (typeof feedObj.category !== "number") {
-      throw new BadRequestException(`${fieldName}.category must be a number`);
-    }
+    // Validate category with FTSO-specific validation
+    const category = this.validateFeedCategory(feedObj.category, `${fieldName}.category`);
 
-    if (feedObj.category < 1 || feedObj.category > 4) {
-      throw new BadRequestException(
-        `${fieldName}.category must be between 1 and 4 (1=Crypto, 2=Forex, 3=Commodity, 4=Stock)`
-      );
-    }
+    // Validate name with enhanced format checking
+    const name = this.validateFeedName(feedObj.name, `${fieldName}.name`);
 
-    if (!feedObj.name || typeof feedObj.name !== "string") {
-      throw new BadRequestException(`${fieldName}.name must be a non-empty string`);
-    }
-
-    if (!feedObj.name.includes("/")) {
-      throw new BadRequestException(`${fieldName}.name must be in format "BASE/QUOTE" (e.g., "BTC/USD")`);
-    }
-
-    const parts = feedObj.name.split("/");
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      throw new BadRequestException(
-        `${fieldName}.name must be in format "BASE/QUOTE" with valid base and quote currencies`
-      );
-    }
-
-    return {
-      category: feedObj.category,
-      name: feedObj.name,
-    };
+    return { category, name };
   }
 
   /**
-   * Validate array of feed IDs
+   * Validate feed category according to FTSO specification
+   */
+  static validateFeedCategory(category: unknown, fieldName: string): number {
+    if (typeof category !== "number") {
+      throw new BadRequestException(
+        `${fieldName} must be a number. Valid categories: ${this.VALID_CATEGORIES.map(
+          c => `${c} (${this.CATEGORY_DESCRIPTIONS[c]})`
+        ).join(", ")}`
+      );
+    }
+
+    if (!Number.isInteger(category)) {
+      throw new BadRequestException(`${fieldName} must be an integer`);
+    }
+
+    if (!this.VALID_CATEGORIES.includes(category as 1 | 2 | 3 | 4)) {
+      throw new BadRequestException(
+        `${fieldName} must be one of: ${this.VALID_CATEGORIES.map(c => `${c} (${this.CATEGORY_DESCRIPTIONS[c]})`).join(
+          ", "
+        )}`
+      );
+    }
+
+    return category;
+  }
+
+  /**
+   * Validate feed name format with enhanced FTSO compliance
+   */
+  static validateFeedName(name: unknown, fieldName: string): string {
+    if (typeof name !== "string") {
+      throw new BadRequestException(`${fieldName} must be a string`);
+    }
+
+    if (!name.trim()) {
+      throw new BadRequestException(`${fieldName} cannot be empty`);
+    }
+
+    const trimmedName = name.trim().toUpperCase();
+
+    if (!this.FEED_NAME_PATTERN.test(trimmedName)) {
+      throw new BadRequestException(
+        `${fieldName} must be in format "BASE/QUOTE" (e.g., "BTC/USD"). ` +
+          `Base currency: 1-10 alphanumeric characters, Quote currency: 3-4 letters`
+      );
+    }
+
+    const [base, quote] = trimmedName.split("/");
+
+    // Validate base currency
+    if (!this.VALID_BASE_CURRENCIES.has(base)) {
+      throw new BadRequestException(
+        `${fieldName} contains unsupported base currency "${base}". ` +
+          `Supported currencies include: ${Array.from(this.VALID_BASE_CURRENCIES).slice(0, 10).join(", ")}...`
+      );
+    }
+
+    // Validate quote currency
+    if (!this.VALID_QUOTE_CURRENCIES.has(quote)) {
+      throw new BadRequestException(
+        `${fieldName} contains unsupported quote currency "${quote}". ` +
+          `Supported quote currencies: ${Array.from(this.VALID_QUOTE_CURRENCIES).join(", ")}`
+      );
+    }
+
+    return trimmedName;
+  }
+
+  /**
+   * Validate array of feed IDs with duplicate detection
    */
   static validateFeedIds(feeds: unknown, fieldName = "feeds"): FeedId[] {
     if (!Array.isArray(feeds)) {
@@ -68,14 +221,32 @@ export class ValidationUtils {
     }
 
     if (feeds.length > 100) {
-      throw new BadRequestException(`${fieldName} array cannot contain more than 100 items`);
+      throw new BadRequestException(`${fieldName} array cannot contain more than 100 items (FTSO limit)`);
     }
 
-    return feeds.map((feed, index) => this.validateFeedId(feed, `${fieldName}[${index}]`));
+    const validatedFeeds: FeedId[] = [];
+    const seenFeeds = new Set<string>();
+
+    for (let i = 0; i < feeds.length; i++) {
+      const feed = this.validateFeedId(feeds[i], `${fieldName}[${i}]`);
+
+      // Check for duplicates
+      const feedKey = `${feed.category}:${feed.name}`;
+      if (seenFeeds.has(feedKey)) {
+        throw new BadRequestException(
+          `${fieldName}[${i}]: Duplicate feed detected (category: ${feed.category}, name: "${feed.name}")`
+        );
+      }
+
+      seenFeeds.add(feedKey);
+      validatedFeeds.push(feed);
+    }
+
+    return validatedFeeds;
   }
 
   /**
-   * Validate voting round ID
+   * Validate voting round ID according to FTSO specification
    */
   static validateVotingRoundId(votingRoundId: unknown): number {
     if (typeof votingRoundId !== "number") {
@@ -91,42 +262,41 @@ export class ValidationUtils {
     }
 
     if (votingRoundId > Number.MAX_SAFE_INTEGER) {
-      throw new BadRequestException("votingRoundId is too large");
+      throw new BadRequestException("votingRoundId exceeds maximum safe integer");
     }
 
     return votingRoundId;
   }
 
   /**
-   * Validate time window for volume requests
+   * Validate time window for volume requests with FTSO limits
    */
   static validateTimeWindow(windowSec: unknown): number {
     if (typeof windowSec !== "number") {
-      throw new BadRequestException("windowSec must be a number");
+      throw new BadRequestException("window parameter must be a number (seconds)");
     }
 
     if (!Number.isInteger(windowSec)) {
-      throw new BadRequestException("windowSec must be an integer");
+      throw new BadRequestException("window parameter must be an integer");
     }
 
     if (windowSec <= 0) {
-      throw new BadRequestException("windowSec must be positive");
+      throw new BadRequestException("window parameter must be positive");
     }
 
     if (windowSec > 86400) {
-      // 24 hours
-      throw new BadRequestException("windowSec cannot exceed 86400 seconds (24 hours)");
+      throw new BadRequestException("window parameter cannot exceed 86400 seconds (24 hours)");
     }
 
     return windowSec;
   }
 
   /**
-   * Validate timestamp
+   * Validate timestamp for FTSO API
    */
   static validateTimestamp(timestamp: unknown, fieldName: string): number {
     if (typeof timestamp !== "number") {
-      throw new BadRequestException(`${fieldName} must be a number`);
+      throw new BadRequestException(`${fieldName} must be a number (Unix timestamp in milliseconds)`);
     }
 
     if (!Number.isInteger(timestamp)) {
@@ -142,8 +312,12 @@ export class ValidationUtils {
     const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
     const oneYearFromNow = now + 365 * 24 * 60 * 60 * 1000;
 
-    if (timestamp < oneYearAgo || timestamp > oneYearFromNow) {
-      throw new BadRequestException(`${fieldName} must be within reasonable time range`);
+    if (timestamp < oneYearAgo) {
+      throw new BadRequestException(`${fieldName} is too far in the past (more than 1 year ago)`);
+    }
+
+    if (timestamp > oneYearFromNow) {
+      throw new BadRequestException(`${fieldName} is too far in the future (more than 1 year from now)`);
     }
 
     return timestamp;
@@ -439,5 +613,58 @@ export class ValidationUtils {
     }
 
     throw new BadRequestException(`${fieldName} must be a boolean value (true/false)`);
+  }
+
+  // FTSO-specific utility methods
+
+  /**
+   * Validate that feed exists in configuration
+   */
+  static validateFeedExists(feed: FeedId, availableFeeds: FeedId[]): void {
+    const feedExists = availableFeeds.some(
+      availableFeed => availableFeed.category === feed.category && availableFeed.name === feed.name
+    );
+
+    if (!feedExists) {
+      throw new BadRequestException(
+        `Feed not found: category ${feed.category}, name "${feed.name}". ` +
+          `This feed is not configured in the system.`
+      );
+    }
+  }
+
+  /**
+   * Validate multiple feeds exist in configuration
+   */
+  static validateFeedsExist(feeds: FeedId[], availableFeeds: FeedId[]): void {
+    for (const feed of feeds) {
+      this.validateFeedExists(feed, availableFeeds);
+    }
+  }
+
+  /**
+   * Get category description for error messages
+   */
+  static getCategoryDescription(category: number): string {
+    return this.CATEGORY_DESCRIPTIONS[category as keyof typeof this.CATEGORY_DESCRIPTIONS] || "Unknown";
+  }
+
+  /**
+   * Check if feed name format is valid (without throwing)
+   */
+  static isValidFeedNameFormat(name: string): boolean {
+    try {
+      this.validateFeedName(name, "name");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if category is valid (without throwing)
+   */
+  static isValidCategory(category: number): boolean {
+    return this.VALID_CATEGORIES.includes(category as 1 | 2 | 3 | 4);
   }
 }
