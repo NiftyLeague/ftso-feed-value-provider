@@ -1,5 +1,6 @@
-import { Controller, Post, Get } from "@nestjs/common";
+import { Controller, Post, Get, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { BaseController } from "@/common/base/base.controller";
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
@@ -12,6 +13,7 @@ import type {
 
 @ApiTags("API Metrics and Monitoring")
 @Controller()
+@UseGuards(RateLimitGuard)
 export class MetricsController extends BaseController {
   constructor(
     private readonly errorHandler: ApiErrorHandlerService,

@@ -83,6 +83,7 @@ export interface ResponseTimeMetric {
 export interface MemoryUsageMetric {
   timestamp: number;
   usage: number; // Memory usage in bytes
+  entryCount: number;
 }
 
 /**

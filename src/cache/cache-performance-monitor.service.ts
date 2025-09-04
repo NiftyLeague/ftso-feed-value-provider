@@ -165,10 +165,11 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
   private collectMetrics(): void {
     const cacheStats = this.cacheService.getStats();
 
-    // Record memory usage
+    // Record memory usage with entry count
     this.memoryUsageHistory.push({
       timestamp: Date.now(),
       usage: cacheStats.memoryUsage,
+      entryCount: cacheStats.totalEntries,
     });
 
     // Keep only recent history

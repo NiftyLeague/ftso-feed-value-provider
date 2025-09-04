@@ -9,7 +9,9 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  UseGuards,
 } from "@nestjs/common";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { BaseController } from "@/common/base/base.controller";
 import { ValidationUtils } from "@/common/utils/validation.utils";
@@ -32,6 +34,7 @@ import { ApiMonitorService } from "../monitoring/api-monitor.service";
 
 @ApiTags("FTSO Feed Values")
 @Controller()
+@UseGuards(RateLimitGuard)
 export class FeedController extends BaseController {
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
@@ -159,6 +162,7 @@ export class FeedController extends BaseController {
 
         return {
           data: values,
+          windowSec,
         };
       },
       `getFeedVolumes(window=${windowSec})`,
@@ -364,7 +368,7 @@ export class FeedController extends BaseController {
   }
 
   private async getCachedHistoricalData(feeds: FeedId[], votingRoundId: number): Promise<(FeedValueData | null)[]> {
-    const results = [];
+    const results: (FeedValueData | null)[] = [];
 
     for (const feed of feeds) {
       const cachedEntry = this.cacheService.getForVotingRound(feed, votingRoundId);
@@ -407,27 +411,129 @@ export class FeedController extends BaseController {
   private combineHistoricalResults(
     allFeeds: FeedId[],
     cachedResults: (FeedValueData | null)[],
-    _missingFeeds: FeedId[],
+    missingFeeds: FeedId[],
     freshData: FeedValueData[]
   ): FeedValueData[] {
-    const results: FeedValueData[] = [];
-    let freshIndex = 0;
+    const results: FeedValueData[] = new Array(allFeeds.length);
 
+    // First, fill in all cached results
     for (let i = 0; i < allFeeds.length; i++) {
-      if (cachedResults[i]) {
-        results.push(cachedResults[i] as FeedValueData);
-      } else {
-        results.push(freshData[freshIndex]);
+      if (cachedResults && cachedResults[i]) {
+        results[i] = cachedResults[i] as FeedValueData;
+      }
+    }
+
+    // If there are no missing feeds, filter out any nulls and return
+    if (missingFeeds.length === 0) {
+      const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
+      return validResults;
+    }
+
+    // Handle case where we need fresh data but none is available
+    if (!freshData || freshData.length === 0) {
+      if (missingFeeds.length > 0) {
+        throw new HttpException(
+          {
+            error: "DATA_UNAVAILABLE",
+            message: "Fresh data unavailable for requested feeds",
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
+      }
+      const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
+      return validResults;
+    }
+
+    // Map each missing feed to its corresponding fresh data
+    let freshIndex = 0;
+    for (let i = 0; i < allFeeds.length; i++) {
+      if (!results[i]) {
+        // This position needs fresh data
+        if (freshIndex >= freshData.length) {
+          throw new HttpException(
+            {
+              error: "INSUFFICIENT_DATA",
+              message: `Insufficient fresh data: expected ${missingFeeds.length} but received ${freshData.length}`,
+              statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+            },
+            HttpStatus.INTERNAL_SERVER_ERROR
+          );
+        }
+        if (freshData && freshData[freshIndex]) {
+          results[i] = freshData[freshIndex];
+        }
         freshIndex++;
       }
     }
 
-    return results;
+    return results.filter(result => result !== null && result !== undefined) as FeedValueData[];
   }
 
   private async getOptimizedVolumes(feeds: FeedId[], windowSec: number): Promise<FeedVolumeData[]> {
+    // Input validation
+    if (!feeds || !Array.isArray(feeds)) {
+      throw new HttpException(
+        {
+          error: "INVALID_INPUT",
+          message: "feeds must be a valid array",
+          code: 4001,
+          timestamp: Date.now(),
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    if (feeds.length === 0) {
+      throw new HttpException(
+        {
+          error: "INVALID_INPUT",
+          message: "feeds array cannot be empty",
+          code: 4002,
+          timestamp: Date.now(),
+        },
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
     // Use existing CCXT volume processing with USDT conversion
-    return await this.providerService.getVolumes(feeds, windowSec);
+    try {
+      const volumes = await this.providerService.getVolumes(feeds, windowSec);
+
+      if (!volumes || volumes.length === 0) {
+        // Return empty volumes instead of throwing an error
+        // This handles the case where volume data is not yet implemented
+        return feeds.map(feed => ({
+          feed,
+          volumes: [],
+        }));
+      }
+
+      if (volumes.length !== feeds.length) {
+        this.logger.warn(`Volume data mismatch: expected ${feeds.length} feeds but got ${volumes.length}`);
+      }
+
+      return volumes;
+    } catch (error) {
+      const isHttpException = error instanceof HttpException;
+
+      if (isHttpException) {
+        throw error; // Re-throw HttpExceptions as they are already properly formatted
+      }
+
+      this.logger.error(`Error fetching volumes:`, error);
+
+      throw new HttpException(
+        {
+          error: "VOLUME_FETCH_ERROR",
+          message: "Failed to fetch volume data",
+          code: 5001,
+          timestamp: Date.now(),
+          details: error instanceof Error ? error.message : undefined,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   private isFreshData(timestamp: number): boolean {

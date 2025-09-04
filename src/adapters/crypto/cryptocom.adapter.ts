@@ -58,32 +58,38 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private pingInterval?: NodeJS.Timeout;
+  private pingInterval: NodeJS.Timeout | null = null;
   private messageId = 1;
+  private pingIntervalMs = 30000; // 30 seconds
+  private readonly baseRestUrl = "https://api.crypto.com/v2";
+  private readonly baseWsUrl = "wss://stream.crypto.com/v2/market";
 
   constructor(config?: ExchangeConnectionConfig) {
     super(config);
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.config?.websocketUrl || "wss://stream.crypto.com/v2/market";
+    const wsUrl = this.config?.websocketUrl || this.baseWsUrl;
 
-    // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
       reconnectInterval: 5000,
       maxReconnectAttempts: 5,
-      pingInterval: 30000, // Crypto.com requires periodic heartbeat
+      pingInterval: this.pingIntervalMs,
       pongTimeout: 10000,
     });
 
     this.startPingInterval();
+    this.isConnectedFlag = true;
   }
 
   protected async doDisconnect(): Promise<void> {
     this.stopPingInterval();
-    await this.disconnectWebSocket();
+    if (this.isWebSocketConnected()) {
+      await this.disconnectWebSocket();
+    }
+    this.isConnectedFlag = false;
   }
 
   override isConnected(): boolean {
@@ -93,25 +99,21 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
     try {
-      const message: CryptocomWebSocketMessage = JSON.parse(data as string);
-
+      const message = typeof data === "string" ? JSON.parse(data) : data;
       // Handle pong response
-      if (message.method === "public/heartbeat") {
+      if (message?.method === "public/heartbeat") {
         return;
       }
 
       // Handle subscription confirmation
-      if (message.method === "subscribe" && message.code === 0) {
+      if (message?.method === "subscribe" && message.code === 0) {
         return;
       }
 
       // Handle ticker data
-      if (
-        (message.method === "subscription" || !message.method) &&
-        message.result?.channel === "ticker" &&
-        message.result.data
-      ) {
-        message.result.data.forEach((ticker: CryptocomTickerData) => {
+      if (message?.method === "ticker" && message.result?.data) {
+        const tickers = Array.isArray(message.result.data) ? message.result.data : [message.result.data];
+        tickers.forEach((ticker: CryptocomTickerData) => {
           if (this.validateResponse(ticker)) {
             const priceUpdate = this.normalizePriceData(ticker);
             this.onPriceUpdateCallback?.(priceUpdate);
@@ -135,18 +137,20 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   }
 
   normalizePriceData(rawData: CryptocomTickerData): PriceUpdate {
-    const price = this.parseNumber(rawData.a);
-    const volume = this.parseNumber(rawData.v);
+    const price = parseFloat(rawData.a);
+    const volume = parseFloat(rawData.v);
     const timestamp = rawData.t;
 
     // Calculate spread for confidence
-    const bid = this.parseNumber(rawData.b);
-    const ask = this.parseNumber(rawData.k);
+    const bid = parseFloat(rawData.b);
+    const ask = parseFloat(rawData.k);
     const spread = ask - bid;
     const spreadPercent = (spread / price) * 100;
 
+    const normalizedSymbol = this.normalizeSymbol(rawData.i);
+
     return {
-      symbol: this.normalizeSymbolFromExchange(rawData.i),
+      symbol: normalizedSymbol,
       price,
       timestamp,
       source: this.exchangeName,
@@ -161,8 +165,8 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
 
   normalizeVolumeData(rawData: CryptocomTickerData): VolumeUpdate {
     return {
-      symbol: this.normalizeSymbolFromExchange(rawData.i),
-      volume: this.parseNumber(rawData.v),
+      symbol: this.normalizeSymbol(rawData.i),
+      volume: parseFloat(rawData.v),
       timestamp: rawData.t,
       source: this.exchangeName,
     };
@@ -180,7 +184,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
         tickerData.i && // Symbol
         tickerData.a && // Last price
         tickerData.t && // Timestamp
-        !isNaN(this.parseNumber(tickerData.a))
+        !isNaN(parseFloat(tickerData.a))
       );
     } catch {
       return false;
@@ -188,136 +192,137 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   }
 
   protected async doSubscribe(symbols: string[]): Promise<void> {
-    const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
-
-    for (const symbol of cryptocomSymbols) {
-      // Check if already subscribed to avoid duplicates
-      if (!this.subscriptions.has(symbol)) {
-        const subscribeMessage = {
-          id: this.messageId++,
-          method: "subscribe",
-          params: {
-            channels: [`ticker.${symbol}`],
-          },
-        };
-
-        this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
-      }
+    if (!this.isConnected()) {
+      throw new Error(`Cannot subscribe: not connected to ${this.exchangeName}`);
     }
+
+    const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
+    const newSymbols = cryptocomSymbols.filter(sym => !this.subscriptions.has(sym));
+
+    if (newSymbols.length === 0) {
+      return; // Already subscribed to all symbols
+    }
+
+    const subscribeMessage = {
+      id: this.messageId++,
+      method: "subscribe",
+      params: {
+        channels: newSymbols.map(sym => `ticker.${sym}`),
+      },
+    };
+
+    this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
+    if (!this.isConnected()) {
+      return;
+    }
+
     const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
+    const subscribedSymbols = cryptocomSymbols.filter(sym => this.subscriptions.has(sym));
 
-    for (const symbol of cryptocomSymbols) {
-      // Check if actually subscribed before unsubscribing
-      if (this.subscriptions.has(symbol)) {
-        const unsubscribeMessage = {
-          id: this.messageId++,
-          method: "unsubscribe",
-          params: {
-            channels: [`ticker.${symbol}`],
-          },
-        };
+    if (subscribedSymbols.length === 0) {
+      return; // Not subscribed to any of these symbols
+    }
 
-        this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
-      }
+    const unsubscribeMessage = {
+      id: this.messageId++,
+      method: "unsubscribe",
+      params: {
+        channels: subscribedSymbols.map(sym => `ticker.${sym}`),
+      },
+    };
+
+    this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+
+    // Update local subscriptions
+    for (const sym of subscribedSymbols) {
+      this.subscriptions.delete(sym);
     }
   }
 
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
     const cryptocomSymbol = this.getSymbolMapping(symbol);
-    const baseUrl = this.config?.restApiUrl || "https://api.crypto.com";
-    const url = `${baseUrl}/v2/public/get-ticker?instrument_name=${cryptocomSymbol}`;
+    const url = `${this.baseRestUrl}/public/get-ticker?instrument_name=${cryptocomSymbol}`;
 
     try {
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result: CryptocomRestResponse = await response.json();
-
-      if (result.code !== 0 || !result.result?.data || result.result.data.length === 0) {
-        throw new Error(`Crypto.com API error: ${result.code || "No data"}`);
+      const result = (await response.json()) as CryptocomRestResponse;
+      if (result.code !== 0) {
+        throw new Error(`Crypto.com API error: ${result.code}`);
       }
 
-      const data = result.result.data[0];
+      if (!result.result.data || result.result.data.length === 0) {
+        throw new Error("Crypto.com API error: No data");
+      }
 
-      // Calculate spread for confidence
-      const price = this.parseNumber(data.a);
-      const bid = this.parseNumber(data.b);
-      const ask = this.parseNumber(data.k);
-      const spread = ask - bid;
-      const spreadPercent = (spread / price) * 100;
-
-      return {
-        symbol: this.normalizeSymbolFromExchange(data.i),
-        price,
-        timestamp: data.t,
-        source: this.exchangeName,
-        volume: this.parseNumber(data.v),
-        confidence: this.calculateConfidence(data, {
-          latency: 0, // REST call, no latency penalty
-          volume: this.parseNumber(data.v),
-          spread: spreadPercent,
-        }),
-      };
+      return this.normalizePriceData(result.result.data[0]);
     } catch (error) {
-      throw new Error(`Failed to fetch Crypto.com ticker for ${symbol}: ${error}`);
+      this.logger.error(`Error fetching ticker for ${symbol}:`, error);
+      // Re-throw the original error if it's already a formatted error
+      if (
+        error instanceof Error &&
+        (error.message.includes("HTTP error!") || error.message.includes("Crypto.com API error:"))
+      ) {
+        throw error;
+      }
+      throw new Error(`Failed to fetch Crypto.com ticker for ${symbol}`);
     }
   }
 
-  // Event handlers are now provided by BaseExchangeAdapter
-
   // Helper method to convert exchange symbol back to normalized format
-  private normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Crypto.com uses format like "BTC_USDT", convert to "BTC/USDT"
-    // Simple and reliable - we only support symbols from feeds.json
+  private normalizeSymbol(exchangeSymbol: string): string {
+    // Convert from exchange format (e.g., "BTC_USDT") to normalized format (e.g., "BTC/USDT")
     return exchangeSymbol.replace("_", "/");
   }
 
   // Override symbol mapping for Crypto.com format
-  override getSymbolMapping(normalizedSymbol: string): string {
-    // Convert "BTC/USDT" to "BTC_USDT" for Crypto.com
+  public override getSymbolMapping(normalizedSymbol: string): string {
+    // Convert from normalized format (e.g., "BTC/USDT") to exchange format (e.g., "BTC_USDT")
     return normalizedSymbol.replace("/", "_");
   }
 
   // Crypto.com requires periodic heartbeat to keep connection alive
   private startPingInterval(): void {
+    this.stopPingInterval();
+
     this.pingInterval = setInterval(() => {
-      if (this.isConnected()) {
-        const heartbeatMessage = {
-          id: this.messageId++,
-          method: "public/heartbeat",
-          params: {},
-        };
-        this.sendWebSocketMessage(JSON.stringify(heartbeatMessage));
+      if (this.isWebSocketConnected()) {
+        this.sendWebSocketMessage(
+          JSON.stringify({
+            method: "public/heartbeat",
+            id: this.messageId++,
+          })
+        );
       }
-    }, 30000); // Heartbeat every 30 seconds
+    }, this.pingIntervalMs);
   }
 
   private stopPingInterval(): void {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
-      this.pingInterval = undefined;
+      this.pingInterval = null;
     }
   }
 
   protected async doHealthCheck(): Promise<boolean> {
     try {
-      // Try REST API health check
-      const baseUrl = this.config?.restApiUrl || "https://api.crypto.com";
-      const response = await fetch(`${baseUrl}/v2/public/get-instruments`);
-
-      if (!response.ok) {
-        return false;
+      if (this.isConnected()) {
+        return true;
       }
 
-      const result: CryptocomRestResponse = await response.json();
+      // If not connected via WebSocket, try REST API
+      const response = await fetch(`${this.baseRestUrl}/public/get-instruments`);
+      const result = await response.json();
       return result.code === 0;
-    } catch {
+    } catch (error) {
+      this.logger.error("Health check failed:", error);
       return false;
     }
   }

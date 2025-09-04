@@ -31,6 +31,6 @@
     "noImplicitThis": true,
     "noImplicitOverride": true
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "scripts/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

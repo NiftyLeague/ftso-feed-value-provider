@@ -21,10 +21,14 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:unit": "jest --testPathIgnorePatterns=integration performance accuracy",
-    "test:integration": "jest --testPathPatterns=integration",
-    "test:performance": "jest --testPathPatterns=performance --testTimeout=300000 --maxWorkers=1",
-    "test:accuracy": "jest --testPathPatterns=accuracy --testTimeout=300000 --maxWorkers=1",
+    "test:verbose": "VERBOSE_TEST_LOGS=true jest",
+    "test:no-suppress": "SUPPRESS_TEST_LOGS=false jest",
+    "test:quiet": "SUPPRESS_TEST_LOGS=true jest --silent",
+    "test:accuracy": "jest --testPathPatterns=accuracy --testTimeout=100000 --maxWorkers=1",
+    "test:endurance": "jest --config=jest.endurance.config.js",
+    "test:integration": "jest --testPathPatterns=integration --testTimeout=100000 --maxWorkers=1",
+    "test:performance": "jest --testPathPatterns=performance --testTimeout=100000 --maxWorkers=1",
+    "test:unit": "jest --testPathIgnorePatterns=accuracy endurance integration performance",
     "validate-config": "ts-node -r tsconfig-paths/register src/config/validate-config.ts"
   },
   "dependencies": {

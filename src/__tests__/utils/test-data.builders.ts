@@ -1,6 +1,7 @@
 import { FeedCategory, EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 import { AggregatedPrice } from "@/common/types/services";
 import { ValidationContext, DataValidatorResult } from "@/common/types/data-manager";
+import { FeedId } from "@/common/types/http";
 
 /**
  * Builder pattern for creating test data objects
@@ -12,6 +13,17 @@ export class TestDataBuilder {
   static createFeedId(overrides: Partial<EnhancedFeedId> = {}): EnhancedFeedId {
     return {
       category: FeedCategory.Crypto,
+      name: "BTC/USD",
+      ...overrides,
+    };
+  }
+
+  /**
+   * Create a valid FeedId for HTTP API testing (with numeric category)
+   */
+  static createHttpFeedId(overrides: Partial<FeedId> = {}): FeedId {
+    return {
+      category: 1, // FeedCategory.Crypto as number
       name: "BTC/USD",
       ...overrides,
     };

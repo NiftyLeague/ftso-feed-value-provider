@@ -118,7 +118,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     // Calculate hit rate and other metrics
     const totalRequests = this.stats.hits + this.stats.misses;
     const hitRate = totalRequests > 0 ? this.stats.hits / totalRequests : 0;
-    const missRate = 1 - hitRate;
+    const missRate = totalRequests > 0 ? this.stats.misses / totalRequests : 0;
 
     // Calculate average response time as a weighted average of get and set times
     const totalOperations = this.stats.hits + this.stats.misses;

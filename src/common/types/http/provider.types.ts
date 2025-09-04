@@ -46,4 +46,5 @@ export interface FeedValuesResponse {
 
 export interface FeedVolumesResponse {
   data: FeedVolumeData[];
+  windowSec?: number;
 }

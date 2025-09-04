@@ -151,6 +151,61 @@ describe("CircuitBreakerService", () => {
 
       expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
     });
+
+    it("should reset failure count when transitioning to CLOSED", async () => {
+      const serviceId = "test-service";
+
+      // Generate some failures but not enough to open circuit
+      try {
+        await service.execute(serviceId, async () => {
+          throw new Error("Test failure");
+        });
+      } catch (error) {
+        // Expected
+      }
+
+      let stats = service.getStats(serviceId);
+      expect(stats!.failureCount).toBe(1);
+
+      // Execute successful request - should reset failure count
+      await service.execute(serviceId, async () => {
+        return "success";
+      });
+
+      stats = service.getStats(serviceId);
+      expect(stats!.failureCount).toBe(0);
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.CLOSED);
+    });
+
+    it("should handle automatic recovery timeout correctly", async () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, {
+        failureThreshold: 1,
+        recoveryTimeout: 200,
+        successThreshold: 1,
+      });
+
+      // Open circuit by causing failure
+      try {
+        await service.execute(serviceId, async () => {
+          throw new Error("Test failure");
+        });
+      } catch (error) {
+        // Expected
+      }
+
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
+
+      // Wait for recovery timeout
+      await new Promise(resolve => setTimeout(resolve, 250));
+
+      // Next successful request should close the circuit
+      await service.execute(serviceId, async () => {
+        return "success";
+      });
+
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.CLOSED);
+    });
   });
 
   describe("Request Execution", () => {
@@ -250,6 +305,77 @@ describe("CircuitBreakerService", () => {
       expect(metrics!.requestCount).toBe(3);
       expect(metrics!.failureRate).toBeCloseTo(1 / 3);
     });
+
+    it("should track response times accurately", async () => {
+      const serviceId = "test-service";
+
+      // Execute requests with different response times
+      await service.execute(serviceId, async () => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return "fast";
+      });
+
+      await service.execute(serviceId, async () => {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        return "slow";
+      });
+
+      const metrics = service.getMetrics(serviceId);
+      expect(metrics!.requestCount).toBe(2);
+      expect(metrics!.averageResponseTime).toBeGreaterThan(90);
+      expect(metrics!.averageResponseTime).toBeLessThan(120);
+    });
+
+    it("should clean old history outside monitoring window", async () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { monitoringWindow: 100 });
+
+      // Execute a request
+      await service.execute(serviceId, async () => "old-request");
+
+      // Wait for monitoring window to pass
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // Execute another request
+      await service.execute(serviceId, async () => "new-request");
+
+      const metrics = service.getMetrics(serviceId);
+      // Should only count the new request
+      expect(metrics!.requestCount).toBe(1);
+    });
+
+    it("should handle stats updates correctly", async () => {
+      const serviceId = "test-service";
+
+      const initialStats = service.getStats(serviceId);
+      expect(initialStats!.totalRequests).toBe(0);
+      expect(initialStats!.totalSuccesses).toBe(0);
+      expect(initialStats!.totalFailures).toBe(0);
+
+      // Execute successful request
+      await service.execute(serviceId, async () => "success");
+
+      let stats = service.getStats(serviceId);
+      expect(stats!.totalRequests).toBe(1);
+      expect(stats!.totalSuccesses).toBe(1);
+      expect(stats!.totalFailures).toBe(0);
+      expect(stats!.lastSuccessTime).toBeDefined();
+
+      // Execute failed request
+      try {
+        await service.execute(serviceId, async () => {
+          throw new Error("Test failure");
+        });
+      } catch (error) {
+        // Expected
+      }
+
+      stats = service.getStats(serviceId);
+      expect(stats!.totalRequests).toBe(2);
+      expect(stats!.totalSuccesses).toBe(1);
+      expect(stats!.totalFailures).toBe(1);
+      expect(stats!.lastFailureTime).toBeDefined();
+    });
   });
 
   describe("Health Summary", () => {
@@ -344,6 +470,135 @@ describe("CircuitBreakerService", () => {
         return "success";
       });
     });
+
+    it("should emit circuit closed events", done => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { failureThreshold: 1, successThreshold: 1 });
+
+      // First open the circuit
+      service.openCircuit(serviceId, "Test");
+
+      service.on("circuitClosed", emittedServiceId => {
+        expect(emittedServiceId).toBe(serviceId);
+        done();
+      });
+
+      // Manually close the circuit to trigger event
+      service.closeCircuit(serviceId, "Manual recovery");
+    });
+
+    it("should emit circuit half-open events", done => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { recoveryTimeout: 100 });
+
+      service.on("circuitHalfOpen", emittedServiceId => {
+        expect(emittedServiceId).toBe(serviceId);
+        done();
+      });
+
+      // Open circuit and wait for automatic transition to half-open
+      service.openCircuit(serviceId, "Test");
+    });
+
+    it("should emit request failure events", done => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId);
+
+      service.on("requestFailure", (emittedServiceId, responseTime) => {
+        expect(emittedServiceId).toBe(serviceId);
+        expect(responseTime).toBeGreaterThanOrEqual(0);
+        done();
+      });
+
+      service
+        .execute(serviceId, async () => {
+          throw new Error("Test failure");
+        })
+        .catch(() => {
+          // Expected failure
+        });
+    });
+  });
+
+  describe("Edge Cases and Error Conditions", () => {
+    it("should handle execution on non-existent circuit", async () => {
+      const serviceId = "non-existent-service";
+
+      await expect(service.execute(serviceId, async () => "success")).rejects.toThrow(
+        "Circuit breaker not registered for service: non-existent-service"
+      );
+    });
+
+    it("should handle multiple rapid failures correctly", async () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { failureThreshold: 3 });
+
+      // Execute multiple failures rapidly
+      const promises = Array.from({ length: 5 }, () =>
+        service
+          .execute(serviceId, async () => {
+            throw new Error("Rapid failure");
+          })
+          .catch(() => {
+            // Expected failures
+          })
+      );
+
+      await Promise.all(promises);
+
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
+      const stats = service.getStats(serviceId);
+      expect(stats!.totalFailures).toBe(5);
+    });
+
+    it("should handle concurrent executions correctly", async () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId);
+
+      // Execute multiple concurrent operations
+      const promises = Array.from({ length: 10 }, (_, i) =>
+        service.execute(serviceId, async () => {
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 10));
+          return `result-${i}`;
+        })
+      );
+
+      const results = await Promise.all(promises);
+      expect(results).toHaveLength(10);
+      results.forEach((result, i) => {
+        expect(result).toBe(`result-${i}`);
+      });
+
+      const stats = service.getStats(serviceId);
+      expect(stats!.totalSuccesses).toBe(10);
+    });
+
+    it("should handle circuit registration with invalid config gracefully", () => {
+      const serviceId = "test-service";
+
+      // Register with partial config - should use defaults for missing values
+      service.registerCircuit(serviceId, { failureThreshold: -1 }); // Invalid threshold
+
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.CLOSED);
+      expect(service.getStats(serviceId)).toBeDefined();
+    });
+
+    it("should handle metrics calculation with no requests", () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId);
+
+      const metrics = service.getMetrics(serviceId);
+      expect(metrics).toBeDefined();
+      expect(metrics!.requestCount).toBe(0);
+      expect(metrics!.failureRate).toBe(0);
+      expect(metrics!.averageResponseTime).toBe(0);
+    });
+
+    it("should handle state queries for non-existent circuits", () => {
+      expect(service.getState("non-existent")).toBeUndefined();
+      expect(service.getStats("non-existent")).toBeUndefined();
+      expect(service.getMetrics("non-existent")).toBeUndefined();
+    });
   });
 
   describe("Cleanup", () => {
@@ -367,6 +622,37 @@ describe("CircuitBreakerService", () => {
       service.destroy();
 
       expect(service.getAllStates().size).toBe(0);
+    });
+
+    it("should clear pending timers on unregister", async () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { recoveryTimeout: 5000 });
+
+      // Open circuit to start recovery timer
+      service.openCircuit(serviceId, "Test");
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
+
+      // Unregister should clear the timer
+      service.unregisterCircuit(serviceId);
+      expect(service.getState(serviceId)).toBeUndefined();
+
+      // Wait a bit to ensure timer was cleared (no state change should occur)
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(service.getState(serviceId)).toBeUndefined();
+    });
+
+    it("should handle multiple destroy calls gracefully", () => {
+      service.registerCircuit("service1");
+      service.registerCircuit("service2");
+
+      expect(service.getAllStates().size).toBe(2);
+
+      // First destroy
+      service.destroy();
+      expect(service.getAllStates().size).toBe(0);
+
+      // Second destroy should not throw
+      expect(() => service.destroy()).not.toThrow();
     });
   });
 });

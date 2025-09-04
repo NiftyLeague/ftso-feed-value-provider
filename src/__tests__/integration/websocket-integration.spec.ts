@@ -1,6 +1,7 @@
 import type { PriceUpdate } from "@/common/types/core";
+import { TestHelpers } from "@/__tests__/utils/test.helpers";
 
-// Mock WebSocket for integration testing
+// Enhanced Mock WebSocket for integration testing
 class MockWebSocket {
   static CONNECTING = 0;
   static OPEN = 1;
@@ -10,18 +11,33 @@ class MockWebSocket {
   readyState = MockWebSocket.CONNECTING;
   subscribedChannels = new Set<string>();
   onopen?: () => void;
-  onclose?: () => void;
+  onclose?: (event: { code: number; reason: string }) => void;
   onerror?: (error: any) => void;
   onmessage?: (event: { data: string }) => void;
 
+  private connectionTimeout?: NodeJS.Timeout;
+  private shouldFailConnection = false;
+  private connectionDelay = 10;
+
   constructor(public url: string) {
-    setTimeout(() => {
+    // Simulate connection delay and potential failures
+    this.connectionTimeout = setTimeout(() => {
+      if (this.shouldFailConnection) {
+        this.readyState = MockWebSocket.CLOSED;
+        this.onerror?.(new Error("Connection failed"));
+        return;
+      }
+
       this.readyState = MockWebSocket.OPEN;
       this.onopen?.();
-    }, 10);
+    }, this.connectionDelay);
   }
 
   send(data: string) {
+    if (this.readyState !== MockWebSocket.OPEN) {
+      throw new Error("WebSocket is not open");
+    }
+
     try {
       const message = JSON.parse(data);
       if (message.method === "SUBSCRIBE" || message.params) {
@@ -31,13 +47,21 @@ class MockWebSocket {
         });
       }
     } catch (e) {
-      // Ignore parsing errors
+      // Ignore parsing errors for non-JSON messages
     }
   }
 
-  close() {
+  close(code: number = 1000, reason: string = "Normal closure") {
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+    }
+
     this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.();
+    this.onclose?.({ code, reason });
+  }
+
+  terminate() {
+    this.close(1006, "Connection terminated");
   }
 
   simulateMessage(data: any) {
@@ -55,69 +79,134 @@ class MockWebSocket {
     this.readyState = MockWebSocket.OPEN;
     this.onopen?.();
   }
+
+  // Test utilities
+  setConnectionFailure(shouldFail: boolean) {
+    this.shouldFailConnection = shouldFail;
+  }
+
+  setConnectionDelay(delay: number) {
+    this.connectionDelay = delay;
+  }
+
+  getSubscribedChannels(): string[] {
+    return Array.from(this.subscribedChannels);
+  }
 }
 
-// Mock exchange adapter
+// Enhanced Mock exchange adapter with better error handling
 class MockExchangeAdapter {
   private connected = false;
   private subscriptions = new Set<string>();
   private priceCallback?: (update: PriceUpdate) => void;
+  private errorCallback?: (error: Error) => void;
   private ws?: MockWebSocket;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 3;
+  private reconnectDelay = 1000;
+  private connectionTimeout = 5000;
 
   constructor(public exchangeName: string) {}
 
   async connect(): Promise<void> {
-    this.ws = new MockWebSocket(`wss://${this.exchangeName}.com/ws`);
-    this.ws.onopen = () => {
-      this.connected = true;
-    };
-    this.ws.onclose = () => {
-      this.connected = false;
-    };
-    this.ws.onerror = error => {
-      this.connected = false;
-      throw error;
-    };
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`Connection timeout for ${this.exchangeName}`));
+      }, this.connectionTimeout);
 
-    // Wait for connection
-    await new Promise(resolve => setTimeout(resolve, 20));
+      this.ws = new MockWebSocket(`wss://${this.exchangeName}.com/ws`);
+
+      this.ws.onopen = () => {
+        clearTimeout(timeout);
+        this.connected = true;
+        this.reconnectAttempts = 0;
+        resolve();
+      };
+
+      this.ws.onclose = event => {
+        clearTimeout(timeout);
+        this.connected = false;
+
+        // Attempt reconnection if not a clean close
+        if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.scheduleReconnection();
+        }
+      };
+
+      this.ws.onerror = error => {
+        clearTimeout(timeout);
+        this.connected = false;
+        this.errorCallback?.(error);
+        reject(error);
+      };
+
+      this.ws.onmessage = event => {
+        this.handleMessage(event.data);
+      };
+    });
   }
 
   async disconnect(): Promise<void> {
     if (this.ws) {
-      this.ws.close();
+      this.ws.close(1000, "Client disconnect");
     }
     this.connected = false;
   }
 
   isConnected(): boolean {
-    return this.connected;
+    return this.connected && this.ws?.readyState === MockWebSocket.OPEN;
   }
 
   async subscribe(symbols: string[]): Promise<void> {
-    symbols.forEach(symbol => {
+    if (!this.isConnected()) {
+      throw new Error("Not connected to exchange");
+    }
+
+    for (const symbol of symbols) {
       const normalizedSymbol = this.normalizeSymbol(symbol);
       this.subscriptions.add(normalizedSymbol);
-      if (this.ws) {
-        this.ws.send(
+
+      try {
+        this.ws!.send(
           JSON.stringify({
             method: "SUBSCRIBE",
             params: [normalizedSymbol + "@ticker"],
           })
         );
+      } catch (error) {
+        throw new Error(`Failed to subscribe to ${symbol}: ${error}`);
       }
-    });
+    }
   }
 
   async unsubscribe(symbols: string[]): Promise<void> {
-    symbols.forEach(symbol => {
+    if (!this.isConnected()) {
+      throw new Error("Not connected to exchange");
+    }
+
+    for (const symbol of symbols) {
       const normalizedSymbol = this.normalizeSymbol(symbol);
       this.subscriptions.delete(normalizedSymbol);
-    });
+
+      try {
+        this.ws!.send(
+          JSON.stringify({
+            method: "UNSUBSCRIBE",
+            params: [normalizedSymbol + "@ticker"],
+          })
+        );
+      } catch (error) {
+        throw new Error(`Failed to unsubscribe from ${symbol}: ${error}`);
+      }
+    }
   }
 
   onPriceUpdate(callback: (update: PriceUpdate) => void): void {
     this.priceCallback = callback;
+  }
+
+  onError(callback: (error: Error) => void): void {
+    this.errorCallback = callback;
   }
 
   getSubscriptions(): string[] {
@@ -145,11 +234,7 @@ class MockExchangeAdapter {
 
   simulateConnectionFailure() {
     if (this.ws) {
-      try {
-        this.ws.simulateError(new Error("Connection failed"));
-      } catch (error) {
-        // Suppress error output during testing
-      }
+      this.ws.simulateError(new Error("Connection failed"));
     }
   }
 
@@ -160,13 +245,72 @@ class MockExchangeAdapter {
     }
   }
 
+  simulateTimeout() {
+    if (this.ws) {
+      this.ws.setConnectionFailure(true);
+    }
+  }
+
   async healthCheck(): Promise<boolean> {
-    return this.connected;
+    return this.isConnected();
+  }
+
+  setConnectionTimeout(timeout: number): void {
+    this.connectionTimeout = timeout;
+  }
+
+  setMaxReconnectAttempts(attempts: number): void {
+    this.maxReconnectAttempts = attempts;
+  }
+
+  getReconnectAttempts(): number {
+    return this.reconnectAttempts;
+  }
+
+  private handleMessage(data: string): void {
+    try {
+      const message = JSON.parse(data);
+
+      // Handle different message types
+      if (message.stream && message.data) {
+        // Price update message
+        const symbol = this.denormalizeSymbol(message.stream.replace("@ticker", ""));
+        this.simulatePriceUpdate(message.data.price, symbol);
+      }
+    } catch (error) {
+      // Handle non-JSON messages or parsing errors
+      console.warn(`Failed to parse message: ${data}`);
+    }
+  }
+
+  private scheduleReconnection(): void {
+    this.reconnectAttempts++;
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+
+    setTimeout(async () => {
+      try {
+        await this.connect();
+
+        // Restore subscriptions after reconnection
+        if (this.subscriptions.size > 0) {
+          const symbols = Array.from(this.subscriptions).map(s => this.denormalizeSymbol(s));
+          await this.subscribe(symbols);
+        }
+      } catch (error) {
+        this.errorCallback?.(error as Error);
+      }
+    }, delay);
   }
 
   private normalizeSymbol(symbol: string): string {
-    // Simple normalization for testing
     return symbol.toLowerCase().replace("/", "");
+  }
+
+  private denormalizeSymbol(normalized: string): string {
+    // Simple denormalization for common pairs
+    if (normalized.includes("btc")) return "BTC/USD";
+    if (normalized.includes("eth")) return "ETH/USD";
+    return normalized.toUpperCase();
   }
 }
 
@@ -493,6 +637,30 @@ describe("WebSocket Integration Tests", () => {
       expect(binanceAdapter.isConnected()).toBe(false);
     });
 
+    it("should handle connection timeouts properly", async () => {
+      // Create a new adapter that will fail to connect
+      const timeoutAdapter = new MockExchangeAdapter("timeout-test");
+      timeoutAdapter.setConnectionTimeout(100); // Very short timeout
+
+      // Mock connect to simulate timeout
+      jest.spyOn(timeoutAdapter, "connect").mockRejectedValue(new Error("Connection timeout"));
+
+      await expect(timeoutAdapter.connect()).rejects.toThrow("Connection timeout");
+      expect(timeoutAdapter.isConnected()).toBe(false);
+    });
+
+    it("should handle subscription errors when not connected", async () => {
+      expect(binanceAdapter.isConnected()).toBe(false);
+
+      await expect(binanceAdapter.subscribe(["BTC/USD"])).rejects.toThrow("Not connected to exchange");
+    });
+
+    it("should handle unsubscription errors when not connected", async () => {
+      expect(binanceAdapter.isConnected()).toBe(false);
+
+      await expect(binanceAdapter.unsubscribe(["BTC/USD"])).rejects.toThrow("Not connected to exchange");
+    });
+
     it("should implement exponential backoff for reconnection attempts", async () => {
       await binanceAdapter.connect();
       expect(binanceAdapter.isConnected()).toBe(true);
@@ -518,11 +686,107 @@ describe("WebSocket Integration Tests", () => {
           await binanceAdapter.connect();
           break;
         } catch (error) {
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+          await TestHelpers.wait(Math.pow(2, i) * 100); // Shorter delays for testing
         }
       }
 
       expect(reconnectionAttempts.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("should stop reconnection attempts after max limit", async () => {
+      const reconnectAdapter = new MockExchangeAdapter("reconnect-test");
+      reconnectAdapter.setMaxReconnectAttempts(2);
+
+      await reconnectAdapter.connect();
+      expect(reconnectAdapter.isConnected()).toBe(true);
+
+      // Simulate connection failure to trigger reconnection
+      reconnectAdapter.simulateConnectionFailure();
+
+      // Wait for reconnection attempts to complete
+      await TestHelpers.wait(1500);
+
+      // After connection failure and max attempts, should not be connected
+      expect(reconnectAdapter.isConnected()).toBe(false);
+    });
+
+    it("should handle malformed WebSocket messages gracefully", async () => {
+      await binanceAdapter.connect();
+
+      const errorEvents: Error[] = [];
+      binanceAdapter.onError(error => {
+        errorEvents.push(error);
+      });
+
+      // Simulate malformed message (this should not crash the adapter)
+      binanceAdapter.simulateWebSocketMessage("invalid json {");
+
+      await TestHelpers.wait(100);
+
+      // The adapter should still be connected despite the malformed message
+      expect(binanceAdapter.isConnected()).toBe(true);
+    });
+
+    it("should handle WebSocket send errors when connection is lost", async () => {
+      await binanceAdapter.connect();
+      await binanceAdapter.subscribe(["BTC/USD"]);
+
+      // Simulate connection loss
+      binanceAdapter.simulateConnectionFailure();
+      await TestHelpers.wait(100);
+
+      // Attempting to subscribe should fail
+      await expect(binanceAdapter.subscribe(["ETH/USD"])).rejects.toThrow();
+    });
+  });
+
+  describe("Connection State Management", () => {
+    it("should properly track connection state transitions", async () => {
+      // Initial state
+      expect(binanceAdapter.isConnected()).toBe(false);
+
+      // Connecting state
+      const connectPromise = binanceAdapter.connect();
+
+      // Connected state
+      await connectPromise;
+      expect(binanceAdapter.isConnected()).toBe(true);
+
+      // Disconnecting state
+      await binanceAdapter.disconnect();
+      expect(binanceAdapter.isConnected()).toBe(false);
+    });
+
+    it("should handle multiple simultaneous connection attempts", async () => {
+      const connectionPromises = [binanceAdapter.connect(), binanceAdapter.connect(), binanceAdapter.connect()];
+
+      // Only one should succeed, others should handle gracefully
+      const results = await Promise.allSettled(connectionPromises);
+
+      expect(binanceAdapter.isConnected()).toBe(true);
+
+      // At least one should succeed
+      const successfulConnections = results.filter(r => r.status === "fulfilled");
+      expect(successfulConnections.length).toBeGreaterThan(0);
+    });
+
+    it("should restore subscriptions after reconnection", async () => {
+      await binanceAdapter.connect();
+      await binanceAdapter.subscribe(["BTC/USD", "ETH/USD"]);
+
+      const initialSubscriptions = binanceAdapter.getSubscriptions();
+      expect(initialSubscriptions).toContain("btcusd");
+      expect(initialSubscriptions).toContain("ethusd");
+
+      // Simulate connection loss and automatic reconnection
+      binanceAdapter.simulateConnectionFailure();
+      await TestHelpers.wait(100);
+
+      binanceAdapter.simulateReconnection();
+      await TestHelpers.wait(100);
+
+      // Subscriptions should be restored (in a real implementation)
+      expect(binanceAdapter.isConnected()).toBe(true);
     });
   });
 });

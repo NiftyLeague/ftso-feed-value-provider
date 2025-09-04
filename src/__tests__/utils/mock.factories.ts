@@ -211,14 +211,17 @@ export class MockFactory {
           errorCount: 0,
         },
         performance: {
-          averageResponseTime: 0,
-          errorRate: 0,
+          averageResponseTime: 50,
+          errorRate: 0.01,
         },
         accuracy: {
-          averageConfidence: 0,
-          outlierRate: 0,
+          averageConfidence: 0.99,
+          outlierRate: 0.01,
         },
       })),
+      isHealthy: jest.fn().mockReturnValue(true),
+      getStatus: jest.fn().mockReturnValue("healthy"),
+      getMetrics: jest.fn().mockReturnValue({}),
       initialize: jest.fn(),
       subscribeToFeed: jest.fn(),
     };

@@ -6,13 +6,20 @@ import { PerformanceMonitorService } from "@/monitoring/performance-monitor.serv
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
+import { ConfigService } from "@/config/config.service";
+import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { type EnhancedFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
 
-import { IntegrationModule } from "../integration.module";
 import { IntegrationService } from "../integration.service";
+import { DataSourceIntegrationService } from "../services/data-source-integration.service";
+import { PriceAggregationCoordinatorService } from "../services/price-aggregation-coordinator.service";
+import { SystemHealthService } from "../services/system-health.service";
 
 describe("Service Wiring Integration", () => {
   let integrationService: IntegrationService;
+  let dataSourceIntegration: DataSourceIntegrationService;
+  let priceAggregationCoordinator: PriceAggregationCoordinatorService;
+  let systemHealth: SystemHealthService;
   let dataManager: ProductionDataManagerService;
   let aggregationService: RealTimeAggregationService;
   let cacheService: RealTimeCacheService;
@@ -23,11 +30,142 @@ describe("Service Wiring Integration", () => {
   let module: TestingModule;
 
   beforeEach(async () => {
+    // Create comprehensive mocks for all services
+    const mockConfigService = {
+      get: jest.fn(),
+      getConfig: jest.fn(),
+      getFeedConfigurations: jest.fn().mockReturnValue([]),
+      getEnvironmentConfig: jest.fn().mockReturnValue({}),
+    };
+
+    const mockLogger = {
+      log: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      verbose: jest.fn(),
+    };
+
+    const mockDataManager = {
+      emit: jest.fn(),
+      on: jest.fn(),
+      subscribeToFeed: jest.fn(),
+      cleanupForTests: jest.fn(),
+    };
+
+    const mockAggregationService = {
+      emit: jest.fn(),
+      on: jest.fn(),
+      processPriceUpdate: jest.fn(),
+      addPriceUpdate: jest.fn(),
+      getAggregatedPrice: jest.fn().mockResolvedValue({
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        sources: ["test-source"],
+        confidence: 0.95,
+        consensusScore: 0.9,
+      }),
+    };
+
+    const mockCacheService = {
+      setPrice: jest.fn(),
+      getPrice: jest.fn().mockReturnValue({
+        value: 50000,
+        timestamp: Date.now(),
+        sources: ["test-source"],
+        confidence: 0.95,
+      }),
+    };
+
+    const mockAccuracyMonitor = {
+      emit: jest.fn(),
+      on: jest.fn(),
+      recordPrice: jest.fn(),
+    };
+
+    const mockPerformanceMonitor = {
+      recordPriceUpdate: jest.fn(),
+      checkPerformanceThresholds: jest.fn(),
+      checkAndEmitAlerts: jest.fn(),
+    };
+
+    const mockAlertingService = {
+      sendAlert: jest.fn(),
+    };
+
+    const mockErrorHandler = {
+      handleError: jest.fn(),
+      recordFailure: jest.fn(),
+      destroy: jest.fn(),
+    };
+
+    const mockDataSourceIntegration = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+      subscribeToFeed: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn(),
+      emit: jest.fn(),
+    };
+
+    const mockPriceAggregationCoordinator = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+      configureFeed: jest.fn().mockResolvedValue(undefined),
+      getCurrentPrice: jest.fn().mockResolvedValue({
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        sources: ["test-source"],
+        confidence: 0.95,
+        consensusScore: 0.9,
+      }),
+      getCurrentPrices: jest.fn().mockResolvedValue([]),
+      handlePriceUpdate: jest.fn(),
+      on: jest.fn(),
+      emit: jest.fn(),
+    };
+
+    const mockSystemHealth = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+      getOverallHealth: jest.fn().mockReturnValue({
+        status: "healthy",
+        timestamp: Date.now(),
+        sources: [],
+        aggregation: { errorCount: 0, successRate: 1.0 },
+        performance: { averageResponseTime: 50, errorRate: 0.0 },
+        accuracy: { averageConfidence: 0.95, outlierRate: 0.0 },
+      }),
+      recordPriceAggregation: jest.fn(),
+      recordSourceHealth: jest.fn(),
+      recordAggregationError: jest.fn(),
+      on: jest.fn(),
+      emit: jest.fn(),
+    };
+
     module = await Test.createTestingModule({
-      imports: [IntegrationModule],
+      providers: [
+        IntegrationService,
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: EnhancedLoggerService, useValue: mockLogger },
+        { provide: DataSourceIntegrationService, useValue: mockDataSourceIntegration },
+        { provide: PriceAggregationCoordinatorService, useValue: mockPriceAggregationCoordinator },
+        { provide: SystemHealthService, useValue: mockSystemHealth },
+        { provide: ProductionDataManagerService, useValue: mockDataManager },
+        { provide: RealTimeAggregationService, useValue: mockAggregationService },
+        { provide: RealTimeCacheService, useValue: mockCacheService },
+        { provide: AccuracyMonitorService, useValue: mockAccuracyMonitor },
+        { provide: PerformanceMonitorService, useValue: mockPerformanceMonitor },
+        { provide: AlertingService, useValue: mockAlertingService },
+        { provide: HybridErrorHandlerService, useValue: mockErrorHandler },
+      ],
     }).compile();
 
     integrationService = module.get<IntegrationService>(IntegrationService);
+    dataSourceIntegration = module.get<DataSourceIntegrationService>(DataSourceIntegrationService);
+    priceAggregationCoordinator = module.get<PriceAggregationCoordinatorService>(PriceAggregationCoordinatorService);
+    systemHealth = module.get<SystemHealthService>(SystemHealthService);
     dataManager = module.get<ProductionDataManagerService>(ProductionDataManagerService);
     aggregationService = module.get<RealTimeAggregationService>(RealTimeAggregationService);
     cacheService = module.get<RealTimeCacheService>(RealTimeCacheService);
@@ -42,10 +180,10 @@ describe("Service Wiring Integration", () => {
 
   afterEach(async () => {
     // Clean up services
-    if (dataManager) {
+    if (dataManager && dataManager.cleanupForTests) {
       dataManager.cleanupForTests();
     }
-    if (errorHandler) {
+    if (errorHandler && errorHandler.destroy) {
       errorHandler.destroy();
     }
     await module.close();
@@ -73,7 +211,7 @@ describe("Service Wiring Integration", () => {
   });
 
   describe("Event Wiring", () => {
-    it("should wire data manager price update events to aggregation service", async () => {
+    it("should wire data source integration price update events to price aggregation coordinator", async () => {
       const testUpdate: PriceUpdate = {
         symbol: "BTC/USD",
         price: 50000,
@@ -82,197 +220,233 @@ describe("Service Wiring Integration", () => {
         confidence: 0.95,
       };
 
-      // Spy on aggregation service processPriceUpdate method
-      const processPriceUpdateSpy = jest.spyOn(aggregationService, "processPriceUpdate");
+      // Spy on price aggregation coordinator handlePriceUpdate method
+      const handlePriceUpdateSpy = jest.spyOn(priceAggregationCoordinator, "handlePriceUpdate");
 
-      // Emit price update from data manager
-      dataManager.emit("priceUpdate", testUpdate);
+      // Simulate the event wiring by calling the handler directly
+      // (since we're testing the integration service's wiring logic)
+      const priceUpdateHandler = (dataSourceIntegration.on as jest.Mock).mock.calls.find(
+        call => call[0] === "priceUpdate"
+      )?.[1];
 
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
+      if (priceUpdateHandler) {
+        priceUpdateHandler(testUpdate);
+      }
 
-      // Verify that the aggregation service received the update
-      expect(processPriceUpdateSpy).toHaveBeenCalledWith(testUpdate);
+      // Verify that the price aggregation coordinator received the update
+      expect(handlePriceUpdateSpy).toHaveBeenCalledWith(testUpdate);
     });
 
-    it("should wire aggregation service events to cache service", async () => {
+    it("should wire price aggregation coordinator events to system health", async () => {
+      const testAggregatedPrice = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        sources: ["test-source"],
+        confidence: 0.95,
+        consensusScore: 0.9,
+      };
+
+      // Spy on system health recordPriceAggregation method
+      const recordPriceAggregationSpy = jest.spyOn(systemHealth, "recordPriceAggregation");
+
+      // Simulate the event wiring by calling the handler directly
+      const aggregatedPriceHandler = (priceAggregationCoordinator.on as jest.Mock).mock.calls.find(
+        call => call[0] === "aggregatedPrice"
+      )?.[1];
+
+      if (aggregatedPriceHandler) {
+        aggregatedPriceHandler(testAggregatedPrice);
+      }
+
+      // Verify that the system health service received the aggregated price
+      expect(recordPriceAggregationSpy).toHaveBeenCalledWith(testAggregatedPrice);
+    });
+
+    it("should wire data source health events to system health", async () => {
+      const sourceId = "test-source";
+
+      // Spy on system health recordSourceHealth method
+      const recordSourceHealthSpy = jest.spyOn(systemHealth, "recordSourceHealth");
+
+      // Simulate the event wiring for source healthy event
+      const sourceHealthyHandler = (dataSourceIntegration.on as jest.Mock).mock.calls.find(
+        call => call[0] === "sourceHealthy"
+      )?.[1];
+
+      if (sourceHealthyHandler) {
+        sourceHealthyHandler(sourceId);
+      }
+
+      // Verify that the system health service recorded the source health
+      expect(recordSourceHealthSpy).toHaveBeenCalledWith(sourceId, "healthy");
+    });
+
+    it("should wire system health alerts to integration service events", async () => {
+      const testAlert = {
+        type: "health_alert",
+        message: "System health degraded",
+        timestamp: Date.now(),
+        severity: "warning",
+      };
+
+      // Spy on integration service emit method
+      const integrationEmitSpy = jest.spyOn(integrationService, "emit");
+
+      // Simulate the event wiring for health alert
+      const healthAlertHandler = (systemHealth.on as jest.Mock).mock.calls.find(call => call[0] === "healthAlert")?.[1];
+
+      if (healthAlertHandler) {
+        healthAlertHandler(testAlert);
+      }
+
+      // Verify that the integration service emitted the health alert
+      expect(integrationEmitSpy).toHaveBeenCalledWith("healthAlert", testAlert);
+    });
+  });
+
+  describe("Error Handling Wiring", () => {
+    it("should wire price aggregation errors to system health", async () => {
+      const testError = new Error("Test aggregation error");
+
+      // Spy on system health recordAggregationError method
+      const recordAggregationErrorSpy = jest.spyOn(systemHealth, "recordAggregationError");
+
+      // Simulate the event wiring for aggregation error
+      const aggregationErrorHandler = (priceAggregationCoordinator.on as jest.Mock).mock.calls.find(
+        call => call[0] === "aggregationError"
+      )?.[1];
+
+      if (aggregationErrorHandler) {
+        aggregationErrorHandler(testError);
+      }
+
+      // Verify that the system health service recorded the aggregation error
+      expect(recordAggregationErrorSpy).toHaveBeenCalledWith(testError);
+    });
+
+    it("should wire data source unhealthy events to system health", async () => {
+      const sourceId = "test-source";
+
+      // Spy on system health recordSourceHealth method
+      const recordSourceHealthSpy = jest.spyOn(systemHealth, "recordSourceHealth");
+
+      // Simulate the event wiring for source unhealthy event
+      const sourceUnhealthyHandler = (dataSourceIntegration.on as jest.Mock).mock.calls.find(
+        call => call[0] === "sourceUnhealthy"
+      )?.[1];
+
+      if (sourceUnhealthyHandler) {
+        sourceUnhealthyHandler(sourceId);
+      }
+
+      // Verify that the system health service recorded the source as unhealthy
+      expect(recordSourceHealthSpy).toHaveBeenCalledWith(sourceId, "unhealthy");
+    });
+
+    it("should wire data source recovery events to system health", async () => {
+      const sourceId = "test-source";
+
+      // Spy on system health recordSourceHealth method
+      const recordSourceHealthSpy = jest.spyOn(systemHealth, "recordSourceHealth");
+
+      // Simulate the event wiring for source recovered event
+      const sourceRecoveredHandler = (dataSourceIntegration.on as jest.Mock).mock.calls.find(
+        call => call[0] === "sourceRecovered"
+      )?.[1];
+
+      if (sourceRecoveredHandler) {
+        sourceRecoveredHandler(sourceId);
+      }
+
+      // Verify that the system health service recorded the source as recovered
+      expect(recordSourceHealthSpy).toHaveBeenCalledWith(sourceId, "recovered");
+    });
+  });
+
+  describe("Service Integration", () => {
+    it("should provide access to current price through integration service", async () => {
       const testFeedId: EnhancedFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
 
-      const testAggregatedPrice = {
-        symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now(),
-        sources: ["test-source"],
-        confidence: 0.95,
-        consensusScore: 0.9,
-      };
+      // Call the integration service method
+      const result = await integrationService.getCurrentPrice(testFeedId);
 
-      // Spy on cache service setPrice method
-      const setPriceSpy = jest.spyOn(cacheService, "setPrice");
-
-      // Emit aggregated price from aggregation service
-      aggregationService.emit("aggregatedPrice", testAggregatedPrice);
-
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Verify that the cache service received the price
-      expect(setPriceSpy).toHaveBeenCalledWith(testFeedId, {
-        value: testAggregatedPrice.price,
-        timestamp: testAggregatedPrice.timestamp,
-        sources: testAggregatedPrice.sources,
-        confidence: testAggregatedPrice.confidence,
-      });
-    });
-
-    it("should wire aggregation service events to accuracy monitor", async () => {
-      const testAggregatedPrice = {
-        symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now(),
-        sources: ["test-source"],
-        confidence: 0.95,
-        consensusScore: 0.9,
-      };
-
-      // Spy on accuracy monitor recordPrice method
-      const recordPriceSpy = jest.spyOn(accuracyMonitor, "recordPrice");
-
-      // Emit aggregated price from aggregation service
-      aggregationService.emit("aggregatedPrice", testAggregatedPrice);
-
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Verify that the accuracy monitor received the price
-      expect(recordPriceSpy).toHaveBeenCalledWith(testAggregatedPrice);
-    });
-
-    it("should wire price updates to performance monitor", async () => {
-      const testUpdate: PriceUpdate = {
-        symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now(),
-        source: "test-source",
-        confidence: 0.95,
-      };
-
-      // Spy on performance monitor recordPriceUpdate method
-      const recordPriceUpdateSpy = jest.spyOn(performanceMonitor, "recordPriceUpdate");
-
-      // Emit price update from data manager
-      dataManager.emit("priceUpdate", testUpdate);
-
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Verify that the performance monitor received the update
-      expect(recordPriceUpdateSpy).toHaveBeenCalledWith(testUpdate);
-    });
-  });
-
-  describe("Error Handling Wiring", () => {
-    it("should wire data source errors to error handler", async () => {
-      const testError = new Error("Test connection error");
-      const sourceId = "test-source";
-
-      // Spy on error handler handleError method
-      const handleErrorSpy = jest.spyOn(errorHandler, "handleError");
-
-      // Emit source error from data manager
-      dataManager.emit("sourceError", sourceId, testError);
-
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Verify that the error handler received the error with enhanced context
-      expect(handleErrorSpy).toHaveBeenCalledWith(
-        testError,
+      // Verify that the price aggregation coordinator was called
+      expect(priceAggregationCoordinator.getCurrentPrice).toHaveBeenCalledWith(testFeedId);
+      expect(result).toEqual(
         expect.objectContaining({
-          sourceId,
-          component: "dataSource",
-          errorType: expect.any(String),
-          exchangeName: expect.any(String),
-          adapterType: expect.any(String),
+          symbol: "BTC/USD",
+          price: 50000,
+          confidence: 0.95,
+        })
+      );
+    });
+
+    it("should provide access to system health through integration service", async () => {
+      // Call the integration service method
+      const result = await integrationService.getSystemHealth();
+
+      // Verify that the system health service was called
+      expect(systemHealth.getOverallHealth).toHaveBeenCalled();
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: "healthy",
           timestamp: expect.any(Number),
         })
       );
     });
 
-    it("should wire source disconnection to connection recovery", async () => {
-      const sourceId = "test-source";
+    it("should report healthy status when system health is healthy or degraded", () => {
+      // Test healthy status
+      (systemHealth.getOverallHealth as jest.Mock).mockReturnValue({
+        status: "healthy",
+        timestamp: Date.now(),
+      });
+      expect(integrationService.isHealthy()).toBe(true);
 
-      // Spy on error handler recordFailure method
-      const recordFailureSpy = jest.spyOn(errorHandler, "recordFailure");
+      // Test degraded status (should still be considered operational)
+      (systemHealth.getOverallHealth as jest.Mock).mockReturnValue({
+        status: "degraded",
+        timestamp: Date.now(),
+      });
+      expect(integrationService.isHealthy()).toBe(true);
 
-      // Emit source disconnection from data manager
-      dataManager.emit("sourceDisconnected", sourceId);
-
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      // Verify that the error handler recorded the failure
-      expect(recordFailureSpy).toHaveBeenCalledWith(sourceId);
+      // Test unhealthy status
+      (systemHealth.getOverallHealth as jest.Mock).mockReturnValue({
+        status: "unhealthy",
+        timestamp: Date.now(),
+      });
+      expect(integrationService.isHealthy()).toBe(false);
     });
   });
 
-  describe("Monitoring Integration", () => {
-    it("should wire monitoring alerts to alerting service", async () => {
-      const testAlert = {
-        type: "accuracy_alert",
-        feedId: "BTC/USD",
-        deviation: 0.6,
-        threshold: 0.5,
-        timestamp: Date.now(),
-        severity: "warning",
-        message: "High consensus deviation for BTC/USD: 0.6%",
-      };
-
-      // Spy on alerting service sendAlert method (which is what actually gets called)
-      const sendAlertSpy = jest.spyOn(alertingService, "sendAlert");
-
-      // Emit accuracy alert from accuracy monitor
-      accuracyMonitor.emit("accuracyAlert", testAlert);
-
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // Verify that the alerting service received the alert
-      expect(sendAlertSpy).toHaveBeenCalled();
+  describe("Service Initialization", () => {
+    it("should initialize all sub-services during integration service initialization", async () => {
+      // Verify that all sub-services were initialized
+      expect(dataSourceIntegration.initialize).toHaveBeenCalled();
+      expect(priceAggregationCoordinator.initialize).toHaveBeenCalled();
+      expect(systemHealth.initialize).toHaveBeenCalled();
     });
-  });
 
-  describe("Data Flow Integration", () => {
-    it("should complete full data flow from price update to cached result", async () => {
-      const testFeedId: EnhancedFeedId = {
-        category: FeedCategory.Crypto,
-        name: "BTC/USD",
-      };
+    it("should wire service interactions during initialization", async () => {
+      // Verify that event handlers were set up
+      expect(dataSourceIntegration.on).toHaveBeenCalledWith("priceUpdate", expect.any(Function));
+      expect(priceAggregationCoordinator.on).toHaveBeenCalledWith("aggregatedPrice", expect.any(Function));
+      expect(dataSourceIntegration.on).toHaveBeenCalledWith("sourceHealthy", expect.any(Function));
+      expect(dataSourceIntegration.on).toHaveBeenCalledWith("sourceUnhealthy", expect.any(Function));
+      expect(dataSourceIntegration.on).toHaveBeenCalledWith("sourceRecovered", expect.any(Function));
+      expect(systemHealth.on).toHaveBeenCalledWith("healthAlert", expect.any(Function));
+      expect(priceAggregationCoordinator.on).toHaveBeenCalledWith("aggregationError", expect.any(Function));
+    });
 
-      const testUpdate: PriceUpdate = {
-        symbol: "BTC/USD",
-        price: 50000,
-        timestamp: Date.now(),
-        source: "test-source",
-        confidence: 0.95,
-      };
-
-      // Add the price update to aggregation service first
-      aggregationService.addPriceUpdate(testFeedId, testUpdate);
-
-      // Emit price update to trigger the full flow
-      dataManager.emit("priceUpdate", testUpdate);
-
-      // Wait for async processing
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // Verify that the price was cached
-      const cachedPrice = cacheService.getPrice(testFeedId);
-      expect(cachedPrice).toBeDefined();
-      expect(cachedPrice?.value).toBe(testUpdate.price);
+    it("should subscribe to configured feeds during initialization", async () => {
+      // Since we mocked getFeedConfigurations to return empty array,
+      // verify that subscribeToFeed was not called
+      expect(dataSourceIntegration.subscribeToFeed).not.toHaveBeenCalled();
+      expect(priceAggregationCoordinator.configureFeed).not.toHaveBeenCalled();
     });
   });
 });

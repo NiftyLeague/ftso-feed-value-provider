@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { MetricsController } from "../metrics.controller";
 import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.service";
 import { ApiMonitorService } from "../../monitoring/api-monitor.service";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 
 describe("MetricsController - Metrics and Monitoring Endpoints", () => {
   let controller: MetricsController;
@@ -29,7 +30,10 @@ describe("MetricsController - Metrics and Monitoring Endpoints", () => {
           useValue: mockApiMonitor,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(RateLimitGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<MetricsController>(MetricsController);
     apiMonitor = module.get(ApiMonitorService);

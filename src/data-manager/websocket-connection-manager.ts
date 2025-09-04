@@ -81,7 +81,8 @@ export class WebSocketConnectionManager extends BaseEventService {
       return 0;
     }
 
-    return stats.lastPongAt - stats.lastPingAt;
+    // Only return latency if we have a valid pong that came after the ping
+    return stats.lastPongAt >= stats.lastPingAt ? stats.lastPongAt - stats.lastPingAt : 0;
   }
 
   sendMessage(connectionId: string, message: string | Buffer): boolean {

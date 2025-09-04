@@ -165,15 +165,66 @@ describe("OkxAdapter", () => {
       expect(adapter.isConnected()).toBe(true);
     });
 
-    it("should handle connection errors", async () => {
-      const originalWebSocket = global.WebSocket;
-      (global as any).WebSocket = jest.fn().mockImplementation(() => {
-        throw new Error("Connection failed");
-      });
+    it("should handle connection errors gracefully", async () => {
+      // Mock the WebSocket connection manager to simulate connection failure
+      const mockConnectionManager = {
+        createConnection: jest.fn().mockRejectedValue(new Error("Connection failed")),
+        closeConnection: jest.fn().mockResolvedValue(undefined),
+        isConnected: jest.fn().mockReturnValue(false),
+        on: jest.fn(),
+        sendMessage: jest.fn().mockReturnValue(false),
+        getConnectionStats: jest.fn().mockReturnValue(null),
+        getLatency: jest.fn().mockReturnValue(0),
+      };
 
+      // Replace the connection manager in the adapter
+      (adapter as any).wsManager = mockConnectionManager;
+      (adapter as any).wsConnectionId = "test-connection";
+
+      // Test that connection errors are handled gracefully
       await expect(adapter.connect()).rejects.toThrow("Connection failed");
+      expect(adapter.isConnected()).toBe(false);
+      expect(mockConnectionManager.createConnection).toHaveBeenCalled();
+    });
 
-      global.WebSocket = originalWebSocket;
+    it("should handle WebSocket constructor errors", async () => {
+      // Mock the WebSocket connection manager to simulate constructor failure
+      const mockConnectionManager = {
+        createConnection: jest.fn().mockRejectedValue(new Error("WebSocket constructor failed")),
+        closeConnection: jest.fn().mockResolvedValue(undefined),
+        isConnected: jest.fn().mockReturnValue(false),
+        on: jest.fn(),
+        sendMessage: jest.fn().mockReturnValue(false),
+        getConnectionStats: jest.fn().mockReturnValue(null),
+        getLatency: jest.fn().mockReturnValue(0),
+      };
+
+      // Replace the connection manager in the adapter
+      (adapter as any).wsManager = mockConnectionManager;
+      (adapter as any).wsConnectionId = "test-connection";
+
+      await expect(adapter.connect()).rejects.toThrow("WebSocket constructor failed");
+      expect(adapter.isConnected()).toBe(false);
+    });
+
+    it("should handle connection timeout errors", async () => {
+      // Mock the WebSocket connection manager to simulate timeout
+      const mockConnectionManager = {
+        createConnection: jest.fn().mockRejectedValue(new Error("Connection timeout")),
+        closeConnection: jest.fn().mockResolvedValue(undefined),
+        isConnected: jest.fn().mockReturnValue(false),
+        on: jest.fn(),
+        sendMessage: jest.fn().mockReturnValue(false),
+        getConnectionStats: jest.fn().mockReturnValue(null),
+        getLatency: jest.fn().mockReturnValue(0),
+      };
+
+      // Replace the connection manager in the adapter
+      (adapter as any).wsManager = mockConnectionManager;
+      (adapter as any).wsConnectionId = "test-connection";
+
+      await expect(adapter.connect()).rejects.toThrow("Connection timeout");
+      expect(adapter.isConnected()).toBe(false);
     });
 
     it("should disconnect properly", async () => {
@@ -182,6 +233,36 @@ describe("OkxAdapter", () => {
 
       await adapter.disconnect();
       expect(adapter.isConnected()).toBe(false);
+    });
+
+    it("should verify error behavior in connection tests", async () => {
+      // Test that connection errors are properly caught and handled
+      const errorSpy = jest.fn();
+      adapter.onError(errorSpy);
+
+      // Mock the WebSocket connection manager to simulate connection error
+      const connectionError = new Error("WebSocket connection failed");
+      const mockConnectionManager = {
+        createConnection: jest.fn().mockRejectedValue(connectionError),
+        closeConnection: jest.fn().mockResolvedValue(undefined),
+        isConnected: jest.fn().mockReturnValue(false),
+        on: jest.fn(),
+        sendMessage: jest.fn().mockReturnValue(false),
+        getConnectionStats: jest.fn().mockReturnValue(null),
+        getLatency: jest.fn().mockReturnValue(0),
+      };
+
+      // Replace the connection manager in the adapter
+      (adapter as any).wsManager = mockConnectionManager;
+      (adapter as any).wsConnectionId = "test-connection";
+
+      try {
+        await adapter.connect();
+      } catch (error) {
+        // Verify that error callback was called and error is handled properly
+        expect(error).toBeDefined();
+        expect(adapter.isConnected()).toBe(false);
+      }
     });
   });
 

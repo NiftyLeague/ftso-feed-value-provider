@@ -49,6 +49,17 @@ async function bootstrap() {
       logger: logLevels,
       abortOnError: false, // Allow graceful error handling during startup
     });
+
+    // Configure CORS
+    app.enableCors({
+      origin: true, // Or specify allowed origins: ["http://localhost:3000", "https://yourdomain.com"]
+      methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+      exposedHeaders: ["Content-Range", "X-Total-Count"],
+      credentials: true,
+      maxAge: 3600,
+    });
+
     const appCreationTime = performance.now() - appCreationStart;
 
     enhancedLogger.log(`NestJS application created in ${appCreationTime.toFixed(2)}ms`, {

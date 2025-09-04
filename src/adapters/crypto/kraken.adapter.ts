@@ -79,37 +79,55 @@ export class KrakenAdapter extends BaseExchangeAdapter {
 
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
-    this.safeProcessData(
-      data,
-      rawData => {
-        const parsed = JSON.parse(rawData as string);
+    try {
+      // Handle different data types that might come from WebSocket
+      let parsed: any;
 
-        // Handle different message types
-        if (Array.isArray(parsed)) {
-          // Ticker data format: [channelID, data, channelName, pair]
-          if (parsed.length >= 4 && parsed[2] === "ticker") {
-            const tickerData: KrakenTickerData = {
-              channelID: parsed[0],
-              channelName: parsed[2],
-              pair: parsed[3],
-              data: parsed[1],
-            };
+      if (typeof data === "string") {
+        parsed = JSON.parse(data);
+      } else if (typeof data === "object" && data !== null) {
+        // Data is already parsed (from WebSocketConnectionManager)
+        parsed = data;
+      } else {
+        this.logger.debug("Received non-parseable WebSocket data:", typeof data);
+        return;
+      }
 
-            if (this.validateResponse(tickerData)) {
-              const priceUpdate = this.normalizePriceData(tickerData);
-              this.onPriceUpdateCallback?.(priceUpdate);
-            }
-          }
-        } else if (parsed.event === "systemStatus") {
-          this.logger.debug("Kraken system status:", parsed.status);
-        } else if (parsed.event === "subscriptionStatus") {
-          if (parsed.status === "subscribed") {
-            this.logger.debug("Kraken subscription confirmed:", parsed.pair);
+      // Handle different message types
+      if (Array.isArray(parsed)) {
+        // Ticker data format: [channelID, data, channelName, pair]
+        if (parsed.length >= 4 && parsed[2] === "ticker") {
+          const tickerData: KrakenTickerData = {
+            channelID: parsed[0],
+            channelName: parsed[2],
+            pair: parsed[3],
+            data: parsed[1],
+          };
+
+          if (this.validateResponse(tickerData)) {
+            const priceUpdate = this.normalizePriceData(tickerData);
+            this.onPriceUpdateCallback?.(priceUpdate);
           }
         }
-      },
-      "Kraken message processing"
-    );
+      } else if (parsed.event === "systemStatus") {
+        this.logger.debug("Kraken system status:", parsed.status);
+        // System status messages are valid and expected
+        return;
+      } else if (parsed.event === "subscriptionStatus") {
+        if (parsed.status === "subscribed") {
+          this.logger.debug("Kraken subscription confirmed:", parsed.pair);
+        } else if (parsed.status === "error") {
+          this.logger.warn("Kraken subscription error:", parsed.errorMessage);
+        }
+        // Subscription status messages are valid and expected
+        return;
+      } else {
+        this.logger.debug("Received unhandled Kraken message:", parsed);
+      }
+    } catch (error) {
+      this.logger.error("Error processing Kraken WebSocket message:", error);
+      this.onErrorCallback?.(error as Error);
+    }
   }
 
   normalizePriceData(rawData: KrakenTickerData): PriceUpdate {

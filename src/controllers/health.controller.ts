@@ -1,5 +1,6 @@
-import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
+import { Controller, Get, Post, HttpException, HttpStatus, Inject, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
 import { BaseController } from "@/common/base/base.controller";
@@ -18,6 +19,7 @@ import type { HealthStatus } from "@/common/types/monitoring";
 
 @ApiTags("System Health")
 @Controller()
+@UseGuards(RateLimitGuard)
 export class HealthController extends BaseController {
   private readyTime?: number;
 

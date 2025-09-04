@@ -49,7 +49,13 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
         });
       },
     },
-    RateLimitGuard,
+    {
+      provide: RateLimitGuard,
+      useFactory: (rateLimiterService: RateLimiterService, errorHandler: ApiErrorHandlerService) => {
+        return new RateLimitGuard(rateLimiterService, errorHandler);
+      },
+      inject: [RateLimiterService, ApiErrorHandlerService],
+    },
     ResponseTimeInterceptor,
     ApiMonitorService,
 

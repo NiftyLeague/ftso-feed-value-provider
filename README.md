@@ -90,3 +90,65 @@ curl -X 'POST' \
   ]
 }
 ```
+
+## Development
+
+### Running Tests
+
+The project includes a comprehensive test suite with intelligent log suppression
+to keep output clean and focused on actual failures.
+
+```bash
+# Run all tests with clean output (default)
+npm test
+
+# Run tests with verbose logging (shows all logs)
+npm run test:verbose
+
+# Run tests without log suppression (shows expected errors)
+npm run test:no-suppress
+
+# Run specific test types
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests
+npm run test:performance   # Performance tests
+npm run test:endurance     # Long-running endurance tests
+```
+
+### Test Logging Control
+
+The test suite automatically suppresses expected error messages and framework
+noise while preserving actual test failures. You can control this behavior:
+
+- **Default**: Clean output with suppressed expected logs
+- **Verbose**: `VERBOSE_TEST_LOGS=true npm test` - Shows all logs
+- **No suppression**: `SUPPRESS_TEST_LOGS=false npm test` - Shows expected
+  errors
+
+For more details, see [Test Logging Control](docs/test-logging-control.md).
+
+### Development Scripts
+
+```bash
+# Development server with hot reload
+npm run start:dev
+
+# Build the project
+npm run build
+
+# Lint and format code
+npm run lint
+npm run format
+
+# Type checking
+npm run type:check
+
+# Validate all (lint + format + types)
+npm run validate
+```
+
+### Environment Configuration
+
+Copy `.env.example` to `.env` and configure the values for your environment. See
+[Environment Variables](docs/environment-variables.md) for detailed
+documentation.
