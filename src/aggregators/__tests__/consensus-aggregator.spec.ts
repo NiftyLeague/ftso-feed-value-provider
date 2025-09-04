@@ -1,6 +1,7 @@
 import { ConsensusAggregator } from "../consensus-aggregator";
 import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
+import { TestDataBuilder } from "@/__tests__/utils";
 
 describe("ConsensusAggregator", () => {
   let aggregator: ConsensusAggregator;
@@ -8,40 +9,37 @@ describe("ConsensusAggregator", () => {
 
   beforeEach(() => {
     aggregator = new ConsensusAggregator();
-    mockFeedId = {
-      category: FeedCategory.Crypto,
-      name: "BTC/USD",
-    };
+    mockFeedId = TestDataBuilder.createFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
   });
 
   describe("aggregate", () => {
     it("should aggregate prices using weighted median with time decay", async () => {
       const now = Date.now();
       const updates: PriceUpdate[] = [
-        {
+        TestDataBuilder.createPriceUpdate({
           symbol: "BTC/USD",
           price: 50000,
-          timestamp: now - 500, // 0.5 seconds old
+          timestamp: now - 500,
           source: "binance",
           confidence: 0.9,
           volume: 1000,
-        },
-        {
+        }),
+        TestDataBuilder.createPriceUpdate({
           symbol: "BTC/USD",
           price: 50100,
-          timestamp: now - 1000, // 1 second old
+          timestamp: now - 1000,
           source: "coinbase",
           confidence: 0.85,
           volume: 800,
-        },
-        {
+        }),
+        TestDataBuilder.createPriceUpdate({
           symbol: "BTC/USD",
           price: 49950,
-          timestamp: now - 200, // 0.2 seconds old
+          timestamp: now - 200,
           source: "kraken",
           confidence: 0.8,
           volume: 600,
-        },
+        }),
       ];
 
       const result = await aggregator.aggregate(mockFeedId, updates);

@@ -435,6 +435,8 @@ export class HealthController extends BaseController {
         alive: isAlive,
         timestamp: Date.now(),
         uptime: process.uptime(),
+        // Include checks for testing/observability (not strictly required by type)
+        ...(livenessChecks && { checks: livenessChecks as unknown as never }),
       };
 
       if (!isAlive) {

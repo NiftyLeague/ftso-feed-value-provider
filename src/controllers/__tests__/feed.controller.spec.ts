@@ -1,4 +1,3 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { FtsoProviderService } from "@/app.service";
@@ -7,6 +6,7 @@ import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { FeedCategory } from "@/common/types/core";
+import { TestModuleBuilder, TestDataBuilder, TestHelpers } from "@/__tests__/utils";
 
 import { FeedController } from "../feed.controller";
 
@@ -16,115 +16,83 @@ describe("FeedController - Feed Value Endpoints", () => {
   let cacheService: jest.Mocked<RealTimeCacheService>;
   let aggregationService: jest.Mocked<RealTimeAggregationService>;
 
-  const mockFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
+  const mockFeedId = TestDataBuilder.createFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
   const mockVolumeData = { feed: mockFeedId, volumes: [{ exchange: "binance", volume: 1000000 }] };
 
   beforeEach(async () => {
-    const mockProviderService = {
-      getValue: jest.fn(),
-      getValues: jest.fn(),
-      getVolumes: jest.fn(),
-      getPerformanceMetrics: jest.fn(),
-      healthCheck: jest.fn(),
-    };
+    const module = await new TestModuleBuilder()
+      .addController(FeedController)
+      .addProvider("FTSO_PROVIDER_SERVICE", {
+        getValue: jest.fn(),
+        getValues: jest.fn(),
+        getVolumes: jest.fn(),
+        getPerformanceMetrics: jest.fn(),
+        healthCheck: jest.fn(),
+      })
+      .addProvider(RealTimeCacheService, {
+        getPrice: jest.fn(),
+        setPrice: jest.fn(),
+        getForVotingRound: jest.fn(),
+        setForVotingRound: jest.fn(),
+        invalidateOnPriceUpdate: jest.fn(),
+        getStats: jest.fn(),
+      })
+      .addProvider(RealTimeAggregationService, {
+        getAggregatedPrice: jest.fn(),
+        addPriceUpdate: jest.fn(),
+        getCacheStats: jest.fn(),
+        getActiveFeedCount: jest.fn(),
+        getPerformanceMetrics: jest.fn(),
+      })
+      .addProvider(RateLimiterService, {
+        checkRateLimit: jest.fn().mockReturnValue({
+          totalHits: 1,
+          totalHitsInWindow: 1,
+          remainingPoints: 999,
+          msBeforeNext: 0,
+          isBlocked: false,
+        }),
+        recordRequest: jest.fn(),
+        getConfig: jest.fn().mockReturnValue({ maxRequests: 1000, windowMs: 60000 }),
+      })
+      .addProvider(RateLimitGuard, {
+        canActivate: jest.fn().mockReturnValue(true),
+      })
+      .addProvider(ApiMonitorService, {
+        recordApiRequest: jest.fn(),
+        getApiHealthMetrics: jest.fn().mockReturnValue({
+          totalRequests: 0,
+          requestsPerMinute: 0,
+          averageResponseTime: 0,
+          errorRate: 0,
+          slowRequestRate: 0,
+          criticalRequestRate: 0,
+          topEndpoints: [],
+          recentErrors: [],
+        }),
+        getAllEndpointStats: jest.fn().mockReturnValue([]),
+        getPerformanceMetrics: jest.fn().mockReturnValue({
+          requestCount: 0,
+          averageResponseTime: 0,
+          errorRate: 0,
+          throughput: 0,
+          responseTimes: [],
+        }),
+        getErrorAnalysis: jest.fn().mockReturnValue({
+          totalErrors: 0,
+          errorsByStatusCode: {},
+          errorsByEndpoint: {},
+          recentErrorTrends: [],
+        }),
+        getMetricsCount: jest.fn().mockReturnValue(0),
+      })
+      .addProvider(ApiErrorHandlerService)
+      .build();
 
-    const mockCacheService = {
-      getPrice: jest.fn(),
-      setPrice: jest.fn(),
-      getForVotingRound: jest.fn(),
-      setForVotingRound: jest.fn(),
-      invalidateOnPriceUpdate: jest.fn(),
-      getStats: jest.fn(),
-    };
-
-    const mockAggregationService = {
-      getAggregatedPrice: jest.fn(),
-      addPriceUpdate: jest.fn(),
-      getCacheStats: jest.fn(),
-      getActiveFeedCount: jest.fn(),
-      getPerformanceMetrics: jest.fn(),
-    };
-
-    const mockRateLimiterService = {
-      checkRateLimit: jest.fn().mockReturnValue({
-        totalHits: 1,
-        totalHitsInWindow: 1,
-        remainingPoints: 999,
-        msBeforeNext: 0,
-        isBlocked: false,
-      }),
-      recordRequest: jest.fn(),
-      getConfig: jest.fn().mockReturnValue({ maxRequests: 1000, windowMs: 60000 }),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FeedController],
-      providers: [
-        {
-          provide: "FTSO_PROVIDER_SERVICE",
-          useValue: mockProviderService,
-        },
-        {
-          provide: RealTimeCacheService,
-          useValue: mockCacheService,
-        },
-        {
-          provide: RealTimeAggregationService,
-          useValue: mockAggregationService,
-        },
-        {
-          provide: ApiErrorHandlerService,
-          useClass: ApiErrorHandlerService,
-        },
-        {
-          provide: RateLimitGuard,
-          useValue: {
-            canActivate: jest.fn().mockReturnValue(true),
-          },
-        },
-        {
-          provide: RateLimiterService,
-          useValue: mockRateLimiterService,
-        },
-        {
-          provide: ApiMonitorService,
-          useValue: {
-            recordApiRequest: jest.fn(),
-            getApiHealthMetrics: jest.fn().mockReturnValue({
-              totalRequests: 0,
-              requestsPerMinute: 0,
-              averageResponseTime: 0,
-              errorRate: 0,
-              slowRequestRate: 0,
-              criticalRequestRate: 0,
-              topEndpoints: [],
-              recentErrors: [],
-            }),
-            getAllEndpointStats: jest.fn().mockReturnValue([]),
-            getPerformanceMetrics: jest.fn().mockReturnValue({
-              requestCount: 0,
-              averageResponseTime: 0,
-              errorRate: 0,
-              throughput: 0,
-              responseTimes: [],
-            }),
-            getErrorAnalysis: jest.fn().mockReturnValue({
-              totalErrors: 0,
-              errorsByStatusCode: {},
-              errorsByEndpoint: {},
-              recentErrorTrends: [],
-            }),
-            getMetricsCount: jest.fn().mockReturnValue(0),
-          },
-        },
-      ],
-    }).compile();
-
-    controller = module.get<FeedController>(FeedController);
-    providerService = module.get("FTSO_PROVIDER_SERVICE");
-    cacheService = module.get(RealTimeCacheService);
-    aggregationService = module.get(RealTimeAggregationService);
-    // No need to store error handler instance for these tests
+    controller = TestHelpers.getService(module, FeedController);
+    providerService = TestHelpers.getMockedService(module, "FTSO_PROVIDER_SERVICE");
+    cacheService = TestHelpers.getMockedService(module, RealTimeCacheService);
+    aggregationService = TestHelpers.getMockedService(module, RealTimeAggregationService);
   });
 
   afterEach(() => {
@@ -135,14 +103,13 @@ describe("FeedController - Feed Value Endpoints", () => {
     it("should return current feed values with real-time data", async () => {
       cacheService.getPrice.mockReturnValue(null);
 
-      const mockAggregatedPrice = {
+      const mockAggregatedPrice = TestDataBuilder.createAggregatedPrice({
         symbol: "BTC/USD",
         price: 50000,
-        timestamp: Date.now(),
         sources: ["binance", "coinbase"],
         confidence: 0.95,
         consensusScore: 0.98,
-      };
+      });
       aggregationService.getAggregatedPrice.mockResolvedValue(mockAggregatedPrice);
 
       const request = { feeds: [mockFeedId] };

@@ -146,36 +146,43 @@ Scenarios**:
 ### Quick Start
 
 ```bash
-# Run all tests (comprehensive suite)
-pnpm test:comprehensive
+# Run all tests
+pnpm test
 
-# Run specific test categories
-pnpm test:unit
-pnpm test:integration
-pnpm test:performance
-pnpm test:accuracy
+# Run with coverage
+pnpm test:cov
+
+# Run in watch mode
+pnpm test:watch
 ```
 
-### Individual Test Suites
+### Test Categories
 
 ```bash
-# Performance tests
-pnpm test:load          # Load testing
-pnpm test:latency       # Latency testing
-pnpm test:endurance     # Endurance testing
+# Run only unit tests (excludes integration/performance/accuracy)
+pnpm test:unit
 
-# Accuracy tests
-pnpm test:backtesting   # Historical accuracy validation
+# Run integration tests
+pnpm test:integration
+
+# Run performance tests (with extended timeout)
+pnpm test:performance
+
+# Run accuracy tests (with extended timeout)
+pnpm test:accuracy
 ```
 
 ### Advanced Usage
 
 ```bash
-# Run specific test suite
-pnpm test:comprehensive -- --suite "Load Testing"
+# Run specific test file
+pnpm test -- src/controllers/__tests__/feed.controller.spec.ts
 
-# Run with custom category
-pnpm test:comprehensive -- --category performance
+# Run tests matching pattern
+pnpm test -- --testPathPattern=adapter
+
+# Debug tests
+pnpm test:debug
 ```
 
 ## Test Configuration

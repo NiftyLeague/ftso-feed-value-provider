@@ -120,6 +120,11 @@ export async function handleAsyncOperation<T>(
   } catch (error) {
     const err = error as Error;
 
+    // Preserve existing HttpException status and response
+    if (error instanceof HttpException) {
+      throw error;
+    }
+
     if (onError) {
       throw onError(err);
     }

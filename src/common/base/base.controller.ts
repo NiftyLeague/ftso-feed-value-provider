@@ -212,7 +212,7 @@ export abstract class BaseController extends BaseService {
       requestId,
       method,
       url,
-      bodySize: JSON.stringify(sanitizedBody).length,
+      bodySize: sanitizedBody === undefined ? 0 : JSON.stringify(sanitizedBody).length,
       timestamp: Date.now(),
     });
   }

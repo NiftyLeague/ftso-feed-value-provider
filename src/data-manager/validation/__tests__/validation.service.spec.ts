@@ -2,31 +2,29 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationService } from "../validation.service";
 import { DataValidator } from "../data-validator";
 import type { DataValidatorResult } from "@/common/types/data-manager";
-import { type PriceUpdate, type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
 import { ValidationErrorType, ErrorCode, ErrorSeverity } from "@/common/types/error-handling";
+import { TestDataBuilder, MockSetup } from "@/__tests__/utils";
 
 describe("ValidationService", () => {
   let service: ValidationService;
   let dataValidator: jest.Mocked<DataValidator>;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId = TestDataBuilder.createFeedId({
     category: FeedCategory.Crypto,
     name: "BTC/USD",
-  };
+  });
 
-  const mockUpdate: PriceUpdate = {
+  const mockUpdate = TestDataBuilder.createPriceUpdate({
     symbol: "BTC/USD",
     price: 50000,
-    timestamp: Date.now(),
     source: "test-exchange",
     confidence: 0.9,
-  };
+  });
 
   beforeEach(async () => {
-    // Mock console methods to suppress expected error logs during tests
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.spyOn(console, "warn").mockImplementation(() => {});
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    // Use centralized console mocking
+    MockSetup.setupConsole();
 
     const mockDataValidator = {
       validateUpdate: jest.fn(),
@@ -55,14 +53,11 @@ describe("ValidationService", () => {
 
   describe("Real-time Validation", () => {
     it("should validate a price update successfully", async () => {
-      const mockResult: DataValidatorResult = {
+      const mockResult = TestDataBuilder.createValidatorResult({
         isValid: true,
-        errors: [],
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
-        warnings: [],
-        timestamp: Date.now(),
-      };
+      });
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
 
@@ -83,14 +78,11 @@ describe("ValidationService", () => {
     });
 
     it("should use cached results when available", async () => {
-      const mockResult: DataValidatorResult = {
+      const mockResult = TestDataBuilder.createValidatorResult({
         isValid: true,
-        errors: [],
         confidence: 0.9,
         adjustedUpdate: mockUpdate,
-        warnings: [],
-        timestamp: Date.now(),
-      };
+      });
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
 

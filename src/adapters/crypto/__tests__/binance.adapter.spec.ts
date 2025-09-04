@@ -1,55 +1,19 @@
 import { BinanceAdapter, BinanceTickerData } from "../binance.adapter";
 import { FeedCategory } from "@/common/types/core";
-
-// Mock WebSocket
-class MockWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-
-  readyState = MockWebSocket.CONNECTING;
-  onopen?: () => void;
-  onclose?: () => void;
-  onerror?: (error: Error | Event) => void;
-  onmessage?: (event: { data: string }) => void;
-
-  constructor(public url: string) {
-    // Simulate connection opening
-    setTimeout(() => {
-      this.readyState = MockWebSocket.OPEN;
-      this.onopen?.();
-    }, 10);
-  }
-
-  send(_data: string) {
-    // Mock send implementation
-  }
-
-  close() {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.();
-  }
-
-  ping() {
-    // Mock ping implementation
-  }
-}
-
-// Mock fetch
-global.fetch = jest.fn();
-global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
+import { MockSetup, TestHelpers } from "@/__tests__/utils";
 
 describe("BinanceAdapter", () => {
   let adapter: BinanceAdapter;
 
   beforeEach(() => {
+    MockSetup.setupAll();
     adapter = new BinanceAdapter();
     jest.clearAllMocks();
   });
 
   afterEach(async () => {
     await adapter.disconnect();
+    MockSetup.cleanup();
   });
 
   describe("initialization", () => {
@@ -282,7 +246,7 @@ describe("BinanceAdapter", () => {
         throw new Error("Connection failed");
       });
 
-      await expect(adapter.connect()).rejects.toThrow("Connection failed");
+      await TestHelpers.expectToThrow(() => adapter.connect(), "Connection failed");
 
       global.WebSocket = originalWebSocket;
     });

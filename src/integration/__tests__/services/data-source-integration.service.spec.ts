@@ -35,6 +35,7 @@ describe("DataSourceIntegrationService", () => {
       getFiltered: jest.fn(),
       getStats: jest.fn(),
       updateHealthStatus: jest.fn(),
+      has: jest.fn().mockReturnValue(true),
     };
 
     const mockErrorHandler = {
@@ -106,7 +107,23 @@ describe("DataSourceIntegrationService", () => {
   });
 
   describe("initialize", () => {
-    it("should register exchange adapters", async () => {
+    it("should verify exchange adapters via registry presence checks", async () => {
+      // Arrange
+      adapterRegistry.getFiltered.mockReturnValue([]);
+
+      // Act
+      await service.initialize();
+
+      // Assert: ensure presence checks were made for expected adapters
+      const expected = ["binance", "coinbase", "cryptocom", "kraken", "okx", "ccxt-multi-exchange"];
+      for (const name of expected) {
+        expect(adapterRegistry.has).toHaveBeenCalledWith(name);
+      }
+      // No registration should occur in initialize path
+      expect(adapterRegistry.register).not.toHaveBeenCalled();
+    });
+
+    it("should not register adapters during initialization but still proceed", async () => {
       // Arrange
       adapterRegistry.getFiltered.mockReturnValue([]);
 
@@ -114,28 +131,9 @@ describe("DataSourceIntegrationService", () => {
       await service.initialize();
 
       // Assert
-      expect(adapterRegistry.register).toHaveBeenCalledWith("binance", expect.any(Object));
-      expect(adapterRegistry.register).toHaveBeenCalledWith("coinbase", expect.any(Object));
-      expect(adapterRegistry.register).toHaveBeenCalledWith("kraken", expect.any(Object));
-      expect(adapterRegistry.register).toHaveBeenCalledWith("okx", expect.any(Object));
-      expect(adapterRegistry.register).toHaveBeenCalledWith("cryptocom", expect.any(Object));
-    });
-
-    it("should skip already registered adapters", async () => {
-      // Arrange
-      const alreadyRegisteredError = new Error("Adapter binance already registered");
-      adapterRegistry.register.mockImplementation(name => {
-        if (name === "binance") {
-          throw alreadyRegisteredError;
-        }
-      });
-      adapterRegistry.getFiltered.mockReturnValue([]);
-
-      // Act
-      await service.initialize();
-
-      // Assert - should not throw error and continue with other adapters
-      expect(adapterRegistry.register).toHaveBeenCalledTimes(5);
+      expect(adapterRegistry.register).not.toHaveBeenCalled();
+      // startDataSources should query active adapters
+      expect(adapterRegistry.getFiltered).toHaveBeenCalledWith({ isActive: true });
     });
 
     it("should wire data manager events", async () => {

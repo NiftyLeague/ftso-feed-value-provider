@@ -3,6 +3,7 @@ import { FailoverManager } from "../failover-manager";
 import type { FailoverConfig } from "@/common/types/data-manager";
 import type { DataSource, PriceUpdate, EnhancedFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
+import { MockSetup } from "@/__tests__/utils";
 
 // Mock DataSource for testing
 class MockDataSource implements DataSource {
@@ -71,10 +72,8 @@ describe("FailoverManager", () => {
   };
 
   beforeEach(async () => {
-    // Mock console methods to suppress expected error logs during tests
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    jest.spyOn(console, "warn").mockImplementation(() => {});
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    // Use centralized console mocking
+    MockSetup.setupConsole();
 
     module = await Test.createTestingModule({
       providers: [

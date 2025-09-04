@@ -1,15 +1,13 @@
 import type { CacheEntry } from "@/common/types/cache";
 import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { TestDataBuilder } from "@/__tests__/utils";
 
 import { RealTimeCacheService } from "../real-time-cache.service";
 
 describe("RealTimeCacheService", () => {
   let service: RealTimeCacheService;
 
-  const mockFeedId: EnhancedFeedId = {
-    category: FeedCategory.Crypto,
-    name: "BTC/USD",
-  };
+  const mockFeedId = TestDataBuilder.createFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
 
   const mockCacheEntry: CacheEntry = {
     value: 50000,
@@ -200,7 +198,7 @@ describe("RealTimeCacheService", () => {
       stats = service.getStats();
       expect(stats.hits + stats.misses).toBe(2);
       expect(stats.hitRate).toBe(0.5);
-      expect(stats.misses).toBe(0.5);
+      expect(stats.missRate).toBe(0.5);
     });
 
     it("should track total entries", () => {

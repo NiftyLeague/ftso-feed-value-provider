@@ -1,6 +1,7 @@
 import { BaseService } from "../base/base.service";
 import { Logger } from "@nestjs/common";
 import { EnhancedLoggerService } from "../logging/enhanced-logger.service";
+import { TestHelpers } from "@/__tests__/utils";
 
 // Test implementation of BaseService
 class TestService extends BaseService {
@@ -39,10 +40,10 @@ describe("BaseService", () => {
 
   beforeEach(() => {
     service = new TestService();
-    loggerSpy = jest.spyOn(Logger.prototype, "log").mockImplementation();
-    jest.spyOn(Logger.prototype, "warn").mockImplementation();
-    jest.spyOn(Logger.prototype, "error").mockImplementation();
-    jest.spyOn(Logger.prototype, "debug").mockImplementation();
+    loggerSpy = TestHelpers.spyOn(Logger.prototype, "log").mockImplementation();
+    TestHelpers.spyOn(Logger.prototype, "warn").mockImplementation();
+    TestHelpers.spyOn(Logger.prototype, "error").mockImplementation();
+    TestHelpers.spyOn(Logger.prototype, "debug").mockImplementation();
   });
 
   afterEach(() => {

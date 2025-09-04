@@ -1,10 +1,10 @@
-import { Test, TestingModule } from "@nestjs/testing";
 import { HealthController } from "../health.controller";
 import { FtsoProviderService } from "../../app.service";
 import { IntegrationService } from "../../integration/integration.service";
 import { RealTimeCacheService } from "../../cache/real-time-cache.service";
 import { RealTimeAggregationService } from "../../aggregators/real-time-aggregation.service";
 import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.service";
+import { createTestModule, TestHelpers, MockSetup, MockFactory } from "@/__tests__/utils";
 
 describe("HealthController - Health Check Endpoints", () => {
   let controller: HealthController;
@@ -12,60 +12,48 @@ describe("HealthController - Health Check Endpoints", () => {
   let integrationService: jest.Mocked<IntegrationService>;
   let cacheService: jest.Mocked<RealTimeCacheService>;
   let aggregationService: jest.Mocked<RealTimeAggregationService>;
+  let module: any;
+
+  beforeAll(() => {
+    MockSetup.setupConsole();
+  });
 
   beforeEach(async () => {
-    const mockProviderService = {
-      healthCheck: jest.fn(),
-      getPerformanceMetrics: jest.fn(),
-    };
-
-    const mockIntegrationService = {
-      getSystemHealth: jest.fn(),
-    };
-
+    const mockProviderService = MockFactory.createFtsoProviderService();
+    const mockIntegrationService = MockFactory.createIntegrationService();
     const mockCacheService = {
+      ...MockFactory.createCache(),
       getStats: jest.fn(),
     };
-
     const mockAggregationService = {
       getCacheStats: jest.fn(),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [HealthController],
-      providers: [
-        {
-          provide: "FTSO_PROVIDER_SERVICE",
-          useValue: mockProviderService,
-        },
-        {
-          provide: IntegrationService,
-          useValue: mockIntegrationService,
-        },
-        {
-          provide: RealTimeCacheService,
-          useValue: mockCacheService,
-        },
-        {
-          provide: RealTimeAggregationService,
-          useValue: mockAggregationService,
-        },
-        {
-          provide: ApiErrorHandlerService,
-          useClass: ApiErrorHandlerService,
-        },
-      ],
-    }).compile();
+    module = await createTestModule()
+      .addController(HealthController)
+      .addProvider("FTSO_PROVIDER_SERVICE", mockProviderService)
+      .addProvider(IntegrationService, mockIntegrationService)
+      .addProvider(RealTimeCacheService, mockCacheService)
+      .addProvider(RealTimeAggregationService, mockAggregationService)
+      .addProvider(ApiErrorHandlerService)
+      .build();
 
-    controller = module.get<HealthController>(HealthController);
-    providerService = module.get("FTSO_PROVIDER_SERVICE");
-    integrationService = module.get(IntegrationService);
-    cacheService = module.get(RealTimeCacheService);
-    aggregationService = module.get(RealTimeAggregationService);
+    controller = TestHelpers.getService(module, HealthController);
+    providerService = TestHelpers.getService(module, "FTSO_PROVIDER_SERVICE");
+    integrationService = TestHelpers.getService(module, IntegrationService);
+    cacheService = TestHelpers.getService(module, RealTimeCacheService);
+    aggregationService = TestHelpers.getService(module, RealTimeAggregationService);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.restoreAllMocks();
+    if (module) {
+      await module.close();
+    }
+  });
+
+  afterAll(() => {
+    MockSetup.cleanup();
   });
 
   describe("healthCheck (POST)", () => {
