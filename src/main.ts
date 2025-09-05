@@ -8,6 +8,7 @@ import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/
 import { LogLevel, Logger, ValidationPipe } from "@nestjs/common";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
+import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
 
 // Global application instance for graceful shutdown
 let app: INestApplication | null = null;
@@ -96,6 +97,9 @@ async function bootstrap() {
         disableErrorMessages: process.env.NODE_ENV === "production",
       })
     );
+
+    // Configure global exception filter
+    app.useGlobalFilters(new HttpExceptionFilter());
 
     // Configure API documentation
     const basePath = process.env.VALUE_PROVIDER_CLIENT_BASE_PATH ?? "";

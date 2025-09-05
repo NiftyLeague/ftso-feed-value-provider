@@ -6,7 +6,7 @@ import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
-import { ConsensusAggregator } from "../consensus-aggregator";
+import { ConsensusAggregator } from "../consensus-aggregator.service";
 
 describe("RealTimeAggregationService Performance Tests", () => {
   let service: RealTimeAggregationService;

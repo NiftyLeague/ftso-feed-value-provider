@@ -3,7 +3,7 @@ import { BaseEventService } from "@/common/base/base-event.service";
 
 // Monitoring services
 import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
-import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
+
 import { AlertingService } from "@/monitoring/alerting.service";
 
 // Types and interfaces
@@ -12,7 +12,6 @@ import {
   type HealthAlert,
   type SourceHealthStatus,
   type DetailedSystemHealthMetrics,
-  type PerformanceAlertData,
   type Alert,
   AlertSeverity,
 } from "@/common/types/monitoring";
@@ -26,7 +25,6 @@ export class SystemHealthService extends BaseEventService {
 
   constructor(
     private readonly accuracyMonitor: AccuracyMonitorService,
-    private readonly performanceMonitor: PerformanceMonitorService,
     private readonly alertingService: AlertingService
   ) {
     super("SystemHealth", true); // Needs enhanced logging for performance tracking and critical operations
@@ -205,10 +203,8 @@ export class SystemHealthService extends BaseEventService {
     this.logger.log("Setting up monitoring alerts...");
 
     try {
-      // Connect performance monitoring to alerting
-      this.performanceMonitor.on("performanceAlert", alert => {
-        this.handlePerformanceAlert(alert);
-      });
+      // Note: Performance monitor doesn't emit events directly
+      // Performance alerts are handled through periodic health checks
 
       // Connect accuracy monitoring to alerting
       this.accuracyMonitor.on("accuracyAlert", (alert: unknown) => {
@@ -391,28 +387,6 @@ export class SystemHealthService extends BaseEventService {
       this.logger.debug(`Sent health alert: ${alert.type} - ${alert.message}`);
     } catch (error) {
       this.logger.error("Error sending alert:", error);
-    }
-  }
-
-  private handlePerformanceAlert(alert: PerformanceAlertData): void {
-    try {
-      const healthAlert: HealthAlert = {
-        type: "performance_alert",
-        timestamp: Date.now(),
-        severity:
-          alert.severity === AlertSeverity.CRITICAL
-            ? "critical"
-            : alert.severity === AlertSeverity.ERROR
-              ? "error"
-              : alert.severity === AlertSeverity.WARNING
-                ? "warning"
-                : "info",
-        message: `Performance alert: ${alert.metric}=${alert.value} threshold=${alert.threshold}`,
-      };
-
-      this.sendAlert(healthAlert);
-    } catch (error) {
-      this.logger.error("Error handling performance alert:", error);
     }
   }
 

@@ -214,6 +214,7 @@ describe("FeedController - Feed Value Endpoints", () => {
 
       expect(result).toEqual({
         data: [mockVolumeData],
+        windowSec: 60,
       });
       expect(providerService.getVolumes).toHaveBeenCalledWith([mockFeedId], windowSec);
     });

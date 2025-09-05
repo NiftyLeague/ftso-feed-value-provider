@@ -34,9 +34,9 @@ describe("Cache Service Integration", () => {
     cachePerformanceMonitor = module.get<CachePerformanceMonitorService>(CachePerformanceMonitorService);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cacheService.destroy();
-    cacheWarmerService.destroy();
+    await cacheWarmerService.onModuleDestroy();
     cachePerformanceMonitor.destroy();
   });
 
@@ -145,11 +145,10 @@ describe("Cache Service Integration", () => {
       cacheWarmerService.trackFeedAccess(mockFeedId);
       cacheWarmerService.trackFeedAccess(mockFeedId);
 
-      // Get popular feeds
-      const popularFeeds = cacheWarmerService.getPopularFeeds();
-      expect(popularFeeds.length).toBeGreaterThan(0);
-      expect(popularFeeds[0].feedId).toEqual(mockFeedId);
-      expect(popularFeeds[0].requestCount).toBe(3);
+      // Get warming stats
+      const warmupStats = cacheWarmerService.getWarmupStats();
+      expect(warmupStats.totalPatterns).toBeGreaterThan(0);
+      expect(warmupStats.topFeeds[0].accessCount).toBeGreaterThan(0);
     });
 
     it("should warm cache with data source callback", async () => {
@@ -157,8 +156,11 @@ describe("Cache Service Integration", () => {
       const mockCallback = jest.fn().mockResolvedValue(mockAggregatedPrice);
       cacheWarmerService.setDataSourceCallback(mockCallback);
 
-      // Warm cache for feed
-      await cacheWarmerService.warmFeedCache(mockFeedId);
+      // Track feed access to trigger warming
+      cacheWarmerService.trackFeedAccess(mockFeedId);
+
+      // Wait for asynchronous warming to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Verify callback was called
       expect(mockCallback).toHaveBeenCalledWith(mockFeedId);
@@ -178,9 +180,8 @@ describe("Cache Service Integration", () => {
       });
 
       const stats = cacheWarmerService.getWarmupStats();
-      expect(stats.totalTrackedFeeds).toBe(2);
-      expect(stats.popularFeeds).toBeGreaterThanOrEqual(0);
-      expect(stats.warmupEnabled).toBe(true);
+      expect(stats.totalPatterns).toBe(2);
+      expect(stats.strategies.length).toBeGreaterThan(0);
     });
 
     it("should handle cache warming errors gracefully", async () => {
@@ -188,8 +189,11 @@ describe("Cache Service Integration", () => {
       const mockCallback = jest.fn().mockRejectedValue(new Error("Data source error"));
       cacheWarmerService.setDataSourceCallback(mockCallback);
 
-      // Attempt to warm cache - should throw error
-      await expect(cacheWarmerService.warmFeedCache(mockFeedId)).rejects.toThrow("Data source error");
+      // Track feed access (warming happens in background)
+      cacheWarmerService.trackFeedAccess(mockFeedId);
+
+      // Wait for asynchronous warming to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Verify callback was called despite error
       expect(mockCallback).toHaveBeenCalledWith(mockFeedId);

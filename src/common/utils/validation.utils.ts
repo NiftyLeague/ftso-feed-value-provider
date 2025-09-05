@@ -250,19 +250,19 @@ export class ValidationUtils {
    */
   static validateVotingRoundId(votingRoundId: unknown): number {
     if (typeof votingRoundId !== "number") {
-      throw new BadRequestException("votingRoundId must be a number");
+      throw new BadRequestException("Invalid votingRoundId parameter: must be a number");
     }
 
     if (!Number.isInteger(votingRoundId)) {
-      throw new BadRequestException("votingRoundId must be an integer");
+      throw new BadRequestException("Invalid votingRoundId parameter: must be an integer");
     }
 
     if (votingRoundId < 0) {
-      throw new BadRequestException("votingRoundId must be non-negative");
+      throw new BadRequestException("Invalid votingRoundId parameter: must be non-negative");
     }
 
     if (votingRoundId > Number.MAX_SAFE_INTEGER) {
-      throw new BadRequestException("votingRoundId exceeds maximum safe integer");
+      throw new BadRequestException("Invalid votingRoundId parameter: exceeds maximum safe integer");
     }
 
     return votingRoundId;

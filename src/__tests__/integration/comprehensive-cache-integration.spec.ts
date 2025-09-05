@@ -116,7 +116,7 @@ describe("Comprehensive Cache Integration Across All Services", () => {
   afterEach(async () => {
     await integrationService.onModuleDestroy();
     cacheService.destroy();
-    cacheWarmerService.destroy();
+    await cacheWarmerService.onModuleDestroy();
     cachePerformanceMonitor.destroy();
   });
 
@@ -137,8 +137,8 @@ describe("Comprehensive Cache Integration Across All Services", () => {
 
       // Step 3: Verify cache warmer is tracking access
       cacheWarmerService.trackFeedAccess(mockFeedId);
-      const popularFeeds = cacheWarmerService.getPopularFeeds();
-      expect(popularFeeds.length).toBeGreaterThan(0);
+      const warmupStats = cacheWarmerService.getWarmupStats();
+      expect(warmupStats.totalPatterns).toBeGreaterThan(0);
 
       // Step 4: Verify performance monitoring is working
       const performanceMetrics = cachePerformanceMonitor.getPerformanceMetrics();
@@ -243,10 +243,10 @@ describe("Comprehensive Cache Integration Across All Services", () => {
 
       // Get warmup statistics
       const warmupStats = cacheWarmerService.getWarmupStats();
-      expect(warmupStats.totalTrackedFeeds).toBe(3);
+      expect(warmupStats.totalPatterns).toBe(3);
 
-      // Warm cache for most popular feed
-      await cacheWarmerService.warmFeedCache(mockFeedId);
+      // Track feed access to trigger warming
+      cacheWarmerService.trackFeedAccess(mockFeedId);
 
       // Verify cache was populated
       const cachedPrice = cacheService.getPrice(mockFeedId);
@@ -268,7 +268,7 @@ describe("Comprehensive Cache Integration Across All Services", () => {
       expect(cacheStats.stats.hits + cacheStats.stats.misses).toBeGreaterThan(0);
       expect(cacheStats.performance.averageResponseTime).toBeGreaterThanOrEqual(0);
       expect(cacheStats.health.overallHealthy).toBeDefined();
-      expect(cacheStats.warmup.totalTrackedFeeds).toBeGreaterThan(0);
+      expect(cacheStats.warmup.totalPatterns).toBeGreaterThan(0);
 
       expect(aggregationStats.activeFeedCount).toBeDefined();
       expect(aggregationStats.cacheStats).toBeDefined();
@@ -325,8 +325,8 @@ describe("Comprehensive Cache Integration Across All Services", () => {
         throw new Error("Cache warming failed");
       });
 
-      // Cache warming should fail but not affect main operations
-      await expect(cacheWarmerService.warmFeedCache(mockFeedId)).rejects.toThrow("Cache warming failed");
+      // Track feed access (warming happens in background)
+      cacheWarmerService.trackFeedAccess(mockFeedId);
 
       // Main price retrieval should still work
       const price = await priceAggregationCoordinator.getCurrentPrice(mockFeedId);
@@ -397,7 +397,7 @@ describe("Comprehensive Cache Integration Across All Services", () => {
       expect(cacheStats.stats.hitRate).toBeGreaterThanOrEqual(0);
       expect(cacheStats.performance.averageResponseTime).toBeGreaterThanOrEqual(0);
       expect(cacheStats.health.overallHealthy).toBeDefined();
-      expect(cacheStats.warmup.warmupEnabled).toBe(true);
+      expect(cacheStats.warmup.strategies.length).toBeGreaterThan(0);
     });
 
     it("should maintain test coverage requirements (Requirement 7.2)", () => {

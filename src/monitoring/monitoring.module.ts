@@ -4,12 +4,19 @@ import type { AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
 import { AlertingService } from "./alerting.service";
+import { PerformanceOptimizationCoordinatorService } from "./performance-optimization-coordinator.service";
+
+// Import cache and aggregation modules for optimization coordinator
+import { CacheModule } from "@/cache/cache.module";
+import { AggregatorsModule } from "@/aggregators/aggregators.module";
 
 @Module({
+  imports: [CacheModule, AggregatorsModule],
   providers: [
     AccuracyMonitorService,
     PerformanceMonitorService,
     AlertingService,
+    PerformanceOptimizationCoordinatorService,
     {
       provide: "MonitoringConfig",
       useFactory: () => ({
@@ -19,16 +26,16 @@ import { AlertingService } from "./alerting.service";
           minQualityScore: 70,
         },
         performanceThresholds: {
-          maxResponseLatency: 100, // 100ms target
+          maxResponseLatency: 80, // Reduced from 100ms for better performance target
           maxDataAge: 2000, // 2s target
-          minThroughput: 100,
-          minCacheHitRate: 80,
+          minThroughput: 150, // Increased from 100 for better performance
+          minCacheHitRate: 90, // Increased from 80 for better caching
         },
         healthThresholds: {
-          maxErrorRate: 5, // 5 errors per minute
-          maxCpuUsage: 80, // 80% CPU
-          maxMemoryUsage: 80, // 80% memory
-          minConnectionRate: 90, // 90% of exchanges connected
+          maxErrorRate: 3, // 3 errors per minute
+          maxCpuUsage: 70, // 70% cpu
+          maxMemoryUsage: 70, // 70% memory
+          minConnectionRate: 95, // 95% of exchanges connected
         },
         monitoringInterval: 5000, // 5 seconds
         alerting: {
@@ -161,6 +168,11 @@ import { AlertingService } from "./alerting.service";
       }),
     },
   ],
-  exports: [AccuracyMonitorService, PerformanceMonitorService, AlertingService],
+  exports: [
+    AccuracyMonitorService,
+    PerformanceMonitorService,
+    AlertingService,
+    PerformanceOptimizationCoordinatorService,
+  ],
 })
 export class MonitoringModule {}

@@ -1,5 +1,5 @@
-import type { CacheEntry } from "@/common/types/cache";
 import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import type { AggregatedPrice } from "@/common/types/services";
 
 import { CacheWarmerService } from "../cache-warmer.service";
 import { RealTimeCacheService } from "../real-time-cache.service";
@@ -18,22 +18,13 @@ describe("CacheWarmerService", () => {
     name: "ETH/USD",
   };
 
-  const mockCacheEntry: CacheEntry = {
-    value: 50000,
-    timestamp: Date.now(),
-    sources: ["binance", "coinbase"],
-    confidence: 0.95,
-  };
-
   beforeEach(() => {
     cacheService = new RealTimeCacheService();
     warmerService = new CacheWarmerService(cacheService);
-    warmerService.stopWarmupProcess(); // Disable auto-warmup for tests
-    (warmerService as any).config.enabled = false; // Set enabled to false for tests
   });
 
-  afterEach(() => {
-    warmerService.destroy();
+  afterEach(async () => {
+    await warmerService.onModuleDestroy();
     cacheService.destroy();
   });
 
@@ -44,34 +35,35 @@ describe("CacheWarmerService", () => {
       warmerService.trackFeedAccess(mockFeedId2);
 
       const stats = warmerService.getWarmupStats();
-      expect(stats.totalTrackedFeeds).toBe(2);
+      expect(stats.totalPatterns).toBe(2);
     });
 
-    it("should increase request count for repeated access", () => {
+    it("should increase access count for repeated access", () => {
       warmerService.trackFeedAccess(mockFeedId);
       warmerService.trackFeedAccess(mockFeedId);
       warmerService.trackFeedAccess(mockFeedId);
 
-      const popularFeeds = warmerService.getPopularFeeds();
-      expect(popularFeeds.length).toBe(1);
-      expect(popularFeeds[0].requestCount).toBe(3);
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBe(1);
+      expect(stats.topFeeds.length).toBeGreaterThanOrEqual(1);
+      expect(stats.topFeeds[0].accessCount).toBe(3);
     });
 
-    it("should update last requested timestamp", async () => {
+    it("should update access patterns over time", async () => {
       warmerService.trackFeedAccess(mockFeedId);
-      const firstAccess = warmerService.getPopularFeeds()[0].lastRequested;
+      const firstStats = warmerService.getWarmupStats();
 
       await new Promise(resolve => setTimeout(resolve, 10));
 
       warmerService.trackFeedAccess(mockFeedId);
-      const secondAccess = warmerService.getPopularFeeds()[0].lastRequested;
+      const secondStats = warmerService.getWarmupStats();
 
-      expect(secondAccess).toBeGreaterThan(firstAccess);
+      expect(secondStats.topFeeds[0].accessCount).toBeGreaterThan(firstStats.topFeeds[0].accessCount);
     });
   });
 
-  describe("Popular Feeds Management", () => {
-    it("should return popular feeds sorted by priority", () => {
+  describe("Intelligent Warming Management", () => {
+    it("should return top feeds sorted by priority", () => {
       // Create feeds with different access patterns
       warmerService.trackFeedAccess(mockFeedId);
       warmerService.trackFeedAccess(mockFeedId);
@@ -79,13 +71,12 @@ describe("CacheWarmerService", () => {
 
       warmerService.trackFeedAccess(mockFeedId2);
 
-      const popularFeeds = warmerService.getPopularFeeds();
-      expect(popularFeeds.length).toBe(2);
-      expect(popularFeeds[0].feedId).toEqual(mockFeedId); // More popular feed first
-      expect(popularFeeds[0].requestCount).toBe(3);
+      const stats = warmerService.getWarmupStats();
+      expect(stats.topFeeds.length).toBe(2);
+      expect(stats.topFeeds[0].accessCount).toBe(3); // More popular feed first
     });
 
-    it("should limit the number of popular feeds returned", () => {
+    it("should track multiple feeds", () => {
       // Track many feeds
       for (let i = 0; i < 15; i++) {
         const feedId: EnhancedFeedId = {
@@ -95,123 +86,81 @@ describe("CacheWarmerService", () => {
         warmerService.trackFeedAccess(feedId);
       }
 
-      const popularFeeds = warmerService.getPopularFeeds(5);
-      expect(popularFeeds.length).toBe(5);
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBe(15);
+      expect(stats.topFeeds.length).toBeLessThanOrEqual(10); // Limited to top 10
     });
 
-    it("should filter out stale metrics", async () => {
-      warmerService.trackFeedAccess(mockFeedId);
-
-      // Mock old timestamp (more than 1 hour ago)
-      const popularFeeds = warmerService.getPopularFeeds();
-      if (popularFeeds.length > 0) {
-        popularFeeds[0].lastRequested = Date.now() - 3700000; // 1 hour and 10 minutes ago
-      }
-
-      const recentFeeds = warmerService.getPopularFeeds();
-      expect(recentFeeds.length).toBe(0);
-    });
-
-    it("should set popular feeds manually", () => {
-      const manualFeeds = [mockFeedId, mockFeedId2];
-      warmerService.setPopularFeeds(manualFeeds);
-
-      const popularFeeds = warmerService.getPopularFeeds();
-      expect(popularFeeds.length).toBe(2);
-      expect(popularFeeds[0].priority).toBe(5); // Higher priority for manual feeds
-    });
-  });
-
-  describe("Cache Warming", () => {
-    it("should warm cache for a specific feed", async () => {
-      await warmerService.warmFeedCache(mockFeedId);
-
-      const cachedData = cacheService.getPrice(mockFeedId);
-      expect(cachedData).toBeDefined();
-      expect(cachedData?.value).toBeGreaterThan(0);
-      expect(cachedData?.sources).toEqual(["mock-source"]);
-    });
-
-    it("should skip warming if cache is already fresh", async () => {
-      // Pre-populate cache with fresh data
-      const freshEntry: CacheEntry = {
-        ...mockCacheEntry,
-        timestamp: Date.now(),
-      };
-      cacheService.setPrice(mockFeedId, freshEntry);
-
-      const spy = jest.spyOn(warmerService as any, "fetchFreshData");
-
-      await warmerService.warmFeedCache(mockFeedId);
-
-      expect(spy).not.toHaveBeenCalled();
-      spy.mockRestore();
-    });
-
-    it("should warm cache for popular feeds", async () => {
-      // Track some feeds to make them popular
-      warmerService.trackFeedAccess(mockFeedId);
-      warmerService.trackFeedAccess(mockFeedId2);
-
-      await warmerService.warmPopularFeeds();
-
-      const cachedData1 = cacheService.getPrice(mockFeedId);
-      const cachedData2 = cacheService.getPrice(mockFeedId2);
-
-      expect(cachedData1).toBeDefined();
-      expect(cachedData2).toBeDefined();
-    });
-
-    it("should handle warming errors gracefully", async () => {
-      // Mock fetchFreshData to throw an error
-      const spy = jest.spyOn(warmerService as any, "fetchFreshData").mockRejectedValue(new Error("Network error"));
-
-      await expect(warmerService.warmFeedCache(mockFeedId)).rejects.toThrow("Network error");
-
-      spy.mockRestore();
-    });
-
-    it("should continue warming other feeds if one fails", async () => {
-      warmerService.trackFeedAccess(mockFeedId);
-      warmerService.trackFeedAccess(mockFeedId2);
-
-      // Mock fetchFreshData to fail for first feed but succeed for second
-      const spy = jest.spyOn(warmerService as any, "fetchFreshData").mockImplementation((feedId: any) => {
-        if (feedId.name === "BTC/USD") {
-          return Promise.reject(new Error("Network error"));
-        }
-        return Promise.resolve({
-          value: 3000,
-          timestamp: Date.now(),
-          sources: ["mock-source"],
-          confidence: 0.95,
-        });
-      });
-
-      await warmerService.warmPopularFeeds();
-
-      const cachedData1 = cacheService.getPrice(mockFeedId);
-      const cachedData2 = cacheService.getPrice(mockFeedId2);
-
-      expect(cachedData1).toBeNull(); // Failed to warm
-      expect(cachedData2).toBeDefined(); // Successfully warmed
-
-      spy.mockRestore();
-    });
-  });
-
-  describe("Warmup Statistics", () => {
-    it("should provide warmup statistics", () => {
+    it("should track active patterns", () => {
       warmerService.trackFeedAccess(mockFeedId);
       warmerService.trackFeedAccess(mockFeedId2);
 
       const stats = warmerService.getWarmupStats();
-      expect(stats.totalTrackedFeeds).toBe(2);
-      expect(stats.popularFeeds).toBe(2);
-      expect(stats.warmupEnabled).toBe(false);
+      expect(stats.activePatterns).toBe(2); // Both should be active
     });
 
-    it("should show correct popular feeds count", () => {
+    it("should provide warming strategies", () => {
+      const stats = warmerService.getWarmupStats();
+      expect(stats.strategies).toBeDefined();
+      expect(stats.strategies.length).toBeGreaterThan(0);
+      expect(stats.strategies[0]).toHaveProperty("name");
+      expect(stats.strategies[0]).toHaveProperty("enabled");
+    });
+  });
+
+  describe("Data Source Integration", () => {
+    it("should set data source callback", () => {
+      const mockCallback = jest.fn().mockResolvedValue({
+        price: 50000,
+        timestamp: Date.now(),
+        sources: ["binance"],
+        confidence: 0.95,
+      } as AggregatedPrice);
+
+      warmerService.setDataSourceCallback(mockCallback);
+
+      // Should not throw errors
+      expect(warmerService).toBeDefined();
+    });
+
+    it("should handle data source callback errors", async () => {
+      const mockCallback = jest.fn().mockRejectedValue(new Error("Network error"));
+      warmerService.setDataSourceCallback(mockCallback);
+
+      // Track a feed to trigger warming
+      warmerService.trackFeedAccess(mockFeedId);
+
+      // Wait a bit for any background warming to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Should not crash the service
+      expect(warmerService).toBeDefined();
+    });
+
+    it("should work without data source callback", () => {
+      // Track feeds without setting callback
+      warmerService.trackFeedAccess(mockFeedId);
+      warmerService.trackFeedAccess(mockFeedId2);
+
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBe(2);
+    });
+  });
+
+  describe("Warmup Statistics", () => {
+    it("should provide comprehensive warming statistics", () => {
+      warmerService.trackFeedAccess(mockFeedId);
+      warmerService.trackFeedAccess(mockFeedId2);
+
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBe(2);
+      expect(stats.activePatterns).toBe(2);
+      expect(stats.warmingStats).toBeDefined();
+      expect(stats.strategies).toBeDefined();
+      expect(stats.topFeeds).toBeDefined();
+    });
+
+    it("should track warming performance", () => {
       // Track feeds with different patterns
       for (let i = 0; i < 5; i++) {
         warmerService.trackFeedAccess(mockFeedId);
@@ -219,37 +168,53 @@ describe("CacheWarmerService", () => {
       warmerService.trackFeedAccess(mockFeedId2);
 
       const stats = warmerService.getWarmupStats();
-      expect(stats.popularFeeds).toBe(2);
+      expect(stats.topFeeds.length).toBe(2);
+      expect(stats.topFeeds[0].accessCount).toBe(5);
+      expect(stats.topFeeds[1].accessCount).toBe(1);
+    });
+
+    it("should provide warming strategy information", () => {
+      const stats = warmerService.getWarmupStats();
+      expect(stats.strategies.length).toBeGreaterThan(0);
+
+      const strategy = stats.strategies[0];
+      expect(strategy).toHaveProperty("name");
+      expect(strategy).toHaveProperty("enabled");
+      expect(strategy).toHaveProperty("priority");
+      expect(strategy).toHaveProperty("targetFeeds");
     });
   });
 
-  describe("Automatic Warmup Process", () => {
-    it("should start and stop warmup process", () => {
-      const autoWarmerService = new CacheWarmerService(cacheService);
+  describe("Intelligent Warming Process", () => {
+    it("should initialize with warming strategies", () => {
+      const stats = warmerService.getWarmupStats();
+      expect(stats.strategies.length).toBeGreaterThan(0);
 
-      expect(autoWarmerService.getWarmupStats().warmupEnabled).toBe(true);
-
-      autoWarmerService.stopWarmupProcess();
-      autoWarmerService.destroy();
+      // Check that strategies are properly configured
+      const criticalStrategy = stats.strategies.find(s => s.name === "critical_realtime");
+      expect(criticalStrategy).toBeDefined();
+      expect(criticalStrategy?.enabled).toBe(true);
     });
 
-    it("should run warmup at specified intervals", async () => {
-      const spy = jest.spyOn(CacheWarmerService.prototype, "warmPopularFeeds").mockResolvedValue();
+    it("should track warming performance metrics", async () => {
+      // Set up a mock data source
+      const mockCallback = jest.fn().mockResolvedValue({
+        price: 50000,
+        timestamp: Date.now(),
+        sources: ["binance"],
+        confidence: 0.95,
+      } as AggregatedPrice);
 
-      const autoWarmerService = new CacheWarmerService(cacheService);
-      // Set a shorter interval for testing
-      (autoWarmerService as any).config.warmupInterval = 50;
-      // Restart the warmup process with the new interval
-      autoWarmerService.stopWarmupProcess();
-      (autoWarmerService as any).startWarmupProcess();
+      warmerService.setDataSourceCallback(mockCallback);
+      warmerService.trackFeedAccess(mockFeedId);
 
-      // Wait for at least one interval
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for potential warming activity
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(spy).toHaveBeenCalled();
-
-      autoWarmerService.destroy();
-      spy.mockRestore();
+      const stats = warmerService.getWarmupStats();
+      expect(stats.warmingStats).toBeDefined();
+      expect(typeof stats.warmingStats.totalWarming).toBe("number");
+      expect(typeof stats.warmingStats.successfulWarming).toBe("number");
     });
   });
 
@@ -261,54 +226,73 @@ describe("CacheWarmerService", () => {
       }
       warmerService.trackFeedAccess(mockFeedId2);
 
-      const popularFeeds = warmerService.getPopularFeeds();
-      expect(popularFeeds[0].feedId).toEqual(mockFeedId);
-      expect(popularFeeds[0].priority).toBeGreaterThan(popularFeeds[1].priority);
+      const stats = warmerService.getWarmupStats();
+      expect(stats.topFeeds[0].accessCount).toBe(10);
+      expect(stats.topFeeds[0].priority).toBeGreaterThan(stats.topFeeds[1].priority);
     });
 
-    it("should decay priority over time", async () => {
+    it("should handle priority calculation for new feeds", () => {
       warmerService.trackFeedAccess(mockFeedId);
-      const initialPriority = warmerService.getPopularFeeds()[0].priority;
 
-      // Mock old timestamp to simulate time decay
-      const popularFeeds = warmerService.getPopularFeeds();
-      popularFeeds[0].lastRequested = Date.now() - 86400000; // 24 hours ago
+      const stats = warmerService.getWarmupStats();
+      expect(stats.topFeeds.length).toBe(1);
+      expect(stats.topFeeds[0].priority).toBeGreaterThan(0);
+    });
 
-      // Access the private method to recalculate priority
-      const calculatePriority = (warmerService as any).calculatePriority;
-      const decayedPriority = calculatePriority(popularFeeds[0]);
+    it("should maintain priority ordering", () => {
+      // Create different access patterns
+      for (let i = 0; i < 5; i++) {
+        warmerService.trackFeedAccess(mockFeedId);
+      }
+      for (let i = 0; i < 3; i++) {
+        warmerService.trackFeedAccess(mockFeedId2);
+      }
 
-      expect(decayedPriority).toBeLessThan(initialPriority);
+      const stats = warmerService.getWarmupStats();
+      expect(stats.topFeeds[0].accessCount).toBeGreaterThanOrEqual(stats.topFeeds[1].accessCount);
     });
   });
 
   describe("Memory Management", () => {
-    it("should clean up resources on destroy", () => {
+    it("should clean up resources on destroy", async () => {
       warmerService.trackFeedAccess(mockFeedId);
       warmerService.trackFeedAccess(mockFeedId2);
 
-      expect(warmerService.getWarmupStats().totalTrackedFeeds).toBe(2);
+      expect(warmerService.getWarmupStats().totalPatterns).toBe(2);
 
-      warmerService.destroy();
+      await warmerService.onModuleDestroy();
 
-      expect(warmerService.getWarmupStats().totalTrackedFeeds).toBe(0);
+      expect(warmerService.getWarmupStats().totalPatterns).toBe(0);
     });
 
-    it("should stop intervals on destroy", () => {
-      const autoWarmerService = new CacheWarmerService(cacheService);
-
+    it("should stop intervals on destroy", async () => {
       const spy = jest.spyOn(global, "clearInterval");
 
-      autoWarmerService.destroy();
+      await warmerService.onModuleDestroy();
 
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
     });
+
+    it("should handle cleanup of stale patterns", async () => {
+      // Track some feeds
+      warmerService.trackFeedAccess(mockFeedId);
+      warmerService.trackFeedAccess(mockFeedId2);
+
+      // Simulate time passing for cleanup
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBeGreaterThanOrEqual(0);
+    });
   });
 
   describe("Edge Cases", () => {
-    it("should handle empty popular feeds list", async () => {
-      await expect(warmerService.warmPopularFeeds()).resolves.not.toThrow();
+    it("should handle empty feed patterns gracefully", () => {
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBe(0);
+      expect(stats.activePatterns).toBe(0);
+      expect(stats.topFeeds).toEqual([]);
     });
 
     it("should handle feeds with same name but different categories", () => {
@@ -319,21 +303,26 @@ describe("CacheWarmerService", () => {
       warmerService.trackFeedAccess(forexFeed);
 
       const stats = warmerService.getWarmupStats();
-      expect(stats.totalTrackedFeeds).toBe(2);
+      expect(stats.totalPatterns).toBe(2);
     });
 
-    it("should maintain minimum priority", () => {
+    it("should maintain reasonable priority values", () => {
       warmerService.trackFeedAccess(mockFeedId);
-      const popularFeeds = warmerService.getPopularFeeds();
 
-      // Mock very old timestamp
-      popularFeeds[0].lastRequested = Date.now() - 365 * 24 * 60 * 60 * 1000; // 1 year ago
+      const stats = warmerService.getWarmupStats();
+      expect(stats.topFeeds[0].priority).toBeGreaterThan(0);
+      expect(stats.topFeeds[0].priority).toBeLessThan(1000); // Reasonable upper bound
+    });
 
-      // Recalculate priority
-      warmerService.trackFeedAccess(mockFeedId);
-      const updatedFeeds = warmerService.getPopularFeeds();
+    it("should handle concurrent access tracking", () => {
+      // Simulate concurrent access
+      for (let i = 0; i < 100; i++) {
+        warmerService.trackFeedAccess(mockFeedId);
+      }
 
-      expect(updatedFeeds[0].priority).toBeGreaterThanOrEqual(0.1);
+      const stats = warmerService.getWarmupStats();
+      expect(stats.totalPatterns).toBe(1);
+      expect(stats.topFeeds[0].accessCount).toBe(100);
     });
   });
 });

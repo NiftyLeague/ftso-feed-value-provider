@@ -73,9 +73,9 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
     cachePerformanceMonitor = module.get<CachePerformanceMonitorService>(CachePerformanceMonitorService);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cacheService.destroy();
-    cacheWarmerService.destroy();
+    await cacheWarmerService.onModuleDestroy();
     cachePerformanceMonitor.destroy();
   });
 
@@ -165,8 +165,8 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
       cacheWarmerService.trackFeedAccess(mockFeedId);
       cacheWarmerService.trackFeedAccess(mockFeedId);
 
-      // Warm cache through coordinator's configured callback
-      await cacheWarmerService.warmFeedCache(mockFeedId);
+      // Track feed access to trigger warming
+      cacheWarmerService.trackFeedAccess(mockFeedId);
 
       // Verify aggregation service was called
       expect(aggregationService.getAggregatedPrice).toHaveBeenCalledWith(mockFeedId);
@@ -178,7 +178,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
 
       // Verify warming stats
       const warmupStats = cacheWarmerService.getWarmupStats();
-      expect(warmupStats.totalTrackedFeeds).toBe(1);
+      expect(warmupStats.totalPatterns).toBe(1);
     });
 
     it("should integrate cache performance monitoring across services", async () => {
@@ -298,9 +298,8 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
 
       // Verify cache warmer can access the same data
       cacheWarmerService.trackFeedAccess(mockFeedId);
-      const popularFeeds = cacheWarmerService.getPopularFeeds();
-      expect(popularFeeds.length).toBeGreaterThan(0);
-      expect(popularFeeds[0].feedId).toEqual(mockFeedId);
+      const warmupStats = cacheWarmerService.getWarmupStats();
+      expect(warmupStats.totalPatterns).toBeGreaterThan(0);
 
       // Verify performance monitor has metrics
       const performanceMetrics = cachePerformanceMonitor.getPerformanceMetrics();
@@ -347,8 +346,8 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
         throw new Error("Cache warming failed");
       });
 
-      // Cache warming should fail but not affect main operations
-      await expect(cacheWarmerService.warmFeedCache(mockFeedId)).rejects.toThrow("Cache warming failed");
+      // Track feed access (warming happens in background)
+      cacheWarmerService.trackFeedAccess(mockFeedId);
 
       // Main price retrieval should still work
       const price = await coordinatorService.getCurrentPrice(mockFeedId);

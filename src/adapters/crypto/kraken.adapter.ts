@@ -81,7 +81,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   protected override handleWebSocketMessage(data: unknown): void {
     try {
       // Handle different data types that might come from WebSocket
-      let parsed: any;
+      let parsed: unknown;
 
       if (typeof data === "string") {
         parsed = JSON.parse(data);
@@ -109,15 +109,18 @@ export class KrakenAdapter extends BaseExchangeAdapter {
             this.onPriceUpdateCallback?.(priceUpdate);
           }
         }
-      } else if (parsed.event === "systemStatus") {
-        this.logger.debug("Kraken system status:", parsed.status);
-        // System status messages are valid and expected
-        return;
-      } else if (parsed.event === "subscriptionStatus") {
-        if (parsed.status === "subscribed") {
-          this.logger.debug("Kraken subscription confirmed:", parsed.pair);
-        } else if (parsed.status === "error") {
-          this.logger.warn("Kraken subscription error:", parsed.errorMessage);
+      } else if (typeof parsed === "object" && parsed !== null) {
+        const parsedObj = parsed as { event?: string; status?: string; pair?: string; errorMessage?: string };
+        if (parsedObj.event === "systemStatus") {
+          this.logger.debug("Kraken system status:", parsedObj.status);
+          // System status messages are valid and expected
+          return;
+        } else if (parsedObj.event === "subscriptionStatus") {
+          if (parsedObj.status === "subscribed") {
+            this.logger.debug("Kraken subscription confirmed:", parsedObj.pair);
+          } else if (parsedObj.status === "error") {
+            this.logger.warn("Kraken subscription error:", parsedObj.errorMessage);
+          }
         }
         // Subscription status messages are valid and expected
         return;

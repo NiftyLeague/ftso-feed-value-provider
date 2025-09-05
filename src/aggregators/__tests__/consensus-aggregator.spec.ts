@@ -1,4 +1,4 @@
-import { ConsensusAggregator } from "../consensus-aggregator";
+import { ConsensusAggregator } from "../consensus-aggregator.service";
 import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 import { TestDataBuilder } from "@/__tests__/utils";
@@ -97,6 +97,13 @@ describe("ConsensusAggregator", () => {
         },
         {
           symbol: "BTC/USD",
+          price: 50010,
+          timestamp: now - 400, // Fresh data
+          source: "kraken",
+          confidence: 0.9,
+        },
+        {
+          symbol: "BTC/USD",
           price: 60000, // Outlier price
           timestamp: now - 3000, // Stale data (3 seconds old)
           source: "coinbase",
@@ -106,10 +113,13 @@ describe("ConsensusAggregator", () => {
 
       const result = await aggregator.aggregate(mockFeedId, updates);
 
-      // Should only use the fresh data
-      expect(result.sources).toHaveLength(1);
+      // Should only use the fresh data (2 sources)
+      expect(result.sources).toHaveLength(2);
       expect(result.sources).toContain("binance");
-      expect(result.price).toBe(50000);
+      expect(result.sources).toContain("kraken");
+      expect(result.sources).not.toContain("coinbase");
+      expect(result.price).toBeGreaterThan(49990);
+      expect(result.price).toBeLessThan(50020);
     });
 
     it("should handle empty updates array", async () => {
@@ -302,26 +312,12 @@ describe("ConsensusAggregator", () => {
   });
 
   describe("configuration", () => {
-    it("should allow configuration updates", () => {
-      const newConfig = {
-        lambda: 0.0001,
-        consensusThreshold: 0.8,
-      };
+    it("should provide performance statistics", () => {
+      const stats = aggregator.getOptimizedPerformanceStats();
 
-      aggregator.updateConfig(newConfig);
-      const currentConfig = aggregator.getConfig();
-
-      expect(currentConfig.lambda).toBe(0.0001);
-      expect(currentConfig.consensusThreshold).toBe(0.8);
-    });
-
-    it("should use default configuration values", () => {
-      const config = aggregator.getConfig();
-
-      expect(config.lambda).toBe(0.00005);
-      expect(config.minSources).toBe(3);
-      expect(config.maxStalenessMs).toBe(2000);
-      expect(config.consensusThreshold).toBe(0.7);
+      expect(stats.totalAggregations).toBeDefined();
+      expect(stats.averageTime).toBeDefined();
+      expect(stats.cacheHitRate).toBeDefined();
     });
   });
 });

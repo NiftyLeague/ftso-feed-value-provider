@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { DynamicModule, ForwardReference, Provider, Type } from "@nestjs/common";
 import { ConfigService } from "@/config/config.service";
-import { ConsensusAggregator } from "@/aggregators/consensus-aggregator";
+import { ConsensusAggregator } from "@/aggregators/consensus-aggregator.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
@@ -116,7 +116,7 @@ export class TestModuleBuilder {
         aggregationStats: { totalFeeds: 5, activeFeeds: 5 },
         activeFeedCount: 5,
       }),
-      setIntegrationService: jest.fn().mockImplementation(function (this: any) {
+      setIntegrationService: jest.fn().mockImplementation(function (this: { integrationService?: unknown }) {
         // Mock the integration service to avoid the "not available" error
         this.integrationService = {
           getCurrentPrice: jest.fn().mockResolvedValue({
@@ -127,7 +127,7 @@ export class TestModuleBuilder {
           }),
           getCurrentPrices: jest.fn().mockImplementation(feedIds => {
             return Promise.resolve(
-              feedIds.map((feedId: any) => ({
+              feedIds.map((feedId: { name: string }) => ({
                 price: feedId.name === "BTC/USD" ? 50000.0 : 1.0,
                 timestamp: Date.now(),
                 sources: ["mock"],
