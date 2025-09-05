@@ -1,11 +1,20 @@
 import { v4 as uuidv4 } from "uuid";
 import { HttpException, HttpStatus } from "@nestjs/common";
+import type { Request } from "express";
 import { BaseService } from "./base.service";
 import { ValidationUtils } from "../utils/validation.utils";
 import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
 import type { ApiResponse } from "../types/http/http.types";
 import type { StandardErrorMetadata } from "../types/error-handling";
 import { createTimer, PerformanceUtils } from "../utils/performance.utils";
+import type { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import type { UniversalRetryService } from "@/error-handling/universal-retry.service";
+
+// Extended Request interface for authentication and session data
+interface ExtendedRequest extends Request {
+  user?: { id: string; [key: string]: unknown };
+  session?: { id: string; [key: string]: unknown };
+}
 
 /**
  * Base controller class consolidates common controller patterns
@@ -17,8 +26,8 @@ export abstract class BaseController extends BaseService {
   protected readonly controllerName: string;
 
   // These will be injected by child controllers that need standardized error handling
-  protected standardizedErrorHandler?: any; // Will be typed properly when injected
-  protected universalRetryService?: any; // Will be typed properly when injected
+  protected standardizedErrorHandler?: StandardizedErrorHandlerService;
+  protected universalRetryService?: UniversalRetryService;
 
   constructor(controllerName: string) {
     super(controllerName);
@@ -611,12 +620,12 @@ export abstract class BaseController extends BaseService {
   /**
    * Extract request metadata from request object
    */
-  protected extractRequestMetadata(request: any): Partial<StandardErrorMetadata> {
+  protected extractRequestMetadata(request: Request): Partial<StandardErrorMetadata> {
     return {
       correlationId: request.get?.("X-Correlation-ID") || request.get?.("X-Request-ID") || this.generateRequestId(),
       traceId: request.get?.("X-Trace-ID"),
-      userId: request.get?.("X-User-ID") || request.user?.id,
-      sessionId: request.get?.("X-Session-ID") || request.session?.id,
+      userId: request.get?.("X-User-ID") || (request as ExtendedRequest).user?.id,
+      sessionId: request.get?.("X-Session-ID") || (request as ExtendedRequest).session?.id,
       clientId: request.get?.("X-Client-ID"),
       userAgent: request.get?.("User-Agent"),
       ipAddress: this.extractClientIp(request),
@@ -632,7 +641,7 @@ export abstract class BaseController extends BaseService {
   /**
    * Extract client IP address from request
    */
-  protected extractClientIp(request: any): string {
+  protected extractClientIp(request: Request): string {
     return (
       request.get?.("X-Forwarded-For")?.split(",")[0]?.trim() ||
       request.get?.("X-Real-IP") ||
@@ -663,7 +672,7 @@ export abstract class BaseController extends BaseService {
       "credential",
     ];
 
-    const sanitized = { ...data } as any;
+    const sanitized = { ...data } as Record<string, unknown>;
 
     for (const field of sensitiveFields) {
       if (field in sanitized) {

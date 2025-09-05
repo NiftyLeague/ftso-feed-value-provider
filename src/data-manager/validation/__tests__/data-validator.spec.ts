@@ -143,7 +143,7 @@ describe("DataValidator", () => {
       expect(result.isValid).toBe(false);
       expect(result.errors).toContainEqual(
         expect.objectContaining({
-          type: ValidationErrorType.RANGE_ERROR,
+          type: ValidationErrorType.PRICE_OUT_OF_RANGE,
           severity: "critical",
           field: "price",
         })
@@ -159,7 +159,7 @@ describe("DataValidator", () => {
 
       expect(result.errors).toContainEqual(
         expect.objectContaining({
-          type: ValidationErrorType.RANGE_ERROR,
+          type: ValidationErrorType.PRICE_OUT_OF_RANGE,
           severity: "high",
           field: "price",
         })
@@ -175,7 +175,7 @@ describe("DataValidator", () => {
 
       expect(result.errors).toContainEqual(
         expect.objectContaining({
-          type: ValidationErrorType.RANGE_ERROR,
+          type: ValidationErrorType.PRICE_OUT_OF_RANGE,
           severity: "high",
           field: "price",
         })
@@ -194,7 +194,7 @@ describe("DataValidator", () => {
       expect(result.isValid).toBe(false);
       expect(result.errors).toContainEqual(
         expect.objectContaining({
-          type: ValidationErrorType.STALENESS_ERROR,
+          type: ValidationErrorType.STALE_DATA,
           severity: "critical",
           field: "timestamp",
         })
@@ -210,7 +210,7 @@ describe("DataValidator", () => {
 
       expect(result.errors).toContainEqual(
         expect.objectContaining({
-          type: ValidationErrorType.STALENESS_ERROR,
+          type: ValidationErrorType.STALE_DATA,
           severity: "low",
           field: "timestamp",
         })
@@ -224,7 +224,7 @@ describe("DataValidator", () => {
 
       const result = await validator.validateUpdate(update, context, config);
 
-      const stalenessErrors = result.errors.filter(e => e.type === ValidationErrorType.STALENESS_ERROR);
+      const stalenessErrors = result.errors.filter(e => e.type === ValidationErrorType.STALE_DATA);
       expect(stalenessErrors).toHaveLength(0);
     });
   });
@@ -433,7 +433,12 @@ describe("DataValidator", () => {
         {
           isValid: false,
           errors: [
-            { code: "RANGE_ERROR", type: ValidationErrorType.RANGE_ERROR, message: "test", severity: "high" as const },
+            {
+              code: "PRICE_OUT_OF_RANGE",
+              type: ValidationErrorType.PRICE_OUT_OF_RANGE,
+              message: "test",
+              severity: "high" as const,
+            },
           ],
           confidence: 0.1,
           warnings: [],

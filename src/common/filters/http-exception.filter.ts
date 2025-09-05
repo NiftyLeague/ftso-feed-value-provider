@@ -3,6 +3,21 @@ import { Request, Response } from "express";
 import type { EnhancedErrorResponse, StandardErrorMetadata } from "@/common/types/error-handling";
 import { StandardErrorClassification, createEnhancedErrorResponse, ErrorSeverity } from "@/common/types/error-handling";
 
+// Extended Request interface for authentication and session data
+interface ExtendedRequest extends Request {
+  user?: { id: string; [key: string]: unknown };
+  session?: { id: string; [key: string]: unknown };
+}
+
+// Type for HTTP exception response objects
+interface HttpExceptionResponse {
+  error?: string;
+  code?: string;
+  message?: string;
+  timestamp?: number;
+  context?: Record<string, unknown>;
+}
+
 /**
  * Enhanced global exception filter that provides standardized error responses
  * with comprehensive logging, monitoring, and retry information
@@ -77,7 +92,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Handle object responses
     if (typeof exceptionResponse === "object" && exceptionResponse !== null) {
-      const objResponse = exceptionResponse as any;
+      const objResponse = exceptionResponse as HttpExceptionResponse;
 
       return {
         success: false,
@@ -135,7 +150,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       typeof error === "string"
         ? error
         : error && typeof error === "object" && "message" in error
-          ? String((error as any).message)
+          ? String((error as { message: unknown }).message)
           : "Unknown error occurred";
 
     return createEnhancedErrorResponse(
@@ -189,11 +204,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private extractUserId(request: Request): string | undefined {
-    return request.get("X-User-ID") || (request as any).user?.id;
+    return request.get("X-User-ID") || (request as ExtendedRequest).user?.id;
   }
 
   private extractSessionId(request: Request): string | undefined {
-    return request.get("X-Session-ID") || (request as any).session?.id;
+    return request.get("X-Session-ID") || (request as ExtendedRequest).session?.id;
   }
 
   private extractClientId(request: Request): string | undefined {
@@ -210,7 +225,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     );
   }
 
-  private sanitizeHeaders(headers: any): Record<string, string> {
+  private sanitizeHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {
     const sanitized: Record<string, string> = {};
     const sensitiveHeaders = ["authorization", "cookie", "x-api-key", "x-auth-token"];
 
@@ -360,7 +375,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       obj !== null &&
       typeof obj === "object" &&
       "success" in obj &&
-      (obj as any).success === false &&
+      (obj as { success: boolean }).success === false &&
       "error" in obj &&
       "retryable" in obj
     );

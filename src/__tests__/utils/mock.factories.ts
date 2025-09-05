@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+// Jest globals are available without import in standard Jest setup
 
 /**
  * Factory for creating commonly used mocks

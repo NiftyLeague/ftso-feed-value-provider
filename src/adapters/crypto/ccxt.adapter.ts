@@ -176,7 +176,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     return hasFeedId && isNum;
   }
 
-  // Get single price from CCXT (for backward compatibility)
+  // Get single price from CCXT
   async getCcxtPrice(feedId: EnhancedFeedId): Promise<PriceUpdate> {
     const startTime = Date.now();
     this.metrics.priceExtractionCount++;

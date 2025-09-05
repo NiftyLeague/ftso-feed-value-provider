@@ -15,7 +15,6 @@ function mapSeverityToLogLevel(severity: ErrorSeverity): LogLevel {
     case ErrorSeverity.CRITICAL:
       return "error";
     case ErrorSeverity.HIGH:
-    case ErrorSeverity.ERROR: // For backward compatibility
       return "error";
     case ErrorSeverity.MEDIUM:
       return "warn";

@@ -13,6 +13,24 @@ import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.
 import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 
+// Mock HTTP Exception interface for testing
+interface MockHttpException extends Error {
+  getStatus(): number;
+  getResponse(): {
+    success: boolean;
+    error: {
+      code: string;
+      message: string;
+      severity: string;
+      timestamp: number;
+    };
+    timestamp: number;
+    requestId: string;
+    retryable: boolean;
+    retryAfter?: number;
+  };
+}
+
 /**
  * Test module builder utility to reduce boilerplate in test files
  */
@@ -428,9 +446,9 @@ export class TestModuleBuilder {
           return await operation();
         }),
         createStandardizedError: jest.fn().mockImplementation((error, _metadata, requestId) => {
-          const httpException = new Error(error.message);
-          (httpException as any).getStatus = () => 500;
-          (httpException as any).getResponse = () => ({
+          const httpException = new Error(error.message) as MockHttpException;
+          httpException.getStatus = () => 500;
+          httpException.getResponse = () => ({
             success: false,
             error: {
               code: "INTERNAL_ERROR",
@@ -445,9 +463,9 @@ export class TestModuleBuilder {
           return httpException;
         }),
         handleValidationError: jest.fn().mockImplementation((message, _details, requestId) => {
-          const httpException = new Error(message);
-          (httpException as any).getStatus = () => 400;
-          (httpException as any).getResponse = () => ({
+          const httpException = new Error(message) as MockHttpException;
+          httpException.getStatus = () => 400;
+          httpException.getResponse = () => ({
             success: false,
             error: {
               code: "VALIDATION_ERROR",
@@ -462,9 +480,9 @@ export class TestModuleBuilder {
           return httpException;
         }),
         handleAuthenticationError: jest.fn().mockImplementation((message, requestId) => {
-          const httpException = new Error(message);
-          (httpException as any).getStatus = () => 401;
-          (httpException as any).getResponse = () => ({
+          const httpException = new Error(message) as MockHttpException;
+          httpException.getStatus = () => 401;
+          httpException.getResponse = () => ({
             success: false,
             error: {
               code: "AUTHENTICATION_ERROR",
@@ -479,9 +497,9 @@ export class TestModuleBuilder {
           return httpException;
         }),
         handleRateLimitError: jest.fn().mockImplementation((requestId, retryAfter) => {
-          const httpException = new Error("Rate limit exceeded");
-          (httpException as any).getStatus = () => 429;
-          (httpException as any).getResponse = () => ({
+          const httpException = new Error("Rate limit exceeded") as MockHttpException;
+          httpException.getStatus = () => 429;
+          httpException.getResponse = () => ({
             success: false,
             error: {
               code: "RATE_LIMIT_EXCEEDED",
@@ -497,9 +515,9 @@ export class TestModuleBuilder {
           return httpException;
         }),
         handleExternalServiceError: jest.fn().mockImplementation((serviceName, _originalError, requestId) => {
-          const httpException = new Error(`External service error: ${serviceName}`);
-          (httpException as any).getStatus = () => 502;
-          (httpException as any).getResponse = () => ({
+          const httpException = new Error(`External service error: ${serviceName}`) as MockHttpException;
+          httpException.getStatus = () => 502;
+          httpException.getResponse = () => ({
             success: false,
             error: {
               code: "EXTERNAL_SERVICE_ERROR",

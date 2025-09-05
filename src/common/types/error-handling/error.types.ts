@@ -8,7 +8,6 @@ export enum ErrorSeverity {
   MEDIUM = "medium",
   HIGH = "high",
   CRITICAL = "critical",
-  ERROR = "error", // For backward compatibility
 }
 
 /**

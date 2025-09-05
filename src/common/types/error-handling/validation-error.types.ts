@@ -6,9 +6,6 @@ import { IErrorDetails, ErrorCode, ErrorSeverity } from "./error.types";
 export enum ValidationErrorType {
   STALE_DATA = "STALE_DATA",
   PRICE_OUT_OF_RANGE = "PRICE_OUT_OF_RANGE",
-  // Backward-compatible aliases used by tests and validators
-  STALENESS_ERROR = "STALENESS_ERROR",
-  RANGE_ERROR = "RANGE_ERROR",
   MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD",
   INVALID_FORMAT = "INVALID_FORMAT",
   // Additional error types used by validators

@@ -210,7 +210,7 @@ export class DataValidator extends BaseService {
     if (update.price <= 0) {
       errors.push(
         this.makeValidationError("Price must be positive", "validateUpdate", ["price"], ErrorSeverity.CRITICAL, {
-          type: ValidationErrorType.RANGE_ERROR,
+          type: ValidationErrorType.PRICE_OUT_OF_RANGE,
           field: "price",
           value: update.price,
         })
@@ -224,7 +224,7 @@ export class DataValidator extends BaseService {
           "validateUpdate",
           ["price"],
           ErrorSeverity.HIGH,
-          { type: ValidationErrorType.RANGE_ERROR, field: "price", value: update.price }
+          { type: ValidationErrorType.PRICE_OUT_OF_RANGE, field: "price", value: update.price }
         )
       );
     }
@@ -236,7 +236,7 @@ export class DataValidator extends BaseService {
           "validateUpdate",
           ["price"],
           ErrorSeverity.HIGH,
-          { type: ValidationErrorType.RANGE_ERROR, field: "price", value: update.price }
+          { type: ValidationErrorType.PRICE_OUT_OF_RANGE, field: "price", value: update.price }
         )
       );
     }
@@ -257,7 +257,7 @@ export class DataValidator extends BaseService {
           "validateUpdate",
           ["timestamp"],
           ErrorSeverity.CRITICAL,
-          { type: ValidationErrorType.STALENESS_ERROR, field: "timestamp", value: age }
+          { type: ValidationErrorType.STALE_DATA, field: "timestamp", value: age }
         )
       );
     }
@@ -270,7 +270,7 @@ export class DataValidator extends BaseService {
           "validateUpdate",
           ["timestamp"],
           ErrorSeverity.LOW,
-          { type: ValidationErrorType.STALENESS_ERROR, field: "timestamp", value: age }
+          { type: ValidationErrorType.STALE_DATA, field: "timestamp", value: age }
         )
       );
     }
