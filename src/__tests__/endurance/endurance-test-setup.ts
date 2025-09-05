@@ -13,7 +13,7 @@ if (typeof global.gc === "undefined") {
     global.gc = require("vm").runInNewContext("gc");
   } catch {
     // Garbage collection not available - create a no-op function
-    (global as any).gc = () => {
+    (global as typeof globalThis).gc = async () => {
       // No-op if gc is not available
     };
   }

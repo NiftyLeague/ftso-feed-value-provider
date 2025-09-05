@@ -7,6 +7,8 @@ import { HealthController } from "@/controllers/health.controller";
 import { MetricsController } from "@/controllers/metrics.controller";
 import { IntegrationService } from "@/integration/integration.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 describe("Controllers Integration", () => {
   let app: INestApplication;
@@ -18,6 +20,24 @@ describe("Controllers Integration", () => {
       .addController(FeedController)
       .addController(HealthController)
       .addController(MetricsController)
+      // Add mock standardized error handling services
+      .addProvider(StandardizedErrorHandlerService, {
+        executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+        handleValidationError: jest.fn(),
+        handleAuthenticationError: jest.fn(),
+        handleRateLimitError: jest.fn(),
+        handleExternalServiceError: jest.fn(),
+        getErrorStatistics: jest.fn().mockReturnValue({}),
+      })
+      .addProvider(UniversalRetryService, {
+        executeWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+        configureRetrySettings: jest.fn(),
+        getRetryStatistics: jest.fn().mockReturnValue({}),
+      })
       .addProvider(IntegrationService, {
         getSystemHealth: jest.fn().mockResolvedValue({
           status: "healthy",

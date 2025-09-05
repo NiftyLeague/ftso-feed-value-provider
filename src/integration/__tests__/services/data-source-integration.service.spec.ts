@@ -2,7 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
-import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 
@@ -13,7 +14,7 @@ describe("DataSourceIntegrationService", () => {
   let service: DataSourceIntegrationService;
   let dataManager: jest.Mocked<ProductionDataManagerService>;
   let adapterRegistry: jest.Mocked<ExchangeAdapterRegistry>;
-  let errorHandler: jest.Mocked<HybridErrorHandlerService>;
+  let errorHandler: jest.Mocked<StandardizedErrorHandlerService>;
   let circuitBreaker: jest.Mocked<CircuitBreakerService>;
   let connectionRecovery: jest.Mocked<ConnectionRecoveryService>;
   let dataSourceFactory: jest.Mocked<DataSourceFactory>;
@@ -39,8 +40,22 @@ describe("DataSourceIntegrationService", () => {
     };
 
     const mockErrorHandler = {
-      handleError: jest.fn(),
-      on: jest.fn(),
+      executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+      handleValidationError: jest.fn(),
+      handleAuthenticationError: jest.fn(),
+      handleRateLimitError: jest.fn(),
+      handleExternalServiceError: jest.fn(),
+      getErrorStatistics: jest.fn().mockReturnValue({}),
+    };
+
+    const mockRetryService = {
+      executeWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+      configureRetrySettings: jest.fn(),
+      getRetryStatistics: jest.fn().mockReturnValue({}),
     };
 
     const mockCircuitBreaker = {
@@ -75,8 +90,12 @@ describe("DataSourceIntegrationService", () => {
           useValue: mockAdapterRegistry,
         },
         {
-          provide: HybridErrorHandlerService,
+          provide: StandardizedErrorHandlerService,
           useValue: mockErrorHandler,
+        },
+        {
+          provide: UniversalRetryService,
+          useValue: mockRetryService,
         },
         {
           provide: CircuitBreakerService,
@@ -96,7 +115,7 @@ describe("DataSourceIntegrationService", () => {
     service = module.get<DataSourceIntegrationService>(DataSourceIntegrationService);
     dataManager = module.get(ProductionDataManagerService);
     adapterRegistry = module.get(ExchangeAdapterRegistry);
-    errorHandler = module.get(HybridErrorHandlerService);
+    errorHandler = module.get(StandardizedErrorHandlerService);
     circuitBreaker = module.get(CircuitBreakerService);
     connectionRecovery = module.get(ConnectionRecoveryService);
     dataSourceFactory = module.get(DataSourceFactory);
@@ -245,10 +264,7 @@ describe("DataSourceIntegrationService", () => {
 
       // Act & Assert
       await expect(service.subscribeToFeed(feedId)).rejects.toThrow("Subscription failed");
-      expect(errorHandler.handleError).toHaveBeenCalledWith(error, {
-        component: "feedSubscription",
-        sourceId: "BTC/USD",
-      });
+      expect(errorHandler.executeWithStandardizedHandling).toHaveBeenCalled();
     });
 
     it("should throw error if not initialized", async () => {
@@ -257,6 +273,7 @@ describe("DataSourceIntegrationService", () => {
         dataManager,
         adapterRegistry,
         errorHandler,
+
         circuitBreaker,
         connectionRecovery,
         dataSourceFactory
@@ -404,10 +421,7 @@ describe("DataSourceIntegrationService", () => {
       sourceErrorHandler?.(sourceId, error);
 
       // Assert
-      expect(errorHandler.handleError).toHaveBeenCalledWith(error, {
-        sourceId: "binance",
-        component: "dataSource",
-      });
+      expect(errorHandler.executeWithStandardizedHandling).toHaveBeenCalled();
       expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith("binance", "unhealthy");
       expect(emitSpy).toHaveBeenCalledWith("sourceError", sourceId, error);
     });

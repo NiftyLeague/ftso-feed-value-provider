@@ -2,7 +2,8 @@ import { Controller, Post, Get, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { BaseController } from "@/common/base/base.controller";
-import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import type {
   ApiMetricsResponse,
@@ -16,12 +17,14 @@ import type {
 @UseGuards(RateLimitGuard)
 export class MetricsController extends BaseController {
   constructor(
-    private readonly errorHandler: ApiErrorHandlerService,
+    standardizedErrorHandler: StandardizedErrorHandlerService,
+    universalRetryService: UniversalRetryService,
     private readonly apiMonitor: ApiMonitorService
   ) {
     super("MetricsController");
-    // Reference injected service to satisfy unused-variable lint
-    void this.errorHandler;
+    // Inject standardized error handling services (optional for backward compatibility)
+    this.standardizedErrorHandler = standardizedErrorHandler;
+    this.universalRetryService = universalRetryService;
   }
 
   @Post("metrics")
@@ -44,35 +47,33 @@ export class MetricsController extends BaseController {
     },
   })
   async getApiMetrics(): Promise<ApiMetricsResponse> {
-    return this.handleControllerOperation(
-      async () => {
-        // Gather metrics
-        const health = this.apiMonitor.getApiHealthMetrics();
-        const endpoints = this.apiMonitor.getAllEndpointStats();
-        const performance = this.apiMonitor.getPerformanceMetrics(10);
-        const errors = this.apiMonitor.getErrorAnalysis();
-        const metricsCount = this.apiMonitor.getMetricsCount();
+    try {
+      // Gather metrics
+      const health = this.apiMonitor.getApiHealthMetrics();
+      const endpoints = this.apiMonitor.getAllEndpointStats();
+      const performance = this.apiMonitor.getPerformanceMetrics(10);
+      const errors = this.apiMonitor.getErrorAnalysis();
+      const metricsCount = this.apiMonitor.getMetricsCount();
 
-        this.logger.log(`API metrics retrieved`, {
-          endpointCount: endpoints.length,
-          metricsCount,
-        });
+      this.logger.log(`API metrics retrieved`, {
+        endpointCount: endpoints.length,
+        metricsCount,
+      });
 
-        // Match expected test shape
-        return {
-          health,
-          endpoints,
-          performance,
-          errors,
-          system: { metricsCount },
-          timestamp: Date.now(),
-          requestId: this.generateRequestId(),
-        } as unknown as ApiMetricsResponse;
-      },
-      "getApiMetrics",
-      "POST",
-      "/metrics"
-    );
+      // Match expected test shape
+      return {
+        health,
+        endpoints,
+        performance,
+        errors,
+        system: { metricsCount },
+        timestamp: Date.now(),
+        requestId: this.generateRequestId(),
+      } as unknown as ApiMetricsResponse;
+    } catch (error) {
+      this.logger.error("Error retrieving API metrics:", error);
+      throw error;
+    }
   }
 
   @Get("metrics")
@@ -99,24 +100,22 @@ export class MetricsController extends BaseController {
     description: "Performance metrics retrieved successfully",
   })
   async getPerformanceMetrics(): Promise<PerformanceMetricsResponse> {
-    return this.handleControllerOperation(
-      async () => {
-        const performance = this.apiMonitor.getPerformanceMetrics(10);
-        const system = {
-          uptime: process.uptime(),
-          memory: process.memoryUsage(),
-        };
+    try {
+      const performance = this.apiMonitor.getPerformanceMetrics(10);
+      const system = {
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+      };
 
-        return {
-          performance,
-          system,
-          timestamp: Date.now(),
-        } as unknown as PerformanceMetricsResponse;
-      },
-      "getPerformanceMetrics",
-      "GET",
-      "/metrics/performance"
-    );
+      return {
+        performance,
+        system,
+        timestamp: Date.now(),
+      } as unknown as PerformanceMetricsResponse;
+    } catch (error) {
+      this.logger.error("Error retrieving performance metrics:", error);
+      throw error;
+    }
   }
 
   @Get("metrics/endpoints")
@@ -129,30 +128,28 @@ export class MetricsController extends BaseController {
     description: "Endpoint statistics retrieved successfully",
   })
   async getEndpointStats(): Promise<EndpointStatsResponse> {
-    return this.handleControllerOperation(
-      async () => {
-        const endpoints = this.apiMonitor.getAllEndpointStats();
-        const health = this.apiMonitor.getApiHealthMetrics();
+    try {
+      const endpoints = this.apiMonitor.getAllEndpointStats();
+      const health = this.apiMonitor.getApiHealthMetrics();
 
-        this.logger.log(`Endpoint statistics retrieved`, {
-          endpointCount: endpoints.length,
-        });
+      this.logger.log(`Endpoint statistics retrieved`, {
+        endpointCount: endpoints.length,
+      });
 
-        return {
-          endpoints,
-          summary: {
-            totalEndpoints: endpoints.length,
-            totalRequests: health.totalRequests,
-            averageResponseTime: health.averageResponseTime,
-            errorRate: health.errorRate,
-          },
-          timestamp: Date.now(),
-        } as unknown as EndpointStatsResponse;
-      },
-      "getEndpointStats",
-      "GET",
-      "/metrics/endpoints"
-    );
+      return {
+        endpoints,
+        summary: {
+          totalEndpoints: endpoints.length,
+          totalRequests: health.totalRequests,
+          averageResponseTime: health.averageResponseTime,
+          errorRate: health.errorRate,
+        },
+        timestamp: Date.now(),
+      } as unknown as EndpointStatsResponse;
+    } catch (error) {
+      this.logger.error("Error retrieving endpoint stats:", error);
+      throw error;
+    }
   }
 
   @Get("metrics/errors")
@@ -165,19 +162,17 @@ export class MetricsController extends BaseController {
     description: "Error analysis retrieved successfully",
   })
   async getErrorAnalysis(): Promise<ErrorAnalysisResponse> {
-    return this.handleControllerOperation(
-      async () => {
-        const errors = this.apiMonitor.getErrorAnalysis();
-        return {
-          errors,
-          timestamp: Date.now(),
-          requestId: this.generateRequestId(),
-        } as unknown as ErrorAnalysisResponse;
-      },
-      "getErrorAnalysis",
-      "GET",
-      "/metrics/errors"
-    );
+    try {
+      const errors = this.apiMonitor.getErrorAnalysis();
+      return {
+        errors,
+        timestamp: Date.now(),
+        requestId: this.generateRequestId(),
+      } as unknown as ErrorAnalysisResponse;
+    } catch (error) {
+      this.logger.error("Error retrieving error analysis:", error);
+      throw error;
+    }
   }
 
   // Override logApiResponse to include API monitoring

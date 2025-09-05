@@ -3,7 +3,9 @@ import { FtsoProviderService } from "../../app.service";
 import { IntegrationService } from "../../integration/integration.service";
 import { RealTimeCacheService } from "../../cache/real-time-cache.service";
 import { RealTimeAggregationService } from "../../aggregators/real-time-aggregation.service";
-import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.service";
+
+import { StandardizedErrorHandlerService } from "../../error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "../../error-handling/universal-retry.service";
 import { createTestModule, TestHelpers, MockSetup, MockFactory } from "@/__tests__/utils";
 
 describe("HealthController - Health Check Endpoints", () => {
@@ -35,7 +37,24 @@ describe("HealthController - Health Check Endpoints", () => {
       .addProvider(IntegrationService, mockIntegrationService)
       .addProvider(RealTimeCacheService, mockCacheService)
       .addProvider(RealTimeAggregationService, mockAggregationService)
-      .addProvider(ApiErrorHandlerService)
+
+      .addProvider(StandardizedErrorHandlerService, {
+        executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+        handleValidationError: jest.fn(),
+        handleAuthenticationError: jest.fn(),
+        handleRateLimitError: jest.fn(),
+        handleExternalServiceError: jest.fn(),
+        getErrorStatistics: jest.fn().mockReturnValue({}),
+      })
+      .addProvider(UniversalRetryService, {
+        executeWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+        configureRetrySettings: jest.fn(),
+        getRetryStatistics: jest.fn().mockReturnValue({}),
+      })
       .build();
 
     controller = TestHelpers.getService(module, HealthController);

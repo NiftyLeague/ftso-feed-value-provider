@@ -98,7 +98,7 @@ async function bootstrap() {
       })
     );
 
-    // Configure global exception filter
+    // Configure enhanced global exception filter with standardized error handling
     app.useGlobalFilters(new HttpExceptionFilter());
 
     // Configure API documentation

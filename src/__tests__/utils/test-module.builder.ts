@@ -5,7 +5,8 @@ import { ConsensusAggregator } from "@/aggregators/consensus-aggregator.service"
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
-import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { AlertingService } from "@/monitoring/alerting.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -304,41 +305,22 @@ export class TestModuleBuilder {
           ],
         }),
       })
-      .addProvider(ApiErrorHandlerService, {
-        handleHttpException: jest.fn().mockImplementation((err, _req, _res) => {
-          if (err.getStatus) {
-            return {
-              statusCode: err.getStatus(),
-              message: err.message,
-              error: err.response?.error || "Request Error",
-              timestamp: Date.now(),
-            };
-          }
-          return {
-            statusCode: 500,
-            message: err.message || "Internal server error",
-            error: "Internal Error",
-            timestamp: Date.now(),
-          };
-        }),
-        handleError: jest.fn().mockImplementation((err, _req, _res) => {
-          return {
-            statusCode: 500,
-            message: err.message || "Internal server error",
-            error: "Internal Error",
-            timestamp: Date.now(),
-          };
-        }),
-        generateRequestId: jest.fn().mockReturnValue("test-request-id"),
-        formatErrorResponse: jest.fn().mockImplementation((err, statusCode = 500) => {
-          return {
-            statusCode,
-            message: err.message || "Internal server error",
-            error: err.response?.error || "Internal Error",
-            timestamp: Date.now(),
-            requestId: "test-request-id",
-          };
-        }),
+      .addProvider(StandardizedErrorHandlerService, {
+        executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+        handleValidationError: jest.fn(),
+        handleAuthenticationError: jest.fn(),
+        handleRateLimitError: jest.fn(),
+        handleExternalServiceError: jest.fn(),
+        getErrorStatistics: jest.fn().mockReturnValue({}),
+      })
+      .addProvider(UniversalRetryService, {
+        executeWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+        configureRetrySettings: jest.fn(),
+        getRetryStatistics: jest.fn().mockReturnValue({}),
       })
       .addProvider(RateLimiterService, {
         checkRateLimit: jest.fn().mockReturnValue({
@@ -440,6 +422,129 @@ export class TestModuleBuilder {
       .addProvider({
         provide: "FTSO_PROVIDER_SERVICE",
         useValue: mockFtsoProviderService,
+      })
+      .addProvider("StandardizedErrorHandlerService", {
+        executeWithStandardizedHandling: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        createStandardizedError: jest.fn().mockImplementation((error, _metadata, requestId) => {
+          const httpException = new Error(error.message);
+          (httpException as any).getStatus = () => 500;
+          (httpException as any).getResponse = () => ({
+            success: false,
+            error: {
+              code: "INTERNAL_ERROR",
+              message: error.message,
+              severity: "high",
+              timestamp: Date.now(),
+            },
+            timestamp: Date.now(),
+            requestId: requestId || "test-request-id",
+            retryable: true,
+          });
+          return httpException;
+        }),
+        handleValidationError: jest.fn().mockImplementation((message, _details, requestId) => {
+          const httpException = new Error(message);
+          (httpException as any).getStatus = () => 400;
+          (httpException as any).getResponse = () => ({
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message,
+              severity: "medium",
+              timestamp: Date.now(),
+            },
+            timestamp: Date.now(),
+            requestId: requestId || "test-request-id",
+            retryable: false,
+          });
+          return httpException;
+        }),
+        handleAuthenticationError: jest.fn().mockImplementation((message, requestId) => {
+          const httpException = new Error(message);
+          (httpException as any).getStatus = () => 401;
+          (httpException as any).getResponse = () => ({
+            success: false,
+            error: {
+              code: "AUTHENTICATION_ERROR",
+              message,
+              severity: "high",
+              timestamp: Date.now(),
+            },
+            timestamp: Date.now(),
+            requestId: requestId || "test-request-id",
+            retryable: false,
+          });
+          return httpException;
+        }),
+        handleRateLimitError: jest.fn().mockImplementation((requestId, retryAfter) => {
+          const httpException = new Error("Rate limit exceeded");
+          (httpException as any).getStatus = () => 429;
+          (httpException as any).getResponse = () => ({
+            success: false,
+            error: {
+              code: "RATE_LIMIT_EXCEEDED",
+              message: "Rate limit exceeded",
+              severity: "medium",
+              timestamp: Date.now(),
+            },
+            timestamp: Date.now(),
+            requestId: requestId || "test-request-id",
+            retryable: true,
+            retryAfter: retryAfter || 60000,
+          });
+          return httpException;
+        }),
+        handleExternalServiceError: jest.fn().mockImplementation((serviceName, _originalError, requestId) => {
+          const httpException = new Error(`External service error: ${serviceName}`);
+          (httpException as any).getStatus = () => 502;
+          (httpException as any).getResponse = () => ({
+            success: false,
+            error: {
+              code: "EXTERNAL_SERVICE_ERROR",
+              message: `External service error: ${serviceName}`,
+              severity: "high",
+              timestamp: Date.now(),
+            },
+            timestamp: Date.now(),
+            requestId: requestId || "test-request-id",
+            retryable: true,
+          });
+          return httpException;
+        }),
+        getErrorStatistics: jest.fn().mockReturnValue({}),
+        resetErrorStatistics: jest.fn(),
+        configureRetrySettings: jest.fn(),
+      })
+      .addProvider("UniversalRetryService", {
+        executeWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeHttpWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeDatabaseWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeCacheWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeExternalApiWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        configureRetrySettings: jest.fn(),
+        getRetryStatistics: jest.fn().mockReturnValue({}),
+        resetRetryStatistics: jest.fn(),
+        getRetryConfiguration: jest.fn().mockReturnValue({
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          maxDelayMs: 30000,
+          backoffMultiplier: 2,
+          jitter: true,
+          retryableErrors: ["timeout", "connection", "network"],
+        }),
+        isRetryableError: jest.fn().mockReturnValue(true),
       });
   }
 

@@ -29,7 +29,8 @@ import type {
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
-import { ApiErrorHandlerService } from "../error-handling/api-error-handler.service";
+import { StandardizedErrorHandlerService } from "../error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "../error-handling/universal-retry.service";
 import { ApiMonitorService } from "../monitoring/api-monitor.service";
 
 @ApiTags("FTSO Feed Values")
@@ -38,14 +39,16 @@ import { ApiMonitorService } from "../monitoring/api-monitor.service";
 export class FeedController extends BaseController {
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
-    private readonly errorHandler: ApiErrorHandlerService,
+    standardizedErrorHandler: StandardizedErrorHandlerService,
+    universalRetryService: UniversalRetryService,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
     private readonly apiMonitor: ApiMonitorService
   ) {
     super("FeedController");
-    // reference once to satisfy unused injection lint
-    void this.errorHandler;
+    // Inject standardized error handling services
+    this.standardizedErrorHandler = standardizedErrorHandler;
+    this.universalRetryService = universalRetryService;
   }
 
   @Post("feed-values/:votingRoundId")
@@ -69,18 +72,34 @@ export class FeedController extends BaseController {
         // Validate feed requests
         this.validateFeedRequest(body);
 
-        // Try to get cached historical data first
-        const cachedResults = await this.getCachedHistoricalData(body.feeds, votingRoundId);
+        // Try to get cached historical data first with retry logic
+        const cachedResults = await this.executeWithRetry(
+          () => this.getCachedHistoricalData(body.feeds, votingRoundId),
+          {
+            operationName: "getCachedHistoricalData",
+            serviceType: "cache",
+            retryConfig: { maxRetries: 1, initialDelayMs: 100 },
+          }
+        );
 
         // Get fresh data for any missing feeds
         const missingFeeds = body.feeds.filter((_, index) => !cachedResults[index]);
         let freshData: FeedValueData[] = [];
 
         if (missingFeeds.length > 0) {
-          freshData = await this.providerService.getValues(missingFeeds);
+          freshData = await this.executeWithRetry(() => this.providerService.getValues(missingFeeds), {
+            operationName: "getProviderValues",
+            serviceType: "external-api",
+            endpoint: "getValues",
+            retryConfig: { maxRetries: 3, initialDelayMs: 1000 },
+          });
 
           // Cache the fresh data for this voting round
-          await this.cacheHistoricalData(missingFeeds, freshData, votingRoundId);
+          await this.executeWithRetry(() => this.cacheHistoricalData(missingFeeds, freshData, votingRoundId), {
+            operationName: "cacheHistoricalData",
+            serviceType: "cache",
+            retryConfig: { maxRetries: 1, initialDelayMs: 100 },
+          });
         }
 
         // Combine cached and fresh data
@@ -99,7 +118,11 @@ export class FeedController extends BaseController {
       `getFeedValues(${votingRoundId})`,
       "POST",
       `/feed-values/${votingRoundId}`,
-      { body }
+      {
+        body,
+        useStandardizedErrorHandling: true,
+        useRetryLogic: false, // Already using specific retry logic above
+      }
     );
   }
 
@@ -117,8 +140,13 @@ export class FeedController extends BaseController {
         // Validate feed requests
         this.validateFeedRequest(body);
 
-        // Get real-time data with caching
-        const values = await this.getRealTimeFeedValues(body.feeds);
+        // Get real-time data with caching and retry logic
+        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(body.feeds), {
+          operationName: "getRealTimeFeedValues",
+          serviceType: "external-api",
+          endpoint: "getCurrentFeedValues",
+          retryConfig: { maxRetries: 2, initialDelayMs: 500 },
+        });
 
         this.logger.log(`Current feed values: ${values.length} feeds`, {
           feedCount: values.length,
@@ -131,7 +159,11 @@ export class FeedController extends BaseController {
       "getCurrentFeedValues",
       "POST",
       "/feed-values/",
-      { body }
+      {
+        body,
+        useStandardizedErrorHandling: true,
+        useRetryLogic: false, // Using specific retry logic above
+      }
     );
   }
 
@@ -152,8 +184,13 @@ export class FeedController extends BaseController {
         // Validate volume request
         this.validateVolumeRequest(body, windowSec);
 
-        // Get volumes with USDT conversion using existing CCXT processing
-        const values = await this.getOptimizedVolumes(body.feeds, windowSec);
+        // Get volumes with USDT conversion using existing CCXT processing with retry logic
+        const values = await this.executeWithRetry(() => this.getOptimizedVolumes(body.feeds, windowSec), {
+          operationName: "getOptimizedVolumes",
+          serviceType: "external-api",
+          endpoint: "getVolumes",
+          retryConfig: { maxRetries: 2, initialDelayMs: 1000 },
+        });
 
         this.logger.log(`Feed volumes for last ${windowSec} seconds: ${values.length} feeds`, {
           windowSec,
@@ -168,7 +205,11 @@ export class FeedController extends BaseController {
       `getFeedVolumes(window=${windowSec})`,
       "POST",
       `/volumes/?window=${windowSec}`,
-      { body }
+      {
+        body,
+        useStandardizedErrorHandling: true,
+        useRetryLogic: false, // Using specific retry logic above
+      }
     );
   }
 

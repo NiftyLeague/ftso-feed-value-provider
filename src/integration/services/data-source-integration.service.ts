@@ -6,7 +6,8 @@ import { ProductionDataManagerService } from "@/data-manager/production-data-man
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 
 // Error handling
-import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
@@ -24,7 +25,8 @@ export class DataSourceIntegrationService extends BaseEventService {
   constructor(
     private readonly dataManager: ProductionDataManagerService,
     private readonly adapterRegistry: ExchangeAdapterRegistry,
-    private readonly errorHandler: HybridErrorHandlerService,
+    private readonly errorHandler: StandardizedErrorHandlerService,
+
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly connectionRecovery: ConnectionRecoveryService,
     private readonly dataSourceFactory: DataSourceFactory
@@ -96,12 +98,21 @@ export class DataSourceIntegrationService extends BaseEventService {
     } catch (error) {
       this.logger.error(`Failed to subscribe to feed ${feedId.name}:`, error);
 
-      // Handle error through error handler
+      // Handle error through standardized error handler
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.errorHandler.handleError(errObj, {
-        component: "feedSubscription",
-        sourceId: feedId.name,
-      });
+      await this.errorHandler
+        .executeWithStandardizedHandling(
+          async () => {
+            throw errObj;
+          },
+          {
+            serviceId: "DataSourceIntegrationService",
+            operationName: "feedSubscription",
+            component: "feedSubscription",
+            requestId: `feed_${feedId.name}_${Date.now()}`,
+          }
+        )
+        .catch(() => {}); // Catch to prevent double throw
 
       throw error;
     }
@@ -180,7 +191,7 @@ export class DataSourceIntegrationService extends BaseEventService {
       // Connect error handler to data manager events
       this.dataManager.on("sourceError", (sourceId: string, error: Error) => {
         this.logger.error(`Data source error from ${sourceId}:`, error);
-        this.handleSourceError(sourceId, error);
+        void this.handleSourceError(sourceId, error);
       });
 
       // Connect connection recovery to data manager disconnection events
@@ -287,12 +298,21 @@ export class DataSourceIntegrationService extends BaseEventService {
         } catch (error) {
           this.logger.error(`Failed to start data source ${adapter.exchangeName}:`, error);
 
-          // Handle error through error handler
+          // Handle error through standardized error handler
           const errObj = error instanceof Error ? error : new Error(String(error));
-          this.errorHandler.handleError(errObj, {
-            sourceId: adapter.exchangeName,
-            component: "dataSourceStartup",
-          });
+          await this.errorHandler
+            .executeWithStandardizedHandling(
+              async () => {
+                throw errObj;
+              },
+              {
+                serviceId: "DataSourceIntegrationService",
+                operationName: "dataSourceStartup",
+                component: "dataSourceStartup",
+                requestId: `startup_${adapter.exchangeName}_${Date.now()}`,
+              }
+            )
+            .catch(() => {}); // Catch to prevent double throw
 
           // Continue with other adapters
         }
@@ -310,8 +330,8 @@ export class DataSourceIntegrationService extends BaseEventService {
 
     try {
       // Connect data manager to emit price updates
-      this.dataManager.on("priceUpdate", (update: PriceUpdate) => {
-        this.handlePriceUpdate(update);
+      this.dataManager.on("priceUpdate", async (update: PriceUpdate) => {
+        await this.handlePriceUpdate(update);
       });
 
       this.logger.log("Data flow connections established");
@@ -339,7 +359,7 @@ export class DataSourceIntegrationService extends BaseEventService {
   }
 
   // Event handlers
-  private handlePriceUpdate(update: PriceUpdate): void {
+  private async handlePriceUpdate(update: PriceUpdate): Promise<void> {
     try {
       // Update adapter health
       this.adapterRegistry.updateHealthStatus(update.source, "healthy");
@@ -352,17 +372,26 @@ export class DataSourceIntegrationService extends BaseEventService {
       this.logger.error(`Error handling price update from ${update.source}:`, error);
       this.adapterRegistry.updateHealthStatus(update.source, "unhealthy");
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.handleSourceError(update.source, errObj);
+      await this.handleSourceError(update.source, errObj);
     }
   }
 
-  private handleSourceError(sourceId: string, error: Error): void {
+  private async handleSourceError(sourceId: string, error: Error): Promise<void> {
     try {
-      // Handle through error handler
-      this.errorHandler.handleError(error, {
-        sourceId,
-        component: "dataSource",
-      });
+      // Handle through standardized error handler
+      await this.errorHandler
+        .executeWithStandardizedHandling(
+          async () => {
+            throw error;
+          },
+          {
+            serviceId: "DataSourceIntegrationService",
+            operationName: "dataSourceError",
+            component: "dataSource",
+            requestId: `error_${sourceId}_${Date.now()}`,
+          }
+        )
+        .catch(() => {}); // Catch to prevent double throw
 
       // Update adapter health
       this.adapterRegistry.updateHealthStatus(sourceId, "unhealthy");

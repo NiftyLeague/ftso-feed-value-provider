@@ -16,7 +16,8 @@ import { ProductionDataManagerService } from "@/data-manager/production-data-man
 import { ConfigService } from "@/config/config.service";
 
 // Error handling services
-import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
@@ -64,7 +65,8 @@ import { StartupValidationService } from "./services/startup-validation.service"
     ConfigService,
 
     // Error handling
-    HybridErrorHandlerService,
+    StandardizedErrorHandlerService,
+    UniversalRetryService,
     CircuitBreakerService,
     ConnectionRecoveryService,
 

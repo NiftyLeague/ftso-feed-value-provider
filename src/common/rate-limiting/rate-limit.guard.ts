@@ -1,15 +1,12 @@
 import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from "@nestjs/common";
-import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+
 import { ApiErrorCodes } from "@/common/types/error-handling";
 import { ClientIdentificationUtils } from "../utils/client-identification.utils";
 import { RateLimiterService } from "./rate-limiter.service";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  constructor(
-    private readonly rateLimiter: RateLimiterService,
-    private readonly errorHandler: ApiErrorHandlerService
-  ) {}
+  constructor(private readonly rateLimiter: RateLimiterService) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
@@ -38,7 +35,7 @@ export class RateLimitGuard implements CanActivate {
       const retryAfterSeconds = Math.ceil(rateLimitInfo.msBeforeNext / 1000);
       response.setHeader("Retry-After", retryAfterSeconds);
 
-      const requestId = this.errorHandler.generateRequestId();
+      const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       // Enhanced rate limit error with more context
       const rateLimitError = new HttpException(

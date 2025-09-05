@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
 import { AlertingService } from "@/monitoring/alerting.service";
-import { HybridErrorHandlerService } from "@/error-handling/hybrid-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -26,7 +27,8 @@ describe("Service Wiring Integration", () => {
   let accuracyMonitor: AccuracyMonitorService;
   let performanceMonitor: PerformanceMonitorService;
   let alertingService: AlertingService;
-  let errorHandler: HybridErrorHandlerService;
+  let errorHandler: StandardizedErrorHandlerService;
+
   let module: TestingModule;
 
   beforeEach(async () => {
@@ -95,9 +97,22 @@ describe("Service Wiring Integration", () => {
     };
 
     const mockErrorHandler = {
-      handleError: jest.fn(),
-      recordFailure: jest.fn(),
-      destroy: jest.fn(),
+      executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+      handleValidationError: jest.fn(),
+      handleAuthenticationError: jest.fn(),
+      handleRateLimitError: jest.fn(),
+      handleExternalServiceError: jest.fn(),
+      getErrorStatistics: jest.fn().mockReturnValue({}),
+    };
+
+    const mockRetryService = {
+      executeWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
+      executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+      configureRetrySettings: jest.fn(),
+      getRetryStatistics: jest.fn().mockReturnValue({}),
     };
 
     const mockDataSourceIntegration = {
@@ -158,7 +173,8 @@ describe("Service Wiring Integration", () => {
         { provide: AccuracyMonitorService, useValue: mockAccuracyMonitor },
         { provide: PerformanceMonitorService, useValue: mockPerformanceMonitor },
         { provide: AlertingService, useValue: mockAlertingService },
-        { provide: HybridErrorHandlerService, useValue: mockErrorHandler },
+        { provide: StandardizedErrorHandlerService, useValue: mockErrorHandler },
+        { provide: UniversalRetryService, useValue: mockRetryService },
       ],
     }).compile();
 
@@ -172,7 +188,7 @@ describe("Service Wiring Integration", () => {
     accuracyMonitor = module.get<AccuracyMonitorService>(AccuracyMonitorService);
     performanceMonitor = module.get<PerformanceMonitorService>(PerformanceMonitorService);
     alertingService = module.get<AlertingService>(AlertingService);
-    errorHandler = module.get<HybridErrorHandlerService>(HybridErrorHandlerService);
+    errorHandler = module.get<StandardizedErrorHandlerService>(StandardizedErrorHandlerService);
 
     // Initialize the integration service to wire up event handlers
     await integrationService.onModuleInit();
@@ -183,9 +199,7 @@ describe("Service Wiring Integration", () => {
     if (dataManager && dataManager.cleanupForTests) {
       dataManager.cleanupForTests();
     }
-    if (errorHandler && errorHandler.destroy) {
-      errorHandler.destroy();
-    }
+
     await module.close();
   });
 

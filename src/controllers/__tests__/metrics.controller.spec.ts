@@ -1,6 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MetricsController } from "../metrics.controller";
-import { ApiErrorHandlerService } from "../../error-handling/api-error-handler.service";
+
+import { StandardizedErrorHandlerService } from "../../error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "../../error-handling/universal-retry.service";
 import { ApiMonitorService } from "../../monitoring/api-monitor.service";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 
@@ -22,12 +24,31 @@ describe("MetricsController - Metrics and Monitoring Endpoints", () => {
       controllers: [MetricsController],
       providers: [
         {
-          provide: ApiErrorHandlerService,
-          useClass: ApiErrorHandlerService,
-        },
-        {
           provide: ApiMonitorService,
           useValue: mockApiMonitor,
+        },
+        {
+          provide: StandardizedErrorHandlerService,
+          useValue: {
+            executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+            handleValidationError: jest.fn(),
+            handleAuthenticationError: jest.fn(),
+            handleRateLimitError: jest.fn(),
+            handleExternalServiceError: jest.fn(),
+            getErrorStatistics: jest.fn().mockReturnValue({}),
+          },
+        },
+        {
+          provide: UniversalRetryService,
+          useValue: {
+            executeWithRetry: jest.fn().mockImplementation(operation => operation()),
+            executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
+            executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
+            executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
+            executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+            configureRetrySettings: jest.fn(),
+            getRetryStatistics: jest.fn().mockReturnValue({}),
+          },
         },
       ],
     })

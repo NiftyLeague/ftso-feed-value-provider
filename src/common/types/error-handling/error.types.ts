@@ -210,3 +210,126 @@ export function createHttpErrorResponse(
   response.method = method;
   return response;
 }
+
+/**
+ * Retry configuration interface
+ */
+export interface RetryConfig {
+  maxRetries: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+  jitter: boolean;
+  retryableErrors: string[];
+}
+
+/**
+ * Default retry configuration
+ */
+export const DEFAULT_RETRY_CONFIG: RetryConfig = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  maxDelayMs: 30000,
+  backoffMultiplier: 2,
+  jitter: true,
+  retryableErrors: [
+    "timeout",
+    "connection",
+    "network",
+    "temporary",
+    "rate limit",
+    "service unavailable",
+    "too many requests",
+    "econnreset",
+    "enotfound",
+    "etimedout",
+    "socket hang up",
+    "connect timeout",
+  ],
+};
+
+/**
+ * Enhanced error response with retry information
+ */
+export interface EnhancedErrorResponse extends StandardErrorResponse {
+  retryable: boolean;
+  retryAfter?: number;
+  circuitBreakerState?: string;
+  failureCount?: number;
+}
+
+/**
+ * Error classification for standardized handling
+ */
+export enum StandardErrorClassification {
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR",
+  AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR",
+  NOT_FOUND_ERROR = "NOT_FOUND_ERROR",
+  RATE_LIMIT_ERROR = "RATE_LIMIT_ERROR",
+  TIMEOUT_ERROR = "TIMEOUT_ERROR",
+  CONNECTION_ERROR = "CONNECTION_ERROR",
+  SERVICE_UNAVAILABLE_ERROR = "SERVICE_UNAVAILABLE_ERROR",
+  DATA_ERROR = "DATA_ERROR",
+  PROCESSING_ERROR = "PROCESSING_ERROR",
+  CONFIGURATION_ERROR = "CONFIGURATION_ERROR",
+  EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR",
+  CIRCUIT_BREAKER_ERROR = "CIRCUIT_BREAKER_ERROR",
+  UNKNOWN_ERROR = "UNKNOWN_ERROR",
+}
+
+/**
+ * Standardized error metadata
+ */
+export interface StandardErrorMetadata {
+  classification: StandardErrorClassification;
+  retryable: boolean;
+  severity: ErrorSeverity;
+  component: string;
+  operation?: string;
+  correlationId?: string;
+  traceId?: string;
+  userId?: string;
+  sessionId?: string;
+  clientId?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  additionalContext?: Record<string, unknown>;
+}
+
+/**
+ * Creates enhanced error response with retry information
+ */
+export function createEnhancedErrorResponse(
+  error: IErrorDetails | Error,
+  metadata: Partial<StandardErrorMetadata>,
+  requestId?: string
+): EnhancedErrorResponse {
+  const baseResponse = createErrorResponse(error, requestId);
+
+  return {
+    ...baseResponse,
+    retryable: metadata.retryable ?? false,
+    retryAfter: metadata.retryable ? calculateRetryAfter(metadata.severity) : undefined,
+    circuitBreakerState: undefined, // Will be set by circuit breaker service
+    failureCount: undefined, // Will be set by retry mechanism
+  };
+}
+
+/**
+ * Calculate retry after time based on error severity
+ */
+function calculateRetryAfter(severity?: ErrorSeverity): number {
+  switch (severity) {
+    case ErrorSeverity.LOW:
+      return 1000; // 1 second
+    case ErrorSeverity.MEDIUM:
+      return 5000; // 5 seconds
+    case ErrorSeverity.HIGH:
+      return 15000; // 15 seconds
+    case ErrorSeverity.CRITICAL:
+      return 60000; // 1 minute
+    default:
+      return 5000; // Default 5 seconds
+  }
+}

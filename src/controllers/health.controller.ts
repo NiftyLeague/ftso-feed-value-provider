@@ -2,7 +2,8 @@ import { Controller, Get, Post, HttpException, HttpStatus, Inject, UseGuards } f
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 
-import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { BaseController } from "@/common/base/base.controller";
 import { FtsoProviderService } from "@/app.service";
 import { IntegrationService } from "@/integration/integration.service";
@@ -28,11 +29,13 @@ export class HealthController extends BaseController {
     private readonly integrationService: IntegrationService,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
-    private readonly errorHandler: ApiErrorHandlerService
+    standardizedErrorHandler: StandardizedErrorHandlerService,
+    universalRetryService: UniversalRetryService
   ) {
     super("HealthController");
-    // Read once to satisfy unused property lint
-    void this.errorHandler;
+    // Inject standardized error handling services
+    this.standardizedErrorHandler = standardizedErrorHandler;
+    this.universalRetryService = universalRetryService;
   }
 
   @Post("health")

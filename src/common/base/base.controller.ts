@@ -4,17 +4,25 @@ import { BaseService } from "./base.service";
 import { ValidationUtils } from "../utils/validation.utils";
 import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
 import type { ApiResponse } from "../types/http/http.types";
+import type { StandardErrorMetadata } from "../types/error-handling";
 import { createTimer, PerformanceUtils } from "../utils/performance.utils";
 
 /**
  * Base controller class consolidates common controller patterns
  * Extends BaseService for logging functionality
+ * Enhanced with standardized error handling and retry mechanisms
  */
 export abstract class BaseController extends BaseService {
   protected readonly startupTime: number = Date.now();
+  protected readonly controllerName: string;
+
+  // These will be injected by child controllers that need standardized error handling
+  protected standardizedErrorHandler?: any; // Will be typed properly when injected
+  protected universalRetryService?: any; // Will be typed properly when injected
 
   constructor(controllerName: string) {
     super(controllerName);
+    this.controllerName = controllerName;
   }
 
   /**
@@ -316,6 +324,7 @@ export abstract class BaseController extends BaseService {
 
   /**
    * Handle controller operation with comprehensive error handling and logging
+   * Enhanced with standardized error handling and retry mechanisms
    */
   protected async handleControllerOperation<T>(
     operation: () => Promise<T>,
@@ -327,16 +336,97 @@ export abstract class BaseController extends BaseService {
       body?: unknown;
       timeout?: number;
       performanceThreshold?: number;
+      userId?: string;
+      sessionId?: string;
+      clientId?: string;
+      userAgent?: string;
+      ipAddress?: string;
+      useStandardizedErrorHandling?: boolean;
+      useRetryLogic?: boolean;
+      retryConfig?: {
+        maxRetries?: number;
+        initialDelayMs?: number;
+        maxDelayMs?: number;
+      };
     } = {}
   ): Promise<T> {
-    const { requestId = this.generateRequestId(), body, timeout, performanceThreshold = 1000 } = options;
+    const {
+      requestId = this.generateRequestId(),
+      body,
+      timeout,
+      performanceThreshold = 1000,
+      userId,
+      sessionId,
+      clientId,
+      userAgent,
+      ipAddress,
+      useStandardizedErrorHandling = true,
+      useRetryLogic = false,
+      retryConfig,
+    } = options;
+
     const startTime = performance.now();
 
     // Log API request
     this.logApiRequest(method, url, body, requestId);
 
     try {
-      const result = await handleAsyncOperation(operation, operationName, { requestId, timeout });
+      let result: T;
+
+      // Use standardized error handling if available and requested
+      if (useStandardizedErrorHandling && this.standardizedErrorHandler) {
+        result = await this.standardizedErrorHandler.executeWithStandardizedHandling(
+          async () => {
+            if (useRetryLogic && this.universalRetryService) {
+              return await this.universalRetryService.executeWithRetry(
+                () => handleAsyncOperation(operation, operationName, { requestId, timeout }),
+                {
+                  serviceId: this.controllerName,
+                  operationName,
+                  retryConfig,
+                }
+              );
+            } else {
+              return await handleAsyncOperation(operation, operationName, { requestId, timeout });
+            }
+          },
+          {
+            serviceId: this.controllerName,
+            operationName,
+            component: this.controllerName,
+            requestId,
+            metadata: {
+              operation: operationName,
+              correlationId: requestId,
+              userId,
+              sessionId,
+              clientId,
+              userAgent,
+              ipAddress,
+              additionalContext: {
+                method,
+                path: url,
+                body: this.sanitizeForLogging(body),
+              },
+            },
+          }
+        );
+      } else {
+        // Fallback to basic operation execution
+        if (useRetryLogic && this.universalRetryService) {
+          result = await this.universalRetryService.executeWithRetry(
+            () => handleAsyncOperation(operation, operationName, { requestId, timeout }),
+            {
+              serviceId: this.controllerName,
+              operationName,
+              retryConfig,
+            }
+          );
+        } else {
+          result = await handleAsyncOperation(operation, operationName, { requestId, timeout });
+        }
+      }
+
       const responseTime = performance.now() - startTime;
 
       // Log API response
@@ -376,5 +466,211 @@ export abstract class BaseController extends BaseService {
 
       throw error; // Re-throw to let HTTP exception handling work
     }
+  }
+
+  /**
+   * Handle validation errors with standardized format
+   */
+  protected handleValidationError(
+    message: string,
+    details?: Record<string, unknown>,
+    requestId?: string
+  ): HttpException {
+    if (this.standardizedErrorHandler) {
+      return this.standardizedErrorHandler.handleValidationError(message, details, requestId, {
+        component: this.controllerName,
+      });
+    }
+
+    // Fallback to existing error handling
+    return new HttpException(
+      this.createErrorResponse("VALIDATION_ERROR", 4000, message, requestId, details),
+      HttpStatus.BAD_REQUEST
+    );
+  }
+
+  /**
+   * Handle authentication errors with standardized format
+   */
+  protected handleAuthenticationError(message: string = "Authentication required", requestId?: string): HttpException {
+    if (this.standardizedErrorHandler) {
+      return this.standardizedErrorHandler.handleAuthenticationError(message, requestId, {
+        component: this.controllerName,
+      });
+    }
+
+    // Fallback to existing error handling
+    return new HttpException(
+      this.createErrorResponse("AUTHENTICATION_ERROR", 4010, message, requestId),
+      HttpStatus.UNAUTHORIZED
+    );
+  }
+
+  /**
+   * Handle rate limit errors with standardized format
+   */
+  protected handleRateLimitError(requestId?: string, retryAfter?: number): HttpException {
+    if (this.standardizedErrorHandler) {
+      return this.standardizedErrorHandler.handleRateLimitError(requestId, retryAfter, {
+        component: this.controllerName,
+      });
+    }
+
+    // Fallback to existing error handling
+    return new HttpException(
+      {
+        ...this.createErrorResponse("RATE_LIMIT_EXCEEDED", 4290, "Rate limit exceeded", requestId),
+        retryAfter: retryAfter || 60000,
+      },
+      HttpStatus.TOO_MANY_REQUESTS
+    );
+  }
+
+  /**
+   * Handle external service errors with standardized format
+   */
+  protected handleExternalServiceError(serviceName: string, originalError: Error, requestId?: string): HttpException {
+    if (this.standardizedErrorHandler) {
+      return this.standardizedErrorHandler.handleExternalServiceError(serviceName, originalError, requestId, {
+        component: this.controllerName,
+      });
+    }
+
+    // Fallback to existing error handling
+    return new HttpException(
+      this.createErrorResponse("EXTERNAL_SERVICE_ERROR", 5020, `External service error: ${serviceName}`, requestId, {
+        originalError: originalError.message,
+      }),
+      HttpStatus.BAD_GATEWAY
+    );
+  }
+
+  /**
+   * Execute operation with retry logic (if retry service is available)
+   */
+  protected async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    context: {
+      operationName: string;
+      serviceType?: "http" | "database" | "cache" | "external-api" | "websocket";
+      endpoint?: string;
+      retryConfig?: {
+        maxRetries?: number;
+        initialDelayMs?: number;
+        maxDelayMs?: number;
+      };
+    }
+  ): Promise<T> {
+    if (this.universalRetryService) {
+      const serviceId = `${this.controllerName}:${context.serviceType || "default"}`;
+
+      switch (context.serviceType) {
+        case "http":
+          return this.universalRetryService.executeHttpWithRetry(operation, {
+            serviceId,
+            endpoint: context.endpoint || "unknown",
+            method: "POST", // Default method
+            retryConfig: context.retryConfig,
+          });
+
+        case "database":
+          return this.universalRetryService.executeDatabaseWithRetry(operation, {
+            serviceId,
+            operation: context.operationName,
+            retryConfig: context.retryConfig,
+          });
+
+        case "cache":
+          return this.universalRetryService.executeCacheWithRetry(operation, {
+            serviceId,
+            operation: context.operationName,
+            retryConfig: context.retryConfig,
+          });
+
+        case "external-api":
+          return this.universalRetryService.executeExternalApiWithRetry(operation, {
+            serviceId,
+            apiName: this.controllerName,
+            endpoint: context.endpoint || "unknown",
+            retryConfig: context.retryConfig,
+          });
+
+        default:
+          return this.universalRetryService.executeWithRetry(operation, {
+            serviceId,
+            operationName: context.operationName,
+            retryConfig: context.retryConfig,
+          });
+      }
+    }
+
+    // Fallback to direct execution
+    return operation();
+  }
+
+  /**
+   * Extract request metadata from request object
+   */
+  protected extractRequestMetadata(request: any): Partial<StandardErrorMetadata> {
+    return {
+      correlationId: request.get?.("X-Correlation-ID") || request.get?.("X-Request-ID") || this.generateRequestId(),
+      traceId: request.get?.("X-Trace-ID"),
+      userId: request.get?.("X-User-ID") || request.user?.id,
+      sessionId: request.get?.("X-Session-ID") || request.session?.id,
+      clientId: request.get?.("X-Client-ID"),
+      userAgent: request.get?.("User-Agent"),
+      ipAddress: this.extractClientIp(request),
+      additionalContext: {
+        method: request.method,
+        path: request.path,
+        query: request.query,
+        params: request.params,
+      },
+    };
+  }
+
+  /**
+   * Extract client IP address from request
+   */
+  protected extractClientIp(request: any): string {
+    return (
+      request.get?.("X-Forwarded-For")?.split(",")[0]?.trim() ||
+      request.get?.("X-Real-IP") ||
+      request.connection?.remoteAddress ||
+      request.socket?.remoteAddress ||
+      "unknown"
+    );
+  }
+
+  /**
+   * Sanitize sensitive data for logging
+   */
+  protected sanitizeForLogging(data: unknown): unknown {
+    if (!data || typeof data !== "object") {
+      return data;
+    }
+
+    const sensitiveFields = [
+      "password",
+      "token",
+      "authorization",
+      "auth",
+      "secret",
+      "key",
+      "apikey",
+      "api_key",
+      "private",
+      "credential",
+    ];
+
+    const sanitized = { ...data } as any;
+
+    for (const field of sensitiveFields) {
+      if (field in sanitized) {
+        sanitized[field] = "[REDACTED]";
+      }
+    }
+
+    return sanitized;
   }
 }

@@ -15,9 +15,10 @@ import { ConfigModule } from "@/config/config.module";
 import { CacheModule } from "@/cache/cache.module";
 import { AggregatorsModule } from "@/aggregators/aggregators.module";
 import { AdaptersModule } from "@/adapters/adapters.module";
+import { ErrorHandlingModule } from "@/error-handling/error-handling.module";
 
 // Core services
-import { ApiErrorHandlerService } from "@/error-handling/api-error-handler.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { ResponseTimeInterceptor } from "@/common/interceptors/response-time.interceptor";
@@ -33,11 +34,12 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     AggregatorsModule,
     AdaptersModule,
     IntegrationModule,
+    ErrorHandlingModule, // Global error handling with standardized patterns
   ],
   controllers: [FeedController, HealthController, MetricsController],
   providers: [
     // API middleware and guards
-    ApiErrorHandlerService,
+    StandardizedErrorHandlerService,
     {
       provide: RateLimiterService,
       useFactory: () => {
@@ -51,10 +53,10 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     },
     {
       provide: RateLimitGuard,
-      useFactory: (rateLimiterService: RateLimiterService, errorHandler: ApiErrorHandlerService) => {
-        return new RateLimitGuard(rateLimiterService, errorHandler);
+      useFactory: (rateLimiterService: RateLimiterService) => {
+        return new RateLimitGuard(rateLimiterService);
       },
-      inject: [RateLimiterService, ApiErrorHandlerService],
+      inject: [RateLimiterService],
     },
     ResponseTimeInterceptor,
     ApiMonitorService,
