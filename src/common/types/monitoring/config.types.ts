@@ -2,42 +2,28 @@
  * Monitoring configuration types
  */
 
-import { AlertRule, AlertDeliveryConfig, AccuracyThresholds, HealthThresholds } from ".";
-import { RateLimitConfig, PerformanceThresholds } from "../utils";
+import type { BaseServiceConfig } from "../services/base.types";
+import type { PerformanceThresholds } from "../utils";
+import type { AlertingConfig, AccuracyThresholds, HealthThresholds } from ".";
+
+export interface ThresholdsConfig extends BaseServiceConfig {
+  accuracy: AccuracyThresholds;
+  performance: PerformanceThresholds;
+  health: HealthThresholds;
+}
 
 /**
  * Main monitoring configuration
  */
-export interface MonitoringConfig {
+export interface MonitoringConfig extends BaseServiceConfig {
   /** Whether monitoring is enabled */
   enabled: boolean;
   /** Monitoring interval in milliseconds */
   interval: number;
 
   /** Threshold configurations */
-  thresholds: {
-    accuracy: AccuracyThresholds & {
-      maxConsensusDeviation: number;
-      minAccuracyRate: number;
-      minQualityScore: number;
-    };
-    performance: PerformanceThresholds;
-    health: HealthThresholds;
-  };
+  thresholds: ThresholdsConfig;
 
   /** Alerting configuration */
-  alerting: {
-    /** Whether alerting is enabled */
-    enabled: boolean;
-    /** List of alert rules */
-    rules: AlertRule[];
-    /** Rate limiting configuration */
-    rateLimits: RateLimitConfig;
-    /** Maximum number of alerts that can be sent per hour */
-    maxAlertsPerHour: number;
-    /** How long to retain alert history (in days) */
-    alertRetention: number;
-    /** Alert delivery configuration */
-    deliveryConfig: AlertDeliveryConfig;
-  };
+  alerting: AlertingConfig;
 }

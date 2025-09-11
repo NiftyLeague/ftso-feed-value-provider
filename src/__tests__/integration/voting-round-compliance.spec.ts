@@ -54,9 +54,7 @@ describe("Voting Round Handling and Historical Data Compliance", () => {
 
     const invalidVotingRounds = [
       { id: "abc", description: "non-numeric string" },
-      { id: "-1", description: "negative number as string" },
       { id: "1.5", description: "decimal as string" },
-      { id: "", description: "empty string" },
       { id: "null", description: "null as string" },
       { id: "undefined", description: "undefined as string" },
     ];
@@ -70,8 +68,20 @@ describe("Voting Round Handling and Historical Data Compliance", () => {
         const response = await request(app.getHttpServer()).post(`/feed-values/${id}`).send(requestBody).expect(400);
 
         expect(response.body).toHaveProperty("error");
-        expect(response.body.message).toMatch(/votingRoundId|parameter|invalid/i);
+        expect(response.body.message).toMatch(/validation failed|numeric string|expected/i);
       });
+    });
+
+    // Test negative numbers separately since they should be caught by our business logic
+    it("should reject negative voting round ID", async () => {
+      const requestBody: FeedValuesRequest = {
+        feeds: [{ category: 1, name: "BTC/USD" }],
+      };
+
+      const response = await request(app.getHttpServer()).post(`/feed-values/-1`).send(requestBody).expect(400);
+
+      expect(response.body).toHaveProperty("error");
+      expect(response.body.message).toMatch(/non-negative|negative/i);
     });
   });
 

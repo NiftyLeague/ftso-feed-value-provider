@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 
 import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handling";
 import { ErrorCode } from "@/common/types/error-handling/error.types";
@@ -19,26 +19,30 @@ export type ExtendedDataValidationError = BaseDataValidationError & {
 };
 
 @Injectable()
-export class DataValidator extends BaseService {
-  // Default validation configuration
-  private readonly defaultConfig: DataValidatorConfig = {
-    maxAge: 2000, // 2 seconds (Requirement 2.5)
-    priceRange: { min: 0.01, max: 1000000 },
-    outlierThreshold: 0.05, // 5% deviation
-    consensusWeight: 0.8,
-    enableRealTimeValidation: true,
-    enableBatchValidation: true,
-    maxBatchSize: 100,
-    validationTimeout: 5000,
-    // Additional required fields for DataValidatorConfig
-    crossSourceWindow: 10_000,
-    historicalDataWindow: 50,
-    validationCacheSize: 1000,
-    validationCacheTTL: 5000,
-  };
-
+export class DataValidator extends StandardService {
   constructor() {
-    super(DataValidator.name); // Basic validation operations don't need enhanced logging
+    super({
+      maxAge: 2000, // 2 seconds (Requirement 2.5)
+      priceRange: { min: 0.01, max: 1000000 },
+      outlierThreshold: 0.05, // 5% deviation
+      consensusWeight: 0.8,
+      enableRealTimeValidation: true,
+      enableBatchValidation: true,
+      maxBatchSize: 100,
+      validationTimeout: 5000,
+      // Additional required fields for DataValidatorConfig
+      crossSourceWindow: 10_000,
+      historicalDataWindow: 50,
+      validationCacheSize: 1000,
+      validationCacheTTL: 5000,
+    });
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get validatorConfig(): DataValidatorConfig {
+    return this.config as DataValidatorConfig;
   }
 
   // Multi-tier validation (Requirement 2.1)
@@ -47,20 +51,88 @@ export class DataValidator extends BaseService {
     context: ValidationContext,
     config?: Partial<DataValidatorConfig>
   ): Promise<DataValidatorResult> {
-    const DataValidatorConfig = { ...this.defaultConfig, ...config };
+    const DataValidatorConfig = { ...this.validatorConfig, ...config };
     const errors: ExtendedDataValidationError[] = [];
     let confidence = update?.confidence || 0;
 
-    try {
-      // Early null check
-      if (!update) {
+    // Use mixin's error handling for validation process
+    const result = await this.executeWithErrorHandling(
+      async () => {
+        // Early null check
+        if (!update) {
+          return {
+            isValid: false,
+            errors: [
+              this.makeValidationError(
+                "Update is null or undefined",
+                "validateUpdate",
+                ["update is null or undefined"],
+                ErrorSeverity.CRITICAL,
+                { type: ValidationErrorType.FORMAT_ERROR }
+              ),
+            ],
+            warnings: [],
+            timestamp: Date.now(),
+            confidence: 0,
+          };
+        }
+
+        // Tier 1: Format validation
+        const formatErrors = this.validateFormat(update);
+        errors.push(...formatErrors);
+
+        // Tier 2: Range validation
+        const rangeErrors = this.validateRange(update, DataValidatorConfig);
+        errors.push(...rangeErrors);
+
+        // Tier 3: Staleness validation (Requirement 2.5)
+        const stalenessErrors = this.validateStaleness(update, DataValidatorConfig);
+        errors.push(...stalenessErrors);
+
+        // Tier 4: Statistical outlier detection (Requirement 2.2)
+        const outlierErrors = await this.validateOutliers(update, context, DataValidatorConfig);
+        errors.push(...outlierErrors);
+
+        // Tier 5: Cross-source validation (Requirement 2.1)
+        const crossSourceErrors = this.validateCrossSource(update, context);
+        errors.push(...crossSourceErrors);
+
+        // Tier 6: Consensus awareness validation (Requirement 2.6)
+        const consensusErrors = this.validateConsensusAlignment(update, context, DataValidatorConfig);
+        errors.push(...consensusErrors);
+
+        // Calculate overall confidence adjustment
+        confidence = this.adjustConfidence(update.confidence, errors);
+
+        // Determine if update is valid
+        const criticalErrors = errors.filter(e => e.severity === ErrorSeverity.CRITICAL);
+        const highErrors = errors.filter(e => e.severity === ErrorSeverity.HIGH);
+
+        const isValid = criticalErrors.length === 0 && highErrors.length <= 1;
+
+        // Create adjusted update if needed
+        const adjustedUpdate = this.createAdjustedUpdate(update, errors, confidence);
+
         return {
+          isValid,
+          errors,
+          warnings: [],
+          timestamp: Date.now(),
+          confidence,
+          adjustedUpdate,
+        };
+      },
+      `validate_update_${update?.source || "unknown"}_${update?.symbol || "unknown"}`,
+      {
+        retries: 1,
+        shouldThrow: false,
+        fallback: async () => ({
           isValid: false,
           errors: [
             this.makeValidationError(
-              "Update is null or undefined",
+              `Validation process failed: Operation failed after retry`,
               "validateUpdate",
-              ["update is null or undefined"],
+              ["unexpected error"],
               ErrorSeverity.CRITICAL,
               { type: ValidationErrorType.FORMAT_ERROR }
             ),
@@ -68,62 +140,16 @@ export class DataValidator extends BaseService {
           warnings: [],
           timestamp: Date.now(),
           confidence: 0,
-        };
+        }),
       }
+    );
 
-      // Tier 1: Format validation
-      const formatErrors = this.validateFormat(update);
-      errors.push(...formatErrors);
-
-      // Tier 2: Range validation
-      const rangeErrors = this.validateRange(update, DataValidatorConfig);
-      errors.push(...rangeErrors);
-
-      // Tier 3: Staleness validation (Requirement 2.5)
-      const stalenessErrors = this.validateStaleness(update, DataValidatorConfig);
-      errors.push(...stalenessErrors);
-
-      // Tier 4: Statistical outlier detection (Requirement 2.2)
-      const outlierErrors = await this.validateOutliers(update, context, DataValidatorConfig);
-      errors.push(...outlierErrors);
-
-      // Tier 5: Cross-source validation (Requirement 2.1)
-      const crossSourceErrors = this.validateCrossSource(update, context);
-      errors.push(...crossSourceErrors);
-
-      // Tier 6: Consensus awareness validation (Requirement 2.6)
-      const consensusErrors = this.validateConsensusAlignment(update, context, DataValidatorConfig);
-      errors.push(...consensusErrors);
-
-      // Calculate overall confidence adjustment
-      confidence = this.adjustConfidence(update.confidence, errors);
-
-      // Determine if update is valid
-      const criticalErrors = errors.filter(e => e.severity === ErrorSeverity.CRITICAL);
-      const highErrors = errors.filter(e => e.severity === ErrorSeverity.HIGH);
-
-      const isValid = criticalErrors.length === 0 && highErrors.length <= 1;
-
-      // Create adjusted update if needed
-      const adjustedUpdate = this.createAdjustedUpdate(update, errors, confidence);
-
-      return {
-        isValid,
-        errors,
-        warnings: [],
-        timestamp: Date.now(),
-        confidence,
-        adjustedUpdate,
-      };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Validation failed for ${update.source}:`, error);
-
-      return {
+    return (
+      result || {
         isValid: false,
         errors: [
           this.makeValidationError(
-            `Validation process failed: ${message}`,
+            `Validation process failed: Unexpected failure`,
             "validateUpdate",
             ["unexpected error"],
             ErrorSeverity.CRITICAL,
@@ -133,8 +159,8 @@ export class DataValidator extends BaseService {
         warnings: [],
         timestamp: Date.now(),
         confidence: 0,
-      };
-    }
+      }
+    );
   }
 
   // Format validation - ensures data structure integrity

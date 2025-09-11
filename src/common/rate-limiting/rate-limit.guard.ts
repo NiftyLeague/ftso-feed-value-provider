@@ -22,10 +22,10 @@ export class RateLimitGuard implements CanActivate {
     const rateLimitInfo = this.rateLimiter.checkRateLimit(clientId);
 
     // Add comprehensive rate limit headers
-    response.setHeader("X-RateLimit-Limit", this.rateLimiter.getConfig().maxRequests);
+    response.setHeader("X-RateLimit-Limit", this.rateLimiter.getRateLimitConfig().maxRequests);
     response.setHeader("X-RateLimit-Remaining", rateLimitInfo.remainingPoints);
     response.setHeader("X-RateLimit-Reset", new Date(Date.now() + rateLimitInfo.msBeforeNext).toISOString());
-    response.setHeader("X-RateLimit-Window", `${this.rateLimiter.getConfig().windowMs}ms`);
+    response.setHeader("X-RateLimit-Window", `${this.rateLimiter.getRateLimitConfig().windowMs}ms`);
 
     if (rateLimitInfo.isBlocked) {
       // Record the blocked request
@@ -46,8 +46,8 @@ export class RateLimitGuard implements CanActivate {
           timestamp: Date.now(),
           requestId,
           rateLimitInfo: {
-            limit: this.rateLimiter.getConfig().maxRequests,
-            windowMs: this.rateLimiter.getConfig().windowMs,
+            limit: this.rateLimiter.getRateLimitConfig().maxRequests,
+            windowMs: this.rateLimiter.getRateLimitConfig().windowMs,
             totalHits: rateLimitInfo.totalHits,
             totalHitsInWindow: rateLimitInfo.totalHitsInWindow,
             retryAfterSeconds,
@@ -70,8 +70,8 @@ export class RateLimitGuard implements CanActivate {
         url,
         totalHits: rateLimitInfo.totalHits,
         totalHitsInWindow: rateLimitInfo.totalHitsInWindow,
-        limit: this.rateLimiter.getConfig().maxRequests,
-        windowMs: this.rateLimiter.getConfig().windowMs,
+        limit: this.rateLimiter.getRateLimitConfig().maxRequests,
+        windowMs: this.rateLimiter.getRateLimitConfig().windowMs,
         retryAfterSeconds,
       });
 
@@ -86,13 +86,13 @@ export class RateLimitGuard implements CanActivate {
     response.setHeader("X-Request-Count", rateLimitInfo.totalHitsInWindow.toString());
 
     // Log successful rate limit check for high-frequency clients
-    if (rateLimitInfo.totalHitsInWindow > this.rateLimiter.getConfig().maxRequests * 0.8) {
+    if (rateLimitInfo.totalHitsInWindow > this.rateLimiter.getRateLimitConfig().maxRequests * 0.8) {
       console.log(`High request volume from client ${clientInfo.sanitized}`, {
         clientId: clientInfo.sanitized,
         method,
         url,
         totalHitsInWindow: rateLimitInfo.totalHitsInWindow,
-        limit: this.rateLimiter.getConfig().maxRequests,
+        limit: this.rateLimiter.getRateLimitConfig().maxRequests,
         remainingPoints: rateLimitInfo.remainingPoints,
       });
     }

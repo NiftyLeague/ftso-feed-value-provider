@@ -1,19 +1,50 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { PerformanceMonitorService } from "../performance-monitor.service";
+import type { ThresholdsConfig } from "@/common/types/monitoring";
 
 describe("PerformanceMonitorService", () => {
   let service: PerformanceMonitorService;
+  let mockConfig: ThresholdsConfig;
 
   beforeEach(async () => {
+    mockConfig = {
+      accuracy: {
+        warning: 0.5,
+        critical: 1,
+        maxDeviation: 1,
+        minParticipants: 3,
+        maxConsensusDeviation: 0.5,
+        minAccuracyRate: 80,
+        minQualityScore: 70,
+      },
+      performance: {
+        maxResponseLatency: 100,
+        maxDataAge: 2000,
+        minThroughput: 100,
+        minCacheHitRate: 80,
+      },
+      health: {
+        maxErrorRate: 5,
+        maxCpuUsage: 80,
+        maxMemoryUsage: 80,
+        minConnectionRate: 90,
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PerformanceMonitorService],
+      providers: [
+        {
+          provide: PerformanceMonitorService,
+          useFactory: () => new PerformanceMonitorService(mockConfig),
+        },
+      ],
     }).compile();
 
     service = module.get<PerformanceMonitorService>(PerformanceMonitorService);
   });
 
   afterEach(async () => {
-    await service.onModuleDestroy();
+    await service.cleanup();
   });
 
   it("should be defined", () => {

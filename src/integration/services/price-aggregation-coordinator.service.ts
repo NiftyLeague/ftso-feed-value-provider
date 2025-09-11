@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 
 // Aggregation services
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -18,8 +18,8 @@ import type { AggregatedPrice } from "@/common/types/services";
 import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
 
 @Injectable()
-export class PriceAggregationCoordinatorService extends BaseEventService {
-  private isInitialized = false;
+export class PriceAggregationCoordinatorService extends EventDrivenService {
+  public override isInitialized = false;
 
   constructor(
     private readonly aggregationService: RealTimeAggregationService,
@@ -28,12 +28,12 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
     private readonly cachePerformanceMonitor: CachePerformanceMonitorService,
     private readonly configService: ConfigService
   ) {
-    super("PriceAggregationCoordinator", true); // Needs enhanced logging for performance tracking and critical operations
+    super({ useEnhancedLogging: true });
   }
 
-  async initialize(): Promise<void> {
+  override async initialize(): Promise<void> {
     const operationId = `init_${Date.now()}`;
-    this.startPerformanceTimer(operationId, "price_aggregation_initialization");
+    this.startTimer(operationId);
 
     try {
       this.logCriticalOperation("price_aggregation_initialization", {
@@ -62,10 +62,10 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
         true
       );
 
-      this.endPerformanceTimer(operationId, true, { initialized: true });
+      this.endTimer(operationId);
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.endPerformanceTimer(operationId, false, { error: errObj.message });
+      this.endTimer(operationId);
       this.logError(errObj, "price_aggregation_initialization", { severity: "critical" });
       throw error;
     }
@@ -89,7 +89,7 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
       throw new Error("Price aggregation coordinator not initialized");
     }
 
-    const startTime = performance.now();
+    this.startTimer(`getCurrentPrice_${feedId.name}`);
 
     try {
       // Track feed access for cache warming
@@ -99,7 +99,7 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
       const cachedPrice = this.cacheService.getPrice(feedId);
       if (cachedPrice && this.isFreshData(cachedPrice.timestamp)) {
         // Record cache hit performance
-        const responseTime = performance.now() - startTime;
+        const responseTime = this.endTimer(`getCurrentPrice_${feedId.name}`);
         this.cachePerformanceMonitor.recordResponseTime(responseTime);
 
         return {
@@ -128,7 +128,7 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
         this.cacheService.invalidateOnPriceUpdate(feedId);
 
         // Record cache miss performance
-        const responseTime = performance.now() - startTime;
+        const responseTime = this.endTimer(`getCurrentPrice_${feedId.name}`);
         this.cachePerformanceMonitor.recordResponseTime(responseTime);
 
         return aggregatedPrice;
@@ -139,7 +139,7 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
       this.logger.error(`Error getting current price for ${feedId.name}:`, error);
 
       // Record error response time
-      const responseTime = performance.now() - startTime;
+      const responseTime = this.endTimer(`getCurrentPrice_${feedId.name}`);
       this.cachePerformanceMonitor.recordResponseTime(responseTime);
 
       // Emit aggregation error
@@ -174,7 +174,7 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
   }
 
   handlePriceUpdate(update: PriceUpdate): void {
-    const startTime = performance.now();
+    this.startTimer(`handlePriceUpdate_${update.symbol}`);
 
     try {
       // Track feed access for cache warming
@@ -192,7 +192,7 @@ export class PriceAggregationCoordinatorService extends BaseEventService {
       });
 
       // Record cache performance metrics
-      const responseTime = performance.now() - startTime;
+      const responseTime = this.endTimer(`handlePriceUpdate_${update.symbol}`);
       this.cachePerformanceMonitor.recordResponseTime(responseTime);
 
       this.logger.debug(`Processed price update: ${update.symbol} = ${update.price}`);

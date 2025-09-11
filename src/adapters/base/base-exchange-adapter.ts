@@ -448,7 +448,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   /**
    * Send message via WebSocket
    */
-  protected sendWebSocketMessage(message: string | Buffer): boolean {
+  protected async sendWebSocketMessage(message: string | Buffer): Promise<boolean> {
     if (this.wsManager && this.wsConnectionId) {
       return this.wsManager.sendMessage(this.wsConnectionId, message);
     }

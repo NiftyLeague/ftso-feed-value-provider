@@ -94,7 +94,6 @@ describe("Service Interface Implementation", () => {
       expect(ftsoProviderService.healthCheck).toBeDefined();
       expect(ftsoProviderService.getPerformanceMetrics).toBeDefined();
       expect(ftsoProviderService.setIntegrationService).toBeDefined();
-      expect(ftsoProviderService.getServiceName()).toBe("FtsoProviderService");
     });
   });
 
@@ -108,7 +107,6 @@ describe("Service Interface Implementation", () => {
       expect(aggregationService.getActiveFeedCount).toBeDefined();
       expect(aggregationService.processPriceUpdate).toBeDefined();
       expect(aggregationService.clearCache).toBeDefined();
-      expect(aggregationService.getServiceName()).toBe("RealTimeAggregationService");
     });
   });
 
@@ -124,7 +122,6 @@ describe("Service Interface Implementation", () => {
       expect(configService.getAdapterClass).toBeDefined();
       expect(configService.getCcxtId).toBeDefined();
       expect(configService.getExchangeApiKey).toBeDefined();
-      expect(configService.getServiceName()).toBe("ConfigService");
     });
   });
 
@@ -137,7 +134,6 @@ describe("Service Interface Implementation", () => {
       expect(validationService.clearCache).toBeDefined();
       expect(validationService.clearHistoricalData).toBeDefined();
       expect(validationService.validateRealTime).toBeDefined();
-      expect(validationService.getServiceName()).toBe("ValidationService");
     });
   });
 });

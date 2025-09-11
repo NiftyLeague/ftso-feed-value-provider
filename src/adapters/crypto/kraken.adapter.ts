@@ -198,7 +198,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
       },
     };
 
-    this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+    await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
@@ -212,7 +212,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
       },
     };
 
-    this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+    await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
   }
 
   // REST API fallback methods

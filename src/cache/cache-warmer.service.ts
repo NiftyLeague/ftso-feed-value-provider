@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import { executeWithConcurrency } from "@/common/utils/async.utils";
 import type { EnhancedFeedId } from "@/common/types/core";
 import type { CacheEntry } from "@/common/types/cache";
@@ -27,15 +27,12 @@ interface WarmingStrategy {
 }
 
 @Injectable()
-export class CacheWarmerService extends BaseService implements OnModuleDestroy {
+export class CacheWarmerService extends StandardService implements OnModuleDestroy {
   private accessPatterns = new Map<string, FeedAccessPattern>();
   private warmingStrategies: WarmingStrategy[] = [];
   private dataSourceCallback?: (feedId: EnhancedFeedId) => Promise<AggregatedPrice | null>;
 
-  // Optimized warming intervals
-  private aggressiveWarmingInterval?: NodeJS.Timeout;
-  private predictiveWarmingInterval?: NodeJS.Timeout;
-  private maintenanceInterval?: NodeJS.Timeout;
+  // Optimized warming intervals are now managed by lifecycle mixin
 
   // Performance tracking
   private warmingStats = {
@@ -47,7 +44,7 @@ export class CacheWarmerService extends BaseService implements OnModuleDestroy {
   };
 
   constructor(private readonly cacheService: RealTimeCacheService) {
-    super("CacheWarmerService");
+    super();
     this.initializeWarmingStrategies();
     this.startWarming();
   }
@@ -452,8 +449,8 @@ export class CacheWarmerService extends BaseService implements OnModuleDestroy {
    * Start intelligent warming with multiple strategies
    */
   private startWarming(): void {
-    // Aggressive warming for high-priority feeds
-    this.aggressiveWarmingInterval = setInterval(async () => {
+    // Aggressive warming for high-priority feeds using managed intervals
+    this.createInterval(async () => {
       try {
         await this.performAggressiveWarming();
       } catch (error) {
@@ -461,8 +458,8 @@ export class CacheWarmerService extends BaseService implements OnModuleDestroy {
       }
     }, 3000); // Every 3 seconds - more frequent for better performance
 
-    // Predictive warming based on access patterns
-    this.predictiveWarmingInterval = setInterval(async () => {
+    // Predictive warming based on access patterns using managed intervals
+    this.createInterval(async () => {
       try {
         await this.performPredictiveWarming();
       } catch (error) {
@@ -470,8 +467,8 @@ export class CacheWarmerService extends BaseService implements OnModuleDestroy {
       }
     }, 7000); // Every 7 seconds - more frequent for better prediction
 
-    // Maintenance warming for general cache health
-    this.maintenanceInterval = setInterval(async () => {
+    // Maintenance warming for general cache health using managed intervals
+    this.createInterval(async () => {
       try {
         await this.performMaintenanceWarming();
         this.cleanupStalePatterns();
@@ -549,17 +546,8 @@ export class CacheWarmerService extends BaseService implements OnModuleDestroy {
   /**
    * Stop intelligent warming and cleanup
    */
-  async onModuleDestroy(): Promise<void> {
-    if (this.aggressiveWarmingInterval) {
-      clearInterval(this.aggressiveWarmingInterval);
-    }
-    if (this.predictiveWarmingInterval) {
-      clearInterval(this.predictiveWarmingInterval);
-    }
-    if (this.maintenanceInterval) {
-      clearInterval(this.maintenanceInterval);
-    }
-
+  override async cleanup(): Promise<void> {
+    // Managed intervals are automatically cleaned up by lifecycle mixin
     this.accessPatterns.clear();
     this.logger.log("Cache warmer service destroyed");
   }

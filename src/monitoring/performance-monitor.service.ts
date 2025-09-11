@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
-import type { PerformanceMetrics } from "@/common/types/monitoring";
+import { StandardService } from "@/common/base/composed.service";
+import type { PerformanceMetrics, ThresholdsConfig } from "@/common/types/monitoring";
 
 interface OptimizedPerformanceMetrics extends PerformanceMetrics {
   cacheEfficiency: number;
@@ -20,7 +20,7 @@ interface PerformanceOptimizationSuggestion {
 }
 
 @Injectable()
-export class PerformanceMonitorService extends BaseService implements OnModuleDestroy {
+export class PerformanceMonitorService extends StandardService implements OnModuleDestroy {
   // Optimized circular buffers for memory efficiency
   private responseTimeBuffer!: Float32Array;
   private cacheHitRateBuffer!: Float32Array;
@@ -32,28 +32,25 @@ export class PerformanceMonitorService extends BaseService implements OnModuleDe
   private bufferIndex = 0;
   private bufferFull = false;
 
-  // Performance thresholds with adaptive adjustment
-  private thresholds = {
-    responseTime: 40, // More aggressive response time target
-    cacheHitRate: 0.95, // Higher cache hit rate target
-    memoryUsage: 60, // Lower memory usage threshold
-    cpuUsage: 50, // Lower CPU usage threshold
-    aggregationSpeed: 30, // Faster aggregation target
-    throughput: 150, // Higher throughput target
-    errorRate: 0.005, // Lower error rate tolerance
-  };
-
-  private monitoringInterval?: NodeJS.Timeout;
-  private optimizationInterval?: NodeJS.Timeout;
+  // Intervals are now managed by the lifecycle mixin
 
   // Performance optimization state
   private adaptiveThresholds = true;
   private performanceBaseline: OptimizedPerformanceMetrics | null = null;
 
-  constructor() {
-    super("PerformanceMonitorService");
+  constructor(config?: ThresholdsConfig) {
+    super({
+      maxResponseLatency: 40, // More aggressive response time target
+      minCacheHitRate: 0.95, // Higher cache hit rate target
+      ...config,
+    });
     this.initializeOptimizedBuffers();
     this.startOptimizedMonitoring();
+  }
+
+  // Performance thresholds with adaptive adjustment
+  private get thresholds(): ThresholdsConfig {
+    return this.config as ThresholdsConfig;
   }
 
   /**
@@ -246,7 +243,7 @@ export class PerformanceMonitorService extends BaseService implements OnModuleDe
     throughput?: number;
   }): void {
     // Generate optimization suggestions if needed
-    if (metrics.responseTime && metrics.responseTime > this.thresholds.responseTime) {
+    if (metrics.responseTime && metrics.responseTime > this.thresholds.performance.maxResponseLatency) {
       // Emit optimization suggestions (would need event emitter if needed)
       this.logger.warn(`Response time ${metrics.responseTime}ms exceeds target`, {
         component: "response_time",
@@ -319,11 +316,11 @@ export class PerformanceMonitorService extends BaseService implements OnModuleDe
 
     // Adjust thresholds based on performance improvements
     if (metrics.responseTime < this.performanceBaseline.responseTime * 0.9) {
-      this.thresholds.responseTime = Math.max(30, this.thresholds.responseTime * 0.95);
+      this.thresholds.maxResponseLatency = Math.max(30, this.thresholds.performance.maxResponseLatency * 0.95);
     }
 
     if (metrics.cacheHitRate > this.performanceBaseline.cacheHitRate * 1.1) {
-      this.thresholds.cacheHitRate = Math.min(0.98, this.thresholds.cacheHitRate * 1.02);
+      this.thresholds.minCacheHitRate = Math.min(0.98, this.thresholds.performance.minCacheHitRate * 1.02);
     }
 
     // Update baseline periodically
@@ -337,13 +334,13 @@ export class PerformanceMonitorService extends BaseService implements OnModuleDe
    * Start optimized monitoring with intelligent intervals
    */
   private startOptimizedMonitoring(): void {
-    // High-frequency monitoring for critical metrics
-    this.monitoringInterval = setInterval(() => {
+    // High-frequency monitoring for critical metrics using managed intervals
+    this.createInterval(() => {
       this.collectOptimizedMetrics();
     }, 1000);
 
     // Medium-frequency optimization analysis
-    this.optimizationInterval = setInterval(() => {
+    this.createInterval(() => {
       this.performOptimizationAnalysis();
     }, 5000);
 
@@ -483,13 +480,8 @@ export class PerformanceMonitorService extends BaseService implements OnModuleDe
     };
   }
 
-  async onModuleDestroy(): Promise<void> {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-    }
-    if (this.optimizationInterval) {
-      clearInterval(this.optimizationInterval);
-    }
+  override async cleanup(): Promise<void> {
+    // The lifecycle mixin will automatically clean up managed intervals
     this.logger.log("Optimized performance monitor service destroyed");
   }
 }

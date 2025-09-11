@@ -1,12 +1,12 @@
 import { BaseService } from "../base/base.service";
 import { Logger } from "@nestjs/common";
 import { EnhancedLoggerService } from "../logging/enhanced-logger.service";
-import { TestHelpers } from "@/__tests__/utils";
+import { TestHelpers } from "../../__tests__/utils/test.helpers";
 
 // Test implementation of BaseService
 class TestService extends BaseService {
-  constructor(useEnhancedLogging?: boolean) {
-    super("TestService", useEnhancedLogging);
+  constructor() {
+    super();
   }
 
   public testLogInitialization() {
@@ -32,6 +32,20 @@ class TestService extends BaseService {
   public testLogDebug(message: string, context?: string) {
     this.logDebug(message, context);
   }
+
+  // Method to enable enhanced logging for testing
+  public enableEnhancedLogging() {
+    this.updateConfig({ useEnhancedLogging: true });
+  }
+}
+
+// Test implementation for enhanced logging
+class EnhancedTestService extends BaseService {
+  constructor() {
+    super();
+    // Enable enhanced logging via config
+    this.updateConfig({ useEnhancedLogging: true });
+  }
 }
 
 describe("BaseService", () => {
@@ -55,14 +69,26 @@ describe("BaseService", () => {
       expect(service["logger"]).toBeInstanceOf(Logger);
     });
 
-    it("should create enhanced logger when requested", () => {
-      const serviceWithEnhanced = new TestService(true);
+    it("should create enhanced logger when enabled via config", () => {
+      const serviceWithEnhanced = new TestService();
+      serviceWithEnhanced.enableEnhancedLogging();
       expect(serviceWithEnhanced["enhancedLogger"]).toBeDefined();
       expect(serviceWithEnhanced["enhancedLogger"]).toBeInstanceOf(EnhancedLoggerService);
     });
 
     it("should not create enhanced logger by default", () => {
       expect(service["enhancedLogger"]).toBeUndefined();
+    });
+
+    it("should auto-detect service name from constructor", () => {
+      const loggerContext = (service["logger"] as any).context;
+      expect(loggerContext).toBe("TestService");
+    });
+
+    it("should auto-detect service name for enhanced service", () => {
+      const enhancedService = new EnhancedTestService();
+      const loggerContext = (enhancedService["logger"] as any).context;
+      expect(loggerContext).toBe("EnhancedTestService");
     });
   });
 

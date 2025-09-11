@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import type { AlertSeverity, AlertAction } from "@/common/types/monitoring";
+import type { AlertSeverity, AlertAction, MonitoringConfig } from "@/common/types/monitoring";
 
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -13,9 +13,21 @@ import { AggregatorsModule } from "@/aggregators/aggregators.module";
 @Module({
   imports: [CacheModule, AggregatorsModule],
   providers: [
-    AccuracyMonitorService,
-    PerformanceMonitorService,
-    AlertingService,
+    {
+      provide: AccuracyMonitorService,
+      useFactory: (config: MonitoringConfig) => new AccuracyMonitorService(config.thresholds),
+      inject: ["MonitoringConfig"],
+    },
+    {
+      provide: PerformanceMonitorService,
+      useFactory: (config: MonitoringConfig) => new PerformanceMonitorService(config.thresholds),
+      inject: ["MonitoringConfig"],
+    },
+    {
+      provide: AlertingService,
+      useFactory: (config: MonitoringConfig) => new AlertingService(config.alerting),
+      inject: ["MonitoringConfig"],
+    },
     PerformanceOptimizationCoordinatorService,
     {
       provide: "MonitoringConfig",
@@ -152,7 +164,7 @@ import { AggregatorsModule } from "@/aggregators/aggregators.module";
               smtpPort: parseInt(process.env.ALERT_SMTP_PORT || "587", 10),
               username: process.env.ALERT_SMTP_USERNAME || "",
               password: process.env.ALERT_SMTP_PASSWORD || "",
-              from: process.env.ALERT_EMAIL_FROM || "alerts@ftso-provider.com",
+              from: process.env.ALERT_EMAIL_FROM || '"Alerting Service" <alerts@ftso-provider.com>',
               to: (process.env.ALERT_EMAIL_TO || "").split(",").filter(Boolean),
             },
             webhook: {

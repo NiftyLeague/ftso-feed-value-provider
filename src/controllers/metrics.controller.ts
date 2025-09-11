@@ -21,7 +21,7 @@ export class MetricsController extends BaseController {
     universalRetryService: UniversalRetryService,
     private readonly apiMonitor: ApiMonitorService
   ) {
-    super("MetricsController");
+    super();
     // Inject standardized error handling services
     this.standardizedErrorHandler = standardizedErrorHandler;
     this.universalRetryService = universalRetryService;

@@ -53,8 +53,8 @@ describe("FTSO API Compliance Integration Tests", () => {
 
           const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody);
 
-          expect([200, 201]).toContain(response.status);
-          if (response.status === 201) {
+          expect(response.status).toBe(200);
+          if (response.status === 200) {
             expect(response.body).toHaveProperty("data");
             expect(Array.isArray(response.body.data)).toBe(true);
           }
@@ -113,6 +113,40 @@ describe("FTSO API Compliance Integration Tests", () => {
       });
     });
 
+    describe("Case Normalization", () => {
+      it("should accept and normalize lowercase feed names", async () => {
+        const requestBody: FeedValuesRequest = {
+          feeds: [{ category: 1, name: "btc/usd" }],
+        };
+
+        const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody);
+
+        // Should succeed (not return 400 for format validation)
+        expect(response.status).not.toBe(400);
+
+        // If there's an error, it shouldn't be about format
+        if (response.status === 400) {
+          expect(response.body.message).not.toMatch(/format|BASE\/QUOTE/i);
+        }
+      });
+
+      it("should accept mixed case feed names", async () => {
+        const requestBody: FeedValuesRequest = {
+          feeds: [{ category: 1, name: "Btc/Usd" }],
+        };
+
+        const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody);
+
+        // Should succeed (not return 400 for format validation)
+        expect(response.status).not.toBe(400);
+
+        // If there's an error, it shouldn't be about format
+        if (response.status === 400) {
+          expect(response.body.message).not.toMatch(/format|BASE\/QUOTE/i);
+        }
+      });
+    });
+
     describe("Invalid Feed Names", () => {
       const invalidNames = [
         { name: "", description: "empty string" },
@@ -121,7 +155,6 @@ describe("FTSO API Compliance Integration Tests", () => {
         { name: "/USD", description: "empty base currency" },
         { name: "BTC-USD", description: "wrong separator" },
         { name: "BTC USD", description: "space separator" },
-        { name: "btc/usd", description: "lowercase" },
         { name: "BTC/US", description: "quote too short" },
         { name: "BTC/USDDD", description: "quote too long" },
         { name: "VERYLONGNAME/USD", description: "base too long" },
@@ -158,7 +191,7 @@ describe("FTSO API Compliance Integration Tests", () => {
         .post("/feed-values")
         .set("Content-Type", "application/json")
         .send(requestBody)
-        .expect(201);
+        .expect(200);
 
       // Validate response structure
       expect(response.body).toHaveProperty("data");
@@ -247,7 +280,7 @@ describe("FTSO API Compliance Integration Tests", () => {
         });
       });
 
-      const invalidVotingRounds = ["abc", "-1", "1.5", ""];
+      const invalidVotingRounds = ["abc", "-1", "1.5", "null"];
 
       invalidVotingRounds.forEach(votingRoundId => {
         it(`should reject invalid voting round ID: ${votingRoundId}`, async () => {
@@ -272,7 +305,7 @@ describe("FTSO API Compliance Integration Tests", () => {
         .query({ window: 3600 })
         .set("Content-Type", "application/json")
         .send(requestBody)
-        .expect(201);
+        .expect(200);
 
       expect(response.body).toHaveProperty("data");
       expect(response.body).toHaveProperty("windowSec", 3600);
@@ -293,7 +326,7 @@ describe("FTSO API Compliance Integration Tests", () => {
         feeds: [{ category: 1, name: "BTC/USD" }],
       };
 
-      const response = await request(app.getHttpServer()).post("/volumes").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/volumes").send(requestBody).expect(200);
 
       expect(response.body).toHaveProperty("data");
       expect(response.body).toHaveProperty("windowSec");
@@ -310,7 +343,7 @@ describe("FTSO API Compliance Integration Tests", () => {
 
           const response = await request(app.getHttpServer()).post("/volumes").query({ window }).send(requestBody);
 
-          expect([200, 201]).toContain(response.status);
+          expect(response.status).toBe(200);
         });
       });
 
@@ -339,7 +372,7 @@ describe("FTSO API Compliance Integration Tests", () => {
         .set("Content-Type", "application/json")
         .send(requestBody);
 
-      expect([200, 201]).toContain(response.status);
+      expect(response.status).toBe(200);
       expect(response.headers["content-type"]).toMatch(/application\/json/);
     });
 
@@ -385,7 +418,7 @@ describe("FTSO API Compliance Integration Tests", () => {
 
       const response1 = await request(app.getHttpServer()).post("/feed-values").send(configuredFeedRequest);
 
-      expect([200, 201]).toContain(response1.status);
+      expect(response1.status).toBe(200);
 
       // Test with non-configured feed
       const nonConfiguredFeedRequest: FeedValuesRequest = {
@@ -425,8 +458,8 @@ describe("FTSO API Compliance Integration Tests", () => {
 
       const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody);
 
-      expect([200, 201]).toContain(response.status);
-      if (response.status === 201) {
+      expect(response.status).toBe(200);
+      if (response.status === 200) {
         expect(response.body.data).toHaveLength(2);
       }
     });

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
-import type { AggregatedPrice, QualityMetrics } from "@/common/types/services";
+import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
 
 interface OptimizedPricePoint {
   price: number;
@@ -29,8 +29,25 @@ interface AggregationCache {
   };
 }
 
+type TierWeights = {
+  [key: number]: number;
+};
+
+interface ConsensusConfiguration extends BaseServiceConfig {
+  lambda: number;
+  maxStalenessMs: number;
+  minSources: number;
+  cacheTTL: number;
+  weightUpdateInterval: number;
+  tierWeights: TierWeights;
+  outlierThreshold: number;
+  batchSize: number;
+  parallelProcessing: boolean;
+  adaptiveWeighting: boolean;
+}
+
 @Injectable()
-export class ConsensusAggregator extends BaseService {
+export class ConsensusAggregator extends StandardService {
   private precomputedWeights: PrecomputedWeights = {};
   private aggregationCache: AggregationCache = {};
   private performanceMetrics = {
@@ -40,27 +57,31 @@ export class ConsensusAggregator extends BaseService {
     cacheMisses: 0,
   };
 
-  // Optimized configuration for ultra-high-performance price aggregation
-  private readonly config = {
-    lambda: 0.00004, // Optimized time decay factor for better consensus
-    maxStalenessMs: 1500, // Reduced staleness threshold for fresher data
-    minSources: 2, // Minimum sources for aggregation
-    cacheTTL: 300, // Reduced cache TTL for more responsive updates
-    weightUpdateInterval: 45000, // More frequent weight updates for better accuracy
-    tierWeights: {
-      1: 1.4, // Increased tier 1 bonus for better reliability
-      2: 1.0, // Standard tier 2 weighting
-    },
-    outlierThreshold: 0.12, // Tighter outlier detection for better quality
-    batchSize: 50, // Batch processing size for optimization
-    parallelProcessing: true, // Enable parallel processing
-    adaptiveWeighting: true, // Enable adaptive weight adjustment
-  };
-
   constructor() {
-    super("ConsensusAggregator");
+    super({
+      lambda: 0.00004, // Optimized time decay factor for better consensus
+      maxStalenessMs: 1500, // Reduced staleness threshold for fresher data
+      minSources: 2, // Minimum sources for aggregation
+      cacheTTL: 300, // Reduced cache TTL for more responsive updates
+      weightUpdateInterval: 45000, // More frequent weight updates for better accuracy
+      tierWeights: {
+        1: 1.4, // Increased tier 1 bonus for better reliability
+        2: 1.0, // Standard tier 2 weighting
+      },
+      outlierThreshold: 0.12, // Tighter outlier detection for better quality
+      batchSize: 50, // Batch processing size for optimization
+      parallelProcessing: true, // Enable parallel processing
+      adaptiveWeighting: true, // Enable adaptive weight adjustment
+    });
     this.initializePrecomputedWeights();
     this.startWeightOptimization();
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get consensusConfig(): ConsensusConfiguration {
+    return this.config as ConsensusConfiguration;
   }
 
   /**
@@ -74,7 +95,7 @@ export class ConsensusAggregator extends BaseService {
    * @returns Promise resolving to aggregated price with confidence and consensus scores
    */
   async aggregate(feedId: EnhancedFeedId, updates: PriceUpdate[]): Promise<AggregatedPrice> {
-    const startTime = performance.now();
+    this.startTimer(`aggregate_${feedId.name}`);
     const feedKey = `${feedId.category}:${feedId.name}`;
 
     try {
@@ -82,7 +103,7 @@ export class ConsensusAggregator extends BaseService {
       const cachedResult = this.checkAggregationCache(feedKey, updates);
       if (cachedResult) {
         this.performanceMetrics.cacheHits++;
-        const responseTime = performance.now() - startTime;
+        const responseTime = this.endTimer(`aggregate_${feedId.name}`);
         this.updatePerformanceMetrics(responseTime);
         return cachedResult;
       }
@@ -102,8 +123,8 @@ export class ConsensusAggregator extends BaseService {
         throw new Error(`No valid price data available for feed ${feedId.name}`);
       }
 
-      if (validUpdates.length < this.config.minSources) {
-        throw new Error(`Insufficient valid sources: ${validUpdates.length} < ${this.config.minSources}`);
+      if (validUpdates.length < this.consensusConfig.minSources) {
+        throw new Error(`Insufficient valid sources: ${validUpdates.length} < ${this.consensusConfig.minSources}`);
       }
 
       // Convert to optimized price points with precomputed weights
@@ -130,7 +151,7 @@ export class ConsensusAggregator extends BaseService {
       // Cache the result
       this.cacheAggregationResult(feedKey, result, updates);
 
-      const responseTime = performance.now() - startTime;
+      const responseTime = this.endTimer(`aggregate_${feedId.name}`);
       this.updatePerformanceMetrics(responseTime);
       this.performanceMetrics.totalAggregations++;
 
@@ -141,7 +162,7 @@ export class ConsensusAggregator extends BaseService {
 
       return result;
     } catch (error) {
-      const responseTime = performance.now() - startTime;
+      const responseTime = this.endTimer(`aggregate_${feedId.name}`);
       this.updatePerformanceMetrics(responseTime);
       this.logger.error(`Optimized aggregation failed for ${feedId.name}:`, error);
       throw error;
@@ -195,7 +216,7 @@ export class ConsensusAggregator extends BaseService {
    */
   private fastValidateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
     const now = Date.now();
-    const maxAge = this.config.maxStalenessMs;
+    const maxAge = this.consensusConfig.maxStalenessMs;
 
     return updates.filter(update => {
       // Fast staleness check
@@ -226,7 +247,7 @@ export class ConsensusAggregator extends BaseService {
       };
 
       const staleness = now - update.timestamp;
-      const timeWeight = Math.exp(-this.config.lambda * staleness);
+      const timeWeight = Math.exp(-this.consensusConfig.lambda * staleness);
       const combinedWeight = weights.baseWeight * weights.tierMultiplier * timeWeight * update.confidence;
 
       return {
@@ -331,7 +352,7 @@ export class ConsensusAggregator extends BaseService {
     const avgDeviation = totalWeight > 0 ? totalWeightedDeviation / totalWeight : 1;
 
     // Convert to consensus score (0-1, higher is better)
-    return Math.max(0, 1 - avgDeviation / this.config.outlierThreshold);
+    return Math.max(0, 1 - avgDeviation / this.consensusConfig.outlierThreshold);
   }
 
   /**
@@ -369,7 +390,7 @@ export class ConsensusAggregator extends BaseService {
     const age = now - cached.timestamp;
 
     // Check if cache is still valid
-    if (age > this.config.cacheTTL) {
+    if (age > this.consensusConfig.cacheTTL) {
       delete this.aggregationCache[feedKey];
       return null;
     }
@@ -431,7 +452,7 @@ export class ConsensusAggregator extends BaseService {
     let cleanedCount = 0;
 
     for (const [key, cached] of Object.entries(this.aggregationCache)) {
-      if (now - cached.timestamp > this.config.cacheTTL * 2) {
+      if (now - cached.timestamp > this.consensusConfig.cacheTTL * 2) {
         delete this.aggregationCache[key];
         cleanedCount++;
       }
@@ -455,7 +476,7 @@ export class ConsensusAggregator extends BaseService {
   private startWeightOptimization(): void {
     setInterval(() => {
       this.optimizeWeights();
-    }, this.config.weightUpdateInterval);
+    }, this.consensusConfig.weightUpdateInterval);
   }
 
   /**
@@ -503,7 +524,7 @@ export class ConsensusAggregator extends BaseService {
     const age = now - update.timestamp;
 
     // Check staleness
-    if (age > this.config.maxStalenessMs) {
+    if (age > this.consensusConfig.maxStalenessMs) {
       return false;
     }
 

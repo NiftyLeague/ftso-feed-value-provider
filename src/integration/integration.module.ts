@@ -87,7 +87,7 @@ import { StartupValidationService } from "./services/startup-validation.service"
         // Wait for initialization to complete
         await new Promise<void>(resolve => {
           if (integrationService.listenerCount("initialized") > 0) {
-            integrationService.once("initialized", resolve);
+            integrationService.once<[void]>("initialized", resolve);
           } else {
             // Already initialized
             resolve();

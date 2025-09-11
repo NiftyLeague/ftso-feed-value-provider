@@ -2,7 +2,7 @@
  * Types related to accuracy metrics and monitoring
  */
 
-import { ITimestamped } from "../core/common.types";
+import type { ITimestamped } from "../core/common.types";
 
 /**
  * Metrics related to data accuracy
@@ -161,6 +161,9 @@ export interface AccuracyThresholds {
 
   /** Minimum number of participants */
   minParticipants: number;
+  maxConsensusDeviation: number;
+  minAccuracyRate: number;
+  minQualityScore: number;
 }
 
 /**

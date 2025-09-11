@@ -1,11 +1,11 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import type { CachePerformanceMetrics, ResponseTimeMetric, MemoryUsageMetric } from "@/common/types/cache";
 
 import { RealTimeCacheService } from "./real-time-cache.service";
 
 @Injectable()
-export class CachePerformanceMonitorService extends BaseService implements OnModuleDestroy {
+export class CachePerformanceMonitorService extends StandardService implements OnModuleDestroy {
   private readonly responseTimes: ResponseTimeMetric[] = [];
   private readonly memoryUsageHistory: MemoryUsageMetric[] = [];
   private readonly maxHistorySize = 1000; // Keep last 1000 measurements
@@ -16,7 +16,7 @@ export class CachePerformanceMonitorService extends BaseService implements OnMod
   private readonly monitoringIntervalMs = 5000; // 5 seconds
 
   constructor(private readonly cacheService: RealTimeCacheService) {
-    super("CachePerformanceMonitorService");
+    super();
     this.startMonitoring();
   }
 
@@ -148,7 +148,7 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
     this.logger.debug(`Started cache performance monitoring with ${this.monitoringIntervalMs}ms interval`);
   }
 
-  async onModuleDestroy(): Promise<void> {
+  override async cleanup(): Promise<void> {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = undefined;

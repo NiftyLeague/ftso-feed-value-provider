@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
 import { Injectable, Logger } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import type { IExchangeAdapter } from "@/common/types/adapters";
 import { type DataSource, type PriceUpdate, FeedCategory } from "@/common/types/core";
 
@@ -9,9 +9,9 @@ import { type DataSource, type PriceUpdate, FeedCategory } from "@/common/types/
  * This bridges the gap between the adapter pattern and the data source interface
  */
 @Injectable()
-export class DataSourceFactory extends BaseService {
+export class DataSourceFactory extends StandardService {
   constructor() {
-    super(DataSourceFactory.name);
+    super();
   }
 
   /**

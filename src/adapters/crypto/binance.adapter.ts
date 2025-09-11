@@ -278,10 +278,10 @@ export class BinanceAdapter extends BaseExchangeAdapter {
 
   // Binance requires periodic ping to keep connection alive
   private startPingInterval(): void {
-    this.pingInterval = setInterval(() => {
+    this.pingInterval = setInterval(async () => {
       if (this.isConnected()) {
         // Use integrated WebSocket functionality
-        this.sendWebSocketMessage(JSON.stringify({ method: "ping" }));
+        await this.sendWebSocketMessage(JSON.stringify({ method: "ping" }));
       }
     }, 30000); // Ping every 30 seconds
   }

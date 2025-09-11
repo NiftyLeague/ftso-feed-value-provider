@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import { watchFile, unwatchFile } from "fs";
 
 export interface FileWatcherOptions {
@@ -12,7 +12,7 @@ export interface FileChangeCallback {
 }
 
 @Injectable()
-export class FileWatcherService extends BaseService implements OnModuleDestroy {
+export class FileWatcherService extends StandardService implements OnModuleDestroy {
   private watchedFiles = new Map<
     string,
     {
@@ -22,7 +22,7 @@ export class FileWatcherService extends BaseService implements OnModuleDestroy {
   >();
 
   constructor() {
-    super("FileWatcherService");
+    super();
   }
 
   /**
@@ -116,29 +116,9 @@ export class FileWatcherService extends BaseService implements OnModuleDestroy {
   /**
    * Cleanup on module destroy
    */
-  onModuleDestroy(): void {
+  override async cleanup(): Promise<void> {
     this.logger.log("FileWatcherService shutting down, unwatching all files");
     this.unwatchAllFiles();
-  }
-
-  /**
-   * Get service health status
-   */
-  async getHealthStatus(): Promise<{
-    status: "healthy" | "degraded" | "unhealthy";
-    timestamp: number;
-    details?: Record<string, unknown>;
-  }> {
-    const watchedCount = this.watchedFiles.size;
-
-    return {
-      status: "healthy",
-      timestamp: Date.now(),
-      details: {
-        watchedFilesCount: watchedCount,
-        watchedFiles: this.getWatchedFiles(),
-      },
-    };
   }
 
   /**

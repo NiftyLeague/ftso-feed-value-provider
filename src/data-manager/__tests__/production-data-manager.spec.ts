@@ -165,7 +165,7 @@ describe("ProductionDataManagerService", () => {
   });
 
   afterEach(async () => {
-    dataManager.cleanupForTests();
+    await dataManager.cleanup();
     await module.close();
   });
 

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 
 // Core components
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
@@ -19,8 +19,8 @@ import type { IExchangeAdapter } from "@/common/types/adapters";
 import { DataSourceFactory } from "./data-source.factory";
 
 @Injectable()
-export class DataSourceIntegrationService extends BaseEventService {
-  private isInitialized = false;
+export class DataSourceIntegrationService extends EventDrivenService {
+  public override isInitialized = false;
 
   constructor(
     private readonly dataManager: ProductionDataManagerService,
@@ -31,51 +31,64 @@ export class DataSourceIntegrationService extends BaseEventService {
     private readonly connectionRecovery: ConnectionRecoveryService,
     private readonly dataSourceFactory: DataSourceFactory
   ) {
-    super("DataSourceIntegration", true); // Needs enhanced logging for performance tracking and critical operations
+    super({ useEnhancedLogging: true });
   }
 
-  async initialize(): Promise<void> {
-    const startTime = performance.now();
+  override async initialize(): Promise<void> {
+    this.startTimer("initialize");
 
-    try {
-      this.logger.log("Starting data source integration initialization");
+    await this.executeWithErrorHandling(
+      async () => {
+        this.logger.log("Starting data source integration initialization");
 
-      // Step 1: Register exchange adapters
-      await this.registerExchangeAdapters();
+        // Step 1: Register exchange adapters
+        await this.registerExchangeAdapters();
 
-      // Step 2: Initialize error handling
-      await this.initializeErrorHandling();
+        // Step 2: Initialize error handling
+        await this.initializeErrorHandling();
 
-      // Step 3: Start data sources
-      await this.startDataSources();
+        // Step 3: Start data sources
+        await this.startDataSources();
 
-      // Step 4: Wire data flow connections
-      await this.wireDataFlow();
+        // Step 4: Wire data flow connections
+        await this.wireDataFlow();
 
-      this.isInitialized = true;
+        this.isInitialized = true;
 
-      const duration = performance.now() - startTime;
-      this.logger.log(`Data source initialization completed in ${duration.toFixed(2)}ms`);
-    } catch (error) {
-      this.logError(error as Error, "data_source_initialization", { severity: "critical" });
-      throw error;
-    }
+        const duration = this.endTimer("initialize");
+        this.logger.log(`Data source initialization completed in ${duration.toFixed(2)}ms`);
+      },
+      "data_source_initialization",
+      {
+        retries: 1,
+        retryDelay: 3000,
+        onError: (error, attempt) => {
+          this.logger.warn(`Data source initialization attempt ${attempt + 1} failed: ${error.message}`);
+        },
+      }
+    );
   }
 
   async shutdown(): Promise<void> {
     this.logger.log("Shutting down Data Source Integration...");
 
-    try {
-      // Disconnect data sources
-      await this.disconnectDataSources();
+    await this.executeWithErrorHandling(
+      async () => {
+        // Disconnect data sources
+        await this.disconnectDataSources();
 
-      // Cleanup data manager
-      this.dataManager.cleanupForTests();
+        // Cleanup data manager
+        await this.dataManager.cleanup();
 
-      this.logger.log("Data Source Integration shutdown completed");
-    } catch (error) {
-      this.logError(error as Error, "shutdown");
-    }
+        this.logger.log("Data Source Integration shutdown completed");
+      },
+      "shutdown",
+      {
+        shouldThrow: false, // Don't throw during shutdown
+        retries: 1,
+        retryDelay: 1000,
+      }
+    );
   }
 
   async subscribeToFeed(feedId: EnhancedFeedId): Promise<void> {
@@ -135,7 +148,7 @@ export class DataSourceIntegrationService extends BaseEventService {
   // Private methods
   private async registerExchangeAdapters(): Promise<void> {
     const operationId = `register_adapters_${Date.now()}`;
-    this.startPerformanceTimer(operationId, "register_exchange_adapters");
+    this.startTimer(operationId);
 
     try {
       // Verify that adapters are already registered by AdaptersModule
@@ -172,13 +185,10 @@ export class DataSourceIntegrationService extends BaseEventService {
         missingAdapters.length === 0
       );
 
-      this.endPerformanceTimer(operationId, true, {
-        availableCount,
-        missingCount: missingAdapters.length,
-      });
+      this.endTimer(operationId);
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.endPerformanceTimer(operationId, false, { error: errObj.message });
+      this.endTimer(operationId);
       this.logError(errObj, "verify_exchange_adapters", { severity: "critical" });
       throw error;
     }

@@ -211,7 +211,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       },
     };
 
-    this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+    await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
@@ -234,7 +234,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       },
     };
 
-    this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+    await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
 
     // Update local subscriptions
     for (const sym of subscribedSymbols) {
@@ -292,9 +292,9 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   private startPingInterval(): void {
     this.stopPingInterval();
 
-    this.pingInterval = setInterval(() => {
+    this.pingInterval = setInterval(async () => {
       if (this.isWebSocketConnected()) {
-        this.sendWebSocketMessage(
+        await this.sendWebSocketMessage(
           JSON.stringify({
             method: "public/heartbeat",
             id: this.messageId++,

@@ -40,7 +40,11 @@ export class RetryError extends Error {
   }
 }
 
-/** Retries the {@link action} {@link maxRetries} times until it completes without an error. */
+/**
+ * Retries the {@link action} {@link maxRetries} times until it completes without an error.
+ * @deprecated Use ErrorHandlingMixin.executeWithErrorHandling() instead for service classes.
+ * This function is kept for simple utility cases only.
+ */
 export async function retry<T>(
   action: () => T,
   maxRetries: number = DEFAULT_MAX_RETRIES,
@@ -68,7 +72,11 @@ export async function retry<T>(
   throw new Error("Unreachable");
 }
 
-/** Retry with exponential backoff and jitter */
+/**
+ * Retry with exponential backoff and jitter
+ * @deprecated Use ErrorHandlingMixin.executeWithErrorHandling() instead for service classes.
+ * This function is kept for simple utility cases only.
+ */
 export async function retryWithBackoff<T>(
   action: () => Promise<T>,
   options: {

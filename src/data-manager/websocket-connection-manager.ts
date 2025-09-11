@@ -1,25 +1,30 @@
 import WebSocket from "ws";
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import type { WSConnectionConfig, WSConnectionStats } from "@/common/types/data-manager";
 
 @Injectable()
-export class WebSocketConnectionManager extends BaseEventService {
+export class WebSocketConnectionManager extends EventDrivenService {
   private connections = new Map<string, WebSocket>();
   private connectionConfigs = new Map<string, WSConnectionConfig>();
   private connectionStats = new Map<string, WSConnectionStats>();
   private pingTimers = new Map<string, NodeJS.Timeout>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
 
-  private readonly defaultConfig: Partial<WSConnectionConfig> = {
-    pingInterval: 30000, // 30 seconds
-    pongTimeout: 10000, // 10 seconds
-    reconnectDelay: 5000, // 5 seconds
-    maxReconnectAttempts: 10,
-  };
-
   constructor() {
-    super(WebSocketConnectionManager.name);
+    super({
+      pingInterval: 30000, // 30 seconds
+      pongTimeout: 10000, // 10 seconds
+      reconnectDelay: 5000, // 5 seconds
+      maxReconnectAttempts: 10,
+    });
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get wsConfig(): Partial<WSConnectionConfig> {
+    return this.config as Partial<WSConnectionConfig>;
   }
 
   async createConnection(connectionId: string, config: WSConnectionConfig): Promise<void> {
@@ -27,7 +32,7 @@ export class WebSocketConnectionManager extends BaseEventService {
       this.logger.log(`Creating WebSocket connection: ${connectionId}`);
 
       // Store configuration
-      const fullConfig = { ...this.defaultConfig, ...config };
+      const fullConfig = { ...this.wsConfig, ...config };
       this.connectionConfigs.set(connectionId, fullConfig);
 
       // Initialize stats
@@ -43,9 +48,13 @@ export class WebSocketConnectionManager extends BaseEventService {
         wsState: "connecting",
       });
 
-      await this.connect(connectionId);
+      await this.executeWithErrorHandling(() => this.connect(connectionId), `websocket_connect_${connectionId}`, {
+        retries: 2,
+        retryDelay: 1000,
+        shouldThrow: true,
+      });
     } catch (error) {
-      this.logger.error(`Failed to create connection ${connectionId}:`, error);
+      // Re-throw after mixin handling for caller awareness
       throw error;
     }
   }
@@ -85,7 +94,7 @@ export class WebSocketConnectionManager extends BaseEventService {
     return stats.lastPongAt >= stats.lastPingAt ? stats.lastPongAt - stats.lastPingAt : 0;
   }
 
-  sendMessage(connectionId: string, message: string | Buffer): boolean {
+  async sendMessage(connectionId: string, message: string | Buffer): Promise<boolean> {
     const ws = this.connections.get(connectionId);
     const stats = this.connectionStats.get(connectionId);
 
@@ -93,15 +102,22 @@ export class WebSocketConnectionManager extends BaseEventService {
       return false;
     }
 
-    try {
-      ws.send(message);
-      stats.messagesSent++;
-      stats.bytesSent += Buffer.isBuffer(message) ? message.length : Buffer.byteLength(message);
-      return true;
-    } catch (error) {
-      this.logger.error(`Failed to send message on ${connectionId}:`, error);
-      return false;
-    }
+    const result = await this.executeWithErrorHandling(
+      async () => {
+        ws.send(message);
+        stats.messagesSent++;
+        stats.bytesSent += Buffer.isBuffer(message) ? message.length : Buffer.byteLength(message);
+        return true;
+      },
+      `websocket_send_${connectionId}`,
+      {
+        retries: 1,
+        shouldThrow: false,
+        fallback: async () => false,
+      }
+    );
+
+    return result ?? false;
   }
 
   getConnectionStats(connectionId: string): WSConnectionStats | undefined {
@@ -271,12 +287,11 @@ export class WebSocketConnectionManager extends BaseEventService {
     this.logger.log(`Scheduling reconnection for ${connectionId} in ${delay}ms (attempt ${stats.reconnectAttempts})`);
 
     const reconnectTimer = setTimeout(async () => {
-      try {
-        await this.connect(connectionId);
-      } catch (error) {
-        this.logger.error(`Reconnection failed for ${connectionId}:`, error);
-        // Will trigger another reconnection attempt via the close handler
-      }
+      await this.executeWithErrorHandling(() => this.connect(connectionId), `websocket_reconnect_${connectionId}`, {
+        retries: 1,
+        shouldThrow: false, // Don't throw on reconnection failure
+      });
+      // Will trigger another reconnection attempt via the close handler if needed
     }, delay);
 
     this.reconnectTimers.set(connectionId, reconnectTimer);

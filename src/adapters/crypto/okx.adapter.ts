@@ -205,7 +205,7 @@ export class OkxAdapter extends BaseExchangeAdapter {
         ],
       };
 
-      this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+      await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
     }
   }
 
@@ -223,7 +223,7 @@ export class OkxAdapter extends BaseExchangeAdapter {
         ],
       };
 
-      this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+      await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
     }
   }
 
@@ -288,10 +288,10 @@ export class OkxAdapter extends BaseExchangeAdapter {
 
   // OKX requires periodic ping to keep connection alive
   private startPingInterval(): void {
-    this.pingInterval = setInterval(() => {
+    this.pingInterval = setInterval(async () => {
       if (this.isConnected()) {
         const pingMessage = "ping";
-        this.sendWebSocketMessage(pingMessage);
+        await this.sendWebSocketMessage(pingMessage);
       }
     }, 30000); // Ping every 30 seconds
   }

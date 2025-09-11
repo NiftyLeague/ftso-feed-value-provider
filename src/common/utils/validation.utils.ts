@@ -10,6 +10,20 @@ import type {
 } from "../types/utils/validation.types";
 
 /**
+ * Enhanced BadRequestException that includes timestamp and error field for test compliance
+ */
+class TimestampedBadRequestException extends BadRequestException {
+  constructor(message: string) {
+    const errorResponse = {
+      error: "VALIDATION_ERROR",
+      message,
+      timestamp: Date.now(),
+    };
+    super(errorResponse);
+  }
+}
+
+/**
  * Validation utilities to eliminate request validation duplication
  * Reduces validation boilerplate by 150+ lines across controllers
  * Enhanced with FTSO API compliance validation
@@ -125,7 +139,7 @@ export class ValidationUtils {
    */
   static validateFeedId(feed: unknown, fieldName = "feed"): FeedId {
     if (!feed || typeof feed !== "object") {
-      throw new BadRequestException(`${fieldName} must be an object with category and name properties`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an object with category and name properties`);
     }
 
     const feedObj = feed as Record<string, unknown>;
@@ -144,7 +158,7 @@ export class ValidationUtils {
    */
   static validateFeedCategory(category: unknown, fieldName: string): number {
     if (typeof category !== "number") {
-      throw new BadRequestException(
+      throw new TimestampedBadRequestException(
         `${fieldName} must be a number. Valid categories: ${this.VALID_CATEGORIES.map(
           c => `${c} (${this.CATEGORY_DESCRIPTIONS[c]})`
         ).join(", ")}`
@@ -152,11 +166,11 @@ export class ValidationUtils {
     }
 
     if (!Number.isInteger(category)) {
-      throw new BadRequestException(`${fieldName} must be an integer`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an integer`);
     }
 
     if (!this.VALID_CATEGORIES.includes(category as 1 | 2 | 3 | 4)) {
-      throw new BadRequestException(
+      throw new TimestampedBadRequestException(
         `${fieldName} must be one of: ${this.VALID_CATEGORIES.map(c => `${c} (${this.CATEGORY_DESCRIPTIONS[c]})`).join(
           ", "
         )}`
@@ -168,30 +182,32 @@ export class ValidationUtils {
 
   /**
    * Validate feed name format with enhanced FTSO compliance
+   * Automatically converts to uppercase for consistent processing
    */
   static validateFeedName(name: unknown, fieldName: string): string {
     if (typeof name !== "string") {
-      throw new BadRequestException(`${fieldName} must be a string`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a string`);
     }
 
     if (!name.trim()) {
-      throw new BadRequestException(`${fieldName} cannot be empty`);
+      throw new TimestampedBadRequestException(`${fieldName} cannot be empty`);
     }
 
-    const trimmedName = name.trim().toUpperCase();
+    // Normalize to uppercase for consistent processing
+    const upperCaseName = name.trim().toUpperCase();
 
-    if (!this.FEED_NAME_PATTERN.test(trimmedName)) {
-      throw new BadRequestException(
+    if (!this.FEED_NAME_PATTERN.test(upperCaseName)) {
+      throw new TimestampedBadRequestException(
         `${fieldName} must be in format "BASE/QUOTE" (e.g., "BTC/USD"). ` +
           `Base currency: 1-10 alphanumeric characters, Quote currency: 3-4 letters`
       );
     }
 
-    const [base, quote] = trimmedName.split("/");
+    const [base, quote] = upperCaseName.split("/");
 
     // Validate base currency
     if (!this.VALID_BASE_CURRENCIES.has(base)) {
-      throw new BadRequestException(
+      throw new TimestampedBadRequestException(
         `${fieldName} contains unsupported base currency "${base}". ` +
           `Supported currencies include: ${Array.from(this.VALID_BASE_CURRENCIES).slice(0, 10).join(", ")}...`
       );
@@ -199,13 +215,13 @@ export class ValidationUtils {
 
     // Validate quote currency
     if (!this.VALID_QUOTE_CURRENCIES.has(quote)) {
-      throw new BadRequestException(
+      throw new TimestampedBadRequestException(
         `${fieldName} contains unsupported quote currency "${quote}". ` +
           `Supported quote currencies: ${Array.from(this.VALID_QUOTE_CURRENCIES).join(", ")}`
       );
     }
 
-    return trimmedName;
+    return upperCaseName;
   }
 
   /**
@@ -213,15 +229,15 @@ export class ValidationUtils {
    */
   static validateFeedIds(feeds: unknown, fieldName = "feeds"): FeedId[] {
     if (!Array.isArray(feeds)) {
-      throw new BadRequestException(`${fieldName} must be an array`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an array`);
     }
 
     if (feeds.length === 0) {
-      throw new BadRequestException(`${fieldName} array cannot be empty`);
+      throw new TimestampedBadRequestException(`${fieldName} array cannot be empty`);
     }
 
     if (feeds.length > 100) {
-      throw new BadRequestException(`${fieldName} array cannot contain more than 100 items (FTSO limit)`);
+      throw new TimestampedBadRequestException(`${fieldName} array cannot contain more than 100 items (FTSO limit)`);
     }
 
     const validatedFeeds: FeedId[] = [];
@@ -233,7 +249,7 @@ export class ValidationUtils {
       // Check for duplicates
       const feedKey = `${feed.category}:${feed.name}`;
       if (seenFeeds.has(feedKey)) {
-        throw new BadRequestException(
+        throw new TimestampedBadRequestException(
           `${fieldName}[${i}]: Duplicate feed detected (category: ${feed.category}, name: "${feed.name}")`
         );
       }
@@ -250,19 +266,19 @@ export class ValidationUtils {
    */
   static validateVotingRoundId(votingRoundId: unknown): number {
     if (typeof votingRoundId !== "number") {
-      throw new BadRequestException("Invalid votingRoundId parameter: must be a number");
+      throw new TimestampedBadRequestException("Invalid votingRoundId parameter: must be a number");
     }
 
     if (!Number.isInteger(votingRoundId)) {
-      throw new BadRequestException("Invalid votingRoundId parameter: must be an integer");
+      throw new TimestampedBadRequestException("Invalid votingRoundId parameter: must be an integer");
     }
 
     if (votingRoundId < 0) {
-      throw new BadRequestException("Invalid votingRoundId parameter: must be non-negative");
+      throw new TimestampedBadRequestException("Invalid votingRoundId parameter: must be non-negative");
     }
 
     if (votingRoundId > Number.MAX_SAFE_INTEGER) {
-      throw new BadRequestException("Invalid votingRoundId parameter: exceeds maximum safe integer");
+      throw new TimestampedBadRequestException("Invalid votingRoundId parameter: exceeds maximum safe integer");
     }
 
     return votingRoundId;
@@ -273,19 +289,19 @@ export class ValidationUtils {
    */
   static validateTimeWindow(windowSec: unknown): number {
     if (typeof windowSec !== "number") {
-      throw new BadRequestException("window parameter must be a number (seconds)");
+      throw new TimestampedBadRequestException("window parameter must be a number (seconds)");
     }
 
     if (!Number.isInteger(windowSec)) {
-      throw new BadRequestException("window parameter must be an integer");
+      throw new TimestampedBadRequestException("window parameter must be an integer");
     }
 
     if (windowSec <= 0) {
-      throw new BadRequestException("window parameter must be positive");
+      throw new TimestampedBadRequestException("window parameter must be positive");
     }
 
     if (windowSec > 86400) {
-      throw new BadRequestException("window parameter cannot exceed 86400 seconds (24 hours)");
+      throw new TimestampedBadRequestException("window parameter cannot exceed 86400 seconds (24 hours)");
     }
 
     return windowSec;
@@ -296,15 +312,15 @@ export class ValidationUtils {
    */
   static validateTimestamp(timestamp: unknown, fieldName: string): number {
     if (typeof timestamp !== "number") {
-      throw new BadRequestException(`${fieldName} must be a number (Unix timestamp in milliseconds)`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a number (Unix timestamp in milliseconds)`);
     }
 
     if (!Number.isInteger(timestamp)) {
-      throw new BadRequestException(`${fieldName} must be an integer`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an integer`);
     }
 
     if (timestamp < 0) {
-      throw new BadRequestException(`${fieldName} must be non-negative`);
+      throw new TimestampedBadRequestException(`${fieldName} must be non-negative`);
     }
 
     // Check if timestamp is reasonable (not too far in past or future)
@@ -313,11 +329,11 @@ export class ValidationUtils {
     const oneYearFromNow = now + 365 * 24 * 60 * 60 * 1000;
 
     if (timestamp < oneYearAgo) {
-      throw new BadRequestException(`${fieldName} is too far in the past (more than 1 year ago)`);
+      throw new TimestampedBadRequestException(`${fieldName} is too far in the past (more than 1 year ago)`);
     }
 
     if (timestamp > oneYearFromNow) {
-      throw new BadRequestException(`${fieldName} is too far in the future (more than 1 year from now)`);
+      throw new TimestampedBadRequestException(`${fieldName} is too far in the future (more than 1 year from now)`);
     }
 
     return timestamp;
@@ -338,7 +354,7 @@ export class ValidationUtils {
     }
 
     if (result.startTime && result.endTime && result.startTime >= result.endTime) {
-      throw new BadRequestException("startTime must be before endTime");
+      throw new TimestampedBadRequestException("startTime must be before endTime");
     }
 
     return result;
@@ -349,11 +365,11 @@ export class ValidationUtils {
    */
   static validateRequestBody(body: unknown): UnknownInput {
     if (!body || typeof body !== "object") {
-      throw new BadRequestException("Request body must be a valid JSON object");
+      throw new TimestampedBadRequestException("Request body must be a valid JSON object");
     }
 
     if (Array.isArray(body)) {
-      throw new BadRequestException("Request body must be an object, not an array");
+      throw new TimestampedBadRequestException("Request body must be an object, not an array");
     }
 
     return body as UnknownInput;
@@ -366,7 +382,7 @@ export class ValidationUtils {
     const validatedBody = this.validateRequestBody(body);
 
     if (!validatedBody.feeds) {
-      throw new BadRequestException("feeds field is required");
+      throw new TimestampedBadRequestException("feeds field is required");
     }
 
     return {
@@ -381,7 +397,7 @@ export class ValidationUtils {
     const validatedBody = this.validateRequestBody(body);
 
     if (!validatedBody.feeds) {
-      throw new BadRequestException("feeds field is required");
+      throw new TimestampedBadRequestException("feeds field is required");
     }
 
     const feeds = this.validateFeedIds(validatedBody.feeds);
@@ -398,24 +414,24 @@ export class ValidationUtils {
    */
   static sanitizeString(input: unknown, fieldName: string, maxLength = 100): string {
     if (typeof input !== "string") {
-      throw new BadRequestException(`${fieldName} must be a string`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a string`);
     }
 
     const trimmed = input.trim();
 
     if (trimmed.length === 0) {
-      throw new BadRequestException(`${fieldName} cannot be empty`);
+      throw new TimestampedBadRequestException(`${fieldName} cannot be empty`);
     }
 
     if (trimmed.length > maxLength) {
-      throw new BadRequestException(`${fieldName} cannot exceed ${maxLength} characters`);
+      throw new TimestampedBadRequestException(`${fieldName} cannot exceed ${maxLength} characters`);
     }
 
     // Basic sanitization - remove potentially dangerous characters
     const sanitized = trimmed.replace(/[<>\"'&]/g, "");
 
     if (sanitized !== trimmed) {
-      throw new BadRequestException(`${fieldName} contains invalid characters`);
+      throw new TimestampedBadRequestException(`${fieldName} contains invalid characters`);
     }
 
     return sanitized;
@@ -432,23 +448,23 @@ export class ValidationUtils {
     allowFloat = true
   ): number {
     if (typeof value !== "number") {
-      throw new BadRequestException(`${fieldName} must be a number`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a number`);
     }
 
     if (!allowFloat && !Number.isInteger(value)) {
-      throw new BadRequestException(`${fieldName} must be an integer`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an integer`);
     }
 
     if (isNaN(value) || !isFinite(value)) {
-      throw new BadRequestException(`${fieldName} must be a valid number`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a valid number`);
     }
 
     if (min !== undefined && value < min) {
-      throw new BadRequestException(`${fieldName} must be at least ${min}`);
+      throw new TimestampedBadRequestException(`${fieldName} must be at least ${min}`);
     }
 
     if (max !== undefined && value > max) {
-      throw new BadRequestException(`${fieldName} must be at most ${max}`);
+      throw new TimestampedBadRequestException(`${fieldName} must be at most ${max}`);
     }
 
     return value;
@@ -473,7 +489,7 @@ export class ValidationUtils {
    */
   static validateRequired<T>(value: T, fieldName: string): T {
     if (value === null || value === undefined || value === "") {
-      throw new BadRequestException(`${fieldName} is required`);
+      throw new TimestampedBadRequestException(`${fieldName} is required`);
     }
     return value;
   }
@@ -483,17 +499,17 @@ export class ValidationUtils {
    */
   static validateArray<T>(value: unknown, fieldName: string, options: ArrayValidationOptions<T> = {}): T[] {
     if (!Array.isArray(value)) {
-      throw new BadRequestException(`${fieldName} must be an array`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an array`);
     }
 
     const { minLength = 0, maxLength = 1000, itemValidator } = options;
 
     if (value.length < minLength) {
-      throw new BadRequestException(`${fieldName} must have at least ${minLength} items`);
+      throw new TimestampedBadRequestException(`${fieldName} must have at least ${minLength} items`);
     }
 
     if (value.length > maxLength) {
-      throw new BadRequestException(`${fieldName} cannot have more than ${maxLength} items`);
+      throw new TimestampedBadRequestException(`${fieldName} cannot have more than ${maxLength} items`);
     }
 
     if (itemValidator) {
@@ -501,7 +517,7 @@ export class ValidationUtils {
         try {
           return itemValidator(item, index);
         } catch (_error) {
-          throw new BadRequestException(`${fieldName}[${index}]: ${(_error as Error).message}`);
+          throw new TimestampedBadRequestException(`${fieldName}[${index}]: ${(_error as Error).message}`);
         }
       });
     }
@@ -517,7 +533,7 @@ export class ValidationUtils {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailRegex.test(emailStr)) {
-      throw new BadRequestException(`${fieldName} must be a valid email address`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a valid email address`);
     }
 
     return emailStr.toLowerCase();
@@ -533,12 +549,14 @@ export class ValidationUtils {
       const parsedUrl = new URL(urlStr);
 
       if (!allowedProtocols.includes(parsedUrl.protocol.slice(0, -1))) {
-        throw new BadRequestException(`${fieldName} must use one of these protocols: ${allowedProtocols.join(", ")}`);
+        throw new TimestampedBadRequestException(
+          `${fieldName} must use one of these protocols: ${allowedProtocols.join(", ")}`
+        );
       }
 
       return urlStr;
     } catch {
-      throw new BadRequestException(`${fieldName} must be a valid URL`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a valid URL`);
     }
   }
 
@@ -549,7 +567,7 @@ export class ValidationUtils {
     const enumValues = Object.values(enumObject);
 
     if (!enumValues.includes(value as T)) {
-      throw new BadRequestException(`${fieldName} must be one of: ${enumValues.join(", ")}`);
+      throw new TimestampedBadRequestException(`${fieldName} must be one of: ${enumValues.join(", ")}`);
     }
 
     return value as T;
@@ -568,11 +586,11 @@ export class ValidationUtils {
     } else if (date instanceof Date) {
       dateObj = date;
     } else {
-      throw new BadRequestException(`${fieldName} must be a valid date, timestamp, or date string`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a valid date, timestamp, or date string`);
     }
 
     if (isNaN(dateObj.getTime())) {
-      throw new BadRequestException(`${fieldName} must be a valid date`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a valid date`);
     }
 
     return dateObj;
@@ -583,13 +601,13 @@ export class ValidationUtils {
    */
   static validateObject<T>(value: unknown, fieldName: string, validator: (obj: unknown) => T): T {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new BadRequestException(`${fieldName} must be an object`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an object`);
     }
 
     try {
       return validator(value);
     } catch (error) {
-      throw new BadRequestException(`${fieldName}: ${(error as Error).message}`);
+      throw new TimestampedBadRequestException(`${fieldName}: ${(error as Error).message}`);
     }
   }
 
@@ -612,7 +630,7 @@ export class ValidationUtils {
       if (value === 0) return false;
     }
 
-    throw new BadRequestException(`${fieldName} must be a boolean value (true/false)`);
+    throw new TimestampedBadRequestException(`${fieldName} must be a boolean value (true/false)`);
   }
 
   // FTSO-specific utility methods
@@ -626,7 +644,7 @@ export class ValidationUtils {
     );
 
     if (!feedExists) {
-      throw new BadRequestException(
+      throw new TimestampedBadRequestException(
         `Feed not found: category ${feed.category}, name "${feed.name}". ` +
           `This feed is not configured in the system.`
       );

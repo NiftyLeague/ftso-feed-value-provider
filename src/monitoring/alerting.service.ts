@@ -1,14 +1,14 @@
 import axios from "axios";
 import * as nodemailer from "nodemailer";
-import { Injectable, Inject, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
 
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import { AlertSeverity, AlertAction } from "@/common/types/monitoring";
-import type { Alert, AlertRule, MonitoringConfig } from "@/common/types/monitoring";
+import type { Alert, AlertRule, AlertingConfig } from "@/common/types/monitoring";
 import type { LogLevel } from "@/common/types/logging";
 
 @Injectable()
-export class AlertingService extends BaseService implements OnModuleDestroy {
+export class AlertingService extends StandardService implements OnModuleDestroy {
   private alerts: Map<string, Alert> = new Map();
   private activeAlerts: Map<string, Alert> = new Map();
   private alertCounts: Map<string, number> = new Map();
@@ -16,16 +16,20 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
   private emailTransporter?: nodemailer.Transporter;
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(@Inject("MonitoringConfig") private readonly config: MonitoringConfig) {
-    super("AlertingService", true);
+  constructor(config: AlertingConfig) {
+    super({ ...config, useEnhancedLogging: true });
     this.initializeEmailTransporter();
     this.startAlertCleanup();
   }
 
+  private get alertingConfig(): AlertingConfig {
+    return this.config as AlertingConfig;
+  }
+
   /**
-   * Cleanup resources when the module is destroyed
+   * Cleanup resources when the service is destroyed
    */
-  onModuleDestroy() {
+  override async cleanup(): Promise<void> {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
@@ -38,7 +42,7 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
    * Initialize the email transporter for sending alert emails
    */
   private initializeEmailTransporter(): void {
-    const emailConfig = this.config.alerting.deliveryConfig.email;
+    const emailConfig = this.alertingConfig.deliveryConfig.email;
     if (emailConfig?.enabled) {
       this.emailTransporter = nodemailer.createTransport({
         host: emailConfig.smtpHost,
@@ -68,7 +72,7 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
    * Clean up old alerts from the system
    */
   private cleanupOldAlerts(): void {
-    const retentionDays = this.config.alerting?.alertRetention || 7;
+    const retentionDays = this.alertingConfig?.alertRetention || 7;
     const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
     const cutoffTime = Date.now() - retentionMs;
 
@@ -260,7 +264,7 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
       throw new Error("Email transporter not initialized");
     }
 
-    const emailConfig = this.config.alerting.deliveryConfig.email;
+    const emailConfig = this.alertingConfig.deliveryConfig.email;
     if (!emailConfig?.enabled || !emailConfig.to) {
       return;
     }
@@ -279,7 +283,7 @@ export class AlertingService extends BaseService implements OnModuleDestroy {
    * Send webhook alert
    */
   private async sendWebhookAlert(alert: Alert, rule: AlertRule): Promise<void> {
-    const webhookConfig = this.config.alerting.deliveryConfig.webhook;
+    const webhookConfig = this.alertingConfig.deliveryConfig.webhook;
     if (!webhookConfig?.enabled || !webhookConfig.url) {
       return;
     }
@@ -369,7 +373,7 @@ ${JSON.stringify(alert.metadata, null, 2)}
    * Evaluate a metric against configured rules and create/resolve alerts
    */
   public evaluateMetric(metric: string, value: number, metadata?: Record<string, unknown>): void {
-    const rule = this.config.alerting?.rules?.find(r => r.condition.metric === metric);
+    const rule = this.alertingConfig?.rules?.find(r => r.condition.metric === metric);
     if (!rule || !rule.enabled) return;
 
     const now = Date.now();
@@ -408,7 +412,7 @@ ${JSON.stringify(alert.metadata, null, 2)}
 
     // If triggered, enforce global rate limit
     if (triggered) {
-      const maxPerHour = this.config.alerting?.maxAlertsPerHour ?? Infinity;
+      const maxPerHour = this.alertingConfig?.maxAlertsPerHour ?? Infinity;
       const totalCount = this.alertCounts.get("total") ?? 0;
       if (totalCount >= maxPerHour) {
         this.enhancedLogger?.warn("Alert rate limit exceeded", { ruleId: rule.id, metric, value, threshold });

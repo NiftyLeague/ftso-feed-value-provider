@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
+import type { BaseServiceConfig } from "@/common/types/services/base.types";
 
 // Performance monitoring services
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -11,7 +12,7 @@ import { CacheWarmerService } from "@/cache/cache-warmer.service";
 // Aggregation services
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
-interface PerformanceOptimizationConfig {
+interface PerformanceOptimizationConfig extends BaseServiceConfig {
   enabled: boolean;
   monitoringInterval: number;
   optimizationInterval: number;
@@ -36,24 +37,10 @@ interface OptimizationAction {
 
 @Injectable()
 export class PerformanceOptimizationCoordinatorService
-  extends BaseEventService
+  extends EventDrivenService
   implements OnModuleInit, OnModuleDestroy
 {
-  private config: PerformanceOptimizationConfig = {
-    enabled: true,
-    monitoringInterval: 3000, // More frequent monitoring for better responsiveness
-    optimizationInterval: 20000, // More frequent optimization analysis
-    autoOptimization: true, // Whether to automatically apply performance fixes
-    performanceTargets: {
-      responseTime: 50, // More aggressive response time target (ms)
-      cacheHitRate: 0.95, // Higher cache hit rate target for optimal performance
-      memoryUsage: 60, // Lower memory usage threshold before optimization triggers
-      cpuUsage: 50, // Lower CPU usage threshold before optimization triggers
-    },
-  };
-
-  private monitoringInterval?: NodeJS.Timeout;
-  private optimizationInterval?: NodeJS.Timeout;
+  // Intervals are now managed by lifecycle mixin
   private optimizationActions: OptimizationAction[] = [];
   private performanceHistory: Array<{
     timestamp: number;
@@ -69,11 +56,30 @@ export class PerformanceOptimizationCoordinatorService
     private readonly cacheWarmer: CacheWarmerService,
     private readonly aggregationService: RealTimeAggregationService
   ) {
-    super("PerformanceOptimizationCoordinator", true);
+    super({
+      useEnhancedLogging: true,
+      enabled: true,
+      monitoringInterval: 3000, // More frequent monitoring for better responsiveness
+      optimizationInterval: 20000, // More frequent optimization analysis
+      autoOptimization: true, // Whether to automatically apply performance fixes
+      performanceTargets: {
+        responseTime: 50, // More aggressive response time target (ms)
+        cacheHitRate: 0.95, // Higher cache hit rate target for optimal performance
+        memoryUsage: 60, // Lower memory usage threshold before optimization triggers
+        cpuUsage: 50, // Lower CPU usage threshold before optimization triggers
+      },
+    });
   }
 
-  async onModuleInit(): Promise<void> {
-    if (this.config.enabled) {
+  /**
+   * Get the typed configuration for this service
+   */
+  private get optimizationConfig(): PerformanceOptimizationConfig {
+    return this.config as PerformanceOptimizationConfig;
+  }
+
+  override async initialize(): Promise<void> {
+    if (this.optimizationConfig.enabled) {
       await this.initializeOptimizationCoordinator();
       this.startPerformanceOptimization();
       this.logger.log("Performance optimization coordinator initialized and started");
@@ -163,15 +169,15 @@ export class PerformanceOptimizationCoordinatorService
    * Start performance optimization monitoring
    */
   private startPerformanceOptimization(): void {
-    // Main monitoring loop
-    this.monitoringInterval = setInterval(() => {
+    // Main monitoring loop using managed intervals
+    this.createInterval(() => {
       void this.performPerformanceMonitoring();
-    }, this.config.monitoringInterval);
+    }, this.optimizationConfig.monitoringInterval);
 
-    // Optimization analysis loop
-    this.optimizationInterval = setInterval(() => {
+    // Optimization analysis loop using managed intervals
+    this.createInterval(() => {
       void this.performOptimizationAnalysis();
-    }, this.config.optimizationInterval);
+    }, this.optimizationConfig.optimizationInterval);
 
     this.logger.log("Performance optimization monitoring started");
   }
@@ -225,11 +231,11 @@ export class PerformanceOptimizationCoordinatorService
     const actions: OptimizationAction[] = [];
 
     // Check response time
-    if (performanceMetrics.responseTime > this.config.performanceTargets.responseTime) {
+    if (performanceMetrics.responseTime > this.optimizationConfig.performanceTargets.responseTime) {
       actions.push({
         action: "optimize_response_time",
         component: "aggregation",
-        description: `Response time ${performanceMetrics.responseTime}ms exceeds target ${this.config.performanceTargets.responseTime}ms`,
+        description: `Response time ${performanceMetrics.responseTime}ms exceeds target ${this.optimizationConfig.performanceTargets.responseTime}ms`,
         priority: performanceMetrics.responseTime > 150 ? "critical" : "high",
         estimatedImpact: "20-40% response time improvement",
         implemented: false,
@@ -238,11 +244,11 @@ export class PerformanceOptimizationCoordinatorService
     }
 
     // Check cache hit rate
-    if (cacheStats.hitRate < this.config.performanceTargets.cacheHitRate) {
+    if (cacheStats.hitRate < this.optimizationConfig.performanceTargets.cacheHitRate) {
       actions.push({
         action: "optimize_cache_performance",
         component: "cache",
-        description: `Cache hit rate ${(cacheStats.hitRate * 100).toFixed(1)}% below target ${(this.config.performanceTargets.cacheHitRate * 100).toFixed(1)}%`,
+        description: `Cache hit rate ${(cacheStats.hitRate * 100).toFixed(1)}% below target ${(this.optimizationConfig.performanceTargets.cacheHitRate * 100).toFixed(1)}%`,
         priority: cacheStats.hitRate < 0.7 ? "high" : "medium",
         estimatedImpact: "15-30% performance improvement",
         implemented: false,
@@ -251,7 +257,7 @@ export class PerformanceOptimizationCoordinatorService
     }
 
     // Execute immediate optimizations if auto-optimization is enabled
-    if (this.config.autoOptimization && actions.length > 0) {
+    if (this.optimizationConfig.autoOptimization && actions.length > 0) {
       await this.executeOptimizationActions(actions);
     }
 
@@ -289,7 +295,7 @@ export class PerformanceOptimizationCoordinatorService
         }));
 
         // Execute high-priority actions if auto-optimization is enabled
-        if (this.config.autoOptimization) {
+        if (this.optimizationConfig.autoOptimization) {
           const highPriorityActions = actions.filter(a => a.priority === "high" || a.priority === "critical");
           if (highPriorityActions.length > 0) {
             await this.executeOptimizationActions(highPriorityActions);
@@ -504,7 +510,7 @@ export class PerformanceOptimizationCoordinatorService
     const recommendations = this.generateRecommendations(performanceTrends);
 
     return {
-      config: { ...this.config },
+      config: { ...this.optimizationConfig },
       recentActions,
       performanceTrends,
       recommendations,
@@ -540,13 +546,8 @@ export class PerformanceOptimizationCoordinatorService
     return recommendations;
   }
 
-  async onModuleDestroy(): Promise<void> {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-    }
-    if (this.optimizationInterval) {
-      clearInterval(this.optimizationInterval);
-    }
+  override async cleanup(): Promise<void> {
+    // Intervals are now managed by lifecycle mixin and will be automatically cleaned up
     this.logger.log("Performance optimization coordinator destroyed");
   }
 }

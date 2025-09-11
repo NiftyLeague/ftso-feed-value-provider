@@ -1,4 +1,7 @@
-import { ITimestamped } from "../core/common.types";
+import type { ITimestamped } from "../core/common.types";
+import type { BaseServiceConfig } from "../services/base.types";
+import type { RateLimitConfig } from "../utils";
+import type { AlertDeliveryConfig } from "./delivery.types";
 
 /**
  * Defines the severity levels for alerts.
@@ -148,4 +151,22 @@ export interface Alert {
   metadata?: Record<string, unknown>;
   evaluationMetadata?: AlertEvaluationMetadata;
   severity: AlertSeverity;
+}
+
+/**
+ * Defines the configuration for the alerting service.
+ */
+export interface AlertingConfig extends BaseServiceConfig {
+  /** Whether alerting is enabled */
+  enabled: boolean;
+  /** List of alert rules */
+  rules: AlertRule[];
+  /** Rate limiting configuration */
+  rateLimits: RateLimitConfig;
+  /** Maximum number of alerts that can be sent per hour */
+  maxAlertsPerHour: number;
+  /** How long to retain alert history (in days) */
+  alertRetention: number;
+  /** Alert delivery configuration */
+  deliveryConfig: AlertDeliveryConfig;
 }

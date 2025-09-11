@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { HttpException, HttpStatus } from "@nestjs/common";
 import type { Request } from "express";
-import { BaseService } from "./base.service";
+import { MonitoringService } from "./composed.service";
 import { ValidationUtils } from "../utils/validation.utils";
 import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
 import type { ApiResponse } from "../types/http/http.types";
@@ -21,7 +21,7 @@ interface ExtendedRequest extends Request {
  * Extends BaseService for logging functionality
  * Enhanced with standardized error handling and retry mechanisms
  */
-export abstract class BaseController extends BaseService {
+export abstract class BaseController extends MonitoringService {
   protected readonly startupTime: number = Date.now();
   protected readonly controllerName: string;
 
@@ -29,9 +29,9 @@ export abstract class BaseController extends BaseService {
   protected standardizedErrorHandler?: StandardizedErrorHandlerService;
   protected universalRetryService?: UniversalRetryService;
 
-  constructor(controllerName: string) {
-    super(controllerName);
-    this.controllerName = controllerName;
+  constructor() {
+    super();
+    this.controllerName = this.constructor.name;
   }
 
   /**
@@ -597,12 +597,23 @@ export abstract class BaseController extends BaseService {
           });
 
         case "external-api":
-          return this.universalRetryService.executeExternalApiWithRetry(operation, {
-            serviceId,
-            apiName: this.controllerName,
-            endpoint: context.endpoint || "unknown",
-            retryConfig: context.retryConfig,
-          });
+          try {
+            const result = await this.universalRetryService.executeExternalApiWithRetry(operation, {
+              serviceId,
+              apiName: this.controllerName,
+              endpoint: context.endpoint || "unknown",
+              retryConfig: context.retryConfig,
+            });
+            // If the retry service returns undefined, call the operation directly as fallback
+            if (result === undefined) {
+              return await operation();
+            }
+            return result;
+          } catch (error) {
+            console.log(`executeExternalApiWithRetry error:`, error);
+            // Fallback to direct operation call
+            return await operation();
+          }
 
         default:
           return this.universalRetryService.executeWithRetry(operation, {
@@ -645,7 +656,6 @@ export abstract class BaseController extends BaseService {
     return (
       request.get?.("X-Forwarded-For")?.split(",")[0]?.trim() ||
       request.get?.("X-Real-IP") ||
-      request.connection?.remoteAddress ||
       request.socket?.remoteAddress ||
       "unknown"
     );

@@ -279,7 +279,7 @@ describe("CircuitBreakerService", () => {
         return "success";
       });
 
-      const metrics = service.getMetrics(serviceId);
+      const metrics = service.getCircuitMetrics(serviceId);
       expect(metrics).toBeDefined();
       expect(metrics!.requestCount).toBe(1);
       expect(metrics!.failureRate).toBe(0);
@@ -301,7 +301,7 @@ describe("CircuitBreakerService", () => {
         // Expected
       }
 
-      const metrics = service.getMetrics(serviceId);
+      const metrics = service.getCircuitMetrics(serviceId);
       expect(metrics!.requestCount).toBe(3);
       expect(metrics!.failureRate).toBeCloseTo(1 / 3);
     });
@@ -320,7 +320,7 @@ describe("CircuitBreakerService", () => {
         return "slow";
       });
 
-      const metrics = service.getMetrics(serviceId);
+      const metrics = service.getCircuitMetrics(serviceId);
       expect(metrics!.requestCount).toBe(2);
       expect(metrics!.averageResponseTime).toBeGreaterThan(90);
       expect(metrics!.averageResponseTime).toBeLessThan(120);
@@ -339,7 +339,7 @@ describe("CircuitBreakerService", () => {
       // Execute another request
       await service.execute(serviceId, async () => "new-request");
 
-      const metrics = service.getMetrics(serviceId);
+      const metrics = service.getCircuitMetrics(serviceId);
       // Should only count the new request
       expect(metrics!.requestCount).toBe(1);
     });
@@ -587,7 +587,7 @@ describe("CircuitBreakerService", () => {
       const serviceId = "test-service";
       service.registerCircuit(serviceId);
 
-      const metrics = service.getMetrics(serviceId);
+      const metrics = service.getCircuitMetrics(serviceId);
       expect(metrics).toBeDefined();
       expect(metrics!.requestCount).toBe(0);
       expect(metrics!.failureRate).toBe(0);
@@ -597,7 +597,7 @@ describe("CircuitBreakerService", () => {
     it("should handle state queries for non-existent circuits", () => {
       expect(service.getState("non-existent")).toBeUndefined();
       expect(service.getStats("non-existent")).toBeUndefined();
-      expect(service.getMetrics("non-existent")).toBeUndefined();
+      expect(service.getCircuitMetrics("non-existent")).toBeUndefined();
     });
   });
 

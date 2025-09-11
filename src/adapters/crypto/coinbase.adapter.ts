@@ -152,7 +152,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
       channels: ["ticker"],
     };
 
-    this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+    await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
@@ -164,7 +164,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
       channels: ["ticker"],
     };
 
-    this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+    await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
   }
 
   // REST API fallback methods

@@ -8,7 +8,6 @@ import { MetricsController } from "@/controllers/metrics.controller";
 import { IntegrationService } from "@/integration/integration.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
-import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 describe("Controllers Integration", () => {
   let app: INestApplication;
@@ -16,66 +15,62 @@ describe("Controllers Integration", () => {
 
   beforeAll(async () => {
     // Create comprehensive test module with all controllers and services
-    module = await createTestModule()
-      .addController(FeedController)
-      .addController(HealthController)
-      .addController(MetricsController)
-      // Add mock standardized error handling services
-      .addProvider(StandardizedErrorHandlerService, {
-        executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
-        handleValidationError: jest.fn(),
-        handleAuthenticationError: jest.fn(),
-        handleRateLimitError: jest.fn(),
-        handleExternalServiceError: jest.fn(),
-        getErrorStatistics: jest.fn().mockReturnValue({}),
-      })
-      .addProvider(UniversalRetryService, {
-        executeWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
-        configureRetrySettings: jest.fn(),
-        getRetryStatistics: jest.fn().mockReturnValue({}),
-      })
-      .addProvider(IntegrationService, {
-        getSystemHealth: jest.fn().mockResolvedValue({
-          status: "healthy",
-          timestamp: Date.now(),
-          sources: [],
-          aggregation: {
-            successRate: 100,
-            errorCount: 0,
-          },
-          performance: {
-            averageResponseTime: 50,
-            errorRate: 0.01,
-          },
-          accuracy: {
-            averageConfidence: 0.99,
-            outlierRate: 0.01,
-          },
-        }),
-        isHealthy: jest.fn().mockReturnValue(true),
-        getStatus: jest.fn().mockReturnValue("healthy"),
-        getMetrics: jest.fn().mockReturnValue({}),
-        getHealthStatus: jest.fn().mockResolvedValue({
-          status: "healthy",
-          timestamp: Date.now(),
-          ready: true,
-          alive: true,
-          uptime: 3600,
-          components: {
-            integration: { status: "healthy" },
-            cache: { status: "healthy" },
-            aggregation: { status: "healthy" },
-          },
-        }),
-      })
-      .addCommonMocks()
-      .build();
+    try {
+      module = await createTestModule()
+        .addController(FeedController)
+        .addController(HealthController)
+        .addController(MetricsController)
+        // Add mock standardized error handling services
+        .addProvider(StandardizedErrorHandlerService, {
+          executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
+          handleValidationError: jest.fn(),
+          handleAuthenticationError: jest.fn(),
+          handleRateLimitError: jest.fn(),
+          handleExternalServiceError: jest.fn(),
+          getErrorStatistics: jest.fn().mockReturnValue({}),
+        })
+        .addProvider(IntegrationService, {
+          getSystemHealth: jest.fn().mockResolvedValue({
+            status: "healthy",
+            timestamp: Date.now(),
+            sources: [],
+            aggregation: {
+              successRate: 100,
+              errorCount: 0,
+            },
+            performance: {
+              averageResponseTime: 50,
+              errorRate: 0.01,
+            },
+            accuracy: {
+              averageConfidence: 0.99,
+              outlierRate: 0.01,
+            },
+          }),
+          isHealthy: jest.fn().mockReturnValue(true),
+          getStatus: jest.fn().mockReturnValue("healthy"),
+          getMetrics: jest.fn().mockReturnValue({}),
+          getHealthStatus: jest.fn().mockResolvedValue({
+            status: "healthy",
+            timestamp: Date.now(),
+            ready: true,
+            alive: true,
+            uptime: 3600,
+            components: {
+              integration: { status: "healthy" },
+              cache: { status: "healthy" },
+              aggregation: { status: "healthy" },
+            },
+          }),
+        })
+        .addCommonMocks()
+        .build();
 
-    app = module.createNestApplication();
+      app = module.createNestApplication();
+    } catch (error) {
+      console.error("Error in beforeAll:", error);
+      throw error;
+    }
 
     // Configure middleware
     app.enableCors({
@@ -118,8 +113,7 @@ describe("Controllers Integration", () => {
           ],
         };
 
-        const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
-
+        const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
         expect(response.body).toHaveProperty("data");
         expect(Array.isArray(response.body.data)).toBe(true);
       });
@@ -180,13 +174,13 @@ describe("Controllers Integration", () => {
           feeds: [TestDataBuilder.createHttpFeedId({ name: "BTC/USD" })],
         };
 
-        const response = await request(app.getHttpServer()).post("/volumes/").query({ window: 3600 }).send(requestBody);
+        const response = await request(app.getHttpServer()).post("/volumes").query({ window: 3600 }).send(requestBody);
 
         if (response.status !== 201) {
           console.log("Volume endpoint error:", response.status, response.body);
         }
 
-        expect(response.status).toBe(201);
+        expect(response.status).toBe(200);
         expect(response.body).toHaveProperty("data");
         expect(response.body).toHaveProperty("windowSec", 3600);
       });
@@ -196,7 +190,7 @@ describe("Controllers Integration", () => {
           feeds: [TestDataBuilder.createHttpFeedId()],
         };
 
-        const response = await request(app.getHttpServer()).post("/volumes/").send(requestBody).expect(201);
+        const response = await request(app.getHttpServer()).post("/volumes").send(requestBody).expect(200);
 
         expect(response.body).toHaveProperty("data");
       });

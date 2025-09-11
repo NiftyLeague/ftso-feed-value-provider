@@ -80,29 +80,47 @@ export class TestModuleBuilder {
    */
   addCommonMocks(): TestModuleBuilder {
     const mockFtsoProviderService = {
+      // Mock the integration service property to avoid "not available" error
+      integrationService: {
+        getCurrentPrice: jest.fn().mockResolvedValue({
+          price: 50000.0,
+          timestamp: Date.now(),
+          sources: ["mock"],
+          confidence: 0.95,
+        }),
+        getCurrentPrices: jest.fn().mockImplementation(feedIds => {
+          return Promise.resolve(
+            feedIds.map((feedId: { name: string }) => ({
+              price: feedId.name === "BTC/USD" ? 50000.0 : 1.0,
+              timestamp: Date.now(),
+              sources: ["mock"],
+              confidence: 0.95,
+            }))
+          );
+        }),
+      },
+
       // IFtsoProviderService methods
-      getValue: jest.fn().mockImplementation(feed => {
-        if (!feed || !feed.name) {
-          throw new Error("Invalid feed request");
-        }
-        return Promise.resolve({
+      getValue: async (feed: any) => {
+        const result = {
           feed,
-          value: feed.name === "BTC/USD" ? 50000.0 : 1.0,
-        });
-      }),
-      getValues: jest.fn().mockImplementation(feeds => {
-        if (!Array.isArray(feeds) || feeds.length === 0) {
+          value: feed?.name === "BTC/USD" ? 50000.0 : 3000.0,
+        };
+        console.log(`Mock getValue returning:`, result);
+        return result;
+      },
+      getValues: async (feeds: any[]) => {
+        if (!Array.isArray(feeds)) {
           throw new Error("Invalid feeds array");
         }
-        return Promise.resolve(
-          feeds.map(feed => ({
-            feed,
-            value: feed.name === "BTC/USD" ? 50000.0 : 1.0,
-          }))
-        );
-      }),
+        const result = feeds.map(feed => ({
+          feed,
+          value: feed.name === "BTC/USD" ? 50000.0 : feed.name === "ETH/USD" ? 3000.0 : 1.0,
+        }));
+        return result;
+      },
       getVolumes: jest.fn().mockImplementation((feeds, _windowSec) => {
-        if (!Array.isArray(feeds) || feeds.length === 0) {
+        if (!Array.isArray(feeds)) {
           throw new Error("Invalid feeds array");
         }
         return Promise.resolve(
@@ -238,23 +256,25 @@ export class TestModuleBuilder {
         setForVotingRound: jest.fn(),
         destroy: jest.fn(),
       })
-      .addProvider(RealTimeAggregationService, {
-        getAggregatedPrice: jest.fn().mockResolvedValue({
-          symbol: "BTC/USD",
-          price: 50000.0,
-          timestamp: Date.now(),
-          sources: ["binance", "coinbase"],
-          confidence: 0.95,
-          consensusScore: 0.85,
-        }),
-        addPriceUpdate: jest.fn(),
-        subscribe: jest.fn(),
-        getQualityMetrics: jest.fn(),
-        getCacheStats: jest.fn(),
-        getActiveFeedCount: jest.fn(),
-        processPriceUpdate: jest.fn(),
-        clearCache: jest.fn(),
-      })
+      .addProvider(
+        RealTimeAggregationService,
+        (() => {
+          const mockFn = async (_feed: any) => {
+            // Return null to trigger fallback to provider service
+            return null;
+          };
+          return {
+            getAggregatedPrice: mockFn,
+            addPriceUpdate: jest.fn(),
+            subscribe: jest.fn(),
+            getQualityMetrics: jest.fn(),
+            getCacheStats: jest.fn(),
+            getActiveFeedCount: jest.fn(),
+            processPriceUpdate: jest.fn(),
+            clearCache: jest.fn(),
+          };
+        })()
+      )
       .addProvider(ApiMonitorService, {
         logRequest: jest.fn(),
         logResponse: jest.fn(),
@@ -332,11 +352,29 @@ export class TestModuleBuilder {
         getErrorStatistics: jest.fn().mockReturnValue({}),
       })
       .addProvider(UniversalRetryService, {
-        executeWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeHttpWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeDatabaseWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeCacheWithRetry: jest.fn().mockImplementation(operation => operation()),
-        executeExternalApiWithRetry: jest.fn().mockImplementation(operation => operation()),
+        executeWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeHttpWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeDatabaseWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeCacheWithRetry: jest.fn().mockImplementation(async operation => {
+          return await operation();
+        }),
+        executeExternalApiWithRetry: jest.fn().mockImplementation(async (operation, _config) => {
+          console.log("Common mock executeExternalApiWithRetry called");
+          try {
+            const result = await operation();
+            console.log("Operation result:", result);
+            return result;
+          } catch (error) {
+            console.log("Operation error:", error);
+            throw error;
+          }
+        }),
         configureRetrySettings: jest.fn(),
         getRetryStatistics: jest.fn().mockReturnValue({}),
       })
@@ -548,8 +586,19 @@ export class TestModuleBuilder {
         executeCacheWithRetry: jest.fn().mockImplementation(async operation => {
           return await operation();
         }),
-        executeExternalApiWithRetry: jest.fn().mockImplementation(async operation => {
-          return await operation();
+        executeExternalApiWithRetry: jest.fn().mockImplementation(async (operation, config) => {
+          console.log("String token mock executeExternalApiWithRetry called with:", {
+            operation: typeof operation,
+            config,
+          });
+          try {
+            const result = await operation();
+            console.log("String token mock executeExternalApiWithRetry operation result:", result);
+            return result;
+          } catch (error) {
+            console.log("String token mock executeExternalApiWithRetry operation error:", error);
+            throw error;
+          }
         }),
         configureRetrySettings: jest.fn(),
         getRetryStatistics: jest.fn().mockReturnValue({}),

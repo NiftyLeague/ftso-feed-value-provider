@@ -1,18 +1,18 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import type { EndpointStats, SlowResponseData, ServerErrorData, HighErrorRateData } from "@/common/types/monitoring";
 import type { ApiMetrics, ApiHealthMetrics } from "@/common/types/monitoring";
 
 @Injectable()
-export class ApiMonitorService extends BaseEventService {
-  private readonly metrics: ApiMetrics[] = [];
+export class ApiMonitorService extends EventDrivenService {
+  private readonly apiMetrics: ApiMetrics[] = [];
   private readonly endpointStats = new Map<string, EndpointStats>();
   private readonly recentErrors = new Map<string, { count: number; lastSeen: number; error: string }>();
   private readonly maxMetricsHistory = 10000; // Keep last 10k requests
   private readonly maxErrorHistory = 1000; // Keep last 1k errors
 
   constructor() {
-    super("ApiMonitorService");
+    super();
     this.startPeriodicCleanup();
   }
 
@@ -22,20 +22,26 @@ export class ApiMonitorService extends BaseEventService {
   recordApiRequest(metrics: ApiMetrics): void {
     try {
       // Add to metrics history
-      this.metrics.push(metrics);
+      this.apiMetrics.push(metrics);
 
       // Maintain metrics history size
-      if (this.metrics.length > this.maxMetricsHistory) {
-        this.metrics.splice(0, this.metrics.length - this.maxMetricsHistory);
+      if (this.apiMetrics.length > this.maxMetricsHistory) {
+        this.apiMetrics.splice(0, this.apiMetrics.length - this.maxMetricsHistory);
       }
 
       // Update endpoint statistics
       this.updateEndpointStats(metrics);
 
-      // Track errors
+      // Track errors and successes using monitoring mixin
       if (metrics.statusCode >= 400) {
         this.trackError(metrics);
+      } else {
+        this.incrementCounter(`api_success_${metrics.endpoint}`);
+        this.incrementCounter("total_api_success");
       }
+
+      // Record response time metric
+      this.recordMetric(`${metrics.endpoint}_response_time_ms`, metrics.responseTime);
 
       // Emit events for real-time monitoring
       this.emit("apiRequest", metrics);
@@ -71,22 +77,22 @@ export class ApiMonitorService extends BaseEventService {
   getApiHealthMetrics(): ApiHealthMetrics {
     const now = Date.now();
     const oneMinuteAgo = now - 60000;
-    const recentMetrics = this.metrics.filter(m => m.timestamp > oneMinuteAgo);
+    const recentMetrics = this.apiMetrics.filter(m => m.timestamp > oneMinuteAgo);
 
-    const totalRequests = this.metrics.length;
+    const totalRequests = this.apiMetrics.length;
     const requestsPerMinute = recentMetrics.length;
 
-    const responseTimes = this.metrics.map(m => m.responseTime);
+    const responseTimes = this.apiMetrics.map(m => m.responseTime);
     const averageResponseTime =
       responseTimes.length > 0 ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length : 0;
 
-    const errorCount = this.metrics.filter(m => m.statusCode >= 400).length;
+    const errorCount = this.apiMetrics.filter(m => m.statusCode >= 400).length;
     const errorRate = totalRequests > 0 ? (errorCount / totalRequests) * 100 : 0;
 
-    const slowRequestCount = this.metrics.filter(m => m.responseTime > 100).length;
+    const slowRequestCount = this.apiMetrics.filter(m => m.responseTime > 100).length;
     const slowRequestRate = totalRequests > 0 ? (slowRequestCount / totalRequests) * 100 : 0;
 
-    const criticalRequestCount = this.metrics.filter(m => m.responseTime > 1000).length;
+    const criticalRequestCount = this.apiMetrics.filter(m => m.responseTime > 1000).length;
     const criticalRequestRate = totalRequests > 0 ? (criticalRequestCount / totalRequests) * 100 : 0;
 
     // Get top endpoints by request count
@@ -137,7 +143,7 @@ export class ApiMonitorService extends BaseEventService {
     const timeWindow = minutes * 60000;
     const windowStart = now - timeWindow;
 
-    const windowMetrics = this.metrics.filter(m => m.timestamp > windowStart);
+    const windowMetrics = this.apiMetrics.filter(m => m.timestamp > windowStart);
 
     const requestCount = windowMetrics.length;
     const responseTimes = windowMetrics.map(m => m.responseTime);
@@ -167,7 +173,7 @@ export class ApiMonitorService extends BaseEventService {
     errorsByEndpoint: Record<string, number>;
     recentErrorTrends: Array<{ timestamp: number; errorCount: number }>;
   } {
-    const errors = this.metrics.filter(m => m.statusCode >= 400);
+    const errors = this.apiMetrics.filter(m => m.statusCode >= 400);
 
     const errorsByStatusCode = errors.reduce(
       (acc, error) => {
@@ -214,7 +220,7 @@ export class ApiMonitorService extends BaseEventService {
    * Reset all metrics (for testing or maintenance)
    */
   resetMetrics(): void {
-    this.metrics.length = 0;
+    this.apiMetrics.length = 0;
     this.endpointStats.clear();
     this.recentErrors.clear();
     this.logger.log("API metrics reset");
@@ -224,7 +230,7 @@ export class ApiMonitorService extends BaseEventService {
    * Get current metrics count
    */
   getMetricsCount(): number {
-    return this.metrics.length;
+    return this.apiMetrics.length;
   }
 
   // Private methods
@@ -266,13 +272,14 @@ export class ApiMonitorService extends BaseEventService {
     stats.statusCodeDistribution[metrics.statusCode] = (stats.statusCodeDistribution[metrics.statusCode] || 0) + 1;
 
     // Update response time statistics
-    const allResponseTimes = this.metrics
-      .filter(m => `${m.method} ${m.endpoint}` === key)
-      .map(m => m.responseTime)
-      .sort((a, b) => a - b);
+    const allResponseTimes = this.apiMetrics
+      .filter((m: ApiMetrics) => `${m.method} ${m.endpoint}` === key)
+      .map((m: ApiMetrics) => m.responseTime)
+      .sort((a: number, b: number) => a - b);
 
     if (allResponseTimes.length > 0) {
-      stats.averageResponseTime = allResponseTimes.reduce((sum, time) => sum + time, 0) / allResponseTimes.length;
+      stats.averageResponseTime =
+        allResponseTimes.reduce((sum: number, time: number) => sum + time, 0) / allResponseTimes.length;
       stats.maxResponseTime = Math.max(...allResponseTimes);
       stats.minResponseTime = Math.min(...allResponseTimes);
 
@@ -284,12 +291,13 @@ export class ApiMonitorService extends BaseEventService {
     }
 
     // Update response size statistics
-    const allResponseSizes = this.metrics
-      .filter(m => `${m.method} ${m.endpoint}` === key && m.responseSize > 0)
-      .map(m => m.responseSize);
+    const allResponseSizes = this.apiMetrics
+      .filter((m: ApiMetrics) => `${m.method} ${m.endpoint}` === key && m.responseSize > 0)
+      .map((m: ApiMetrics) => m.responseSize);
 
     if (allResponseSizes.length > 0) {
-      stats.averageResponseSize = allResponseSizes.reduce((sum, size) => sum + size, 0) / allResponseSizes.length;
+      stats.averageResponseSize =
+        allResponseSizes.reduce((sum: number, size: number) => sum + size, 0) / allResponseSizes.length;
     }
 
     // Update error rate
@@ -299,6 +307,10 @@ export class ApiMonitorService extends BaseEventService {
   private trackError(metrics: ApiMetrics): void {
     const errorKey = `${metrics.endpoint}:${metrics.statusCode}`;
     const existing = this.recentErrors.get(errorKey);
+
+    // Use monitoring mixin counter
+    this.incrementCounter(`api_errors_${metrics.endpoint}_${metrics.statusCode}`);
+    this.incrementCounter("total_api_errors");
 
     if (existing) {
       existing.count++;
@@ -365,7 +377,7 @@ export class ApiMonitorService extends BaseEventService {
 
   private startPeriodicCleanup(): void {
     // Clean up old metrics every 5 minutes
-    setInterval(() => {
+    this.createInterval(() => {
       this.cleanupOldMetrics();
     }, 300000);
   }
@@ -376,10 +388,10 @@ export class ApiMonitorService extends BaseEventService {
     const cutoff = now - maxAge;
 
     // Remove old metrics
-    const originalLength = this.metrics.length;
-    const filteredMetrics = this.metrics.filter(m => m.timestamp > cutoff);
-    this.metrics.length = 0;
-    this.metrics.push(...filteredMetrics);
+    const originalLength = this.apiMetrics.length;
+    const filteredMetrics = this.apiMetrics.filter(m => m.timestamp > cutoff);
+    this.apiMetrics.length = 0;
+    this.apiMetrics.push(...filteredMetrics);
 
     // Remove old errors
     for (const [key, error] of this.recentErrors.entries()) {
@@ -388,8 +400,8 @@ export class ApiMonitorService extends BaseEventService {
       }
     }
 
-    if (originalLength !== this.metrics.length) {
-      this.logger.debug(`Cleaned up ${originalLength - this.metrics.length} old metrics`);
+    if (originalLength !== this.apiMetrics.length) {
+      this.logger.debug(`Cleaned up ${originalLength - this.apiMetrics.length} old metrics`);
     }
   }
 

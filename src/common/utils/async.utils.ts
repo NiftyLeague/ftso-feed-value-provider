@@ -191,64 +191,6 @@ export async function batchProcessWithRetry<T, R>(
 }
 
 /**
- * Execute operation with circuit breaker pattern
- */
-export class SimpleCircuitBreaker {
-  private failures = 0;
-  private lastFailureTime = 0;
-  private state: "closed" | "open" | "half-open" = "closed";
-
-  constructor(
-    private readonly failureThreshold: number = 5,
-    private readonly recoveryTimeout: number = 60000,
-    private readonly logger?: ILogger
-  ) {}
-
-  async execute<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.state === "open") {
-      if (Date.now() - this.lastFailureTime > this.recoveryTimeout) {
-        this.state = "half-open";
-        this.logger?.debug("Circuit breaker transitioning to half-open");
-      } else {
-        throw new Error("Circuit breaker is open");
-      }
-    }
-
-    try {
-      const result = await operation();
-
-      if (this.state === "half-open") {
-        this.state = "closed";
-        this.failures = 0;
-        this.logger?.debug("Circuit breaker closed");
-      }
-
-      return result;
-    } catch (error) {
-      this.failures++;
-      this.lastFailureTime = Date.now();
-
-      if (this.failures >= this.failureThreshold) {
-        this.state = "open";
-        this.logger?.warn(`Circuit breaker opened after ${this.failures} failures`);
-      }
-
-      throw error;
-    }
-  }
-
-  getState(): "closed" | "open" | "half-open" {
-    return this.state;
-  }
-
-  reset(): void {
-    this.state = "closed";
-    this.failures = 0;
-    this.lastFailureTime = 0;
-  }
-}
-
-/**
  * Debounce async function calls
  */
 export function debounceAsync<T extends unknown[], R>(

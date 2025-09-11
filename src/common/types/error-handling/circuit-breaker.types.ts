@@ -1,6 +1,4 @@
-/**
- * Circuit breaker types
- */
+import type { BaseServiceConfig } from "../services/base.types";
 
 export enum CircuitBreakerState {
   CLOSED = "closed",
@@ -8,7 +6,7 @@ export enum CircuitBreakerState {
   HALF_OPEN = "half_open",
 }
 
-export interface CircuitBreakerConfig {
+export interface CircuitBreakerConfig extends BaseServiceConfig {
   failureThreshold: number;
   recoveryTimeout: number;
   successThreshold: number;

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 
-import type { AggregatedPrice } from "@/common/types/services";
+import type { AggregatedPrice, BaseServiceConfig } from "@/common/types/services";
 import type { EnhancedFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { HealthCheckResult } from "@/common/types/monitoring";
 import type {
@@ -17,8 +17,15 @@ import {
   hasHealthCheckCapability,
 } from "@/common/types/data-manager";
 
+interface ReconnectConfig extends BaseServiceConfig {
+  initialDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+  maxAttempts: number;
+}
+
 @Injectable()
-export class ProductionDataManagerService extends BaseEventService implements ProductionDataManager {
+export class ProductionDataManagerService extends EventDrivenService implements ProductionDataManager {
   // Data sources management
   private dataSources = new Map<string, DataSource>();
   private connectionMetrics = new Map<string, ConnectionMetrics>();
@@ -36,30 +43,31 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
     cacheBypassOnFreshData: true,
   };
 
-  // Reconnection configuration
-  private readonly reconnectConfig = {
-    initialDelay: 1000,
-    maxDelay: 30000,
-    backoffMultiplier: 2,
-    maxAttempts: 10,
-  };
-
   // Active reconnection timers
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthMonitorInterval?: NodeJS.Timeout;
 
   constructor() {
-    super("ProductionDataManager");
+    super({
+      initialDelay: 1000,
+      maxDelay: 30000,
+      backoffMultiplier: 2,
+      maxAttempts: 10,
+    });
     this.setupHealthMonitoring();
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get reconnectConfig(): ReconnectConfig {
+    return this.config as ReconnectConfig;
   }
 
   // Failover and recovery methods
   async triggerSourceFailover(sourceId: string, reason: string): Promise<boolean> {
     const operationId = `failover_${sourceId}_${Date.now()}`;
-    this.enhancedLogger?.startPerformanceTimer(operationId, "source_failover", "ProductionDataManager", {
-      sourceId,
-      reason,
-    });
+    this.startTimer(operationId);
 
     try {
       this.enhancedLogger?.logErrorRecovery(sourceId, "connection_failure", "source_failover", false, {
@@ -75,7 +83,7 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
           sourceId,
           severity: "high",
         });
-        this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: "source_not_found" });
+        this.endTimer(operationId);
         return false;
       }
 
@@ -108,7 +116,7 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
             }
 
             this.enhancedLogger?.logErrorRecovery(sourceId, "connection_failure", "websocket_reconnection", true);
-            this.enhancedLogger?.endPerformanceTimer(operationId, true, { recoveryMethod: "websocket_reconnection" });
+            this.endTimer(operationId);
             this.emit("sourceRecovered", sourceId);
             return true;
           }
@@ -166,10 +174,7 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
           totalSubscriptions: subscriptions.length,
         });
 
-        this.enhancedLogger?.endPerformanceTimer(operationId, true, {
-          recoveryMethod: "rest_fallback",
-          processedSymbols,
-        });
+        this.endTimer(operationId);
 
         this.emit("restFallbackActivated", sourceId);
         return true;
@@ -180,9 +185,7 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
         reason: "no_recovery_method_successful",
       });
 
-      this.enhancedLogger?.endPerformanceTimer(operationId, false, {
-        error: "no_recovery_method_successful",
-      });
+      this.endTimer(operationId);
 
       // Emit failover event for external handling
       this.emit("sourceFailover", sourceId, reason);
@@ -196,7 +199,7 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
         severity: "high",
       });
 
-      this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: errMsg });
+      this.endTimer(operationId);
       return false;
     }
   }
@@ -270,7 +273,7 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
   }
 
   // Cleanup
-  protected override cleanup(): void {
+  public override async cleanup(): Promise<void> {
     // Clear all reconnection timers
     for (const timer of this.reconnectTimers.values()) {
       clearTimeout(timer);
@@ -282,11 +285,6 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
       clearInterval(this.healthMonitorInterval);
       this.healthMonitorInterval = undefined;
     }
-  }
-
-  // Public helper for tests
-  cleanupForTests(): void {
-    this.cleanup();
   }
 
   // Test helper method to manually emit price updates
@@ -668,53 +666,37 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
       throw new Error(`No metrics found for source ${sourceId}`);
     }
 
-    try {
-      // Attempt connection (this would be implemented in the actual DataSource)
-      // For now, we'll simulate the connection attempt
-      this.logger.log(`Attempting to connect to ${sourceId}`);
+    await this.executeWithErrorHandling(
+      async () => {
+        // Attempt connection (this would be implemented in the actual DataSource)
+        // For now, we'll simulate the connection attempt
+        this.logger.log(`Attempting to connect to ${sourceId}`);
 
-      // Update metrics on successful connection
-      metrics.isHealthy = true;
-      metrics.reconnectAttempts = 0;
-      metrics.lastUpdate = Date.now();
-    } catch (error) {
-      this.logger.error(`Connection failed for ${sourceId}:`, error);
+        // Update metrics on successful connection
+        metrics.isHealthy = true;
+        metrics.reconnectAttempts = 0;
+        metrics.lastUpdate = Date.now();
+      },
+      `connect_data_source_${sourceId}`,
+      {
+        retries: this.reconnectConfig.maxAttempts - 1,
+        retryDelay: this.reconnectConfig.initialDelay,
+        shouldThrow: false,
+        onError: (error, attempt) => {
+          this.logger.error(`Connection failed for ${sourceId} (attempt ${attempt}):`, error);
 
-      // Emit error event for error handling services
-      this.emit("sourceError", sourceId, error);
+          // Emit error event for error handling services
+          this.emit("sourceError", sourceId, error);
 
-      // Update metrics to reflect failure
-      metrics.isHealthy = false;
-      metrics.reconnectAttempts++;
-
-      // Schedule reconnection with exponential backoff
-      this.scheduleReconnection(source);
-    }
-  }
-
-  private scheduleReconnection(source: DataSource): void {
-    const sourceId = source.id;
-    const metrics = this.connectionMetrics.get(sourceId);
-
-    if (!metrics || metrics.reconnectAttempts >= this.reconnectConfig.maxAttempts) {
-      this.logger.error(`Max reconnection attempts reached for ${sourceId}`);
-      return;
-    }
-
-    const delay = Math.min(
-      this.reconnectConfig.initialDelay * Math.pow(this.reconnectConfig.backoffMultiplier, metrics.reconnectAttempts),
-      this.reconnectConfig.maxDelay
+          // Update metrics to reflect failure
+          metrics.isHealthy = false;
+          metrics.reconnectAttempts = attempt;
+        },
+      }
     );
-
-    this.logger.log(`Scheduling reconnection for ${sourceId} in ${delay}ms (attempt ${metrics.reconnectAttempts + 1})`);
-
-    const timer = setTimeout(async () => {
-      metrics.reconnectAttempts++;
-      await this.connectWithRetry(source);
-    }, delay);
-
-    this.reconnectTimers.set(sourceId, timer);
   }
+
+  // Removed scheduleReconnection method - now handled by error handling mixin
 
   private handleConnectionChange(sourceId: string, connected: boolean): void {
     const metrics = this.connectionMetrics.get(sourceId);
@@ -740,7 +722,8 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
       // Schedule reconnection for WebSocket sources
       const source = this.dataSources.get(sourceId);
       if (source && source.type === "websocket") {
-        this.scheduleReconnection(source);
+        // Use the standardized retry mechanism
+        void this.connectWithRetry(source);
       }
 
       this.emit("sourceDisconnected", sourceId);
@@ -755,6 +738,9 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
     metrics.latency = now - timestamp;
     metrics.lastUpdate = now;
     metrics.isHealthy = true;
+
+    // Record latency metric using monitoring mixin
+    this.recordMetric(`${sourceId}_latency_ms`, metrics.latency);
   }
 
   private updateSubscriptionTimestamp(update: PriceUpdate): void {
@@ -827,6 +813,23 @@ export class ProductionDataManagerService extends BaseEventService implements Pr
           this.logger.log(`Data source ${sourceId} marked as healthy`);
           this.emit("sourceHealthy", sourceId);
         }
+      }
+    }
+
+    // Calculate overall service health based on connection health
+    const totalConnections = this.connectionMetrics.size;
+    const healthyConnections = Array.from(this.connectionMetrics.values()).filter(m => m.isHealthy).length;
+
+    if (totalConnections === 0) {
+      this.setHealthStatus("degraded");
+    } else {
+      const healthyRatio = healthyConnections / totalConnections;
+      if (healthyRatio >= 0.8) {
+        this.setHealthStatus("healthy");
+      } else if (healthyRatio >= 0.5) {
+        this.setHealthStatus("degraded");
+      } else {
+        this.setHealthStatus("unhealthy");
       }
     }
   }

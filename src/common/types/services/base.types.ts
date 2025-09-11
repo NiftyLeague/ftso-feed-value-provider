@@ -1,4 +1,7 @@
-import { HealthCheckResult } from "../monitoring";
+import type { HealthCheckResult } from "../monitoring";
+import type { LoggingCapabilities } from "../../base/mixins/logging.mixin";
+import type { ConfigurableCapabilities } from "../../base/mixins/configurable.mixin";
+import type { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
 
 /**
  * Defines the health status of a service.
@@ -24,22 +27,18 @@ export interface ServicePerformanceMetrics {
 }
 
 /**
- * Base interface for all services, providing common health and performance monitoring.
+ * Base configuration interface that all services extend
  */
-export interface IBaseService {
-  /**
-   * Get service health status
-   * @returns Promise resolving to health status
-   */
-  getHealthStatus(): Promise<ServiceHealthStatus>;
-  /**
-   * Get service performance metrics
-   * @returns Promise resolving to performance metrics
-   */
-  getPerformanceMetrics(): Promise<ServicePerformanceMetrics>;
-  /**
-   * Get service name/identifier
-   * @returns Service name
-   */
-  getServiceName(): string;
+export interface BaseServiceConfig extends Record<string, unknown> {
+  useEnhancedLogging?: boolean;
+}
+
+/**
+ * Base interface that all services should implement (minimal public interface)
+ * Note: logger is now protected in the new mixin system for better encapsulation
+ */
+export interface IBaseService extends LoggingCapabilities, ConfigurableCapabilities<BaseServiceConfig> {
+  // Logger is now protected - services should use internal logging methods
+  readonly logger: import("@nestjs/common").Logger;
+  enhancedLogger?: EnhancedLoggerService;
 }

@@ -2,9 +2,10 @@
  * Failover management type definitions
  */
 
-import { EnhancedFeedId } from "../core";
+import type { EnhancedFeedId } from "../core";
+import type { BaseServiceConfig } from "../services";
 
-export interface FailoverConfig {
+export interface FailoverConfig extends BaseServiceConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms)
   healthCheckInterval: number; // How often to check source health (ms)
   failureThreshold: number; // Number of failures before triggering failover

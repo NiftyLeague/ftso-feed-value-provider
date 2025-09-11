@@ -1,22 +1,22 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@/config/config.service";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import type { StartupValidationResult } from "@/common/types/services";
 
 import { IntegrationService } from "../integration.service";
 
 @Injectable()
-export class StartupValidationService extends BaseService implements OnModuleInit {
+export class StartupValidationService extends StandardService implements OnModuleInit {
   private validationResult: StartupValidationResult | null = null;
 
   constructor(
     private readonly integrationService: IntegrationService,
     private readonly configService: ConfigService
   ) {
-    super(StartupValidationService.name);
+    super();
   }
 
-  async onModuleInit(): Promise<void> {
+  override async onModuleInit(): Promise<void> {
     this.logger.log("Starting application startup validation...");
 
     try {

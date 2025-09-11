@@ -1,29 +1,37 @@
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "../base/base.service";
-import type { RateLimitConfig, RateLimitInfo, ClientRecord, RateLimitMetrics } from "../types/utils";
+import { StandardService } from "../base";
+import type { RateLimitInfo, ClientRecord, RateLimitMetrics, RateLimitConfig } from "../types/utils";
 
 @Injectable()
-export class RateLimiterService extends BaseService {
+export class RateLimiterService extends StandardService {
   private readonly clients = new Map<string, ClientRecord>();
-  private readonly config: RateLimitConfig;
   private cleanupInterval: NodeJS.Timeout;
 
   constructor(config?: Partial<RateLimitConfig>) {
-    super("RateLimiterService");
-    this.config = {
+    super({
+      useEnhancedLogging: false,
       windowMs: 60000, // 1 minute default
       maxRequests: 1000, // 1000 requests per minute default
       skipSuccessfulRequests: false,
       skipFailedRequests: false,
       ...config,
-    };
+    });
 
     // Clean up old records every minute
     this.cleanupInterval = setInterval(() => {
-      this.cleanup();
+      void this.cleanup();
     }, 60000);
 
-    this.logger.log(`Rate limiter initialized: ${this.config.maxRequests} requests per ${this.config.windowMs}ms`);
+    this.logger.log(
+      `Rate limiter initialized: ${this.rateLimitConfig.maxRequests} requests per ${this.rateLimitConfig.windowMs}ms`
+    );
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get rateLimitConfig(): RateLimitConfig {
+    return this.config as RateLimitConfig;
   }
 
   /**
@@ -31,7 +39,7 @@ export class RateLimiterService extends BaseService {
    */
   checkRateLimit(clientId: string): RateLimitInfo {
     const now = Date.now();
-    const windowStart = now - this.config.windowMs;
+    const windowStart = now - this.rateLimitConfig.windowMs;
 
     // Get or create client record
     let client = this.clients.get(clientId);
@@ -48,14 +56,14 @@ export class RateLimiterService extends BaseService {
     client.requests = client.requests.filter(timestamp => timestamp > windowStart);
 
     const totalHitsInWindow = client.requests.length;
-    const remainingPoints = Math.max(0, this.config.maxRequests - totalHitsInWindow);
-    const isBlocked = totalHitsInWindow >= this.config.maxRequests;
+    const remainingPoints = Math.max(0, this.rateLimitConfig.maxRequests - totalHitsInWindow);
+    const isBlocked = totalHitsInWindow >= this.rateLimitConfig.maxRequests;
 
     // Calculate time until next request is allowed
     let msBeforeNext = 0;
     if (isBlocked && client.requests.length > 0) {
       const oldestRequest = Math.min(...client.requests);
-      msBeforeNext = Math.max(0, oldestRequest + this.config.windowMs - now);
+      msBeforeNext = Math.max(0, oldestRequest + this.rateLimitConfig.windowMs - now);
     }
 
     return {
@@ -74,7 +82,10 @@ export class RateLimiterService extends BaseService {
     const now = Date.now();
 
     // Skip recording based on configuration
-    if ((isSuccessful && this.config.skipSuccessfulRequests) || (!isSuccessful && this.config.skipFailedRequests)) {
+    if (
+      (isSuccessful && this.rateLimitConfig.skipSuccessfulRequests) ||
+      (!isSuccessful && this.rateLimitConfig.skipFailedRequests)
+    ) {
       return this.checkRateLimit(clientId);
     }
 
@@ -100,7 +111,7 @@ export class RateLimiterService extends BaseService {
    */
   getStats(): RateLimitMetrics {
     const now = Date.now();
-    const windowStart = now - this.config.windowMs;
+    const windowStart = now - this.rateLimitConfig.windowMs;
 
     let totalRequests = 0;
     let blockedRequests = 0;
@@ -110,8 +121,8 @@ export class RateLimiterService extends BaseService {
 
       // Count active clients (those with requests in current window)
       const recentRequests = client.requests.filter(timestamp => timestamp > windowStart);
-      if (recentRequests.length >= this.config.maxRequests) {
-        blockedRequests += recentRequests.length - this.config.maxRequests;
+      if (recentRequests.length >= this.rateLimitConfig.maxRequests) {
+        blockedRequests += recentRequests.length - this.rateLimitConfig.maxRequests;
       }
     }
 
@@ -146,24 +157,26 @@ export class RateLimiterService extends BaseService {
   /**
    * Get configuration
    */
-  getConfig(): RateLimitConfig {
-    return { ...this.config };
+  getRateLimitConfig(): RateLimitConfig {
+    return this.rateLimitConfig;
   }
 
   /**
    * Update configuration
    */
-  updateConfig(newConfig: Partial<RateLimitConfig>): void {
-    Object.assign(this.config, newConfig);
-    this.logger.log(`Rate limiter config updated: ${this.config.maxRequests} requests per ${this.config.windowMs}ms`);
+  updateRateLimitConfig(newConfig: Partial<RateLimitConfig>): void {
+    this.updateConfig(newConfig);
+    this.logger.log(
+      `Rate limiter config updated: ${this.rateLimitConfig.maxRequests} requests per ${this.rateLimitConfig.windowMs}ms`
+    );
   }
 
   /**
    * Cleanup old client records
    */
-  private cleanup(): void {
+  public override async cleanup(): Promise<void> {
     const now = Date.now();
-    const cutoff = now - this.config.windowMs * 2; // Keep records for 2x window size
+    const cutoff = now - this.rateLimitConfig.windowMs * 2; // Keep records for 2x window size
     let cleanedCount = 0;
 
     for (const [clientId, client] of this.clients) {

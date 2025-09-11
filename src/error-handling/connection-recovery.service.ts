@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { FailoverManager } from "@/data-manager/failover-manager";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
+import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, EnhancedFeedId } from "@/common/types/core";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 
-export interface ConnectionRecoveryConfig {
+export interface ConnectionRecoveryConfig extends BaseServiceConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2
   healthCheckInterval: number; // How often to check connection health (ms)
   reconnectDelay: number; // Initial delay before reconnection attempt (ms)
@@ -43,33 +44,35 @@ export interface RecoveryStrategy {
 }
 
 @Injectable()
-export class ConnectionRecoveryService extends BaseEventService {
+export class ConnectionRecoveryService extends EventDrivenService {
   private dataSources = new Map<string, DataSource>();
   private connectionHealth = new Map<string, ConnectionHealth>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthCheckTimer?: NodeJS.Timeout;
   private feedSourceMapping = new Map<string, string[]>(); // feedId -> sourceIds
 
-  private readonly defaultConfig: ConnectionRecoveryConfig = {
-    maxFailoverTime: 100, // 100ms requirement for FTSO (Requirement 7.2)
-    healthCheckInterval: 5000, // 5 seconds
-    reconnectDelay: 1000, // 1 second initial delay
-    maxReconnectDelay: 30000, // 30 seconds max delay
-    backoffMultiplier: 2,
-    maxReconnectAttempts: 10,
-    gracefulDegradationThreshold: 2, // Need at least 2 sources
-  };
-
-  private config: ConnectionRecoveryConfig;
-
   constructor(
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly failoverManager: FailoverManager
   ) {
-    super("ConnectionRecoveryService");
-    this.config = { ...this.defaultConfig };
+    super({
+      maxFailoverTime: 100, // 100ms requirement for FTSO (Requirement 7.2)
+      healthCheckInterval: 5000, // 5 seconds
+      reconnectDelay: 1000, // 1 second initial delay
+      maxReconnectDelay: 30000, // 30 seconds max delay
+      backoffMultiplier: 2,
+      maxReconnectAttempts: 10,
+      gracefulDegradationThreshold: 2, // Need at least 2 sources
+    });
     this.startHealthMonitoring();
     this.setupEventHandlers();
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get recoveryConfig(): ConnectionRecoveryConfig {
+    return this.config as ConnectionRecoveryConfig;
   }
 
   /**
@@ -198,9 +201,9 @@ export class ConnectionRecoveryService extends BaseEventService {
       };
 
       // Check if failover time exceeds target
-      if (failoverTime > this.config.maxFailoverTime) {
+      if (failoverTime > this.recoveryConfig.maxFailoverTime) {
         this.logger.warn(
-          `Failover time ${failoverTime}ms exceeded target ${this.config.maxFailoverTime}ms for source ${sourceId}`
+          `Failover time ${failoverTime}ms exceeded target ${this.recoveryConfig.maxFailoverTime}ms for source ${sourceId}`
         );
       }
 
@@ -245,14 +248,14 @@ export class ConnectionRecoveryService extends BaseEventService {
       return;
     }
 
-    if (healthySources.length < this.config.gracefulDegradationThreshold) {
+    if (healthySources.length < this.recoveryConfig.gracefulDegradationThreshold) {
       // Partial degradation - reduce quality requirements
       this.logger.warn(
         `Partial service degradation for feed ${feedId.name}: only ${healthySources.length} sources available`
       );
       this.emit("partialServiceDegradation", feedId, {
         availableSources: healthySources.length,
-        requiredSources: this.config.gracefulDegradationThreshold,
+        requiredSources: this.recoveryConfig.gracefulDegradationThreshold,
       });
     }
 
@@ -277,7 +280,7 @@ export class ConnectionRecoveryService extends BaseEventService {
     const strategies: RecoveryStrategy[] = [];
 
     // Strategy 1: Reconnection (for WebSocket sources)
-    if (source.type === "websocket" && health.reconnectAttempts < this.config.maxReconnectAttempts) {
+    if (source.type === "websocket" && health.reconnectAttempts < this.recoveryConfig.maxReconnectAttempts) {
       strategies.push({
         sourceId,
         strategy: "reconnect",
@@ -301,7 +304,7 @@ export class ConnectionRecoveryService extends BaseEventService {
       sourceId,
       strategy: "failover",
       priority: 3,
-      estimatedRecoveryTime: this.config.maxFailoverTime,
+      estimatedRecoveryTime: this.recoveryConfig.maxFailoverTime,
     });
 
     // Strategy 4: Graceful degradation
@@ -441,7 +444,7 @@ export class ConnectionRecoveryService extends BaseEventService {
     // Only schedule reconnection for WebSocket sources
     if (source.type !== "websocket") return;
 
-    if (health.reconnectAttempts >= this.config.maxReconnectAttempts) {
+    if (health.reconnectAttempts >= this.recoveryConfig.maxReconnectAttempts) {
       this.logger.error(`Max reconnection attempts reached for source ${sourceId}`);
       return;
     }
@@ -484,8 +487,8 @@ export class ConnectionRecoveryService extends BaseEventService {
 
   private calculateReconnectDelay(attemptNumber: number): number {
     const delay = Math.min(
-      this.config.reconnectDelay * Math.pow(this.config.backoffMultiplier, attemptNumber),
-      this.config.maxReconnectDelay
+      this.recoveryConfig.reconnectDelay * Math.pow(this.recoveryConfig.backoffMultiplier, attemptNumber),
+      this.recoveryConfig.maxReconnectDelay
     );
     return delay;
   }
@@ -531,7 +534,7 @@ export class ConnectionRecoveryService extends BaseEventService {
   private startHealthMonitoring(): void {
     this.healthCheckTimer = setInterval(() => {
       this.performHealthCheck();
-    }, this.config.healthCheckInterval);
+    }, this.recoveryConfig.healthCheckInterval);
   }
 
   private performHealthCheck(): void {

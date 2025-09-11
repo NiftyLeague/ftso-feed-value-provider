@@ -1,13 +1,13 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import type { RealTimeCache, CacheEntry, CacheStats, CacheConfig, CacheItem } from "@/common/types/cache";
 import type { EnhancedFeedId } from "@/common/types/core";
 
 @Injectable()
-export class RealTimeCacheService extends BaseService implements RealTimeCache, OnModuleDestroy {
+export class RealTimeCacheService extends StandardService implements RealTimeCache, OnModuleDestroy {
   private readonly cache = new Map<string, CacheItem>();
-  private config: CacheConfig;
-  private readonly cleanupInterval: NodeJS.Timeout;
+
+  // Cleanup interval is now managed by lifecycle mixin
   private stats: CacheStats = {
     hits: 0,
     misses: 0,
@@ -30,24 +30,34 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   private compressionEnabled = false;
 
   constructor() {
-    super("RealTimeCacheService");
-    this.config = {
+    super({
       ttl: 600, // TTL for cache entries
       maxSize: 25000, // Cache capacity for better hit rates
       evictionPolicy: "LRU",
       memoryLimit: 256 * 1024 * 1024, // Increased memory limit for better performance
       enabled: true,
       compression: false,
-    };
+    });
 
-    // Cleanup interval for expired entries
-    this.cleanupInterval = setInterval(() => this.cleanupExpiredEntries(), 1500);
+    // Cleanup interval for expired entries using managed timer
+    this.createInterval(() => this.cleanupExpiredEntries(), 1500);
+  }
+
+  override getConfig(): CacheConfig {
+    return { ...this.config } as CacheConfig;
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get cacheConfig(): CacheConfig {
+    return this.getConfig();
   }
 
   // Method to create a service with custom configuration (for testing)
   static withConfig(config: Partial<CacheConfig>): RealTimeCacheService {
     const service = new RealTimeCacheService();
-    service.config = {
+    service.updateConfig({
       ttl: 1000,
       maxSize: 10000,
       evictionPolicy: "LRU",
@@ -55,7 +65,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
       enabled: true,
       compression: false,
       ...config,
-    };
+    });
     return service;
   }
 
@@ -63,7 +73,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     const startTime = performance.now();
 
     // Adaptive TTL based on access patterns
-    const effectiveTTL = this.adaptiveTTL ? this.calculateAdaptiveTTL(key, ttl) : Math.min(ttl, this.config.ttl);
+    const effectiveTTL = this.adaptiveTTL ? this.calculateAdaptiveTTL(key, ttl) : Math.min(ttl, this.cacheConfig.ttl);
 
     if (effectiveTTL <= 0) {
       this.logger.debug(`Cache set: ${key} with TTL ${effectiveTTL}ms - not cached due to zero/negative TTL`);
@@ -73,7 +83,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     const expiresAt = Date.now() + effectiveTTL;
 
     // Eviction with intelligent algorithms
-    if (this.cache.size >= this.config.maxSize) {
+    if (this.cache.size >= this.cacheConfig.maxSize) {
       this.intelligentEviction();
     }
 
@@ -193,7 +203,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   setPrice(feedId: EnhancedFeedId, value: CacheEntry): void {
     const key = this.generatePriceKey(feedId);
     // Use maximum allowed TTL for price data
-    this.set(key, value, this.config.ttl);
+    this.set(key, value, this.cacheConfig.ttl);
 
     // Invalidate any existing voting round cache for this feed
     this.invalidateFeedCache(feedId);
@@ -300,20 +310,14 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     return this.cache.size;
   }
 
-  getConfig(): CacheConfig {
-    return { ...this.config };
-  }
-
   // Cleanup method to stop intervals and prevent memory leaks
   destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
+    // Managed intervals are automatically cleaned up by lifecycle mixin
     this.cache.clear();
     this.logger.debug("Cache service destroyed");
   }
 
-  async onModuleDestroy(): Promise<void> {
+  override async cleanup(): Promise<void> {
     this.destroy();
   }
 
@@ -325,14 +329,14 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
   private calculateAdaptiveTTL(key: string, requestedTTL: number): number {
     const item = this.cache.get(key);
     if (!item) {
-      return Math.min(requestedTTL, this.config.ttl);
+      return Math.min(requestedTTL, this.cacheConfig.ttl);
     }
 
     // Increase TTL for frequently accessed items
     const accessFrequency = item.accessCount / Math.max(1, (Date.now() - item.lastAccessed) / 1000);
     const adaptiveMultiplier = Math.min(2.0, 1 + accessFrequency * 0.1);
 
-    return Math.min(requestedTTL * adaptiveMultiplier, this.config.ttl * 1.5);
+    return Math.min(requestedTTL * adaptiveMultiplier, this.cacheConfig.ttl * 1.5);
   }
 
   /**
@@ -346,7 +350,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     const scoredEntries = entries.map(([key, item]) => {
       const age = Date.now() - item.lastAccessed;
       const accessScore = item.accessCount / Math.max(1, age / 1000); // Access per second
-      const freshnessScore = Math.max(0, 1 - age / (this.config.ttl * 2));
+      const freshnessScore = Math.max(0, 1 - age / (this.cacheConfig.ttl * 2));
       const combinedScore = accessScore * 0.7 + freshnessScore * 0.3;
 
       return { key, score: combinedScore };
@@ -405,7 +409,7 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
         : 0;
 
     const hitRateEfficiency = this.stats.hitRate;
-    const memoryEfficiency = 1 - this.estimateMemoryUsage() / this.config.memoryLimit;
+    const memoryEfficiency = 1 - this.estimateMemoryUsage() / this.cacheConfig.memoryLimit;
     const evictionRate = this.stats.totalRequests > 0 ? this.stats.evictions / this.stats.totalRequests : 0;
 
     const recommendations: string[] = [];
@@ -462,13 +466,13 @@ export class RealTimeCacheService extends BaseService implements RealTimeCache, 
     // Apply optimizations based on insights
     if (insights.hitRateEfficiency < 0.9) {
       // Increase cache size if hit rate is low
-      this.config.maxSize = Math.min(this.config.maxSize * 1.2, 50000);
+      this.config.maxSize = Math.min(this.cacheConfig.maxSize * 1.2, 50000);
       this.logger.log(`Increased cache size to ${this.config.maxSize} for better hit rates`);
     }
 
     if (insights.averageResponseTime > 3) {
       // Reduce TTL for faster cache operations
-      this.config.ttl = Math.max(this.config.ttl * 0.9, 300);
+      this.config.ttl = Math.max(this.cacheConfig.ttl * 0.9, 300);
       this.logger.log(`Reduced TTL to ${this.config.ttl}ms for faster operations`);
     }
 

@@ -3,6 +3,24 @@ import { StandardizedErrorHandlerService } from "./standardized-error-handler.se
 import { UniversalRetryService } from "./universal-retry.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
+import type { StandardErrorMetadata, EnhancedErrorResponse } from "@/common/types/error-handling";
+
+// Event type definitions for error handling services
+interface StandardizedErrorEvent {
+  error: Error;
+  response: EnhancedErrorResponse;
+  metadata: StandardErrorMetadata;
+  timestamp: number;
+}
+
+interface RetryFailureEvent {
+  serviceId: string;
+  operationName: string;
+  attemptCount: number;
+  totalTime: number;
+  error: string;
+  timestamp: number;
+}
 
 /**
  * Global error handling module that provides standardized error handling,
@@ -204,20 +222,23 @@ export class ErrorHandlingModule {
 
   private setupErrorMonitoring(): void {
     // Set up event listeners for error monitoring
-    this.standardizedErrorHandler.on("standardizedError", errorEvent => {
-      // Log critical errors for monitoring
-      if (errorEvent.metadata?.severity === "critical") {
-        console.error("CRITICAL ERROR DETECTED:", {
-          component: errorEvent.metadata.component,
-          operation: errorEvent.metadata.operation,
-          error: errorEvent.error.message,
-          timestamp: errorEvent.timestamp,
-          requestId: errorEvent.response.requestId,
-        });
+    this.standardizedErrorHandler.on<[StandardizedErrorEvent]>(
+      "standardizedError",
+      (errorEvent: StandardizedErrorEvent) => {
+        // Log critical errors for monitoring
+        if (errorEvent.metadata?.severity === "critical") {
+          console.error("CRITICAL ERROR DETECTED:", {
+            component: errorEvent.metadata.component,
+            operation: errorEvent.metadata.operation,
+            error: errorEvent.error.message,
+            timestamp: errorEvent.timestamp,
+            requestId: errorEvent.response.requestId,
+          });
+        }
       }
-    });
+    );
 
-    this.universalRetryService.on("retryFailure", retryEvent => {
+    this.universalRetryService.on<[RetryFailureEvent]>("retryFailure", (retryEvent: RetryFailureEvent) => {
       // Log retry failures for monitoring
       if (retryEvent.attemptCount >= 3) {
         console.warn("RETRY EXHAUSTED:", {
@@ -230,7 +251,7 @@ export class ErrorHandlingModule {
       }
     });
 
-    this.circuitBreaker.on("circuitOpened", serviceId => {
+    this.circuitBreaker.on<[string]>("circuitOpened", (serviceId: string) => {
       // Log circuit breaker openings for monitoring
       console.error("CIRCUIT BREAKER OPENED:", {
         serviceId,
@@ -239,7 +260,7 @@ export class ErrorHandlingModule {
       });
     });
 
-    this.circuitBreaker.on("circuitClosed", serviceId => {
+    this.circuitBreaker.on<[string]>("circuitClosed", (serviceId: string) => {
       // Log circuit breaker recoveries for monitoring
       console.info("CIRCUIT BREAKER RECOVERED:", {
         serviceId,

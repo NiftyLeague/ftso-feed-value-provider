@@ -32,7 +32,7 @@ export class HealthController extends BaseController {
     standardizedErrorHandler: StandardizedErrorHandlerService,
     universalRetryService: UniversalRetryService
   ) {
-    super("HealthController");
+    super();
     // Inject standardized error handling services
     this.standardizedErrorHandler = standardizedErrorHandler;
     this.universalRetryService = universalRetryService;

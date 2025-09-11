@@ -10,6 +10,8 @@ import {
   HttpException,
   HttpStatus,
   UseGuards,
+  Header,
+  HttpCode,
 } from "@nestjs/common";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
@@ -45,13 +47,59 @@ export class FeedController extends BaseController {
     private readonly aggregationService: RealTimeAggregationService,
     private readonly apiMonitor: ApiMonitorService
   ) {
-    super("FeedController");
+    super();
     // Inject standardized error handling services
     this.standardizedErrorHandler = standardizedErrorHandler;
     this.universalRetryService = universalRetryService;
   }
 
+  @Post("feed-values")
+  @HttpCode(200)
+  @Header("Content-Type", "application/json")
+  @ApiOperation({
+    summary: "Get current feed values",
+    description: "Returns real-time feed values with sub-100ms response time and 1-second cache TTL",
+  })
+  @ApiResponse({ status: 200, description: "Current feed values retrieved successfully" })
+  @ApiResponse({ status: 400, description: "Invalid feed request" })
+  @ApiResponse({ status: 500, description: "Internal server error" })
+  async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
+    return this.handleControllerOperation(
+      async () => {
+        // Validate feed requests - this will throw BadRequestException for invalid input
+        this.validateFeedRequest(body);
+
+        // Get real-time data with caching and retry logic using our own executeWithRetry
+        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(body.feeds), {
+          operationName: "getRealTimeFeedValues",
+          serviceType: "external-api",
+          endpoint: "getCurrentFeedValues",
+          retryConfig: { maxRetries: 2, initialDelayMs: 500 },
+        });
+
+        this.logger.log(`Current feed values: ${values.length} feeds`, {
+          feedCount: values.length,
+        });
+
+        return {
+          data: values,
+        };
+      },
+      "getCurrentFeedValues",
+      "POST",
+      "/feed-values",
+      {
+        body,
+        useStandardizedErrorHandling: false,
+        useRetryLogic: false,
+        performanceThreshold: 100, // Sub-100ms requirement
+      }
+    );
+  }
+
   @Post("feed-values/:votingRoundId")
+  @HttpCode(200)
+  @Header("Content-Type", "application/json")
   @ApiOperation({
     summary: "Get feed values for specific voting round",
     description: "Returns historical feed values for the specified voting round with enhanced caching and validation",
@@ -66,10 +114,11 @@ export class FeedController extends BaseController {
   ): Promise<RoundFeedValuesResponse> {
     return this.handleControllerOperation(
       async () => {
-        // Validate voting round ID with enhanced validation
+        // ParseIntPipe already validates that votingRoundId is a valid integer
+        // Additional validation using our utility for business rules
         ValidationUtils.validateVotingRoundId(votingRoundId);
 
-        // Validate feed requests
+        // Validate feed requests - this will throw BadRequestException for invalid input
         this.validateFeedRequest(body);
 
         // Try to get cached historical data first with retry logic
@@ -115,59 +164,20 @@ export class FeedController extends BaseController {
           data: values,
         };
       },
-      `getFeedValues(${votingRoundId})`,
+      "getFeedValues",
       "POST",
       `/feed-values/${votingRoundId}`,
       {
         body,
-        useStandardizedErrorHandling: true,
-        useRetryLogic: false, // Already using specific retry logic above
+        useStandardizedErrorHandling: false,
+        useRetryLogic: false,
       }
     );
   }
 
-  @Post("feed-values/")
-  @ApiOperation({
-    summary: "Get current feed values",
-    description: "Returns real-time feed values with sub-100ms response time and 1-second cache TTL",
-  })
-  @ApiResponse({ status: 200, description: "Current feed values retrieved successfully" })
-  @ApiResponse({ status: 400, description: "Invalid feed request" })
-  @ApiResponse({ status: 500, description: "Internal server error" })
-  async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
-    return this.handleControllerOperation(
-      async () => {
-        // Validate feed requests
-        this.validateFeedRequest(body);
-
-        // Get real-time data with caching and retry logic
-        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(body.feeds), {
-          operationName: "getRealTimeFeedValues",
-          serviceType: "external-api",
-          endpoint: "getCurrentFeedValues",
-          retryConfig: { maxRetries: 2, initialDelayMs: 500 },
-        });
-
-        this.logger.log(`Current feed values: ${values.length} feeds`, {
-          feedCount: values.length,
-        });
-
-        return {
-          data: values,
-        };
-      },
-      "getCurrentFeedValues",
-      "POST",
-      "/feed-values/",
-      {
-        body,
-        useStandardizedErrorHandling: true,
-        useRetryLogic: false, // Using specific retry logic above
-      }
-    );
-  }
-
-  @Post("volumes/")
+  @Post("volumes")
+  @HttpCode(200)
+  @Header("Content-Type", "application/json")
   @ApiOperation({
     summary: "Get feed volumes",
     description: "Returns volume data with USDT to USD conversion and optimized CCXT volume processing",
@@ -181,7 +191,7 @@ export class FeedController extends BaseController {
   ): Promise<FeedVolumesResponse> {
     return this.handleControllerOperation(
       async () => {
-        // Validate volume request
+        // Validate volume request - this will throw BadRequestException for invalid input
         this.validateVolumeRequest(body, windowSec);
 
         // Get volumes with USDT conversion using existing CCXT processing with retry logic
@@ -202,13 +212,13 @@ export class FeedController extends BaseController {
           windowSec,
         };
       },
-      `getFeedVolumes(window=${windowSec})`,
+      "getFeedVolumes",
       "POST",
-      `/volumes/?window=${windowSec}`,
+      "/volumes",
       {
-        body,
-        useStandardizedErrorHandling: true,
-        useRetryLogic: false, // Using specific retry logic above
+        body: { ...body, windowSec },
+        useStandardizedErrorHandling: false,
+        useRetryLogic: false,
       }
     );
   }
@@ -217,6 +227,7 @@ export class FeedController extends BaseController {
 
   private validateFeedRequest(body: FeedValuesRequest): void {
     // Use enhanced validation for FTSO API compliance
+    // ValidationUtils now includes timestamps automatically
     ValidationUtils.validateFeedValuesRequest(body);
   }
 
@@ -235,18 +246,18 @@ export class FeedController extends BaseController {
   }
 
   private async getRealTimeFeedValues(feeds: FeedId[]): Promise<FeedValueData[]> {
-    const startTime = performance.now();
+    this.startTimer("getRealTimeFeedValues");
 
     // Process feeds in parallel for better performance
     const feedPromises = feeds.map(async feed => {
-      const feedStartTime = performance.now();
+      this.startTimer(`feed_${feed.name}`);
 
       try {
         // Check cache first (1-second TTL)
         const cachedPrice = this.cacheService.getPrice(feed);
 
         if (cachedPrice && this.isFreshData(cachedPrice.timestamp)) {
-          const responseTime = performance.now() - feedStartTime;
+          const responseTime = this.endTimer(`feed_${feed.name}`);
           this.logger.debug(`Cache hit for ${feed.name}: ${responseTime.toFixed(2)}ms`);
 
           return {
@@ -278,15 +289,27 @@ export class FeedController extends BaseController {
             confidence: aggregatedPrice.confidence,
           });
 
-          const responseTime = performance.now() - feedStartTime;
+          const responseTime = this.endTimer(`feed_${feed.name}`);
           this.logger.debug(`Aggregated price for ${feed.name}: ${responseTime.toFixed(2)}ms`);
 
           return result;
         } else {
           // Fallback to provider service
           const fallbackResult = await this.providerService.getValue(feed);
-          const responseTime = performance.now() - feedStartTime;
+          const responseTime = this.endTimer(`feed_${feed.name}`);
           this.logger.debug(`Fallback service for ${feed.name}: ${responseTime.toFixed(2)}ms`);
+
+          if (!fallbackResult) {
+            // Return error result if fallback service also fails
+            return {
+              feed,
+              error: {
+                code: "FEED_NOT_FOUND",
+                message: `Unable to retrieve data for feed: ${JSON.stringify(feed)}`,
+                timestamp: Date.now(),
+              },
+            };
+          }
 
           return {
             ...fallbackResult,
@@ -296,7 +319,7 @@ export class FeedController extends BaseController {
           };
         }
       } catch (error) {
-        const responseTime = performance.now() - feedStartTime;
+        const responseTime = this.endTimer(`feed_${feed.name}`);
         this.logger.error(
           `Error getting real-time value for feed ${JSON.stringify(feed)} (${responseTime.toFixed(2)}ms):`,
           error
@@ -306,6 +329,10 @@ export class FeedController extends BaseController {
         try {
           const fallbackResult = await this.providerService.getValue(feed);
           this.logger.warn(`Used fallback service for failed feed ${feed.name}`);
+
+          if (!fallbackResult) {
+            throw new Error("Fallback service returned undefined");
+          }
 
           return {
             ...fallbackResult,
@@ -359,7 +386,7 @@ export class FeedController extends BaseController {
       });
 
       // Log performance metrics
-      const totalResponseTime = performance.now() - startTime;
+      const totalResponseTime = this.endTimer("getRealTimeFeedValues");
       this.logger.log(
         `Processed ${feeds.length} feeds in ${totalResponseTime.toFixed(2)}ms (${successfulResults.length} successful, ${failedFeeds.length} failed)`
       );
@@ -388,7 +415,7 @@ export class FeedController extends BaseController {
 
       return successfulResults;
     } catch (error) {
-      const totalResponseTime = performance.now() - startTime;
+      const totalResponseTime = this.endTimer("getRealTimeFeedValues");
       this.logger.error(`Critical error processing feeds (${totalResponseTime.toFixed(2)}ms):`, error);
 
       if (error instanceof HttpException) {

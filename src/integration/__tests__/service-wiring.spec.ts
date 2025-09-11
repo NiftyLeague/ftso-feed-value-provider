@@ -52,7 +52,7 @@ describe("Service Wiring Integration", () => {
       emit: jest.fn(),
       on: jest.fn(),
       subscribeToFeed: jest.fn(),
-      cleanupForTests: jest.fn(),
+      cleanup: jest.fn(),
     };
 
     const mockAggregationService = {
@@ -196,8 +196,8 @@ describe("Service Wiring Integration", () => {
 
   afterEach(async () => {
     // Clean up services
-    if (dataManager && dataManager.cleanupForTests) {
-      dataManager.cleanupForTests();
+    if (dataManager && dataManager.cleanup) {
+      await dataManager.cleanup();
     }
 
     await module.close();

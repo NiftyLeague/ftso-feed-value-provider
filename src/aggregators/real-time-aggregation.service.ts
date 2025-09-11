@@ -1,11 +1,9 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
 import { ConfigService } from "@/config/config.service";
-
+import { EventDrivenService } from "@/common/base";
 import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
-import type { AggregatedPrice, QualityMetrics } from "@/common/types/services";
-import type { ServicePerformanceMetrics, ServiceHealthStatus } from "@/common/types/services";
-import type { HealthCheckResult, HealthStatusType } from "@/common/types/monitoring";
+import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
+import type { ServicePerformanceMetrics } from "@/common/types/services";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
 
@@ -32,7 +30,10 @@ export interface AggregationCacheStats {
   averageAge: number;
 }
 
-export interface RealTimeAggregationConfig {
+/**
+ * Configuration interface for RealTimeAggregationService
+ */
+export interface RealTimeAggregationConfig extends BaseServiceConfig {
   cacheTTLMs: number; // Maximum 1-second TTL for price data
   maxCacheSize: number; // LRU cache size limit
   aggregationIntervalMs: number; // How often to recalculate prices
@@ -48,17 +49,9 @@ export interface PriceSubscription {
 
 @Injectable()
 export class RealTimeAggregationService
-  extends BaseEventService
+  extends EventDrivenService
   implements OnModuleInit, OnModuleDestroy, IAggregationService
 {
-  private readonly config: RealTimeAggregationConfig = {
-    cacheTTLMs: 500, // 0.5-second TTL for maximum performance
-    maxCacheSize: 1000, // Store up to 1000 feed prices
-    aggregationIntervalMs: 50, // Faster recalculation for better responsiveness
-    qualityMetricsEnabled: true,
-    performanceTargetMs: 80, // Aggressive response time target
-  };
-
   // Real-time cache with 1-second TTL
   private readonly cache = new Map<string, CacheEntry>();
   private readonly cacheAccessOrder = new Map<string, number>(); // For LRU eviction
@@ -76,8 +69,6 @@ export class RealTimeAggregationService
   // Enhanced performance tracking
   private readonly performanceMetrics = new Map<string, number[]>();
   private readonly operationTimers = new Map<string, number>();
-  private aggregationInterval?: NodeJS.Timeout;
-  private cacheCleanupInterval?: NodeJS.Timeout;
 
   // Performance optimization features
   private readonly batchProcessor = new Map<string, PriceUpdate[]>();
@@ -89,17 +80,31 @@ export class RealTimeAggregationService
     private readonly consensusAggregator: ConsensusAggregator,
     private readonly configService: ConfigService
   ) {
-    super("RealTimeAggregation", true); // Needs enhanced logging for performance tracking and data flow
+    super({
+      useEnhancedLogging: true,
+      cacheTTLMs: 500, // 0.5-second TTL for maximum performance
+      maxCacheSize: 1000, // Store up to 1000 feed prices
+      aggregationIntervalMs: 50, // Faster recalculation for better responsiveness
+      qualityMetricsEnabled: true,
+      performanceTargetMs: 80, // Aggressive response time target
+    });
   }
 
-  async onModuleInit() {
+  /**
+   * Get the typed configuration for this service
+   */
+  private get aggregationConfig(): RealTimeAggregationConfig {
+    return this.config as RealTimeAggregationConfig;
+  }
+
+  override async initialize(): Promise<void> {
     this.startRealTimeAggregation();
     this.startCacheCleanup();
     this.startBatchProcessing();
     this.logger.log("Optimized real-time aggregation service initialized");
   }
 
-  async onModuleDestroy() {
+  override async cleanup(): Promise<void> {
     this.stopRealTimeAggregation();
     this.stopCacheCleanup();
     this.stopBatchProcessing();
@@ -114,10 +119,7 @@ export class RealTimeAggregationService
     const operationId = `aggregate_${feedId.name}_${Date.now()}`;
     const feedKey = this.getFeedKey(feedId);
 
-    this.startPerformanceTimer(operationId, "get_aggregated_price", {
-      feedId: feedId.name,
-      category: feedId.category,
-    });
+    this.startTimer(operationId);
 
     try {
       // Check cache first (with 1-second TTL)
@@ -131,10 +133,7 @@ export class RealTimeAggregationService
           sources: cachedEntry.sources.length,
         });
 
-        this.endPerformanceTimer(operationId, true, {
-          cacheHit: true,
-          price: cachedEntry.value.price,
-        });
+        this.endTimer(operationId);
 
         return cachedEntry.value;
       }
@@ -151,7 +150,7 @@ export class RealTimeAggregationService
           metadata: { availableUpdates: 0 },
         });
 
-        this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: "no_updates_available" });
+        this.endTimer(operationId);
         return null;
       }
 
@@ -175,14 +174,14 @@ export class RealTimeAggregationService
       const responseTime = startTime ? performance.now() - startTime : 0;
 
       // Log performance warning if exceeding target
-      if (responseTime > this.config.performanceTargetMs) {
+      if (responseTime > this.aggregationConfig.performanceTargetMs) {
         this.enhancedLogger?.warn(`Aggregation performance threshold exceeded`, {
           component: "RealTimeAggregation",
           operation: "get_aggregated_price",
           symbol: feedId.name,
           metadata: {
             responseTime: responseTime.toFixed(2),
-            target: this.config.performanceTargetMs,
+            target: this.aggregationConfig.performanceTargetMs,
             sourceCount: updates.length,
             price: aggregatedPrice.price,
           },
@@ -193,11 +192,7 @@ export class RealTimeAggregationService
       const recordedTime = Math.max(responseTime, 0.01); // Minimum 0.01ms
       this.recordPerformance(feedKey, recordedTime);
 
-      this.enhancedLogger?.endPerformanceTimer(operationId, true, {
-        price: aggregatedPrice.price,
-        sourceCount: updates.length,
-        confidence: aggregatedPrice.confidence,
-      });
+      this.endTimer(operationId);
 
       return aggregatedPrice;
     } catch (error) {
@@ -216,7 +211,7 @@ export class RealTimeAggregationService
       // Emit error event for error handling services
       this.emit("error", err);
 
-      this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: err.message });
+      this.endTimer(operationId);
       return null;
     }
   }
@@ -447,11 +442,7 @@ export class RealTimeAggregationService
    */
   async processPriceUpdate(update: PriceUpdate): Promise<void> {
     const operationId = `process_update_${update.symbol}_${Date.now()}`;
-    this.enhancedLogger?.startPerformanceTimer(operationId, "process_price_update", "RealTimeAggregation", {
-      symbol: update.symbol,
-      source: update.source,
-      price: update.price,
-    });
+    this.startTimer(operationId);
 
     try {
       // Get feed ID from configuration
@@ -502,10 +493,7 @@ export class RealTimeAggregationService
           },
         });
 
-        this.enhancedLogger?.endPerformanceTimer(operationId, true, {
-          aggregatedPrice: aggregatedPrice.price,
-          sourceCount: aggregatedPrice.sources.length,
-        });
+        this.endTimer(operationId);
       } else {
         this.enhancedLogger?.warn(`Failed to generate aggregated price for ${update.symbol}`, {
           component: "RealTimeAggregation",
@@ -518,9 +506,7 @@ export class RealTimeAggregationService
           },
         });
 
-        this.enhancedLogger?.endPerformanceTimer(operationId, false, {
-          error: "no_aggregated_price_generated",
-        });
+        this.endTimer(operationId);
       }
     } catch (error) {
       const err = error as Error;
@@ -540,20 +526,20 @@ export class RealTimeAggregationService
       // Emit error event for error handling services
       this.emit("error", err);
 
-      this.enhancedLogger?.endPerformanceTimer(operationId, false, { error: err.message });
+      this.endTimer(operationId);
       throw err;
     }
   }
 
   /**
-   * Emit events (uses BaseEventService implementation)
+   * Emit events (uses EventDrivenService implementation)
    */
   override emit(event: string | symbol, ...args: unknown[]): boolean {
     return super.emit(event, ...args);
   }
 
   /**
-   * Listen for events (uses BaseEventService implementation)
+   * Listen for events (uses EventDrivenService implementation)
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   override on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -592,13 +578,13 @@ export class RealTimeAggregationService
     const entry: CacheEntry = {
       value: price,
       timestamp: now,
-      ttl: this.config.cacheTTLMs,
+      ttl: this.aggregationConfig.cacheTTLMs,
       sources: price.sources,
       confidence: price.confidence,
     };
 
     // Check cache size limit and evict LRU if necessary
-    if (this.cache.size >= this.config.maxCacheSize) {
+    if (this.cache.size >= this.aggregationConfig.maxCacheSize) {
       this.evictLRU();
     }
 
@@ -687,32 +673,26 @@ export class RealTimeAggregationService
   }
 
   private startRealTimeAggregation(): void {
-    this.aggregationInterval = setInterval(() => {
+    this.createInterval(() => {
       // Continuous recalculation happens on-demand via getAggregatedPrice
       // This interval is for cleanup and maintenance
       this.performMaintenance();
-    }, this.config.aggregationIntervalMs);
+    }, this.aggregationConfig.aggregationIntervalMs);
   }
 
   private stopRealTimeAggregation(): void {
-    if (this.aggregationInterval) {
-      clearInterval(this.aggregationInterval);
-      this.aggregationInterval = undefined;
-    }
+    // Managed intervals are automatically cleaned up by lifecycle mixin
   }
 
   private startCacheCleanup(): void {
-    // Clean up expired cache entries every 5 seconds
-    this.cacheCleanupInterval = setInterval(() => {
+    // Clean up expired cache entries every 5 seconds using managed interval
+    this.createInterval(() => {
       this.cleanupExpiredCache();
     }, 5000);
   }
 
   private stopCacheCleanup(): void {
-    if (this.cacheCleanupInterval) {
-      clearInterval(this.cacheCleanupInterval);
-      this.cacheCleanupInterval = undefined;
-    }
+    // Managed intervals are automatically cleaned up by lifecycle mixin
   }
 
   private cleanupExpiredCache(): void {
@@ -769,7 +749,7 @@ export class RealTimeAggregationService
    * Start batch processing for improved performance
    */
   private startBatchProcessing(): void {
-    this.batchProcessingInterval = setInterval(() => {
+    this.batchProcessingInterval = this.createInterval(() => {
       void this.processBatchedUpdates();
     }, 100); // Process batches every 100ms
   }
@@ -778,10 +758,8 @@ export class RealTimeAggregationService
    * Stop batch processing
    */
   private stopBatchProcessing(): void {
-    if (this.batchProcessingInterval) {
-      clearInterval(this.batchProcessingInterval);
-      this.batchProcessingInterval = undefined;
-    }
+    // Managed intervals are automatically cleaned up by lifecycle mixin
+    this.batchProcessingInterval = undefined;
   }
 
   /**
@@ -883,18 +861,18 @@ export class RealTimeAggregationService
 
     // If processing is taking too long, increase interval
     if (avgProcessingTime > 50 && feedCount > 10) {
-      // Increase interval slightly
+      // Increase interval slightly - clear managed interval and create new one
       if (this.batchProcessingInterval) {
-        clearInterval(this.batchProcessingInterval);
-        this.batchProcessingInterval = setInterval(() => {
+        this.clearInterval(this.batchProcessingInterval);
+        this.batchProcessingInterval = this.createInterval(() => {
           void this.processBatchedUpdates();
         }, 150); // Slower processing for heavy loads
       }
     } else if (avgProcessingTime < 20 && feedCount < 5) {
-      // Decrease interval for faster processing
+      // Decrease interval for faster processing - clear managed interval and create new one
       if (this.batchProcessingInterval) {
-        clearInterval(this.batchProcessingInterval);
-        this.batchProcessingInterval = setInterval(() => {
+        this.clearInterval(this.batchProcessingInterval);
+        this.batchProcessingInterval = this.createInterval(() => {
           void this.processBatchedUpdates();
         }, 75); // Faster processing for light loads
       }
@@ -962,8 +940,9 @@ export class RealTimeAggregationService
 
     if (metrics.cacheOptimization < 0.85) {
       // Increase cache size for better hit rates
-      this.config.maxCacheSize = Math.min(this.config.maxCacheSize * 1.3, 10000);
-      this.logger.log(`Increased cache size to ${this.config.maxCacheSize} for better hit rates`);
+      const newMaxCacheSize = Math.min(this.aggregationConfig.maxCacheSize * 1.3, 10000);
+      this.updateConfig({ maxCacheSize: newMaxCacheSize });
+      this.logger.log(`Increased cache size to ${newMaxCacheSize} for better hit rates`);
     }
 
     if (metrics.batchEfficiency < 0.7) {
@@ -1018,54 +997,6 @@ export class RealTimeAggregationService
       },
       requestsPerSecond,
       errorRate: 0, // Mock value - should be calculated from actual error metrics
-    };
-  }
-
-  async getHealthStatus(): Promise<ServiceHealthStatus> {
-    const activeFeedCount = this.getActiveFeedCount();
-    const cacheStats = this.getCacheStats();
-    const now = Date.now();
-
-    // Create health check results for each component
-    const cacheHealth: HealthCheckResult = {
-      isHealthy: cacheStats.hitRate >= 0.8,
-      timestamp: now,
-      details: {
-        component: "cache",
-        status: cacheStats.hitRate >= 0.8 ? "healthy" : "degraded",
-        timestamp: now,
-        metrics: {
-          uptime: process.uptime() * 1000, // Convert to milliseconds
-          memoryUsage: process.memoryUsage().heapUsed / (1024 * 1024), // Convert to MB
-          cpuUsage: 0, // This would require actual CPU usage monitoring
-          connectionCount: 0, // This would require actual connection tracking
-        },
-      },
-    };
-
-    const subscriptionHealth: HealthCheckResult = {
-      isHealthy: activeFeedCount > 0,
-      timestamp: now,
-      details: {
-        component: "subscriptions",
-        status: activeFeedCount > 0 ? "healthy" : "unhealthy",
-        timestamp: now,
-        connections: activeFeedCount,
-      },
-    };
-
-    // Determine overall status
-    let status: HealthStatusType = "healthy";
-    if (activeFeedCount === 0) {
-      status = "unhealthy";
-    } else if (cacheStats.hitRate < 0.8) {
-      status = "degraded";
-    }
-
-    return {
-      status,
-      timestamp: now,
-      details: [cacheHealth, subscriptionHealth],
     };
   }
 }

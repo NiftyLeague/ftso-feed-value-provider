@@ -1,5 +1,5 @@
-import { EnhancedFeedId } from "../core/feed.types";
-import { IBaseService } from "../services/base.types";
+import type { EnhancedFeedId } from "../core/feed.types";
+import type { IBaseService, BaseServiceConfig } from "../services/base.types";
 
 /**
  * Defines the structure for a single cache entry, representing the data stored for a feed.
@@ -25,7 +25,7 @@ export interface CacheItem {
 /**
  * Configuration for the real-time cache, specifying its behavior and limits.
  */
-export interface CacheConfig {
+export interface CacheConfig extends BaseServiceConfig {
   enabled: boolean;
   ttl: number; // Time-to-live in milliseconds
   maxSize: number; // Maximum number of entries

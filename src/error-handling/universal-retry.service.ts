@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { retryWithBackoff, isRetryableError } from "@/common/utils/error.utils";
 import type { RetryConfig } from "@/common/types/error-handling";
@@ -19,12 +19,12 @@ type RetryStatistics = {
  * with exponential backoff for all external calls
  */
 @Injectable()
-export class UniversalRetryService extends BaseEventService {
+export class UniversalRetryService extends EventDrivenService {
   private readonly retryConfigs = new Map<string, RetryConfig>();
   private readonly retryStats = new Map<string, RetryStatistics>();
 
   constructor(private readonly circuitBreaker: CircuitBreakerService) {
-    super("UniversalRetryService");
+    super();
     this.initializeDefaultConfigs();
   }
 

@@ -51,9 +51,11 @@ describe("WebSocketConnectionManager", () => {
 
   beforeEach(async () => {
     // Use a random port for each test to avoid conflicts
-    testPort = 8000 + Math.floor(Math.random() * 1000);
+    testPort = 8000 + Math.floor(Math.random() * 50000);
     mockServer = new MockWebSocketServer(testPort);
 
+    // Wait to ensure server is closed from previous test
+    await TestHelpers.wait(100);
     const module: TestingModule = await Test.createTestingModule({
       providers: [WebSocketConnectionManager],
     }).compile();
@@ -75,9 +77,9 @@ describe("WebSocketConnectionManager", () => {
       }
     }
 
-    // Close mock server
+    // Close mock server and wait for cleanup
     await mockServer.close();
-    await TestHelpers.wait(100);
+    await TestHelpers.wait(200);
   });
 
   it("should be defined", () => {
@@ -173,7 +175,7 @@ describe("WebSocketConnectionManager", () => {
 
     it("should send messages successfully", async () => {
       const message = JSON.stringify({ type: "test", data: "hello" });
-      const result = connectionManager.sendMessage(connectionId, message);
+      const result = await connectionManager.sendMessage(connectionId, message);
 
       expect(result).toBe(true);
 
@@ -355,8 +357,8 @@ describe("WebSocketConnectionManager", () => {
       await TestHelpers.waitFor(() => connectionManager.isConnected(connectionId), 2000);
 
       // Send some messages
-      connectionManager.sendMessage(connectionId, "test message 1");
-      connectionManager.sendMessage(connectionId, "test message 2");
+      await connectionManager.sendMessage(connectionId, "test message 1");
+      await connectionManager.sendMessage(connectionId, "test message 2");
 
       // Receive some messages
       mockServer.broadcast("server message 1");

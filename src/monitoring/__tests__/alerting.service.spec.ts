@@ -1,5 +1,4 @@
 import axios from "axios";
-import { Test, TestingModule } from "@nestjs/testing";
 import { type MonitoringConfig, AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import { AlertingService } from "../alerting.service";
 
@@ -107,11 +106,8 @@ describe("AlertingService", () => {
       },
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [AlertingService, { provide: "MonitoringConfig", useValue: mockConfig }],
-    }).compile();
-
-    service = module.get<AlertingService>(AlertingService);
+    // Create service directly with alerting config
+    service = new AlertingService(mockConfig.alerting);
 
     // Clear any existing alerts
     jest.clearAllMocks();
@@ -193,7 +189,7 @@ describe("AlertingService", () => {
       mockConfig.alerting.maxAlertsPerHour = 1;
 
       // Create new service instance with updated config
-      const testService = new AlertingService(mockConfig);
+      const testService = new AlertingService(mockConfig.alerting);
 
       // Spy on the enhancedLogger since that's what the service uses for rate limiting
       const rateLimitSpy = jest.spyOn(testService["enhancedLogger"] || testService["logger"], "warn");

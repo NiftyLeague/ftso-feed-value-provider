@@ -9,5 +9,6 @@
 export * from "./aggregation.types";
 export * from "./base.types";
 export * from "./configuration.types";
+export * from "./mixins";
 export * from "./provider.types";
 export * from "./startup.types";

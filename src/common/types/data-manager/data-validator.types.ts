@@ -2,10 +2,10 @@
  * Data manager validation type definitions
  */
 
-import { EnhancedFeedId, PriceUpdate } from "../core";
-import { DataValidationError, ValidationErrorType } from "../error-handling";
-import { IBaseService } from "../services/base.types";
-import { ValidationResult } from "../utils";
+import type { EnhancedFeedId, PriceUpdate } from "../core";
+import type { DataValidationError, ValidationErrorType } from "../error-handling";
+import type { IBaseService, BaseServiceConfig } from "../services/base.types";
+import type { ValidationResult } from "../utils";
 
 /**
  * Defines the context for a validation operation.
@@ -36,7 +36,7 @@ export interface ValidationStats {
 /**
  * Configuration for the validation service.
  */
-export interface DataValidatorConfig {
+export interface DataValidatorConfig extends BaseServiceConfig {
   consensusWeight: number;
   crossSourceWindow: number;
   enableBatchValidation: boolean;

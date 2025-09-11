@@ -113,7 +113,7 @@ describe("FailoverManager", () => {
 
       manager.registerDataSource(mockSource);
 
-      const healthStatus = manager.getHealthStatus();
+      const healthStatus = manager.getSourceHealthStatus();
       expect(healthStatus.has("test-source-1")).toBe(true);
       expect(healthStatus.get("test-source-1")?.isHealthy).toBe(true);
     });
@@ -124,7 +124,7 @@ describe("FailoverManager", () => {
       manager.registerDataSource(mockSource);
       manager.unregisterDataSource("test-source-1");
 
-      const healthStatus = manager.getHealthStatus();
+      const healthStatus = manager.getSourceHealthStatus();
       expect(healthStatus.has("test-source-1")).toBe(false);
     });
   });
@@ -387,7 +387,7 @@ describe("FailoverManager", () => {
     });
 
     it("should track source health correctly", () => {
-      const healthStatus = manager.getHealthStatus();
+      const healthStatus = manager.getSourceHealthStatus();
 
       expect(healthStatus.size).toBe(2);
       expect(healthStatus.get("binance")?.isHealthy).toBe(true);
@@ -398,7 +398,7 @@ describe("FailoverManager", () => {
       // Simulate connection failure
       mockSources[0].simulateConnection(false);
 
-      const healthStatus = manager.getHealthStatus();
+      const healthStatus = manager.getSourceHealthStatus();
       const binanceHealth = healthStatus.get("binance");
 
       expect(binanceHealth?.consecutiveFailures).toBeGreaterThan(0);
@@ -410,7 +410,7 @@ describe("FailoverManager", () => {
         mockSources[0].simulateConnection(false);
       }
 
-      const healthStatus = manager.getHealthStatus();
+      const healthStatus = manager.getSourceHealthStatus();
       expect(healthStatus.get("binance")?.isHealthy).toBe(false);
     });
 
@@ -425,7 +425,7 @@ describe("FailoverManager", () => {
         mockSources[0].simulateConnection(true);
       }
 
-      const healthStatus = manager.getHealthStatus();
+      const healthStatus = manager.getSourceHealthStatus();
       expect(healthStatus.get("binance")?.isHealthy).toBe(true);
     });
   });

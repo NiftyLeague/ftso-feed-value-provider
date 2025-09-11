@@ -1,28 +1,33 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import { createTimer } from "@/common/utils/performance.utils";
 import { handleAsyncOperation } from "@/common/utils/http-response.utils";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import type { CircuitBreakerConfig, CircuitBreakerStats, CircuitBreakerMetrics } from "@/common/types/error-handling";
 
 @Injectable()
-export class CircuitBreakerService extends BaseEventService {
+export class CircuitBreakerService extends EventDrivenService {
   private circuits = new Map<string, CircuitBreakerState>();
   private configs = new Map<string, CircuitBreakerConfig>();
   private stats = new Map<string, CircuitBreakerStats>();
-  private timers = new Map<string, NodeJS.Timeout>();
+  private circuitTimers = new Map<string, NodeJS.Timeout>();
   private requestHistory = new Map<string, Array<{ timestamp: number; success: boolean; responseTime: number }>>();
 
-  private readonly defaultConfig: CircuitBreakerConfig = {
-    failureThreshold: 5, // Open after 5 failures
-    recoveryTimeout: 60000, // Wait 60 seconds before trying again
-    successThreshold: 3, // Need 3 successes to close circuit
-    timeout: 5000, // 5 second timeout
-    monitoringWindow: 300000, // 5 minute monitoring window
-  };
-
   constructor() {
-    super("CircuitBreakerService");
+    super({
+      failureThreshold: 5, // Open after 5 failures
+      recoveryTimeout: 60000, // Wait 60 seconds before trying again
+      successThreshold: 3, // Need 3 successes to close circuit
+      timeout: 5000, // 5 second timeout
+      monitoringWindow: 300000, // 5 minute monitoring window
+    });
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get circuitBreakerConfig(): CircuitBreakerConfig {
+    return this.config as CircuitBreakerConfig;
   }
 
   /**
@@ -31,7 +36,7 @@ export class CircuitBreakerService extends BaseEventService {
   registerCircuit(serviceId: string, config?: Partial<CircuitBreakerConfig>): void {
     this.logger.log(`Registering circuit breaker for service: ${serviceId}`);
 
-    const fullConfig = { ...this.defaultConfig, ...config };
+    const fullConfig = { ...this.circuitBreakerConfig, ...config };
     this.configs.set(serviceId, fullConfig);
     this.circuits.set(serviceId, CircuitBreakerState.CLOSED);
     this.requestHistory.set(serviceId, []);
@@ -107,9 +112,9 @@ export class CircuitBreakerService extends BaseEventService {
   }
 
   /**
-   * Get metrics for a circuit breaker
+   * Get metrics for a specific circuit breaker
    */
-  getMetrics(serviceId: string): CircuitBreakerMetrics | undefined {
+  getCircuitMetrics(serviceId: string): CircuitBreakerMetrics | undefined {
     const history = this.requestHistory.get(serviceId);
     const stats = this.stats.get(serviceId);
 
@@ -119,7 +124,7 @@ export class CircuitBreakerService extends BaseEventService {
 
     const now = Date.now();
     const config = this.configs.get(serviceId);
-    const windowStart = now - (config?.monitoringWindow || this.defaultConfig.monitoringWindow);
+    const windowStart = now - (config?.monitoringWindow || this.circuitBreakerConfig.monitoringWindow);
 
     // Filter requests within monitoring window
     const recentRequests = history.filter(req => req.timestamp >= windowStart);
@@ -141,6 +146,31 @@ export class CircuitBreakerService extends BaseEventService {
       failureRate: failures.length / recentRequests.length,
       averageResponseTime: totalResponseTime / recentRequests.length,
       lastStateChange: stats.uptime,
+    };
+  }
+
+  /**
+   * Override base getMetrics to provide circuit breaker overview metrics
+   */
+  override getMetrics(): Record<string, number> {
+    const baseMetrics = super.getMetrics();
+
+    // Add circuit breaker specific metrics
+    const circuitCount = this.circuits.size;
+    const openCircuits = Array.from(this.circuits.values()).filter(state => state === CircuitBreakerState.OPEN).length;
+    const halfOpenCircuits = Array.from(this.circuits.values()).filter(
+      state => state === CircuitBreakerState.HALF_OPEN
+    ).length;
+    const closedCircuits = Array.from(this.circuits.values()).filter(
+      state => state === CircuitBreakerState.CLOSED
+    ).length;
+
+    return {
+      ...baseMetrics,
+      total_circuits: circuitCount,
+      open_circuits: openCircuits,
+      half_open_circuits: halfOpenCircuits,
+      closed_circuits: closedCircuits,
     };
   }
 
@@ -218,10 +248,10 @@ export class CircuitBreakerService extends BaseEventService {
     this.logger.log(`Unregistering circuit breaker for service: ${serviceId}`);
 
     // Clear any pending timers
-    const timer = this.timers.get(serviceId);
+    const timer = this.circuitTimers.get(serviceId);
     if (timer) {
       clearTimeout(timer);
-      this.timers.delete(serviceId);
+      this.circuitTimers.delete(serviceId);
     }
 
     // Clean up all data
@@ -315,10 +345,10 @@ export class CircuitBreakerService extends BaseEventService {
     }
 
     // Clear any recovery timer
-    const timer = this.timers.get(serviceId);
+    const timer = this.circuitTimers.get(serviceId);
     if (timer) {
       clearTimeout(timer);
-      this.timers.delete(serviceId);
+      this.circuitTimers.delete(serviceId);
     }
 
     this.logger.log(`Circuit breaker CLOSED for service: ${serviceId}`);
@@ -341,7 +371,7 @@ export class CircuitBreakerService extends BaseEventService {
         this.transitionToHalfOpen(serviceId);
       }, config.recoveryTimeout);
 
-      this.timers.set(serviceId, timer);
+      this.circuitTimers.set(serviceId, timer);
     }
 
     this.logger.warn(`Circuit breaker OPENED for service: ${serviceId}`);
@@ -384,14 +414,14 @@ export class CircuitBreakerService extends BaseEventService {
    */
   destroy(): void {
     // Clear all timers
-    for (const timer of this.timers.values()) {
+    for (const timer of this.circuitTimers.values()) {
       clearTimeout(timer);
     }
 
     this.circuits.clear();
     this.configs.clear();
     this.stats.clear();
-    this.timers.clear();
+    this.circuitTimers.clear();
     this.requestHistory.clear();
   }
 }

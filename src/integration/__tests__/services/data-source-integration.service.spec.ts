@@ -26,7 +26,7 @@ describe("DataSourceIntegrationService", () => {
       getConnectedSources: jest.fn(),
       addDataSource: jest.fn(),
       removeDataSource: jest.fn(),
-      cleanupForTests: jest.fn(),
+      cleanup: jest.fn(),
       on: jest.fn(),
       emit: jest.fn(),
     };
@@ -332,7 +332,7 @@ describe("DataSourceIntegrationService", () => {
       expect(circuitBreaker.unregisterCircuit).toHaveBeenCalledWith("coinbase");
       expect(dataManager.removeDataSource).toHaveBeenCalledWith("binance");
       expect(dataManager.removeDataSource).toHaveBeenCalledWith("coinbase");
-      expect(dataManager.cleanupForTests).toHaveBeenCalled();
+      expect(dataManager.cleanup).toHaveBeenCalled();
     });
   });
 
@@ -408,7 +408,7 @@ describe("DataSourceIntegrationService", () => {
       expect(emitSpy).toHaveBeenCalledWith("priceUpdate", priceUpdate);
     });
 
-    it("should handle source errors correctly", () => {
+    it("should handle source errors correctly", async () => {
       // Arrange
       const sourceId = "binance";
       const error = new Error("Connection failed");
@@ -417,8 +417,11 @@ describe("DataSourceIntegrationService", () => {
       // Get the source error handler
       const sourceErrorHandler = dataManager.on.mock.calls.find(call => call[0] === "sourceError")?.[1];
 
-      // Act
+      // Act - wait for the async operation to complete
       sourceErrorHandler?.(sourceId, error);
+
+      // Wait a bit for any async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       // Assert
       expect(errorHandler.executeWithStandardizedHandling).toHaveBeenCalled();

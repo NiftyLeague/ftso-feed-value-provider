@@ -1,5 +1,5 @@
 import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { retryWithBackoff, isRetryableError } from "@/common/utils/error.utils";
 import type {
@@ -25,7 +25,7 @@ import {
  * - Comprehensive error logging and monitoring
  */
 @Injectable()
-export class StandardizedErrorHandlerService extends BaseEventService {
+export class StandardizedErrorHandlerService extends EventDrivenService {
   private readonly retryConfigs = new Map<string, RetryConfig>();
   private readonly errorStats = new Map<
     string,
@@ -38,7 +38,7 @@ export class StandardizedErrorHandlerService extends BaseEventService {
   >();
 
   constructor(private readonly circuitBreaker: CircuitBreakerService) {
-    super("StandardizedErrorHandlerService");
+    super();
     this.initializeDefaultConfigs();
   }
 

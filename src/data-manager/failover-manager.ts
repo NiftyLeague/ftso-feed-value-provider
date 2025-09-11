@@ -1,28 +1,30 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import type { DataSource, EnhancedFeedId } from "@/common/types/core";
 import type { FailoverConfig, SourceHealth, FailoverGroup } from "@/common/types/data-manager";
 
 @Injectable()
-export class FailoverManager extends BaseEventService {
+export class FailoverManager extends EventDrivenService {
   private dataSources = new Map<string, DataSource>();
   private sourceHealth = new Map<string, SourceHealth>();
   private failoverGroups = new Map<string, FailoverGroup>();
   private healthCheckTimer?: NodeJS.Timeout;
 
-  private readonly defaultConfig: FailoverConfig = {
-    maxFailoverTime: 100, // 100ms requirement for FTSO
-    healthCheckInterval: 5000, // 5 seconds
-    failureThreshold: 3,
-    recoveryThreshold: 5,
-  };
-
-  private config: FailoverConfig;
-
   constructor() {
-    super(FailoverManager.name);
-    this.config = { ...this.defaultConfig };
+    super({
+      maxFailoverTime: 100, // 100ms requirement for FTSO
+      healthCheckInterval: 5000, // 5 seconds
+      failureThreshold: 3,
+      recoveryThreshold: 5,
+    });
     this.startHealthMonitoring();
+  }
+
+  /**
+   * Get the typed configuration for this service
+   */
+  private get failoverConfig(): FailoverConfig {
+    return this.config as FailoverConfig;
   }
 
   // Register data sources for failover management
@@ -115,8 +117,8 @@ export class FailoverManager extends BaseEventService {
       const failoverTime = Date.now() - startTime;
       this.logger.log(`Failover completed in ${failoverTime}ms`);
 
-      if (failoverTime > this.config.maxFailoverTime) {
-        this.logger.warn(`Failover time ${failoverTime}ms exceeded target ${this.config.maxFailoverTime}ms`);
+      if (failoverTime > this.failoverConfig.maxFailoverTime) {
+        this.logger.warn(`Failover time ${failoverTime}ms exceeded target ${this.failoverConfig.maxFailoverTime}ms`);
       }
     } catch (error) {
       this.logger.error(`Failover failed for source ${sourceId}:`, error);
@@ -130,7 +132,7 @@ export class FailoverManager extends BaseEventService {
   }
 
   // Get health status for all sources
-  getHealthStatus(): Map<string, SourceHealth> {
+  getSourceHealthStatus(): Map<string, SourceHealth> {
     return new Map(this.sourceHealth);
   }
 
@@ -201,12 +203,17 @@ export class FailoverManager extends BaseEventService {
         // Subscribe backup source to the feed
         const source = this.dataSources.get(sourceId);
         if (source) {
-          try {
-            await source.subscribe([group.feedId.name]);
-            this.logger.log(`Activated backup source ${sourceId} for ${group.feedId.name}`);
-          } catch (error) {
-            this.logger.error(`Failed to activate backup source ${sourceId}:`, error);
-          }
+          await this.executeWithErrorHandling(
+            () => source.subscribe([group.feedId.name]),
+            `activate_backup_source_${sourceId}_${group.feedId.name}`,
+            {
+              retries: 2,
+              shouldThrow: false,
+              onError: error => {
+                this.logger.error(`Failed to activate backup source ${sourceId}:`, error);
+              },
+            }
+          );
         }
       }
     }
@@ -228,7 +235,7 @@ export class FailoverManager extends BaseEventService {
       health.consecutiveSuccesses = 0;
       health.lastFailure = Date.now();
 
-      if (health.consecutiveFailures >= this.config.failureThreshold) {
+      if (health.consecutiveFailures >= this.failoverConfig.failureThreshold) {
         health.isHealthy = false;
         this.triggerFailover(sourceId, "Connection lost").catch(error => {
           this.logger.error(`Failed to trigger failover for ${sourceId}:`, error);
@@ -237,7 +244,7 @@ export class FailoverManager extends BaseEventService {
     } else {
       health.consecutiveSuccesses++;
 
-      if (health.consecutiveSuccesses >= this.config.recoveryThreshold) {
+      if (health.consecutiveSuccesses >= this.failoverConfig.recoveryThreshold) {
         health.consecutiveFailures = 0;
         health.isHealthy = true;
         this.handleSourceRecovery(sourceId);
@@ -269,7 +276,14 @@ export class FailoverManager extends BaseEventService {
             // Unsubscribe backup source
             const backupSource = this.dataSources.get(backupId);
             if (backupSource) {
-              backupSource.unsubscribe([group.feedId.name]).catch(error => {
+              this.executeWithErrorHandling(
+                () => backupSource.unsubscribe([group.feedId.name]),
+                `deactivate_backup_source_${backupId}_${group.feedId.name}`,
+                {
+                  retries: 1,
+                  shouldThrow: false,
+                }
+              ).catch(error => {
                 this.logger.error(`Failed to unsubscribe backup source ${backupId}:`, error);
               });
             }
@@ -287,7 +301,7 @@ export class FailoverManager extends BaseEventService {
   private startHealthMonitoring(): void {
     this.healthCheckTimer = setInterval(() => {
       this.performHealthChecks();
-    }, this.config.healthCheckInterval);
+    }, this.failoverConfig.healthCheckInterval);
   }
 
   private performHealthChecks(): void {

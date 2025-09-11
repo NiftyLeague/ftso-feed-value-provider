@@ -33,7 +33,7 @@ describe("FTSO API Response Format Compliance", () => {
         .set("Content-Type", "application/json")
         .send(requestBody);
 
-      expect([200, 201]).toContain(response.status);
+      expect(response.status).toBe(200);
       expect(response.headers["content-type"]).toMatch(/application\/json/);
     });
 
@@ -78,7 +78,7 @@ describe("FTSO API Response Format Compliance", () => {
         ],
       };
 
-      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
 
       // Validate top-level structure
       expect(response.body).toHaveProperty("data");
@@ -111,7 +111,7 @@ describe("FTSO API Response Format Compliance", () => {
         ],
       };
 
-      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
 
       expect(response.body.data).toHaveLength(3);
       expect(response.body.data[0].feed.name).toBe("BTC/USD");
@@ -124,7 +124,7 @@ describe("FTSO API Response Format Compliance", () => {
         feeds: [{ category: 1, name: "BTC/USD" }],
       };
 
-      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
 
       expect(response.body.data).toHaveLength(1);
       expect(response.body.data[0].feed.category).toBe(1);
@@ -185,7 +185,7 @@ describe("FTSO API Response Format Compliance", () => {
         .post("/volumes")
         .query({ window: 3600 })
         .send(requestBody)
-        .expect(201);
+        .expect(200);
 
       // Validate top-level structure
       expect(response.body).toHaveProperty("data");
@@ -227,7 +227,7 @@ describe("FTSO API Response Format Compliance", () => {
         .post("/volumes")
         .query({ window: windowSec })
         .send(requestBody)
-        .expect(201);
+        .expect(200);
 
       expect(response.body.windowSec).toBe(windowSec);
       expect(Number.isInteger(response.body.windowSec)).toBe(true);
@@ -238,7 +238,7 @@ describe("FTSO API Response Format Compliance", () => {
         feeds: [{ category: 1, name: "BTC/USD" }],
       };
 
-      const response = await request(app.getHttpServer()).post("/volumes").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/volumes").send(requestBody).expect(200);
 
       expect(response.body).toHaveProperty("windowSec");
       expect(typeof response.body.windowSec).toBe("number");
@@ -312,7 +312,7 @@ describe("FTSO API Response Format Compliance", () => {
         feeds: [{ category: 1, name: "BTC/USD" }],
       };
 
-      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
 
       response.body.data.forEach((item: any) => {
         // Category should be integer
@@ -332,7 +332,7 @@ describe("FTSO API Response Format Compliance", () => {
         feeds: [{ category: 1, name: "BTC/USD" }],
       };
 
-      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
 
       response.body.data.forEach((item: any) => {
         // Name should be non-empty string
@@ -375,7 +375,7 @@ describe("FTSO API Response Format Compliance", () => {
         ],
       };
 
-      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(201);
+      const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody).expect(200);
 
       // All items should have identical structure
       const firstItem = response.body.data[0];

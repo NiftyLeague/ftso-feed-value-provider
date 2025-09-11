@@ -1,14 +1,14 @@
+import type { BaseServiceConfig } from "../services/base.types";
+
 /**
  * Rate limiting type definitions
  */
 
-export interface RateLimitConfig {
+export interface RateLimitConfig extends BaseServiceConfig {
   windowMs: number; // Time window in milliseconds
   maxRequests: number; // Maximum requests per window
   skipSuccessfulRequests?: boolean;
   skipFailedRequests?: boolean;
-  keyGenerator?: (req: unknown) => string;
-  onLimitReached?: (req: unknown) => void;
 }
 
 export interface RateLimitState {

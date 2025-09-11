@@ -45,8 +45,8 @@ describe("ValidationService", () => {
     dataValidator = mockDataValidator as any;
   });
 
-  afterEach(() => {
-    service.cleanupForTests();
+  afterEach(async () => {
+    await service.cleanup();
     // Restore console methods after each test
     jest.restoreAllMocks();
   });
@@ -190,12 +190,12 @@ describe("ValidationService", () => {
   });
 
   describe("Configuration", () => {
-    it("should work with custom configuration", () => {
+    it("should work with custom configuration", async () => {
       // Using default config; ensure service constructs successfully
 
       const customService = new ValidationService(dataValidator);
       expect(customService).toBeDefined();
-      customService.cleanupForTests(); // Clean up the custom service
+      await customService.cleanup(); // Clean up the custom service
     });
   });
 
@@ -271,7 +271,7 @@ describe("ValidationService", () => {
       expect(result.isValid).toBe(true);
       expect(result.confidence).toBe(mockUpdate.confidence);
 
-      disabledService.cleanupForTests(); // Clean up the disabled service
+      await disabledService.cleanup(); // Clean up the disabled service
     });
 
     it("should bypass batch validation when disabled", async () => {
@@ -286,7 +286,7 @@ describe("ValidationService", () => {
       const result = results.values().next().value as DataValidatorResult;
       expect(result.isValid).toBe(true);
 
-      disabledService.cleanupForTests(); // Clean up the disabled service
+      await disabledService.cleanup(); // Clean up the disabled service
     });
   });
 });

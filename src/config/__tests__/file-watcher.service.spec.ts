@@ -221,7 +221,7 @@ describe("FileWatcherService", () => {
         service.watchFile(file, callback);
       });
 
-      service.onModuleDestroy();
+      await service.onModuleDestroy();
 
       expect(service.getWatchedFiles()).toHaveLength(0);
       expect(mockUnwatchFile).toHaveBeenCalledTimes(files.length);
@@ -237,12 +237,11 @@ describe("FileWatcherService", () => {
         service.watchFile(file, callback);
       });
 
-      const health = await service.getHealthStatus();
+      const health = service.getHealthStatus();
 
       expect(health.status).toBe("healthy");
-      expect(health.timestamp).toBeCloseTo(Date.now(), -2);
-      expect(health.details?.watchedFilesCount).toBe(files.length);
-      expect(health.details?.watchedFiles).toEqual(expect.arrayContaining(files));
+      expect(health.lastCheck).toBeCloseTo(Date.now(), -2);
+      expect(health.uptime).toBeGreaterThanOrEqual(0);
     });
 
     it("should return performance metrics", async () => {

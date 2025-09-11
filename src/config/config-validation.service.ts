@@ -1,12 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 import { ConfigUtils } from "@/common/utils/config.utils";
 import type { ConfigValidationResult, EnvironmentConfiguration } from "@/common/types";
 
 @Injectable()
-export class ConfigValidationService extends BaseService {
+export class ConfigValidationService extends StandardService {
   constructor() {
-    super("ConfigValidationService");
+    super();
   }
 
   /**

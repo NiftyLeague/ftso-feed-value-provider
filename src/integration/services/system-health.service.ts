@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { BaseEventService } from "@/common/base/base-event.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 
 // Monitoring services
 import { AccuracyMonitorService } from "@/monitoring/accuracy-monitor.service";
@@ -18,7 +18,7 @@ import {
 import type { AccuracyAlertData } from "@/common/types/monitoring";
 
 @Injectable()
-export class SystemHealthService extends BaseEventService {
+export class SystemHealthService extends EventDrivenService {
   private sourceHealthMap = new Map<string, SourceHealthStatus>();
   private aggregationErrors: Error[] = [];
   private healthMetrics: DetailedSystemHealthMetrics;
@@ -27,7 +27,7 @@ export class SystemHealthService extends BaseEventService {
     private readonly accuracyMonitor: AccuracyMonitorService,
     private readonly alertingService: AlertingService
   ) {
-    super("SystemHealth", true); // Needs enhanced logging for performance tracking and critical operations
+    super({ useEnhancedLogging: true });
 
     this.healthMetrics = {
       status: "healthy",
@@ -48,9 +48,9 @@ export class SystemHealthService extends BaseEventService {
     };
   }
 
-  async initialize(): Promise<void> {
+  override async initialize(): Promise<void> {
     const operationId = `init_${Date.now()}`;
-    this.startPerformanceTimer(operationId, "system_health_initialization");
+    this.startTimer(operationId);
 
     try {
       this.logCriticalOperation("system_health_initialization", {
@@ -79,10 +79,10 @@ export class SystemHealthService extends BaseEventService {
         true
       );
 
-      this.endPerformanceTimer(operationId, true, { initialized: true });
+      this.endTimer(operationId);
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.endPerformanceTimer(operationId, false, { error: errObj.message });
+      this.endTimer(operationId);
       this.logError(errObj, "system_health_initialization", { severity: "critical" });
       throw error;
     }
@@ -219,8 +219,8 @@ export class SystemHealthService extends BaseEventService {
   }
 
   private startHealthMonitoring(): void {
-    // Start periodic health checks
-    setInterval(() => {
+    // Start periodic health checks using managed interval
+    this.createInterval(() => {
       this.performHealthCheck();
     }, 30000); // Every 30 seconds
 
@@ -267,6 +267,9 @@ export class SystemHealthService extends BaseEventService {
       const successRate =
         totalAggregations > 0 ? ((totalAggregations - this.aggregationErrors.length) / totalAggregations) * 100 : 100;
 
+      // Update monitoring mixin health status
+      this.setHealthStatus(overallStatus);
+
       this.healthMetrics = {
         status: overallStatus,
         timestamp: now,
@@ -296,8 +299,11 @@ export class SystemHealthService extends BaseEventService {
   private updateAggregationMetrics(success: boolean, error?: Error): void {
     try {
       if (!success && error) {
+        this.incrementCounter("aggregation_errors");
         this.healthMetrics.aggregation.errorCount++;
         this.healthMetrics.aggregation.lastError = error.message;
+      } else if (success) {
+        this.incrementCounter("aggregation_success");
       }
 
       // Recalculate success rate

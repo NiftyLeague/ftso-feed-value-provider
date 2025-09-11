@@ -1,14 +1,14 @@
 import { join } from "path";
 import { readFileSync } from "fs";
 import { Injectable } from "@nestjs/common";
-import { BaseService } from "@/common/base/base.service";
+import { StandardService } from "@/common/base/composed.service";
 
 import type { IConfigurationService } from "@/common/types/services";
 import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
 
 import { ConfigValidationService } from "./config-validation.service";
 import type { EnvironmentConfiguration, ConfigValidationResult } from "@/common/types";
-import type { HealthCheckResult } from "@/common/types/monitoring";
+
 import { FileWatcherService } from "./file-watcher.service";
 
 export interface AdapterMapping {
@@ -44,7 +44,7 @@ export interface RawFeedData {
 }
 
 @Injectable()
-export class ConfigService extends BaseService implements IConfigurationService {
+export class ConfigService extends StandardService implements IConfigurationService {
   private readonly adapterMappings: AdapterMapping;
   private feedConfigurations: FeedConfiguration[] = [];
   private environmentConfig: EnvironmentConfiguration;
@@ -53,7 +53,7 @@ export class ConfigService extends BaseService implements IConfigurationService 
   private fileWatcherService: FileWatcherService;
 
   constructor() {
-    super("ConfigService");
+    super();
     this.feedsFilePath = join(__dirname, "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
     this.configValidationService = new ConfigValidationService();
@@ -624,77 +624,5 @@ export class ConfigService extends BaseService implements IConfigurationService 
    */
   validateSources(sources: { exchange: string; symbol: string }[]) {
     return this.configValidationService.validateSources(sources, this.adapterMappings);
-  }
-
-  async getHealthStatus(): Promise<{
-    status: "healthy" | "degraded" | "unhealthy";
-    timestamp: number;
-    details?: HealthCheckResult[];
-  }> {
-    const validation = this.validateConfiguration();
-
-    let status: "healthy" | "degraded" | "unhealthy" = "healthy";
-
-    if (!validation.isValid) {
-      status = "unhealthy";
-    } else if (validation.warnings.length > 0) {
-      status = "degraded";
-    }
-
-    const timestamp = Date.now();
-    const details: HealthCheckResult[] = [];
-
-    // Environment validation result
-    details.push({
-      isHealthy: validation.isValid,
-      timestamp,
-      details: {
-        component: "configuration:environment",
-        status: validation.isValid ? "healthy" : "unhealthy",
-        timestamp,
-        metrics: {
-          uptime: process.uptime(),
-          memoryUsage: process.memoryUsage().rss,
-          cpuUsage: 0,
-          connectionCount: 0,
-        },
-      },
-    });
-
-    // Feeds validation summary
-    const feedCount = this.getFeedConfigurations().length;
-    details.push({
-      isHealthy: feedCount > 0,
-      timestamp,
-      details: {
-        component: "configuration:feeds",
-        status: feedCount > 0 ? "healthy" : "unhealthy",
-        timestamp,
-        metrics: {
-          uptime: process.uptime(),
-          memoryUsage: process.memoryUsage().rss,
-          cpuUsage: 0,
-          connectionCount: 0,
-        },
-      },
-    });
-
-    // File watcher health
-    const fileWatcherHealth = await this.fileWatcherService.getHealthStatus();
-    details.push({
-      isHealthy: fileWatcherHealth.status === "healthy",
-      timestamp,
-      details: {
-        component: "configuration:fileWatcher",
-        status: fileWatcherHealth.status,
-        timestamp,
-      },
-    });
-
-    return {
-      status,
-      timestamp,
-      details,
-    };
   }
 }

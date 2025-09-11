@@ -1,67 +1,43 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import type { MonitoringConfig } from "@/common/types/monitoring";
+import type { ThresholdsConfig } from "@/common/types/monitoring";
 import { AccuracyMonitorService } from "../accuracy-monitor.service";
 
 describe("AccuracyMonitorService", () => {
   let service: AccuracyMonitorService;
-  let mockConfig: MonitoringConfig;
+  let mockConfig: ThresholdsConfig;
 
   beforeEach(async () => {
     mockConfig = {
-      enabled: true,
-      interval: 1000,
-      thresholds: {
-        accuracy: {
-          warning: 0.5,
-          critical: 1,
-          maxDeviation: 1,
-          minParticipants: 3,
-          maxConsensusDeviation: 0.5, // 0.5% FTSO requirement
-          minAccuracyRate: 80, // 80% target
-          minQualityScore: 70,
-        },
-        performance: {
-          maxResponseLatency: 100,
-          maxDataAge: 2000,
-          minThroughput: 100,
-          minCacheHitRate: 80,
-        },
-        health: {
-          maxErrorRate: 5,
-          maxCpuUsage: 80,
-          maxMemoryUsage: 80,
-          minConnectionRate: 90,
-        },
+      accuracy: {
+        warning: 0.5,
+        critical: 1,
+        maxDeviation: 1,
+        minParticipants: 3,
+        maxConsensusDeviation: 0.5, // 0.5% FTSO requirement
+        minAccuracyRate: 80, // 80% target
+        minQualityScore: 70,
       },
-      alerting: {
-        enabled: true,
-        rules: [],
-        rateLimits: {
-          windowMs: 60_000,
-          maxRequests: 1000,
-        },
-        deliveryConfig: {
-          email: {
-            enabled: false,
-            subject: "FTSO Alerts",
-            from: "alerts@ftso.com",
-            to: ["admin@ftso.com"],
-          },
-          webhook: {
-            enabled: false,
-            url: "",
-            method: "POST",
-            headers: {},
-            timeout: 5000,
-          },
-        },
-        maxAlertsPerHour: 10,
-        alertRetention: 30,
+      performance: {
+        maxResponseLatency: 100,
+        maxDataAge: 2000,
+        minThroughput: 100,
+        minCacheHitRate: 80,
+      },
+      health: {
+        maxErrorRate: 5,
+        maxCpuUsage: 80,
+        maxMemoryUsage: 80,
+        minConnectionRate: 90,
       },
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AccuracyMonitorService, { provide: "MonitoringConfig", useValue: mockConfig }],
+      providers: [
+        {
+          provide: AccuracyMonitorService,
+          useFactory: () => new AccuracyMonitorService(mockConfig),
+        },
+      ],
     }).compile();
 
     service = module.get<AccuracyMonitorService>(AccuracyMonitorService);
