@@ -9,7 +9,7 @@ export enum FeedCategory {
   Stock = 4,
 }
 
-export interface EnhancedFeedId {
+export interface CoreFeedId {
   category: FeedCategory;
   name: string;
 }
@@ -18,7 +18,7 @@ export function isValidFeedCategory(category: number): category is FeedCategory 
   return Object.values(FeedCategory).includes(category);
 }
 
-export function isValidFeedId(feedId: unknown): feedId is EnhancedFeedId {
+export function isValidCoreFeedId(feedId: unknown): feedId is CoreFeedId {
   return (
     feedId !== null &&
     typeof feedId === "object" &&

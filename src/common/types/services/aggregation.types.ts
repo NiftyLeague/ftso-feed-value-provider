@@ -2,7 +2,7 @@
  * Aggregation service type definitions
  */
 
-import { EnhancedFeedId } from "../core/feed.types";
+import { CoreFeedId } from "../core/feed.types";
 import { PriceUpdate } from "../core/data-source.types";
 import { IBaseService } from "./base.types";
 
@@ -35,8 +35,8 @@ export interface AggregationConfig {
 }
 
 export interface PriceAggregator {
-  aggregate(feedId: EnhancedFeedId, updates: PriceUpdate[]): Promise<AggregatedPrice>;
-  getQualityMetrics(feedId: EnhancedFeedId): Promise<QualityMetrics>;
+  aggregate(feedId: CoreFeedId, updates: PriceUpdate[]): Promise<AggregatedPrice>;
+  getQualityMetrics(feedId: CoreFeedId): Promise<QualityMetrics>;
   validateUpdate(update: PriceUpdate): boolean;
 }
 
@@ -51,14 +51,14 @@ export interface IAggregationService extends IBaseService {
    * @param feedId - Enhanced feed identifier
    * @returns Promise resolving to aggregated price or null if unavailable
    */
-  getAggregatedPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice | null>;
+  getAggregatedPrice(feedId: CoreFeedId): Promise<AggregatedPrice | null>;
 
   /**
    * Add new price update and trigger real-time recalculation
    * @param feedId - Enhanced feed identifier
    * @param update - Price update data
    */
-  addPriceUpdate(feedId: EnhancedFeedId, update: PriceUpdate): void;
+  addPriceUpdate(feedId: CoreFeedId, update: PriceUpdate): void;
 
   /**
    * Subscribe to real-time price updates for a feed
@@ -66,14 +66,14 @@ export interface IAggregationService extends IBaseService {
    * @param callback - Callback function for price updates
    * @returns Unsubscribe function
    */
-  subscribe(feedId: EnhancedFeedId, callback: (price: AggregatedPrice) => void): () => void;
+  subscribe(feedId: CoreFeedId, callback: (price: AggregatedPrice) => void): () => void;
 
   /**
    * Get quality metrics for aggregated price
    * @param feedId - Enhanced feed identifier
    * @returns Promise resolving to quality metrics
    */
-  getQualityMetrics(feedId: EnhancedFeedId): Promise<QualityMetrics>;
+  getQualityMetrics(feedId: CoreFeedId): Promise<QualityMetrics>;
 
   /**
    * Get cache statistics

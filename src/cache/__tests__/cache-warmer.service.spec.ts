@@ -1,4 +1,4 @@
-import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
 
 import { CacheWarmerService } from "../cache-warmer.service";
@@ -8,12 +8,12 @@ describe("CacheWarmerService", () => {
   let warmerService: CacheWarmerService;
   let cacheService: RealTimeCacheService;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   };
 
-  const mockFeedId2: EnhancedFeedId = {
+  const mockFeedId2: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "ETH/USD",
   };
@@ -79,7 +79,7 @@ describe("CacheWarmerService", () => {
     it("should track multiple feeds", () => {
       // Track many feeds
       for (let i = 0; i < 15; i++) {
-        const feedId: EnhancedFeedId = {
+        const feedId: CoreFeedId = {
           category: FeedCategory.Crypto,
           name: `COIN${i}/USD`,
         };
@@ -296,8 +296,8 @@ describe("CacheWarmerService", () => {
     });
 
     it("should handle feeds with same name but different categories", () => {
-      const cryptoFeed: EnhancedFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
-      const forexFeed: EnhancedFeedId = { category: FeedCategory.Forex, name: "BTC/USD" };
+      const cryptoFeed: CoreFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
+      const forexFeed: CoreFeedId = { category: FeedCategory.Forex, name: "BTC/USD" };
 
       warmerService.trackFeedAccess(cryptoFeed);
       warmerService.trackFeedAccess(forexFeed);

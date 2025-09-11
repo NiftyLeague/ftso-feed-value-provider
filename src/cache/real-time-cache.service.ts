@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { RealTimeCache, CacheEntry, CacheStats, CacheConfig, CacheItem } from "@/common/types/cache";
-import type { EnhancedFeedId } from "@/common/types/core";
+import type { CoreFeedId } from "@/common/types/core";
 
 @Injectable()
 export class RealTimeCacheService extends StandardService implements RealTimeCache, OnModuleDestroy {
@@ -185,7 +185,7 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
   }
 
   // Voting round-aware caching methods
-  setForVotingRound(feedId: EnhancedFeedId, votingRound: number, value: CacheEntry, ttl: number = 60000): void {
+  setForVotingRound(feedId: CoreFeedId, votingRound: number, value: CacheEntry, ttl: number = 60000): void {
     const key = this.generateVotingRoundKey(feedId, votingRound);
     const entryWithRound: CacheEntry = {
       ...value,
@@ -194,13 +194,13 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
     this.set(key, entryWithRound, ttl);
   }
 
-  getForVotingRound(feedId: EnhancedFeedId, votingRound: number): CacheEntry | null {
+  getForVotingRound(feedId: CoreFeedId, votingRound: number): CacheEntry | null {
     const key = this.generateVotingRoundKey(feedId, votingRound);
     return this.get(key);
   }
 
   // Real-time price caching with immediate invalidation
-  setPrice(feedId: EnhancedFeedId, value: CacheEntry): void {
+  setPrice(feedId: CoreFeedId, value: CacheEntry): void {
     const key = this.generatePriceKey(feedId);
     // Use maximum allowed TTL for price data
     this.set(key, value, this.cacheConfig.ttl);
@@ -209,13 +209,13 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
     this.invalidateFeedCache(feedId);
   }
 
-  getPrice(feedId: EnhancedFeedId): CacheEntry | null {
+  getPrice(feedId: CoreFeedId): CacheEntry | null {
     const key = this.generatePriceKey(feedId);
     return this.get(key);
   }
 
   // Cache invalidation on new price updates (requirement 6.5)
-  invalidateOnPriceUpdate(feedId: EnhancedFeedId): void {
+  invalidateOnPriceUpdate(feedId: CoreFeedId): void {
     // Only invalidate voting round cache, not current price cache
     // Current price should remain cached until it expires naturally
     this.invalidateFeedCache(feedId);
@@ -223,15 +223,15 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
     this.logger.debug(`Invalidated voting round cache for feed: ${feedId.category}/${feedId.name}`);
   }
 
-  private generatePriceKey(feedId: EnhancedFeedId): string {
+  private generatePriceKey(feedId: CoreFeedId): string {
     return `price:${feedId.category}:${feedId.name}`;
   }
 
-  private generateVotingRoundKey(feedId: EnhancedFeedId, votingRound: number): string {
+  private generateVotingRoundKey(feedId: CoreFeedId, votingRound: number): string {
     return `voting:${votingRound}:${feedId.category}:${feedId.name}`;
   }
 
-  private invalidateFeedCache(feedId: EnhancedFeedId): void {
+  private invalidateFeedCache(feedId: CoreFeedId): void {
     const prefix = `voting:`;
     const feedPattern = `:${feedId.category}:${feedId.name}`;
 

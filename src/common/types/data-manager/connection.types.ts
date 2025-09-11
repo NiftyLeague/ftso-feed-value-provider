@@ -2,7 +2,7 @@
  * Data manager connection type definitions
  */
 
-import { EnhancedFeedId } from "../core";
+import { CoreFeedId } from "../core";
 
 import { AdapterWithReconnection, AdapterWithRestFallback, AdapterWithHealthCheck } from "../adapters";
 
@@ -47,7 +47,7 @@ export interface ReconnectionTimer {
 
 export interface SourceSubscription {
   sourceId: string;
-  feedId: EnhancedFeedId;
+  feedId: CoreFeedId;
   symbols: string[];
   timestamp: number;
   lastUpdate: number;

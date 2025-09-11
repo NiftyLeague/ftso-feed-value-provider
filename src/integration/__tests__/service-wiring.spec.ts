@@ -9,7 +9,7 @@ import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { ConfigService } from "@/config/config.service";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
-import { type EnhancedFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
 
 import { IntegrationService } from "../integration.service";
 import { DataSourceIntegrationService } from "../services/data-source-integration.service";
@@ -380,7 +380,7 @@ describe("Service Wiring Integration", () => {
 
   describe("Service Integration", () => {
     it("should provide access to current price through integration service", async () => {
-      const testFeedId: EnhancedFeedId = {
+      const testFeedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };

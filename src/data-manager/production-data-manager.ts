@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 
 import type { AggregatedPrice, BaseServiceConfig } from "@/common/types/services";
-import type { EnhancedFeedId, DataSource, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { HealthCheckResult } from "@/common/types/monitoring";
 import type {
   ProductionDataManager,
@@ -383,7 +383,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   }
 
   // Real-time data management methods
-  async subscribeToFeed(feedId: EnhancedFeedId): Promise<void> {
+  async subscribeToFeed(feedId: CoreFeedId): Promise<void> {
     this.logger.log(`Subscribing to feed: ${feedId.name}`);
 
     const symbol = feedId.name;
@@ -417,7 +417,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
   }
 
-  async unsubscribeFromFeed(feedId: EnhancedFeedId): Promise<void> {
+  async unsubscribeFromFeed(feedId: CoreFeedId): Promise<void> {
     this.logger.log(`Unsubscribing from feed: ${feedId.name}`);
 
     const symbol = feedId.name;
@@ -471,7 +471,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     };
   }
 
-  async getDataFreshness(feedId: EnhancedFeedId): Promise<number> {
+  async getDataFreshness(feedId: CoreFeedId): Promise<number> {
     let mostRecentUpdate = 0;
 
     for (const [, subscriptions] of this.subscriptions.entries()) {
@@ -545,7 +545,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   }
 
   // Price retrieval methods - integrated with aggregation service
-  async getCurrentPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice> {
+  async getCurrentPrice(feedId: CoreFeedId): Promise<AggregatedPrice> {
     try {
       // Check if we have recent data for this feed
       const freshness = await this.getDataFreshness(feedId);
@@ -573,7 +573,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
   }
 
-  async getCurrentPrices(feedIds: EnhancedFeedId[]): Promise<AggregatedPrice[]> {
+  async getCurrentPrices(feedIds: CoreFeedId[]): Promise<AggregatedPrice[]> {
     try {
       const results = await Promise.allSettled(feedIds.map(feedId => this.getCurrentPrice(feedId)));
 

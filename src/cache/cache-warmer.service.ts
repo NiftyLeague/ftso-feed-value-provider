@@ -1,13 +1,13 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import { executeWithConcurrency } from "@/common/utils/async.utils";
-import type { EnhancedFeedId } from "@/common/types/core";
+import type { CoreFeedId } from "@/common/types/core";
 import type { CacheEntry } from "@/common/types/cache";
 import type { AggregatedPrice } from "@/common/types/services";
 import { RealTimeCacheService } from "./real-time-cache.service";
 
 interface FeedAccessPattern {
-  feedId: EnhancedFeedId;
+  feedId: CoreFeedId;
   accessCount: number;
   lastAccessed: number;
   averageInterval: number;
@@ -30,7 +30,7 @@ interface WarmingStrategy {
 export class CacheWarmerService extends StandardService implements OnModuleDestroy {
   private accessPatterns = new Map<string, FeedAccessPattern>();
   private warmingStrategies: WarmingStrategy[] = [];
-  private dataSourceCallback?: (feedId: EnhancedFeedId) => Promise<AggregatedPrice | null>;
+  private dataSourceCallback?: (feedId: CoreFeedId) => Promise<AggregatedPrice | null>;
 
   // Optimized warming intervals are now managed by lifecycle mixin
 
@@ -91,7 +91,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
   /**
    * Track feed access patterns for warming decisions
    */
-  trackFeedAccess(feedId: EnhancedFeedId): void {
+  trackFeedAccess(feedId: CoreFeedId): void {
     const key = this.generateFeedKey(feedId);
     const now = Date.now();
     const existing = this.accessPatterns.get(key);
@@ -143,7 +143,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
   /**
    * Trigger immediate warming for a specific feed
    */
-  private async triggerImmediateWarming(feedId: EnhancedFeedId): Promise<void> {
+  private async triggerImmediateWarming(feedId: CoreFeedId): Promise<void> {
     try {
       await this.warmFeedCache(feedId);
     } catch (error) {
@@ -369,7 +369,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
   /**
    * Warm cache for a specific feed
    */
-  private async warmFeedCache(feedId: EnhancedFeedId): Promise<void> {
+  private async warmFeedCache(feedId: CoreFeedId): Promise<void> {
     try {
       // Check if feed is already cached and fresh
       const existing = this.cacheService.getPrice(feedId);
@@ -406,7 +406,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
   /**
    * Fetch fresh data from data sources
    */
-  private async fetchFreshData(feedId: EnhancedFeedId): Promise<CacheEntry | null> {
+  private async fetchFreshData(feedId: CoreFeedId): Promise<CacheEntry | null> {
     if (this.dataSourceCallback) {
       try {
         const aggregatedPrice = await this.dataSourceCallback(feedId);
@@ -440,7 +440,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
   /**
    * Set data source callback
    */
-  setDataSourceCallback(callback: (feedId: EnhancedFeedId) => Promise<AggregatedPrice | null>): void {
+  setDataSourceCallback(callback: (feedId: CoreFeedId) => Promise<AggregatedPrice | null>): void {
     this.dataSourceCallback = callback;
     this.logger.log("Data source callback configured for cache warming");
   }
@@ -539,7 +539,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
     };
   }
 
-  private generateFeedKey(feedId: EnhancedFeedId): string {
+  private generateFeedKey(feedId: CoreFeedId): string {
     return `${feedId.category}:${feedId.name}`;
   }
 

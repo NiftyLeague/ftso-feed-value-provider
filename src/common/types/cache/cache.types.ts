@@ -1,4 +1,4 @@
-import type { EnhancedFeedId } from "../core/feed.types";
+import type { CoreFeedId } from "../core/feed.types";
 import type { IBaseService, BaseServiceConfig } from "../services/base.types";
 
 /**
@@ -114,14 +114,14 @@ export interface ICacheService extends IBaseService {
 export interface WarmupConfig {
   enabled: boolean;
   warmupInterval: number; // Interval in milliseconds
-  popularFeeds: EnhancedFeedId[];
+  popularFeeds: CoreFeedId[];
 }
 
 /**
  * Metrics for tracking the popularity of feeds to inform cache warming strategies.
  */
 export interface FeedPopularityMetrics {
-  feedId: EnhancedFeedId;
+  feedId: CoreFeedId;
   requestCount: number;
   lastRequested: number;
   priority: number;

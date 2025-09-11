@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { FailoverManager } from "../failover-manager";
 import type { FailoverConfig } from "@/common/types/data-manager";
-import type { DataSource, PriceUpdate, EnhancedFeedId } from "@/common/types/core";
+import type { DataSource, PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 import { MockSetup } from "@/__tests__/utils";
 
@@ -131,7 +131,7 @@ describe("FailoverManager", () => {
 
   describe("Failover Group Configuration", () => {
     it("should configure failover group correctly", () => {
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
@@ -152,7 +152,7 @@ describe("FailoverManager", () => {
     });
 
     it("should emit failoverGroupConfigured event", done => {
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
@@ -169,7 +169,7 @@ describe("FailoverManager", () => {
 
   describe("Active Source Management", () => {
     let mockSources: MockDataSource[];
-    let feedId: EnhancedFeedId;
+    let feedId: CoreFeedId;
 
     beforeEach(() => {
       feedId = {
@@ -211,7 +211,7 @@ describe("FailoverManager", () => {
     });
 
     it("should return empty array for non-existent feed", () => {
-      const nonExistentFeed: EnhancedFeedId = {
+      const nonExistentFeed: CoreFeedId = {
         category: FeedCategory.Forex,
         name: "EUR/USD",
       };
@@ -223,7 +223,7 @@ describe("FailoverManager", () => {
 
   describe("Failover Triggering", () => {
     let mockSources: MockDataSource[];
-    let feedId: EnhancedFeedId;
+    let feedId: CoreFeedId;
 
     beforeEach(() => {
       feedId = {
@@ -320,7 +320,7 @@ describe("FailoverManager", () => {
 
   describe("Source Recovery", () => {
     let mockSources: MockDataSource[];
-    let feedId: EnhancedFeedId;
+    let feedId: CoreFeedId;
 
     beforeEach(() => {
       feedId = {
@@ -440,7 +440,7 @@ describe("FailoverManager", () => {
       manager.registerDataSource(mockSource);
       mockSource.simulateConnection(true);
 
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
@@ -463,7 +463,7 @@ describe("FailoverManager", () => {
       mockSource.simulateConnection(true);
       mockBackup.simulateConnection(true);
 
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };

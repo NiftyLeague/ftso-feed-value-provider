@@ -11,7 +11,7 @@ import { ConfigService } from "@/config/config.service";
 
 // Types and interfaces
 import type { AggregatedPrice } from "@/common/types/services";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { IntegrationServiceInterface } from "@/common/types/services/provider.types";
 
 @Injectable()
@@ -99,7 +99,7 @@ export class IntegrationService
   }
 
   // Public API methods
-  async getCurrentPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice> {
+  async getCurrentPrice(feedId: CoreFeedId): Promise<AggregatedPrice> {
     if (!this.isInitialized) {
       throw new Error("Integration orchestrator not initialized");
     }
@@ -107,7 +107,7 @@ export class IntegrationService
     return this.priceAggregationCoordinator.getCurrentPrice(feedId);
   }
 
-  async getCurrentPrices(feedIds: EnhancedFeedId[]): Promise<AggregatedPrice[]> {
+  async getCurrentPrices(feedIds: CoreFeedId[]): Promise<AggregatedPrice[]> {
     if (!this.isInitialized) {
       throw new Error("Integration orchestrator not initialized");
     }

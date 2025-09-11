@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { FailoverManager } from "@/data-manager/failover-manager";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { BaseServiceConfig } from "@/common/types";
-import type { DataSource, EnhancedFeedId } from "@/common/types/core";
+import type { DataSource, CoreFeedId } from "@/common/types/core";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 
@@ -153,7 +153,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
   /**
    * Configure feed-to-source mapping for intelligent failover
    */
-  configureFeedSources(feedId: EnhancedFeedId, primarySources: string[], backupSources: string[]): void {
+  configureFeedSources(feedId: CoreFeedId, primarySources: string[], backupSources: string[]): void {
     const feedKey = this.getFeedKey(feedId);
     const allSources = [...primarySources, ...backupSources];
 
@@ -229,7 +229,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
   /**
    * Implement graceful degradation when sources become unavailable (Requirement 7.3)
    */
-  async implementGracefulDegradation(feedId: EnhancedFeedId): Promise<void> {
+  async implementGracefulDegradation(feedId: CoreFeedId): Promise<void> {
     const feedKey = this.getFeedKey(feedId);
     const sourceIds = this.feedSourceMapping.get(feedKey) || [];
     const healthySources = sourceIds.filter(sourceId => {
@@ -512,7 +512,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
     return [];
   }
 
-  private getFeedKey(feedId: EnhancedFeedId): string {
+  private getFeedKey(feedId: CoreFeedId): string {
     return `${feedId.category}-${feedId.name}`;
   }
 

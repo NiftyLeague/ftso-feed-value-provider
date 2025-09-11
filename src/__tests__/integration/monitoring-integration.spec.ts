@@ -1,4 +1,4 @@
-import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { MockAlertData } from "@/common/types/utils";
 
 // Mock monitoring services
@@ -14,7 +14,7 @@ class MockPerformanceMonitor {
     this.metrics.responseTime.push(responseTime);
   }
 
-  recordDataFreshness(feedId: EnhancedFeedId, timestamp: number) {
+  recordDataFreshness(feedId: CoreFeedId, timestamp: number) {
     const age = Date.now() - timestamp;
     this.metrics.dataFreshness.set(feedId.name, age);
   }
@@ -23,7 +23,7 @@ class MockPerformanceMonitor {
     this.metrics.connectionHealth.set(exchange, isHealthy);
   }
 
-  recordPriceUpdate(feedId: EnhancedFeedId) {
+  recordPriceUpdate(feedId: CoreFeedId) {
     const current = this.metrics.priceUpdates.get(feedId.name) || 0;
     this.metrics.priceUpdates.set(feedId.name, current + 1);
   }
@@ -47,7 +47,7 @@ class MockPerformanceMonitor {
     };
   }
 
-  getThroughputMetrics(feedId: EnhancedFeedId) {
+  getThroughputMetrics(feedId: CoreFeedId) {
     const updates = this.metrics.priceUpdates.get(feedId.name) || 0;
     return {
       updatesPerSecond: updates / 60, // Simplified calculation
@@ -55,7 +55,7 @@ class MockPerformanceMonitor {
     };
   }
 
-  getLatencyMetrics(feedId: EnhancedFeedId) {
+  getLatencyMetrics(feedId: CoreFeedId) {
     const freshness = this.metrics.dataFreshness.get(feedId.name) || 0;
     return {
       averageLatency: freshness,
@@ -74,20 +74,20 @@ class MockAccuracyMonitor {
     sourceReliability: new Map<string, number>(),
   };
 
-  recordConsensusDeviation(feedId: EnhancedFeedId, deviation: number) {
+  recordConsensusDeviation(feedId: CoreFeedId, deviation: number) {
     const current = this.metrics.deviations.get(feedId.name) || [];
     current.push(deviation);
     this.metrics.deviations.set(feedId.name, current);
   }
 
-  recordAccuracyCheck(feedId: EnhancedFeedId, isAccurate: boolean) {
+  recordAccuracyCheck(feedId: CoreFeedId, isAccurate: boolean) {
     const current = this.metrics.accuracyChecks.get(feedId.name) || { total: 0, accurate: 0 };
     current.total++;
     if (isAccurate) current.accurate++;
     this.metrics.accuracyChecks.set(feedId.name, current);
   }
 
-  recordQualityScore(feedId: EnhancedFeedId, score: number) {
+  recordQualityScore(feedId: CoreFeedId, score: number) {
     const current = this.metrics.qualityScores.get(feedId.name) || [];
     current.push(score);
     this.metrics.qualityScores.set(feedId.name, current);
@@ -97,7 +97,7 @@ class MockAccuracyMonitor {
     this.metrics.sourceReliability.set(source, reliability);
   }
 
-  getAccuracyMetrics(feedId: EnhancedFeedId) {
+  getAccuracyMetrics(feedId: CoreFeedId) {
     const deviations = this.metrics.deviations.get(feedId.name) || [];
     const checks = this.metrics.accuracyChecks.get(feedId.name) || { total: 0, accurate: 0 };
 
@@ -108,7 +108,7 @@ class MockAccuracyMonitor {
     };
   }
 
-  getQualityMetrics(feedId: EnhancedFeedId) {
+  getQualityMetrics(feedId: CoreFeedId) {
     const scores = this.metrics.qualityScores.get(feedId.name) || [];
     return {
       averageQuality: scores.reduce((sum, score) => sum + score, 0) / scores.length || 0,
@@ -152,7 +152,7 @@ describe("Monitoring Integration Tests", () => {
   let accuracyMonitor: MockAccuracyMonitor;
   let alertingService: MockAlertingService;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   };

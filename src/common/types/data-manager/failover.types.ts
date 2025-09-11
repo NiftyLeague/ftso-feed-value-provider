@@ -2,7 +2,7 @@
  * Failover management type definitions
  */
 
-import type { EnhancedFeedId } from "../core";
+import type { CoreFeedId } from "../core";
 import type { BaseServiceConfig } from "../services";
 
 export interface FailoverConfig extends BaseServiceConfig {
@@ -23,7 +23,7 @@ export interface SourceHealth {
 }
 
 export interface FailoverGroup {
-  feedId: EnhancedFeedId;
+  feedId: CoreFeedId;
   primarySources: string[];
   backupSources: string[];
   activeSources: string[];

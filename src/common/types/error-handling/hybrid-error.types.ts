@@ -2,7 +2,7 @@
  * Hybrid error handling types
  */
 
-import type { EnhancedFeedId } from "@/common/types/core";
+import type { CoreFeedId } from "@/common/types/core";
 
 export enum DataSourceTier {
   TIER_1_CUSTOM = 1, // Custom adapters (Binance, Coinbase, Kraken, OKX, Crypto.com)
@@ -26,7 +26,7 @@ export interface DataSourceError {
   classification: ErrorClassification;
   error: Error;
   timestamp: number;
-  feedId?: EnhancedFeedId;
+  feedId?: CoreFeedId;
   severity: "low" | "medium" | "high" | "critical";
   recoverable: boolean;
 }

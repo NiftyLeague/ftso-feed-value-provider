@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@/config/config.service";
 import { EventDrivenService } from "@/common/base";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
 
@@ -42,7 +42,7 @@ export interface RealTimeAggregationConfig extends BaseServiceConfig {
 }
 
 export interface PriceSubscription {
-  feedId: EnhancedFeedId;
+  feedId: CoreFeedId;
   callback: (price: AggregatedPrice) => void;
   lastUpdate?: number;
 }
@@ -115,7 +115,7 @@ export class RealTimeAggregationService
    * Get aggregated price with real-time caching
    * Implements 1-second TTL caching for maximum freshness
    */
-  async getAggregatedPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice | null> {
+  async getAggregatedPrice(feedId: CoreFeedId): Promise<AggregatedPrice | null> {
     const operationId = `aggregate_${feedId.name}_${Date.now()}`;
     const feedKey = this.getFeedKey(feedId);
 
@@ -220,7 +220,7 @@ export class RealTimeAggregationService
    * Add new price update with optimized batch processing
    * Uses intelligent batching for better performance while maintaining real-time requirements
    */
-  addPriceUpdate(feedId: EnhancedFeedId, update: PriceUpdate): void {
+  addPriceUpdate(feedId: CoreFeedId, update: PriceUpdate): void {
     const feedKey = this.getFeedKey(feedId);
 
     // Validate the update
@@ -248,7 +248,7 @@ export class RealTimeAggregationService
   /**
    * Check if update requires immediate processing
    */
-  private isCriticalUpdate(update: PriceUpdate, feedId: EnhancedFeedId): boolean {
+  private isCriticalUpdate(update: PriceUpdate, feedId: CoreFeedId): boolean {
     // Process immediately if it's the first update for this feed
     const feedKey = this.getFeedKey(feedId);
     const existing = this.activePriceUpdates.get(feedKey);
@@ -269,7 +269,7 @@ export class RealTimeAggregationService
   /**
    * Process critical updates immediately
    */
-  private async processImmediateUpdate(feedId: EnhancedFeedId, update: PriceUpdate, feedKey: string): Promise<void> {
+  private async processImmediateUpdate(feedId: CoreFeedId, update: PriceUpdate, feedKey: string): Promise<void> {
     try {
       // Get existing updates for this feed
       const existingUpdates = this.activePriceUpdates.get(feedKey) || [];
@@ -296,7 +296,7 @@ export class RealTimeAggregationService
   /**
    * Subscribe to real-time price updates for a feed
    */
-  subscribe(feedId: EnhancedFeedId, callback: (price: AggregatedPrice) => void): () => void {
+  subscribe(feedId: CoreFeedId, callback: (price: AggregatedPrice) => void): () => void {
     const feedKey = this.getFeedKey(feedId);
     const subscription: PriceSubscription = {
       feedId,
@@ -328,7 +328,7 @@ export class RealTimeAggregationService
   /**
    * Get quality metrics for aggregated price
    */
-  async getQualityMetrics(feedId: EnhancedFeedId): Promise<QualityMetrics> {
+  async getQualityMetrics(feedId: CoreFeedId): Promise<QualityMetrics> {
     const feedKey = this.getFeedKey(feedId);
     const updates = this.activePriceUpdates.get(feedKey) || [];
     const performanceHistory = this.performanceMetrics.get(feedKey) || [];
@@ -383,7 +383,7 @@ export class RealTimeAggregationService
   /**
    * Get performance metrics for a specific feed
    */
-  getFeedPerformanceMetrics(feedId: EnhancedFeedId): {
+  getFeedPerformanceMetrics(feedId: CoreFeedId): {
     averageResponseTime: number;
     maxResponseTime: number;
     minResponseTime: number;
@@ -548,7 +548,7 @@ export class RealTimeAggregationService
 
   // Private methods
 
-  private getFeedKey(feedId: EnhancedFeedId): string {
+  private getFeedKey(feedId: CoreFeedId): string {
     return `${feedId.category}:${feedId.name}`;
   }
 
@@ -643,7 +643,7 @@ export class RealTimeAggregationService
     this.performanceMetrics.set(feedKey, metrics);
   }
 
-  private async notifySubscribers(feedId: EnhancedFeedId, feedKey: string): Promise<void> {
+  private async notifySubscribers(feedId: CoreFeedId, feedKey: string): Promise<void> {
     const subscriptions = this.priceSubscriptions.get(feedKey);
     if (!subscriptions || subscriptions.length === 0) {
       return;
@@ -739,7 +739,7 @@ export class RealTimeAggregationService
   /**
    * Get feed ID from symbol using configuration
    */
-  private getFeedIdFromSymbol(symbol: string): EnhancedFeedId | null {
+  private getFeedIdFromSymbol(symbol: string): CoreFeedId | null {
     const feedConfigs = this.configService.getFeedConfigurations();
     const config = feedConfigs.find(config => config.feed.name === symbol);
     return config ? config.feed : null;
@@ -824,9 +824,9 @@ export class RealTimeAggregationService
   }
 
   /**
-   * Parse feed key back to EnhancedFeedId
+   * Parse feed key back to CoreFeedId
    */
-  private parseFeedKey(feedKey: string): EnhancedFeedId | null {
+  private parseFeedKey(feedKey: string): CoreFeedId | null {
     const [category, name] = feedKey.split(":");
     if (!category || !name) return null;
 

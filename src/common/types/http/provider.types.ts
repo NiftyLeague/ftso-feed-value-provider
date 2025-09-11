@@ -2,10 +2,10 @@
  * Provider API request/response type definitions
  */
 
-import { EnhancedFeedId } from "@/common/types/core";
+import { CoreFeedId } from "@/common/types/core";
 
-export interface FeedId extends EnhancedFeedId {
-  category: number; // keep as number per API contract
+export interface FeedId extends Omit<CoreFeedId, "category"> {
+  category: number; // Keep as number per API contract. Core uses enum.
   name: string;
 }
 

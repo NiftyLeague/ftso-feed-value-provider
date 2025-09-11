@@ -5,7 +5,7 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 import { ConfigService } from "@/config/config.service";
-import { type EnhancedFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
 
 describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests", () => {
@@ -15,7 +15,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
   let cacheWarmerService: CacheWarmerService;
   let cachePerformanceMonitor: CachePerformanceMonitorService;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   };
@@ -236,7 +236,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
     });
 
     it("should handle multiple feeds with proper cache isolation", async () => {
-      const ethFeedId: EnhancedFeedId = {
+      const ethFeedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "ETH/USD",
       };
@@ -251,7 +251,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
       };
 
       // Mock different responses for different feeds
-      (aggregationService.getAggregatedPrice as jest.Mock).mockImplementation((feedId: EnhancedFeedId) => {
+      (aggregationService.getAggregatedPrice as jest.Mock).mockImplementation((feedId: CoreFeedId) => {
         if (feedId.name === "BTC/USD") {
           return Promise.resolve(mockAggregatedPrice);
         } else if (feedId.name === "ETH/USD") {

@@ -48,14 +48,14 @@ Interface for real-time price aggregation and caching services.
 
 **Key Methods:**
 
-- `getAggregatedPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice | null>` -
+- `getAggregatedPrice(feedId: CoreFeedId): Promise<AggregatedPrice | null>` -
   Get aggregated price with caching
-- `addPriceUpdate(feedId: EnhancedFeedId, update: PriceUpdate): void` - Add
-  price update and trigger recalculation
-- `subscribe(feedId: EnhancedFeedId, callback: Function): () => void` -
-  Subscribe to real-time updates
-- `getQualityMetrics(feedId: EnhancedFeedId): Promise<QualityMetrics>` - Get
-  quality metrics
+- `addPriceUpdate(feedId: CoreFeedId, update: PriceUpdate): void` - Add price
+  update and trigger recalculation
+- `subscribe(feedId: CoreFeedId, callback: Function): () => void` - Subscribe to
+  real-time updates
+- `getQualityMetrics(feedId: CoreFeedId): Promise<QualityMetrics>` - Get quality
+  metrics
 - `getCacheStats(): CacheStats` - Get cache statistics
 - `processPriceUpdate(update: PriceUpdate): Promise<void>` - Process price
   updates
@@ -70,7 +70,7 @@ Interface for configuration management and validation.
 **Key Methods:**
 
 - `getFeedConfigurations(): FeedConfiguration[]` - Get all feed configurations
-- `getFeedConfiguration(feedId: EnhancedFeedId): FeedConfiguration | undefined` -
+- `getFeedConfiguration(feedId: CoreFeedId): FeedConfiguration | undefined` -
   Get specific feed config
 - `getFeedConfigurationsByCategory(category: FeedCategory): FeedConfiguration[]` -
   Get configs by category
@@ -92,9 +92,9 @@ Interface for data validation and quality assurance.
 
 **Key Methods:**
 
-- `validatePriceUpdate(update: PriceUpdate, feedId: EnhancedFeedId, config?: any): Promise<ValidationResult>` -
+- `validatePriceUpdate(update: PriceUpdate, feedId: CoreFeedId, config?: any): Promise<ValidationResult>` -
   Validate single update
-- `validateBatch(updates: PriceUpdate[], feedId: EnhancedFeedId, config?: any): Promise<Map<string, ValidationResult>>` -
+- `validateBatch(updates: PriceUpdate[], feedId: CoreFeedId, config?: any): Promise<Map<string, ValidationResult>>` -
   Validate multiple updates
 - `filterValidUpdates(updates: PriceUpdate[], results: Map<string, ValidationResult>): PriceUpdate[]` -
   Filter valid updates

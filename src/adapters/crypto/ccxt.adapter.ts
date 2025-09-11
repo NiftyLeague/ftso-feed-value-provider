@@ -5,7 +5,7 @@ import type {
   RawPriceData,
   RawVolumeData,
 } from "@/common/types/adapters";
-import type { PriceUpdate, VolumeUpdate, EnhancedFeedId } from "@/common/types/core";
+import type { PriceUpdate, VolumeUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
 export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
@@ -55,7 +55,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   };
 
   // Critical USDT/USD feed for conversion
-  private readonly usdtToUsdFeedId: EnhancedFeedId = {
+  private readonly usdtToUsdFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "USDT/USD",
   };
@@ -136,7 +136,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
 
     return {
-      symbol: (feedId as EnhancedFeedId).name, // Cast feedId to EnhancedFeedId
+      symbol: (feedId as CoreFeedId).name, // Cast feedId to CoreFeedId
       price: numericPrice,
       timestamp: numericTimestamp || Date.now(),
       source: this.exchangeName,
@@ -160,7 +160,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
 
     return {
-      symbol: (feedId as EnhancedFeedId).name, // Cast feedId to EnhancedFeedId
+      symbol: (feedId as CoreFeedId).name, // Cast feedId to CoreFeedId
       volume: numericVolume,
       timestamp: numericTimestamp || Date.now(),
       source: this.exchangeName,
@@ -177,7 +177,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Get single price from CCXT
-  async getCcxtPrice(feedId: EnhancedFeedId): Promise<PriceUpdate> {
+  async getCcxtPrice(feedId: CoreFeedId): Promise<PriceUpdate> {
     const startTime = Date.now();
     this.metrics.priceExtractionCount++;
 
@@ -198,7 +198,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // NEW: Extract individual exchange prices from CCXT latestPrice Map
-  async getIndividualPrices(feedId: EnhancedFeedId): Promise<ExchangePriceData[]> {
+  async getIndividualPrices(feedId: CoreFeedId): Promise<ExchangePriceData[]> {
     const startTime = Date.now();
 
     try {
@@ -286,7 +286,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Volume data method
-  async getVolumeData(feedId: EnhancedFeedId, _volumeWindow: number): Promise<VolumeUpdate> {
+  async getVolumeData(feedId: CoreFeedId, _volumeWindow: number): Promise<VolumeUpdate> {
     try {
       if (!this.isInitialized) {
         await this.connect();
@@ -361,7 +361,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Work as Tier 2 data source alongside custom Tier 1 adapters
-  async getTier2Prices(feedId: EnhancedFeedId): Promise<ExchangePriceData[]> {
+  async getTier2Prices(feedId: CoreFeedId): Promise<ExchangePriceData[]> {
     try {
       const individualPrices = await this.getIndividualPrices(feedId);
 
@@ -387,7 +387,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Check if this adapter can provide data for a specific feed as Tier 2 source
-  canProvideTier2Data(feedId: EnhancedFeedId): boolean {
+  canProvideTier2Data(feedId: CoreFeedId): boolean {
     // Only support crypto feeds for now
     if (feedId.category !== FeedCategory.Crypto) {
       return false;
@@ -417,7 +417,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Get list of available Tier 2 exchanges for a feed
-  getAvailableTier2Exchanges(feedId: EnhancedFeedId): string[] {
+  getAvailableTier2Exchanges(feedId: CoreFeedId): string[] {
     try {
       const latestPriceMap = this.getLatestPriceMap();
       const symbolPrices = latestPriceMap.get(feedId.name);
@@ -458,7 +458,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
       }
 
       // Try to get a price for a common pair to verify CCXT is working
-      const testFeedId: EnhancedFeedId = {
+      const testFeedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };

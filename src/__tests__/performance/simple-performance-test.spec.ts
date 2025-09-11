@@ -1,12 +1,12 @@
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { ConsensusAggregator } from "@/aggregators/consensus-aggregator.service";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
 describe("Simple Performance Validation", () => {
   let cacheService: RealTimeCacheService;
   let consensusAggregator: ConsensusAggregator;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: 1,
     name: "BTC/USD",
   };

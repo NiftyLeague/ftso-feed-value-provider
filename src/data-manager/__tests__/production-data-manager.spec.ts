@@ -3,7 +3,7 @@ import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.regist
 
 import type { IExchangeAdapter, ExchangeConnectionConfig } from "@/common/types/adapters";
 import type { RawPriceData, RawVolumeData } from "@/common/types/adapters";
-import type { EnhancedFeedId, PriceUpdate, VolumeUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
 import { ProductionDataManagerService } from "../production-data-manager";
@@ -123,7 +123,7 @@ describe("ProductionDataManagerService", () => {
   let module: TestingModule;
   // Removed unused variables to satisfy lints
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   };

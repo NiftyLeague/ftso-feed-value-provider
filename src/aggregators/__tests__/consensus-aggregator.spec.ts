@@ -1,15 +1,15 @@
 import { ConsensusAggregator } from "../consensus-aggregator.service";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 import { TestDataBuilder } from "@/__tests__/utils";
 
 describe("ConsensusAggregator", () => {
   let aggregator: ConsensusAggregator;
-  let mockFeedId: EnhancedFeedId;
+  let mockFeedId: CoreFeedId;
 
   beforeEach(() => {
     aggregator = new ConsensusAggregator();
-    mockFeedId = TestDataBuilder.createFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
+    mockFeedId = TestDataBuilder.createCoreFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
   });
 
   describe("aggregate", () => {

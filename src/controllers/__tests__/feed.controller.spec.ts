@@ -17,7 +17,7 @@ describe("FeedController - Feed Value Endpoints", () => {
   let cacheService: jest.Mocked<RealTimeCacheService>;
   let aggregationService: jest.Mocked<RealTimeAggregationService>;
 
-  const mockFeedId = TestDataBuilder.createFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
+  const mockFeedId = TestDataBuilder.createCoreFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
   const mockVolumeData = { feed: mockFeedId, volumes: [{ exchange: "binance", volume: 1000000 }] };
 
   beforeEach(async () => {

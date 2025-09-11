@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@/config/config.service";
-import type { EnhancedFeedId } from "@/common/types/core";
+import type { CoreFeedId } from "@/common/types/core";
 
 import { DataSourceIntegrationService } from "../services/data-source-integration.service";
 import { IntegrationService } from "../integration.service";
@@ -118,7 +118,7 @@ describe("IntegrationService", () => {
     it("should subscribe to configured feeds", async () => {
       // Arrange
       const mockFeedConfig = {
-        feed: { category: 1, name: "BTC/USD" } as EnhancedFeedId,
+        feed: { category: 1, name: "BTC/USD" } as CoreFeedId,
         sources: [{ exchange: "binance", symbol: "BTCUSDT" }],
       };
 
@@ -183,7 +183,7 @@ describe("IntegrationService", () => {
   describe("getCurrentPrice", () => {
     it("should delegate to price aggregation coordinator", async () => {
       // Arrange
-      const feedId: EnhancedFeedId = { category: 1, name: "BTC/USD" };
+      const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
       const mockPrice = {
         symbol: "BTC/USD",
         price: 50000,
@@ -212,7 +212,7 @@ describe("IntegrationService", () => {
 
     it("should throw error if not initialized", async () => {
       // Arrange
-      const feedId: EnhancedFeedId = { category: 1, name: "BTC/USD" };
+      const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
 
       // Act & Assert
       await expect(service.getCurrentPrice(feedId)).rejects.toThrow("Integration orchestrator not initialized");
@@ -222,7 +222,7 @@ describe("IntegrationService", () => {
   describe("getCurrentPrices", () => {
     it("should delegate to price aggregation coordinator", async () => {
       // Arrange
-      const feedIds: EnhancedFeedId[] = [
+      const feedIds: CoreFeedId[] = [
         { category: 1, name: "BTC/USD" },
         { category: 1, name: "ETH/USD" },
       ];

@@ -1,5 +1,5 @@
 import type { CacheEntry } from "@/common/types/cache";
-import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import { TestDataBuilder } from "@/__tests__/utils";
 
 import { RealTimeCacheService } from "../real-time-cache.service";
@@ -7,7 +7,7 @@ import { RealTimeCacheService } from "../real-time-cache.service";
 describe("RealTimeCacheService", () => {
   let service: RealTimeCacheService;
 
-  const mockFeedId = TestDataBuilder.createFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
+  const mockFeedId = TestDataBuilder.createCoreFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
 
   const mockCacheEntry: CacheEntry = {
     value: 50000,
@@ -332,8 +332,8 @@ describe("RealTimeCacheService", () => {
 
   describe("Edge Cases", () => {
     it("should handle multiple feeds with same name but different categories", () => {
-      const cryptoFeed: EnhancedFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
-      const forexFeed: EnhancedFeedId = { category: FeedCategory.Forex, name: "BTC/USD" };
+      const cryptoFeed: CoreFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
+      const forexFeed: CoreFeedId = { category: FeedCategory.Forex, name: "BTC/USD" };
 
       const cryptoEntry: CacheEntry = { ...mockCacheEntry, value: 50000 };
       const forexEntry: CacheEntry = { ...mockCacheEntry, value: 1.2 };

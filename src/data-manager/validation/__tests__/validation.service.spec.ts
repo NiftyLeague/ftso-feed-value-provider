@@ -10,7 +10,7 @@ describe("ValidationService", () => {
   let service: ValidationService;
   let dataValidator: jest.Mocked<DataValidator>;
 
-  const mockFeedId = TestDataBuilder.createFeedId({
+  const mockFeedId = TestDataBuilder.createCoreFeedId({
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   });

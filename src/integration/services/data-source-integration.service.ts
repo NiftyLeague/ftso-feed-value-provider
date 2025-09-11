@@ -12,7 +12,7 @@ import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service"
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
 // Types and interfaces
-import type { EnhancedFeedId, DataSource, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { IExchangeAdapter } from "@/common/types/adapters";
 
 // Data source factory
@@ -91,7 +91,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
     );
   }
 
-  async subscribeToFeed(feedId: EnhancedFeedId): Promise<void> {
+  async subscribeToFeed(feedId: CoreFeedId): Promise<void> {
     if (!this.isInitialized) {
       throw new Error("Data source integration not initialized");
     }
@@ -530,13 +530,13 @@ export class DataSourceIntegrationService extends EventDrivenService {
     return tier1Exchanges.includes(exchangeName) ? 1 : 2;
   }
 
-  private getPrimarySourcesForFeed(_feedId: EnhancedFeedId): string[] {
+  private getPrimarySourcesForFeed(_feedId: CoreFeedId): string[] {
     // Get primary sources for the feed from configuration
     // This would typically come from feed configuration
     return ["binance", "coinbase", "kraken"];
   }
 
-  private getBackupSourcesForFeed(_feedId: EnhancedFeedId): string[] {
+  private getBackupSourcesForFeed(_feedId: CoreFeedId): string[] {
     // Get backup sources for the feed from configuration
     return ["okx", "cryptocom"];
   }

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
 
 interface OptimizedPricePoint {
@@ -94,7 +94,7 @@ export class ConsensusAggregator extends StandardService {
    * @param updates - Array of price updates from different exchanges
    * @returns Promise resolving to aggregated price with confidence and consensus scores
    */
-  async aggregate(feedId: EnhancedFeedId, updates: PriceUpdate[]): Promise<AggregatedPrice> {
+  async aggregate(feedId: CoreFeedId, updates: PriceUpdate[]): Promise<AggregatedPrice> {
     this.startTimer(`aggregate_${feedId.name}`);
     const feedKey = `${feedId.category}:${feedId.name}`;
 
@@ -544,7 +544,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Get quality metrics (simplified for performance)
    */
-  async getQualityMetrics(_feedId: EnhancedFeedId): Promise<QualityMetrics> {
+  async getQualityMetrics(_feedId: CoreFeedId): Promise<QualityMetrics> {
     return {
       accuracy: 0.96, // Optimized algorithm should have higher accuracy
       latency: this.performanceMetrics.averageTime,

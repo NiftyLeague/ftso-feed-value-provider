@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@/config/config.service";
 
 import type { AggregatedPrice } from "@/common/types/services";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
@@ -11,7 +11,7 @@ import { ConsensusAggregator } from "../consensus-aggregator.service";
 describe("RealTimeAggregationService Performance Tests", () => {
   let service: RealTimeAggregationService;
   let consensusAggregator: jest.Mocked<ConsensusAggregator>;
-  let mockFeedId: EnhancedFeedId;
+  let mockFeedId: CoreFeedId;
 
   beforeEach(async () => {
     const mockConsensusAggregator = {
@@ -211,7 +211,7 @@ describe("RealTimeAggregationService Performance Tests", () => {
       consensusAggregator.aggregate.mockResolvedValue(mockAggregatedPrice);
 
       // Create multiple feed IDs
-      const feedIds: EnhancedFeedId[] = [];
+      const feedIds: CoreFeedId[] = [];
       for (let i = 0; i < 50; i++) {
         feedIds.push({
           category: FeedCategory.Crypto,
@@ -307,7 +307,7 @@ describe("RealTimeAggregationService Performance Tests", () => {
       consensusAggregator.aggregate.mockResolvedValue(mockAggregatedPrice);
 
       // Fill cache beyond capacity to trigger LRU eviction
-      const feedIds: EnhancedFeedId[] = [];
+      const feedIds: CoreFeedId[] = [];
       for (let i = 0; i < 1200; i++) {
         // Exceed default cache size of 1000
         feedIds.push({

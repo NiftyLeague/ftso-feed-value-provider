@@ -2,7 +2,7 @@
  * Data manager validation type definitions
  */
 
-import type { EnhancedFeedId, PriceUpdate } from "../core";
+import type { CoreFeedId, PriceUpdate } from "../core";
 import type { DataValidationError, ValidationErrorType } from "../error-handling";
 import type { IBaseService, BaseServiceConfig } from "../services/base.types";
 import type { ValidationResult } from "../utils";
@@ -11,7 +11,7 @@ import type { ValidationResult } from "../utils";
  * Defines the context for a validation operation.
  */
 export interface ValidationContext {
-  feedId: EnhancedFeedId;
+  feedId: CoreFeedId;
   timestamp: number;
   source: string;
   metadata?: Record<string, unknown>;
@@ -59,7 +59,7 @@ export interface DataValidatorResult {
   errors: ExtendedDataValidationError[];
   warnings: string[];
   timestamp: number;
-  feedId?: EnhancedFeedId;
+  feedId?: CoreFeedId;
   confidence?: number;
   adjustedUpdate?: PriceUpdate;
 }
@@ -85,26 +85,26 @@ export interface IDataValidatorService extends IBaseService {
    * @param feedId Feed identifier
    * @returns Promise resolving to validation result
    */
-  validate(update: PriceUpdate, feedId?: EnhancedFeedId): Promise<ValidationResult>;
+  validate(update: PriceUpdate, feedId?: CoreFeedId): Promise<ValidationResult>;
 
   /** Proxy to real-time validation used by services/tests */
   validatePriceUpdate(
     update: PriceUpdate,
-    feedId: EnhancedFeedId,
+    feedId: CoreFeedId,
     DataValidatorConfig?: Partial<DataValidatorConfig>
   ): Promise<DataValidatorResult>;
 
   /** Real-time validation entry */
   validateRealTime(
     update: PriceUpdate,
-    feedId: EnhancedFeedId,
+    feedId: CoreFeedId,
     DataValidatorConfig?: Partial<DataValidatorConfig>
   ): Promise<DataValidatorResult>;
 
   /** Batch validation for multiple updates */
   validateBatch(
     updates: PriceUpdate[],
-    feedId: EnhancedFeedId,
+    feedId: CoreFeedId,
     DataValidatorConfig?: Partial<DataValidatorConfig>
   ): Promise<Map<string, DataValidatorResult>>;
 

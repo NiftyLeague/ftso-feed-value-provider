@@ -1,5 +1,5 @@
 import { AggregatedPrice } from "../services";
-import { DataSource, EnhancedFeedId } from "../core";
+import { DataSource, CoreFeedId } from "../core";
 import { ConnectionHealth } from "./connection.types";
 
 /**
@@ -12,12 +12,12 @@ export interface ProductionDataManager {
   addDataSource(source: DataSource): Promise<void>;
   removeDataSource(sourceId: string): Promise<void>;
   getConnectedSources(): DataSource[];
-  getCurrentPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice>;
-  getCurrentPrices(feedIds: EnhancedFeedId[]): Promise<AggregatedPrice[]>;
-  subscribeToFeed(feedId: EnhancedFeedId): Promise<void>;
-  unsubscribeFromFeed(feedId: EnhancedFeedId): Promise<void>;
+  getCurrentPrice(feedId: CoreFeedId): Promise<AggregatedPrice>;
+  getCurrentPrices(feedIds: CoreFeedId[]): Promise<AggregatedPrice[]>;
+  subscribeToFeed(feedId: CoreFeedId): Promise<void>;
+  unsubscribeFromFeed(feedId: CoreFeedId): Promise<void>;
   getConnectionHealth(): Promise<ConnectionHealth>;
-  getDataFreshness(feedId: EnhancedFeedId): Promise<number>;
+  getDataFreshness(feedId: CoreFeedId): Promise<number>;
 }
 
 /**

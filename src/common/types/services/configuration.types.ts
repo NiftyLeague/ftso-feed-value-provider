@@ -2,7 +2,7 @@
  * Configuration service type definitions
  */
 
-import { EnhancedFeedId, FeedCategory } from "../core/feed.types";
+import { CoreFeedId, FeedCategory } from "../core/feed.types";
 import { IBaseService } from "./base.types";
 
 /**
@@ -102,7 +102,7 @@ export interface IConfigurationService extends IBaseService {
    * @returns Array of feed configurations
    */
   getFeedConfigurations(): Array<{
-    feed: EnhancedFeedId;
+    feed: CoreFeedId;
     sources: Array<{
       exchange: string;
       symbol: string;
@@ -114,9 +114,9 @@ export interface IConfigurationService extends IBaseService {
    * @param feedId - Enhanced feed identifier
    * @returns Feed configuration or undefined if not found
    */
-  getFeedConfiguration(feedId: EnhancedFeedId):
+  getFeedConfiguration(feedId: CoreFeedId):
     | {
-        feed: EnhancedFeedId;
+        feed: CoreFeedId;
         sources: Array<{
           exchange: string;
           symbol: string;
@@ -129,7 +129,7 @@ export interface IConfigurationService extends IBaseService {
    * @returns Array of feed configurations for the category
    */
   getFeedConfigurationsByCategory(category: FeedCategory): Array<{
-    feed: EnhancedFeedId;
+    feed: CoreFeedId;
     sources: Array<{
       exchange: string;
       symbol: string;

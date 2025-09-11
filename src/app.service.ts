@@ -5,7 +5,7 @@ import { RealTimeAggregationService, type AggregationCacheStats } from "./aggreg
 
 import type { AggregationStatistics, HealthCheckResult, HealthStatusType } from "./common/types/monitoring";
 import type { FeedId, FeedValueData, FeedVolumeData } from "./common/types/http";
-import type { EnhancedFeedId } from "./common/types/core";
+import type { CoreFeedId } from "./common/types/core";
 import type { CacheStats } from "./common/types/cache";
 import type {
   AggregatedPrice,
@@ -47,12 +47,12 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
         throw new Error("Production integration service not available");
       }
 
-      const enhancedFeedId: EnhancedFeedId = {
+      const coreFeedId: CoreFeedId = {
         category: feed.category,
         name: feed.name,
       };
 
-      const aggregatedPrice = await this.integrationService.getCurrentPrice(enhancedFeedId);
+      const aggregatedPrice = await this.integrationService.getCurrentPrice(coreFeedId);
 
       const responseTime = this.endTimer("getValue");
       this.logPerformance(`getValue-${feed.name}`, responseTime);
@@ -79,12 +79,12 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
         throw new Error("Production integration service not available");
       }
 
-      const enhancedFeedIds: EnhancedFeedId[] = feeds.map(feed => ({
+      const coreFeedIds: CoreFeedId[] = feeds.map(feed => ({
         category: feed.category,
         name: feed.name,
       }));
 
-      const aggregatedPrices = await this.integrationService.getCurrentPrices(enhancedFeedIds);
+      const aggregatedPrices = await this.integrationService.getCurrentPrices(coreFeedIds);
 
       const results: FeedValueData[] = aggregatedPrices.map((price, index) => ({
         feed: feeds[index],
@@ -262,8 +262,8 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
 
 // Local minimal integration operations we rely on
 type IntegrationOps = {
-  getCurrentPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice>;
-  getCurrentPrices(feedIds: EnhancedFeedId[]): Promise<AggregatedPrice[]>;
+  getCurrentPrice(feedId: CoreFeedId): Promise<AggregatedPrice>;
+  getCurrentPrices(feedIds: CoreFeedId[]): Promise<AggregatedPrice[]>;
   getSystemHealth(): Promise<{
     status: HealthStatusType;
     connections: number;

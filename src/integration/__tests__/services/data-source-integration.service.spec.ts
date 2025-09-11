@@ -5,7 +5,7 @@ import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.regist
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
 import { DataSourceIntegrationService } from "../../services/data-source-integration.service";
 import { DataSourceFactory } from "../../services/data-source.factory";
@@ -241,7 +241,7 @@ describe("DataSourceIntegrationService", () => {
 
     it("should subscribe to feed through data manager", async () => {
       // Arrange
-      const feedId: EnhancedFeedId = { category: 1, name: "BTC/USD" };
+      const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
       dataManager.subscribeToFeed.mockResolvedValue(undefined);
 
       // Act
@@ -258,7 +258,7 @@ describe("DataSourceIntegrationService", () => {
 
     it("should handle subscription errors", async () => {
       // Arrange
-      const feedId: EnhancedFeedId = { category: 1, name: "BTC/USD" };
+      const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
       const error = new Error("Subscription failed");
       dataManager.subscribeToFeed.mockRejectedValue(error);
 
@@ -278,7 +278,7 @@ describe("DataSourceIntegrationService", () => {
         connectionRecovery,
         dataSourceFactory
       );
-      const feedId: EnhancedFeedId = { category: 1, name: "BTC/USD" };
+      const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
 
       // Act & Assert
       await expect(uninitializedService.subscribeToFeed(feedId)).rejects.toThrow(

@@ -1,4 +1,4 @@
-import { FeedCategory, EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import { FeedCategory, CoreFeedId, PriceUpdate } from "@/common/types/core";
 import { AggregatedPrice } from "@/common/types/services";
 import { ValidationContext, DataValidatorResult } from "@/common/types/data-manager";
 import { FeedId } from "@/common/types/http";
@@ -10,7 +10,7 @@ export class TestDataBuilder {
   /**
    * Create a valid EnhancedFeedId for testing
    */
-  static createFeedId(overrides: Partial<EnhancedFeedId> = {}): EnhancedFeedId {
+  static createCoreFeedId(overrides: Partial<CoreFeedId> = {}): CoreFeedId {
     return {
       category: FeedCategory.Crypto,
       name: "BTC/USD",
@@ -79,7 +79,7 @@ export class TestDataBuilder {
    */
   static createValidationContext(overrides: Partial<ValidationContext> = {}): ValidationContext {
     return {
-      feedId: this.createFeedId(),
+      feedId: this.createCoreFeedId(),
       timestamp: Date.now(),
       source: "binance",
       ...overrides,
@@ -142,7 +142,7 @@ export class TestScenarios {
   /**
    * Create a scenario with multiple price sources
    */
-  static multiSourcePricing(feedId: EnhancedFeedId, sourceCount: number = 5) {
+  static multiSourcePricing(feedId: CoreFeedId, sourceCount: number = 5) {
     const updates = TestDataBuilder.createPriceUpdates(sourceCount);
     const context = TestDataBuilder.createValidationContext({ feedId });
     return { feedId, updates, context };
@@ -151,7 +151,7 @@ export class TestScenarios {
   /**
    * Create a scenario with validation errors
    */
-  static validationErrors(feedId: EnhancedFeedId) {
+  static validationErrors(feedId: CoreFeedId) {
     const invalidUpdate = TestDataBuilder.createPriceUpdate({
       price: -1, // Invalid negative price
       timestamp: Date.now() - 3600000, // Old timestamp

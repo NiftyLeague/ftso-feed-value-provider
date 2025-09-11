@@ -2,7 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
-import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
 
 describe("Cache Service Integration - Task 7 Implementation", () => {
@@ -10,7 +10,7 @@ describe("Cache Service Integration - Task 7 Implementation", () => {
   let cacheWarmerService: CacheWarmerService;
   let cachePerformanceMonitor: CachePerformanceMonitorService;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   };

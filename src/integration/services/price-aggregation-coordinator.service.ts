@@ -15,7 +15,7 @@ import { FeedConfiguration } from "@/config/config.service";
 
 // Types and interfaces
 import type { AggregatedPrice } from "@/common/types/services";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
 @Injectable()
 export class PriceAggregationCoordinatorService extends EventDrivenService {
@@ -84,7 +84,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
     }
   }
 
-  async getCurrentPrice(feedId: EnhancedFeedId): Promise<AggregatedPrice> {
+  async getCurrentPrice(feedId: CoreFeedId): Promise<AggregatedPrice> {
     if (!this.isInitialized) {
       throw new Error("Price aggregation coordinator not initialized");
     }
@@ -149,7 +149,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
     }
   }
 
-  async getCurrentPrices(feedIds: EnhancedFeedId[]): Promise<AggregatedPrice[]> {
+  async getCurrentPrices(feedIds: CoreFeedId[]): Promise<AggregatedPrice[]> {
     if (!this.isInitialized) {
       throw new Error("Price aggregation coordinator not initialized");
     }
@@ -259,7 +259,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
 
     try {
       // Wire cache warmer service to actual data sources
-      this.cacheWarmerService.setDataSourceCallback(async (feedId: EnhancedFeedId) => {
+      this.cacheWarmerService.setDataSourceCallback(async (feedId: CoreFeedId) => {
         try {
           return await this.aggregationService.getAggregatedPrice(feedId);
         } catch (error) {
@@ -320,7 +320,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
   }
 
   // Helper methods
-  private getFeedIdFromSymbol(symbol: string): EnhancedFeedId | null {
+  private getFeedIdFromSymbol(symbol: string): CoreFeedId | null {
     const feedConfigs = this.configService.getFeedConfigurations();
     const config = feedConfigs.find(config => config.feed.name === symbol);
     return config ? config.feed : null;

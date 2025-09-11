@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { FailoverManager } from "@/data-manager/failover-manager";
-import { type DataSource, type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { type DataSource, type CoreFeedId, FeedCategory } from "@/common/types/core";
 
 import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CircuitBreakerService } from "../circuit-breaker.service";
@@ -168,7 +168,7 @@ describe("ConnectionRecoveryService", () => {
 
   describe("Feed Source Configuration", () => {
     it("should configure feed sources correctly", async () => {
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
@@ -195,7 +195,7 @@ describe("ConnectionRecoveryService", () => {
       await service.registerDataSource(mockSource1);
       await service.registerDataSource(mockSource2);
 
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
@@ -235,7 +235,7 @@ describe("ConnectionRecoveryService", () => {
 
   describe("Graceful Degradation", () => {
     it("should implement graceful degradation when sources fail", async () => {
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };
@@ -265,7 +265,7 @@ describe("ConnectionRecoveryService", () => {
     });
 
     it("should emit complete service degradation when no sources available", async () => {
-      const feedId: EnhancedFeedId = {
+      const feedId: CoreFeedId = {
         category: FeedCategory.Crypto,
         name: "BTC/USD",
       };

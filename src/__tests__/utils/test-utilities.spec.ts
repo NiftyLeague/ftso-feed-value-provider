@@ -4,7 +4,7 @@ import { FeedCategory } from "@/common/types/core";
 describe("Test Utilities", () => {
   describe("TestDataBuilder", () => {
     it("should create valid feed IDs", () => {
-      const feedId = TestDataBuilder.createFeedId();
+      const feedId = TestDataBuilder.createCoreFeedId();
 
       expect(feedId).toHaveProperty("category");
       expect(feedId).toHaveProperty("name");

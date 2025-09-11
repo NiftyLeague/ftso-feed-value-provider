@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
-import type { DataSource, EnhancedFeedId } from "@/common/types/core";
+import type { DataSource, CoreFeedId } from "@/common/types/core";
 import type { FailoverConfig, SourceHealth, FailoverGroup } from "@/common/types/data-manager";
 
 @Injectable()
@@ -64,7 +64,7 @@ export class FailoverManager extends EventDrivenService {
   }
 
   // Configure failover group for a feed
-  configureFailoverGroup(feedId: EnhancedFeedId, primarySources: string[], backupSources: string[]): void {
+  configureFailoverGroup(feedId: CoreFeedId, primarySources: string[], backupSources: string[]): void {
     const groupKey = this.getGroupKey(feedId);
 
     this.logger.log(
@@ -84,7 +84,7 @@ export class FailoverManager extends EventDrivenService {
   }
 
   // Get active sources for a feed
-  getActiveSources(feedId: EnhancedFeedId): DataSource[] {
+  getActiveSources(feedId: CoreFeedId): DataSource[] {
     const groupKey = this.getGroupKey(feedId);
     const group = this.failoverGroups.get(groupKey);
 
@@ -98,7 +98,7 @@ export class FailoverManager extends EventDrivenService {
   }
 
   // Get healthy sources for a feed
-  getHealthySources(feedId: EnhancedFeedId): DataSource[] {
+  getHealthySources(feedId: CoreFeedId): DataSource[] {
     return this.getActiveSources(feedId).filter(source => {
       const health = this.sourceHealth.get(source.id);
       return health?.isHealthy && source.isConnected();
@@ -327,7 +327,7 @@ export class FailoverManager extends EventDrivenService {
     }
   }
 
-  private getGroupKey(feedId: EnhancedFeedId): string {
+  private getGroupKey(feedId: CoreFeedId): string {
     return `${feedId.category}-${feedId.name}`;
   }
 

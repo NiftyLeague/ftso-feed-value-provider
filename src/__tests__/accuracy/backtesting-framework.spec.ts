@@ -1,9 +1,9 @@
 import { FeedCategory } from "@/common/types/core";
-import type { EnhancedFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
 // Mock historical data generator
 const generateHistoricalData = (
-  feedId: EnhancedFeedId,
+  feedId: CoreFeedId,
   startTime: number,
   endTime: number,
   intervalMs: number = 1000
@@ -38,7 +38,7 @@ const generateHistoricalData = (
 
 // Mock consensus aggregator
 class MockConsensusAggregator {
-  async aggregate(feedId: EnhancedFeedId, updates: PriceUpdate[]) {
+  async aggregate(feedId: CoreFeedId, updates: PriceUpdate[]) {
     if (updates.length === 0) {
       throw new Error(`No price updates available for feed ${feedId.name}`);
     }
@@ -81,7 +81,7 @@ class MockDataValidator {
 describe("Backtesting Framework", () => {
   let consensusAggregator: MockConsensusAggregator;
 
-  const mockFeedId: EnhancedFeedId = {
+  const mockFeedId: CoreFeedId = {
     category: FeedCategory.Crypto,
     name: "BTC/USD",
   };

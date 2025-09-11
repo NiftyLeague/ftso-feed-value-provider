@@ -4,7 +4,7 @@ import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 
 import type { IConfigurationService } from "@/common/types/services";
-import { type EnhancedFeedId, FeedCategory } from "@/common/types/core";
+import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 
 import { ConfigValidationService } from "./config-validation.service";
 import type { EnvironmentConfiguration, ConfigValidationResult } from "@/common/types";
@@ -20,7 +20,7 @@ export interface AdapterMapping {
 }
 
 export interface FeedConfiguration {
-  feed: EnhancedFeedId;
+  feed: CoreFeedId;
   sources: {
     exchange: string;
     symbol: string;
@@ -360,7 +360,7 @@ export class ConfigService extends StandardService implements IConfigurationServ
    * Get feed configuration by feed ID
    * Requirements: 5.1, 5.2
    */
-  getFeedConfiguration(feedId: EnhancedFeedId): FeedConfiguration | undefined {
+  getFeedConfiguration(feedId: CoreFeedId): FeedConfiguration | undefined {
     return this.feedConfigurations.find(
       config => config.feed.category === feedId.category && config.feed.name === feedId.name
     );

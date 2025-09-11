@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
-import type { PriceUpdate, EnhancedFeedId } from "@/common/types/core";
+import { FeedCategory } from "@/common/types/core";
+import type { PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { ErrorSeverity, ErrorCode } from "@/common/types/error-handling";
 import type { ValidationResult } from "@/common/types/utils";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
@@ -69,25 +70,25 @@ export class ValidationService extends EventDrivenService implements IDataValida
    */
   override emit(
     event: "validationPassed",
-    payload: { update: PriceUpdate; feedId: EnhancedFeedId; result: DataValidatorResult }
+    payload: { update: PriceUpdate; feedId: CoreFeedId; result: DataValidatorResult }
   ): boolean;
   override emit(
     event: "validationFailed",
     payload: {
       update: PriceUpdate;
-      feedId: EnhancedFeedId;
+      feedId: CoreFeedId;
       result: DataValidatorResult;
       errors: DataValidatorResult["errors"];
     }
   ): boolean;
   override emit(
     event: "criticalValidationError",
-    payload: { update: PriceUpdate; feedId: EnhancedFeedId; error: DataValidatorResult["errors"][number] }
+    payload: { update: PriceUpdate; feedId: CoreFeedId; error: DataValidatorResult["errors"][number] }
   ): boolean;
   override emit(
     event: "batchValidationCompleted",
     payload: {
-      feedId: EnhancedFeedId;
+      feedId: CoreFeedId;
       totalUpdates: number;
       validUpdates: number;
       results: Map<string, DataValidatorResult>;
@@ -104,13 +105,13 @@ export class ValidationService extends EventDrivenService implements IDataValida
    */
   override on(
     event: "validationPassed",
-    callback: (payload: { update: PriceUpdate; feedId: EnhancedFeedId; result: DataValidatorResult }) => void
+    callback: (payload: { update: PriceUpdate; feedId: CoreFeedId; result: DataValidatorResult }) => void
   ): this;
   override on(
     event: "validationFailed",
     callback: (payload: {
       update: PriceUpdate;
-      feedId: EnhancedFeedId;
+      feedId: CoreFeedId;
       result: DataValidatorResult;
       errors: DataValidatorResult["errors"];
     }) => void
@@ -119,14 +120,14 @@ export class ValidationService extends EventDrivenService implements IDataValida
     event: "criticalValidationError",
     callback: (payload: {
       update: PriceUpdate;
-      feedId: EnhancedFeedId;
+      feedId: CoreFeedId;
       error: DataValidatorResult["errors"][number];
     }) => void
   ): this;
   override on(
     event: "batchValidationCompleted",
     callback: (payload: {
-      feedId: EnhancedFeedId;
+      feedId: CoreFeedId;
       totalUpdates: number;
       validUpdates: number;
       results: Map<string, DataValidatorResult>;
@@ -148,7 +149,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
   // Real-time validation for individual price updates
   async validateRealTime(
     update: PriceUpdate,
-    feedId: EnhancedFeedId,
+    feedId: CoreFeedId,
     DataValidatorConfig?: Partial<DataValidatorConfig>
   ): Promise<DataValidatorResult> {
     if (!this.validationConfig.enableRealTimeValidation) {
@@ -250,7 +251,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
   // Batch validation for multiple updates
   async validateBatch(
     updates: PriceUpdate[],
-    feedId: EnhancedFeedId,
+    feedId: CoreFeedId,
     DataValidatorConfig?: Partial<DataValidatorConfig>
   ): Promise<Map<string, DataValidatorResult>> {
     if (!this.validationConfig.enableBatchValidation) {
@@ -387,7 +388,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
   }
 
   // Private helper methods
-  private buildValidationContext(update: PriceUpdate, feedId: EnhancedFeedId): ValidationContext {
+  private buildValidationContext(update: PriceUpdate, feedId: CoreFeedId): ValidationContext {
     const feedKey = this.getFeedKey(feedId);
 
     return {
@@ -400,7 +401,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
     };
   }
 
-  private buildBatchValidationContext(updates: PriceUpdate[], feedId: EnhancedFeedId): ValidationContext {
+  private buildBatchValidationContext(updates: PriceUpdate[], feedId: CoreFeedId): ValidationContext {
     const feedKey = this.getFeedKey(feedId);
 
     // Combine all updates for cross-source validation
@@ -416,7 +417,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
     };
   }
 
-  private getCrossSourcePrices(update: PriceUpdate, feedId: EnhancedFeedId): PriceUpdate[] {
+  private getCrossSourcePrices(update: PriceUpdate, feedId: CoreFeedId): PriceUpdate[] {
     const feedKey = this.getFeedKey(feedId);
     const allPrices = this.crossSourcePrices.get(feedKey) || [];
 
@@ -428,13 +429,13 @@ export class ValidationService extends EventDrivenService implements IDataValida
     );
   }
 
-  private getConsensusMedian(_feedId: EnhancedFeedId): number | undefined {
+  private getConsensusMedian(_feedId: CoreFeedId): number | undefined {
     // This would be implemented when consensus data is available
     // For now, return undefined
     return undefined;
   }
 
-  private updateHistoricalData(update: PriceUpdate, feedId: EnhancedFeedId): void {
+  private updateHistoricalData(update: PriceUpdate, feedId: CoreFeedId): void {
     const feedKey = this.getFeedKey(feedId);
 
     // Update historical prices
@@ -489,7 +490,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
       alpha * validationTime + (1 - alpha) * this.validationStats.averageValidationTime;
   }
 
-  private emitValidationEvents(update: PriceUpdate, feedId: EnhancedFeedId, result: DataValidatorResult): void {
+  private emitValidationEvents(update: PriceUpdate, feedId: CoreFeedId, result: DataValidatorResult): void {
     if (result.isValid) {
       this.emit("validationPassed", {
         update,
@@ -517,11 +518,11 @@ export class ValidationService extends EventDrivenService implements IDataValida
     }
   }
 
-  private getCacheKey(update: PriceUpdate, feedId: EnhancedFeedId): string {
+  private getCacheKey(update: PriceUpdate, feedId: CoreFeedId): string {
     return `${feedId.category}-${feedId.name}-${update.source}-${update.timestamp}`;
   }
 
-  private getFeedKey(feedId: EnhancedFeedId): string {
+  private getFeedKey(feedId: CoreFeedId): string {
     return `${feedId.category}-${feedId.name}`;
   }
 
@@ -574,10 +575,12 @@ export class ValidationService extends EventDrivenService implements IDataValida
   }
 
   // IDataValidationService interface methods
-  async validate(update: PriceUpdate, feedId?: EnhancedFeedId): Promise<ValidationResult> {
+  async validate(update: PriceUpdate, feedId?: CoreFeedId): Promise<ValidationResult> {
     // Fallback feedId if not provided to satisfy internal usage
-    const effectiveFeedId: EnhancedFeedId =
-      feedId ?? ({ category: "unknown", name: update.symbol } as unknown as EnhancedFeedId);
+    const effectiveFeedId: CoreFeedId = feedId ?? {
+      category: 0 as FeedCategory, // Default to unknown category
+      name: update.symbol,
+    };
 
     const result = await this.validateRealTime(update, effectiveFeedId);
 
@@ -590,7 +593,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
 
   async validatePriceUpdate(
     update: PriceUpdate,
-    feedId: EnhancedFeedId,
+    feedId: CoreFeedId,
     DataValidatorConfig?: Partial<DataValidatorConfig>
   ): Promise<DataValidatorResult> {
     return this.validateRealTime(update, feedId, DataValidatorConfig);
