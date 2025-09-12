@@ -5,7 +5,7 @@
 
 import { Logger } from "@nestjs/common";
 import type { EnhancedErrorLogEntry, LogContext, LogLevel } from "../types/logging";
-import { ErrorSeverity } from "../types/error-handling/error.types";
+import { ErrorSeverity, ErrorCode } from "../types/error-handling/error.types";
 
 /**
  * Maps ErrorSeverity to LogLevel for consistent logging
@@ -56,7 +56,7 @@ export class ErrorLogger {
       recoverable: this.isRecoverableError(error),
       errorCode: (() => {
         const code = typedError.code || context?.errorCode;
-        return typeof code === "string" ? code : "UNKNOWN_ERROR";
+        return typeof code === "string" ? code : ErrorCode.UNKNOWN_ERROR;
       })(),
       errorType: typedError.type || error.constructor.name,
     };

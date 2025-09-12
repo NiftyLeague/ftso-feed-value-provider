@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationService } from "../validation.service";
 import { DataValidator } from "../data-validator";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import type { DataValidatorResult } from "@/common/types/data-manager";
 import { FeedCategory } from "@/common/types/core";
 import { ValidationErrorType, ErrorCode, ErrorSeverity } from "@/common/types/error-handling";
@@ -9,6 +10,7 @@ import { TestDataBuilder, MockSetup } from "@/__tests__/utils";
 describe("ValidationService", () => {
   let service: ValidationService;
   let dataValidator: jest.Mocked<DataValidator>;
+  let universalRetryService: jest.Mocked<UniversalRetryService>;
 
   const mockFeedId = TestDataBuilder.createCoreFeedId({
     category: FeedCategory.Crypto,
@@ -32,17 +34,22 @@ describe("ValidationService", () => {
       getValidationStats: jest.fn(),
     };
 
+    const mockUniversalRetryService = {
+      executeWithRetry: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
           provide: ValidationService,
-          useFactory: () => new ValidationService(mockDataValidator as any),
+          useFactory: () => new ValidationService(mockDataValidator as any, mockUniversalRetryService as any),
         },
       ],
     }).compile();
 
     service = module.get<ValidationService>(ValidationService);
     dataValidator = mockDataValidator as any;
+    universalRetryService = mockUniversalRetryService as any;
   });
 
   afterEach(async () => {
@@ -60,15 +67,18 @@ describe("ValidationService", () => {
       });
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
+      universalRetryService.executeWithRetry.mockImplementation(async operation => {
+        return await operation();
+      });
 
       const result = await service.validateRealTime(mockUpdate, mockFeedId);
 
       expect(result).toEqual(mockResult);
-      expect(dataValidator.validateUpdate).toHaveBeenCalledWith(mockUpdate, expect.any(Object), undefined);
+      expect(universalRetryService.executeWithRetry).toHaveBeenCalled();
     });
 
     it("should handle validation errors gracefully", async () => {
-      dataValidator.validateUpdate.mockRejectedValue(new Error("Validation failed"));
+      universalRetryService.executeWithRetry.mockResolvedValue(undefined);
 
       const result = await service.validateRealTime(mockUpdate, mockFeedId);
 
@@ -85,6 +95,9 @@ describe("ValidationService", () => {
       });
 
       dataValidator.validateUpdate.mockResolvedValue(mockResult);
+      universalRetryService.executeWithRetry.mockImplementation(async operation => {
+        return await operation();
+      });
 
       // First call
       await service.validateRealTime(mockUpdate, mockFeedId);
@@ -112,16 +125,19 @@ describe("ValidationService", () => {
       });
 
       dataValidator.validateBatch.mockResolvedValue(mockResults);
+      universalRetryService.executeWithRetry.mockImplementation(async operation => {
+        return await operation();
+      });
 
       const results = await service.validateBatch(updates, mockFeedId);
 
       expect(results).toEqual(mockResults);
-      expect(dataValidator.validateBatch).toHaveBeenCalledWith(updates, expect.any(Object), undefined);
+      expect(universalRetryService.executeWithRetry).toHaveBeenCalled();
     });
 
     it("should handle batch validation errors", async () => {
       const updates = [mockUpdate];
-      dataValidator.validateBatch.mockRejectedValue(new Error("Batch validation failed"));
+      universalRetryService.executeWithRetry.mockRejectedValue(new Error("Batch validation failed"));
 
       await expect(service.validateBatch(updates, mockFeedId)).rejects.toThrow("Batch validation failed");
     });

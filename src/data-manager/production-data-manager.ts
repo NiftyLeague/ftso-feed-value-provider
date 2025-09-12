@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
+import { ErrorCode } from "@/common/types/error-handling";
 
 import type { AggregatedPrice, BaseServiceConfig } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
@@ -625,7 +626,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
           sourceId: source.id,
           sourceType: source.type,
           timestamp: Date.now(),
-          errorType: (error as Error & { errorType?: string }).errorType || "UNKNOWN_ERROR",
+          errorType: (error as Error & { errorType?: string }).errorType || ErrorCode.UNKNOWN_ERROR,
         };
 
         this.emit("sourceError", source.id, error, errorContext);

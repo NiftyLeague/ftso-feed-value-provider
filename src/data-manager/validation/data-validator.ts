@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handling";
 import { ErrorCode } from "@/common/types/error-handling/error.types";
@@ -20,7 +21,7 @@ export type ExtendedDataValidationError = BaseDataValidationError & {
 
 @Injectable()
 export class DataValidator extends StandardService {
-  constructor() {
+  constructor(private readonly universalRetryService: UniversalRetryService) {
     super({
       maxAge: 2000, // 2 seconds (Requirement 2.5)
       priceRange: { min: 0.01, max: 1000000 },
@@ -55,8 +56,8 @@ export class DataValidator extends StandardService {
     const errors: ExtendedDataValidationError[] = [];
     let confidence = update?.confidence || 0;
 
-    // Use mixin's error handling for validation process
-    const result = await this.executeWithErrorHandling(
+    // Use UniversalRetryService for validation process
+    const result = await this.universalRetryService.executeWithRetry(
       async () => {
         // Early null check
         if (!update) {
@@ -122,36 +123,27 @@ export class DataValidator extends StandardService {
           adjustedUpdate,
         };
       },
-      `validate_update_${update?.source || "unknown"}_${update?.symbol || "unknown"}`,
       {
-        retries: 1,
-        shouldThrow: false,
-        fallback: async () => ({
-          isValid: false,
-          errors: [
-            this.makeValidationError(
-              `Validation process failed: Operation failed after retry`,
-              "validateUpdate",
-              ["unexpected error"],
-              ErrorSeverity.CRITICAL,
-              { type: ValidationErrorType.FORMAT_ERROR }
-            ),
-          ],
-          warnings: [],
-          timestamp: Date.now(),
-          confidence: 0,
-        }),
+        serviceId: "DataValidator",
+        operationName: `validate_update_${update?.source || "unknown"}_${update?.symbol || "unknown"}`,
+        retryConfig: {
+          maxRetries: 1,
+          initialDelayMs: 50,
+          maxDelayMs: 500,
+          backoffMultiplier: 2,
+        },
       }
     );
 
-    return (
-      result || {
+    // Handle retry failure with fallback
+    if (!result) {
+      return {
         isValid: false,
         errors: [
           this.makeValidationError(
-            `Validation process failed: Unexpected failure`,
+            `Validation process failed: Operation failed after retry`,
             "validateUpdate",
-            ["unexpected error"],
+            ["validation operation failed after retry"],
             ErrorSeverity.CRITICAL,
             { type: ValidationErrorType.FORMAT_ERROR }
           ),
@@ -159,8 +151,10 @@ export class DataValidator extends StandardService {
         warnings: [],
         timestamp: Date.now(),
         confidence: 0,
-      }
-    );
+      };
+    }
+
+    return result;
   }
 
   // Format validation - ensures data structure integrity

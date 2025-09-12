@@ -6,6 +6,7 @@ import { ValidationUtils } from "../utils/validation.utils";
 import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
 import type { ApiResponse } from "../types/http/http.types";
 import type { StandardErrorMetadata } from "../types/error-handling";
+import { ErrorCode } from "../types/error-handling";
 import { createTimer, PerformanceUtils } from "../utils/performance.utils";
 import type { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import type { UniversalRetryService } from "@/error-handling/universal-retry.service";
@@ -493,7 +494,7 @@ export abstract class BaseController extends MonitoringService {
 
     // Fallback to existing error handling
     return new HttpException(
-      this.createErrorResponse("VALIDATION_ERROR", 4000, message, requestId, details),
+      this.createErrorResponse(ErrorCode.VALIDATION_ERROR, 4000, message, requestId, details),
       HttpStatus.BAD_REQUEST
     );
   }

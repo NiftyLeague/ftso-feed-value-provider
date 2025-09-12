@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { FeedCategory } from "@/common/types/core";
 import type { PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { ErrorSeverity, ErrorCode } from "@/common/types/error-handling";
@@ -35,7 +36,11 @@ export class ValidationService extends EventDrivenService implements IDataValida
 
   // Cleanup is now managed by the lifecycle mixin
 
-  constructor(validator: DataValidator, config?: Partial<DataValidatorConfig>) {
+  constructor(
+    validator: DataValidator,
+    private readonly universalRetryService: UniversalRetryService,
+    config?: Partial<DataValidatorConfig>
+  ) {
     super({
       // Required by DataValidatorConfig
       consensusWeight: 0.8,
@@ -165,8 +170,8 @@ export class ValidationService extends EventDrivenService implements IDataValida
 
     const startTime = Date.now();
 
-    // Use mixin's error handling with fallback
-    const result = await this.executeWithErrorHandling(
+    // Use UniversalRetryService for standardized retry logic
+    const result = await this.universalRetryService.executeWithRetry(
       async () => {
         // Check cache first
         const cacheKey = this.getCacheKey(update, feedId);
@@ -207,45 +212,38 @@ export class ValidationService extends EventDrivenService implements IDataValida
 
         return result;
       },
-      `validate_realtime_${update.source}_${feedId.name}`,
       {
-        retries: 1,
-        shouldThrow: false,
-        fallback: async () => ({
-          isValid: false,
-          errors: [
-            {
-              code: ErrorCode.DATA_VALIDATION_FAILED,
-              message: `Validation service error: Operation failed after retry`,
-              severity: ErrorSeverity.CRITICAL,
-              operation: "validateRealTime",
-              validationErrors: ["Validation operation failed"],
-            } as ExtendedDataValidationError,
-          ],
-          warnings: [],
-          timestamp: Date.now(),
-          confidence: 0,
-        }),
+        serviceId: "ValidationService",
+        operationName: `validate_realtime_${update.source}_${feedId.name}`,
+        retryConfig: {
+          maxRetries: 2,
+          initialDelayMs: 100,
+          maxDelayMs: 1000,
+          backoffMultiplier: 2,
+        },
       }
     );
 
-    return (
-      result || {
+    // Handle retry failure with fallback
+    if (!result) {
+      return {
         isValid: false,
         errors: [
           {
             code: ErrorCode.DATA_VALIDATION_FAILED,
-            message: `Validation service error: Unexpected failure`,
+            message: `Validation service error: Operation failed after retry`,
             severity: ErrorSeverity.CRITICAL,
             operation: "validateRealTime",
-            validationErrors: ["Unexpected validation failure"],
+            validationErrors: ["Validation operation failed after retry"],
           } as ExtendedDataValidationError,
         ],
         warnings: [],
         timestamp: Date.now(),
         confidence: 0,
-      }
-    );
+      };
+    }
+
+    return result;
   }
 
   // Batch validation for multiple updates
@@ -272,8 +270,8 @@ export class ValidationService extends EventDrivenService implements IDataValida
 
     const startTime = Date.now();
 
-    // Use mixin's error handling for batch validation
-    const result = await this.executeWithErrorHandling(
+    // Use UniversalRetryService for batch validation
+    const result = await this.universalRetryService.executeWithRetry(
       async () => {
         // Build validation context for batch
         const context = this.buildBatchValidationContext(updates, feedId);
@@ -312,10 +310,15 @@ export class ValidationService extends EventDrivenService implements IDataValida
 
         return results;
       },
-      `validate_batch_${feedId.name}_${updates.length}`,
       {
-        retries: 1,
-        shouldThrow: true, // Batch validation should throw on failure
+        serviceId: "ValidationService",
+        operationName: `validate_batch_${feedId.name}_${updates.length}`,
+        retryConfig: {
+          maxRetries: 1,
+          initialDelayMs: 200,
+          maxDelayMs: 2000,
+          backoffMultiplier: 2,
+        },
       }
     );
 

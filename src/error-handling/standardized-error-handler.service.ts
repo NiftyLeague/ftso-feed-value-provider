@@ -2,12 +2,12 @@ import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { retryWithBackoff, isRetryableError } from "@/common/utils/error.utils";
-import type {
-  IErrorDetails,
-  EnhancedErrorResponse,
-  StandardErrorClassification,
-  StandardErrorMetadata,
-  RetryConfig,
+import {
+  type IErrorDetails,
+  type EnhancedErrorResponse,
+  type StandardErrorClassification,
+  type StandardErrorMetadata,
+  type RetryConfig,
   ErrorSeverity,
 } from "@/common/types/error-handling";
 import {
@@ -436,7 +436,7 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
     if (
       [ErrorClass.AUTHENTICATION_ERROR, ErrorClass.CONFIGURATION_ERROR, ErrorClass.DATA_ERROR].includes(classification)
     ) {
-      return "critical" as ErrorSeverity;
+      return ErrorSeverity.CRITICAL;
     }
 
     // High severity errors
@@ -447,7 +447,7 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
         ErrorClass.CIRCUIT_BREAKER_ERROR,
       ].includes(classification)
     ) {
-      return "high" as ErrorSeverity;
+      return ErrorSeverity.HIGH;
     }
 
     // Medium severity errors
@@ -459,17 +459,17 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
         ErrorClass.PROCESSING_ERROR,
       ].includes(classification)
     ) {
-      return "medium" as ErrorSeverity;
+      return ErrorSeverity.MEDIUM;
     }
 
     // Low severity errors
     if (
       [ErrorClass.VALIDATION_ERROR, ErrorClass.NOT_FOUND_ERROR, ErrorClass.AUTHORIZATION_ERROR].includes(classification)
     ) {
-      return "low" as ErrorSeverity;
+      return ErrorSeverity.LOW;
     }
 
-    return "medium" as ErrorSeverity;
+    return ErrorSeverity.MEDIUM;
   }
 
   private isErrorRetryable(error: Error, classification?: StandardErrorClassification): boolean {

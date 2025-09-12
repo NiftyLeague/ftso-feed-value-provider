@@ -1,4 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
+import { ErrorCode } from "../types/error-handling";
 import type { FeedId } from "@/common/types/http";
 import type {
   UnknownInput,
@@ -15,7 +16,7 @@ import type {
 class TimestampedBadRequestException extends BadRequestException {
   constructor(message: string) {
     const errorResponse = {
-      error: "VALIDATION_ERROR",
+      error: ErrorCode.VALIDATION_ERROR,
       message,
       timestamp: Date.now(),
     };

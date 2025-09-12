@@ -2,17 +2,29 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { type PriceUpdate, FeedCategory } from "@/common/types/core";
 import { ValidationErrorType } from "@/common/types/error-handling";
 import { DataValidator, ValidationContext } from "../data-validator";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 describe("DataValidator", () => {
   let validator: DataValidator;
   let module: TestingModule;
+  let mockUniversalRetryService: jest.Mocked<UniversalRetryService>;
 
   beforeEach(async () => {
+    const mockUniversalRetryService = {
+      executeWithRetry: jest.fn(),
+    };
+
     module = await Test.createTestingModule({
-      providers: [DataValidator],
+      providers: [
+        {
+          provide: DataValidator,
+          useFactory: () => new DataValidator(mockUniversalRetryService as any),
+        },
+      ],
     }).compile();
 
     validator = module.get<DataValidator>(DataValidator);
+    mockUniversalRetryService = mockUniversalRetryService as any;
   });
 
   afterEach(async () => {
@@ -46,6 +58,10 @@ describe("DataValidator", () => {
     it("should pass validation for valid update", async () => {
       const update = createValidUpdate();
       const context = createValidContext();
+
+      mockUniversalRetryService.executeWithRetry.mockImplementation(async operation => {
+        return await operation();
+      });
 
       const result = await validator.validateUpdate(update, context);
 

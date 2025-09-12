@@ -71,13 +71,19 @@ import { StartupValidationService } from "./services/startup-validation.service"
     ConnectionRecoveryService,
 
     // Validation
-    DataValidator,
+    {
+      provide: DataValidator,
+      useFactory: (universalRetryService: UniversalRetryService) => {
+        return new DataValidator(universalRetryService);
+      },
+      inject: [UniversalRetryService],
+    },
     {
       provide: ValidationService,
-      useFactory: (validator: DataValidator) => {
-        return new ValidationService(validator);
+      useFactory: (validator: DataValidator, universalRetryService: UniversalRetryService) => {
+        return new ValidationService(validator, universalRetryService);
       },
-      inject: [DataValidator],
+      inject: [DataValidator, UniversalRetryService],
     },
 
     // Factory for creating the integrated FTSO provider service
