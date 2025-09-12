@@ -72,6 +72,7 @@ export class ConsensusAggregator extends StandardService {
       batchSize: 50, // Batch processing size for optimization
       parallelProcessing: true, // Enable parallel processing
       adaptiveWeighting: true, // Enable adaptive weight adjustment
+      useEnhancedLogging: true,
     });
     this.initializePrecomputedWeights();
     this.startWeightOptimization();

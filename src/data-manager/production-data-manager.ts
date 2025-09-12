@@ -54,6 +54,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       maxDelay: 30000,
       backoffMultiplier: 2,
       maxAttempts: 10,
+      useEnhancedLogging: true,
     });
     this.setupHealthMonitoring();
   }

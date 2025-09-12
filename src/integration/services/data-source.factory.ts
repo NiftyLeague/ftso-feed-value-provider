@@ -11,7 +11,7 @@ import { type DataSource, type PriceUpdate, FeedCategory } from "@/common/types/
 @Injectable()
 export class DataSourceFactory extends StandardService {
   constructor() {
-    super();
+    super({ useEnhancedLogging: true });
   }
 
   /**

@@ -27,7 +27,7 @@ export class IntegrationService
     private readonly systemHealth: SystemHealthService,
     private readonly configService: ConfigService
   ) {
-    super();
+    super({ useEnhancedLogging: true });
   }
 
   override async initialize(): Promise<void> {

@@ -53,7 +53,7 @@ export class ConfigService extends StandardService implements IConfigurationServ
   private fileWatcherService: FileWatcherService;
 
   constructor() {
-    super();
+    super({ useEnhancedLogging: true });
     this.feedsFilePath = join(__dirname, "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
     this.configValidationService = new ConfigValidationService();

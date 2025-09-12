@@ -12,7 +12,7 @@ export class ApiMonitorService extends EventDrivenService {
   private readonly maxErrorHistory = 1000; // Keep last 1k errors
 
   constructor() {
-    super();
+    super({ useEnhancedLogging: true });
     this.startPeriodicCleanup();
   }
 

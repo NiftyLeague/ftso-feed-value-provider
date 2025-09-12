@@ -24,7 +24,7 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService
   ) {
-    super();
+    super({ useEnhancedLogging: true });
   }
 
   // Method to set the integration service (called by the factory)

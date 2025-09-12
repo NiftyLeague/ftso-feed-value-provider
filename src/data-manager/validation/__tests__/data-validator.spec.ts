@@ -10,21 +10,20 @@ describe("DataValidator", () => {
   let mockUniversalRetryService: jest.Mocked<UniversalRetryService>;
 
   beforeEach(async () => {
-    const mockUniversalRetryService = {
+    mockUniversalRetryService = {
       executeWithRetry: jest.fn(),
-    };
+    } as any;
 
     module = await Test.createTestingModule({
       providers: [
         {
           provide: DataValidator,
-          useFactory: () => new DataValidator(mockUniversalRetryService as any),
+          useFactory: () => new DataValidator(mockUniversalRetryService),
         },
       ],
     }).compile();
 
     validator = module.get<DataValidator>(DataValidator);
-    mockUniversalRetryService = mockUniversalRetryService as any;
   });
 
   afterEach(async () => {

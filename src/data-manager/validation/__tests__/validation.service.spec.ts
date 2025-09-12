@@ -209,7 +209,7 @@ describe("ValidationService", () => {
     it("should work with custom configuration", async () => {
       // Using default config; ensure service constructs successfully
 
-      const customService = new ValidationService(dataValidator);
+      const customService = new ValidationService(dataValidator, universalRetryService);
       expect(customService).toBeDefined();
       await customService.cleanup(); // Clean up the custom service
     });
@@ -278,7 +278,7 @@ describe("ValidationService", () => {
 
   describe("Disabled Validation", () => {
     it("should bypass validation when real-time validation is disabled", async () => {
-      const disabledService = new ValidationService(dataValidator, {
+      const disabledService = new ValidationService(dataValidator, universalRetryService, {
         enableRealTimeValidation: false,
       });
 
@@ -291,7 +291,7 @@ describe("ValidationService", () => {
     });
 
     it("should bypass batch validation when disabled", async () => {
-      const disabledService = new ValidationService(dataValidator, {
+      const disabledService = new ValidationService(dataValidator, universalRetryService, {
         enableBatchValidation: false,
       });
 
