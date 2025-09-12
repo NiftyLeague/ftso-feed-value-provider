@@ -3,7 +3,7 @@ import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/ty
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
-export interface CryptocomTickerData {
+export interface ICryptocomTickerData {
   i: string; // Instrument name (symbol)
   b: string; // Best bid price
   k: string; // Best ask price
@@ -15,18 +15,18 @@ export interface CryptocomTickerData {
   c: string; // 24h change
 }
 
-export interface CryptocomWebSocketMessage {
+export interface ICryptocomWebSocketMessage {
   id?: number;
   method: string;
   code?: number;
   result?: {
     channel: string;
     subscription: string;
-    data: CryptocomTickerData[];
+    data: ICryptocomTickerData[];
   };
 }
 
-export interface CryptocomRestTickerData {
+export interface ICryptocomRestTickerData {
   i: string; // Instrument name
   b: string; // Best bid price
   k: string; // Best ask price
@@ -38,12 +38,12 @@ export interface CryptocomRestTickerData {
   c: string; // 24h change
 }
 
-export interface CryptocomRestResponse {
+export interface ICryptocomRestResponse {
   id: number;
   method: string;
   code: number;
   result: {
-    data: CryptocomRestTickerData[];
+    data: ICryptocomRestTickerData[];
   };
 }
 
@@ -286,7 +286,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     }
   }
 
-  normalizePriceData(rawData: CryptocomTickerData): PriceUpdate {
+  normalizePriceData(rawData: ICryptocomTickerData): PriceUpdate {
     const price = parseFloat(rawData.a);
     const volume = parseFloat(rawData.v);
     const timestamp = rawData.t;
@@ -313,7 +313,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     };
   }
 
-  normalizeVolumeData(rawData: CryptocomTickerData): VolumeUpdate {
+  normalizeVolumeData(rawData: ICryptocomTickerData): VolumeUpdate {
     return {
       symbol: this.normalizeSymbol(rawData.i),
       volume: parseFloat(rawData.v),
@@ -327,7 +327,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       return false;
     }
 
-    const tickerData = rawData as CryptocomTickerData;
+    const tickerData = rawData as ICryptocomTickerData;
 
     try {
       return !!(
@@ -403,7 +403,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = (await response.json()) as CryptocomRestResponse;
+      const result = (await response.json()) as ICryptocomRestResponse;
       if (result.code !== 0) {
         throw new Error(`Crypto.com API error: ${result.code}`);
       }

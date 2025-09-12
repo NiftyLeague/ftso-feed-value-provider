@@ -1,7 +1,7 @@
 import { FeedCategory } from "@/common/types/core";
 
 // Resource monitoring utilities
-interface ResourceSnapshot {
+interface IResourceSnapshot {
   timestamp: number;
   heapUsed: number;
   heapTotal: number;
@@ -12,12 +12,12 @@ interface ResourceSnapshot {
 }
 
 class ResourceMonitor {
-  private snapshots: ResourceSnapshot[] = [];
-  private initialSnapshot: ResourceSnapshot | null = null;
+  private snapshots: IResourceSnapshot[] = [];
+  private initialSnapshot: IResourceSnapshot | null = null;
 
-  takeSnapshot(): ResourceSnapshot {
+  takeSnapshot(): IResourceSnapshot {
     const memUsage = process.memoryUsage();
-    const snapshot: ResourceSnapshot = {
+    const snapshot: IResourceSnapshot = {
       timestamp: Date.now(),
       heapUsed: memUsage.heapUsed,
       heapTotal: memUsage.heapTotal,

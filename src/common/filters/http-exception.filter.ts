@@ -4,7 +4,7 @@ import type { EnhancedErrorResponse, StandardErrorMetadata } from "@/common/type
 import { StandardErrorClassification, createEnhancedErrorResponse, ErrorSeverity } from "@/common/types/error-handling";
 
 // Extended Request interface for authentication and session data
-interface ExtendedRequest extends Request {
+interface IExtendedRequest extends Request {
   user?: { id: string; [key: string]: unknown };
   session?: { id: string; [key: string]: unknown };
 }
@@ -204,11 +204,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private extractUserId(request: Request): string | undefined {
-    return request.get("X-User-ID") || (request as ExtendedRequest).user?.id;
+    return request.get("X-User-ID") || (request as IExtendedRequest).user?.id;
   }
 
   private extractSessionId(request: Request): string | undefined {
-    return request.get("X-Session-ID") || (request as ExtendedRequest).session?.id;
+    return request.get("X-Session-ID") || (request as IExtendedRequest).session?.id;
   }
 
   private extractClientId(request: Request): string | undefined {

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "./common/base/composed.service";
 import { RealTimeCacheService } from "./cache/real-time-cache.service";
-import { RealTimeAggregationService, type AggregationCacheStats } from "./aggregators/real-time-aggregation.service";
+import { RealTimeAggregationService, type IAggregationCacheStats } from "./aggregators/real-time-aggregation.service";
 
 import type { AggregationStatistics, HealthCheckResult, HealthStatusType } from "./common/types/monitoring";
 import type { FeedId, FeedValueData, FeedVolumeData } from "./common/types/http";
@@ -231,7 +231,7 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
     };
   }
 
-  private mapAggregationStats(cacheStats: AggregationCacheStats): AggregationStatistics {
+  private mapAggregationStats(cacheStats: IAggregationCacheStats): AggregationStatistics {
     return {
       totalAggregations: 0, // Not tracked in current implementation
       averageAggregationTime: 0, // Not tracked in current implementation

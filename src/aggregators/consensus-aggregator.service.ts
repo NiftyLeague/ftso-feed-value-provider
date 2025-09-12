@@ -3,7 +3,7 @@ import { StandardService } from "@/common/base/composed.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
 
-interface OptimizedPricePoint {
+interface IPricePoint {
   price: number;
   weight: number;
   confidence: number;
@@ -12,7 +12,7 @@ interface OptimizedPricePoint {
   tier: number;
 }
 
-interface PrecomputedWeights {
+interface IWeights {
   [source: string]: {
     baseWeight: number;
     tierMultiplier: number;
@@ -21,7 +21,7 @@ interface PrecomputedWeights {
   };
 }
 
-interface AggregationCache {
+interface IAggregationCache {
   [feedKey: string]: {
     result: AggregatedPrice;
     timestamp: number;
@@ -33,7 +33,7 @@ type TierWeights = {
   [key: number]: number;
 };
 
-interface ConsensusConfiguration extends BaseServiceConfig {
+interface IConsensusConfiguration extends BaseServiceConfig {
   lambda: number;
   maxStalenessMs: number;
   minSources: number;
@@ -48,8 +48,8 @@ interface ConsensusConfiguration extends BaseServiceConfig {
 
 @Injectable()
 export class ConsensusAggregator extends StandardService {
-  private precomputedWeights: PrecomputedWeights = {};
-  private aggregationCache: AggregationCache = {};
+  private precomputedWeights: IWeights = {};
+  private aggregationCache: IAggregationCache = {};
   private performanceMetrics = {
     totalAggregations: 0,
     averageTime: 0,
@@ -80,8 +80,8 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Get the typed configuration for this service
    */
-  private get consensusConfig(): ConsensusConfiguration {
-    return this.config as ConsensusConfiguration;
+  private get consensusConfig(): IConsensusConfiguration {
+    return this.config as IConsensusConfiguration;
   }
 
   /**
@@ -128,7 +128,7 @@ export class ConsensusAggregator extends StandardService {
       }
 
       // Convert to optimized price points with precomputed weights
-      const pricePoints = this.convertToOptimizedPricePoints(validUpdates);
+      const pricePoints = this.convertToPricePoints(validUpdates);
 
       // Fast weighted median calculation
       const aggregatedPrice = this.calculateOptimizedWeightedMedian(pricePoints);
@@ -235,7 +235,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Convert updates to optimized price points with precomputed weights
    */
-  private convertToOptimizedPricePoints(updates: PriceUpdate[]): OptimizedPricePoint[] {
+  private convertToPricePoints(updates: PriceUpdate[]): IPricePoint[] {
     const now = Date.now();
 
     return updates.map(update => {
@@ -264,7 +264,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Optimized weighted median calculation with fast sorting
    */
-  private calculateOptimizedWeightedMedian(pricePoints: OptimizedPricePoint[]): number {
+  private calculateOptimizedWeightedMedian(pricePoints: IPricePoint[]): number {
     if (pricePoints.length === 0) {
       throw new Error("No price points available for aggregation");
     }
@@ -308,7 +308,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Fast outlier removal using IQR method
    */
-  private fastOutlierRemoval(pricePoints: OptimizedPricePoint[]): OptimizedPricePoint[] {
+  private fastOutlierRemoval(pricePoints: IPricePoint[]): IPricePoint[] {
     if (pricePoints.length <= 4) {
       return pricePoints; // Too few points for outlier detection
     }
@@ -335,7 +335,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Fast consensus score calculation
    */
-  private calculateFastConsensusScore(pricePoints: OptimizedPricePoint[], medianPrice: number): number {
+  private calculateFastConsensusScore(pricePoints: IPricePoint[], medianPrice: number): number {
     if (pricePoints.length === 0) return 0;
 
     // Calculate weighted average deviation
@@ -358,7 +358,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Optimized confidence calculation
    */
-  private calculateOptimizedConfidence(pricePoints: OptimizedPricePoint[], consensusScore: number): number {
+  private calculateOptimizedConfidence(pricePoints: IPricePoint[], consensusScore: number): number {
     if (pricePoints.length === 0) return 0;
 
     // Fast weighted average confidence

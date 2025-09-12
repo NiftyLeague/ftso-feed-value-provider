@@ -12,7 +12,7 @@ import { CacheWarmerService } from "@/cache/cache-warmer.service";
 // Aggregation services
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
-interface PerformanceOptimizationConfig extends BaseServiceConfig {
+interface IPerformanceConfig extends BaseServiceConfig {
   enabled: boolean;
   monitoringInterval: number;
   optimizationInterval: number;
@@ -25,7 +25,7 @@ interface PerformanceOptimizationConfig extends BaseServiceConfig {
   };
 }
 
-interface OptimizationAction {
+interface IOptimizationAction {
   action: string;
   component: string;
   description: string;
@@ -41,7 +41,7 @@ export class PerformanceOptimizationCoordinatorService
   implements OnModuleInit, OnModuleDestroy
 {
   // Intervals are now managed by lifecycle mixin
-  private optimizationActions: OptimizationAction[] = [];
+  private optimizationActions: IOptimizationAction[] = [];
   private performanceHistory: Array<{
     timestamp: number;
     responseTime: number;
@@ -74,8 +74,8 @@ export class PerformanceOptimizationCoordinatorService
   /**
    * Get the typed configuration for this service
    */
-  private get optimizationConfig(): PerformanceOptimizationConfig {
-    return this.config as PerformanceOptimizationConfig;
+  private get optimizationConfig(): IPerformanceConfig {
+    return this.config as IPerformanceConfig;
   }
 
   override async initialize(): Promise<void> {
@@ -127,7 +127,7 @@ export class PerformanceOptimizationCoordinatorService
    */
   private async collectBaselineMetrics(): Promise<void> {
     try {
-      const metrics = this.performanceMonitor.getOptimizedPerformanceMetrics();
+      const metrics = this.performanceMonitor.getPerformanceMetrics();
       const cacheStats = this.cacheService.getStats();
 
       this.performanceHistory.push({
@@ -188,7 +188,7 @@ export class PerformanceOptimizationCoordinatorService
   private async performPerformanceMonitoring(): Promise<void> {
     try {
       // Collect optimized metrics from enhanced monitor
-      const performanceMetrics = this.performanceMonitor.getOptimizedPerformanceMetrics();
+      const performanceMetrics = this.performanceMonitor.getPerformanceMetrics();
       const cacheStats = this.cacheService.getStats();
 
       // Record comprehensive metrics
@@ -228,7 +228,7 @@ export class PerformanceOptimizationCoordinatorService
     performanceMetrics: { responseTime: number; memoryEfficiency: number; cpuEfficiency: number },
     cacheStats: { hitRate: number }
   ): Promise<void> {
-    const actions: OptimizationAction[] = [];
+    const actions: IOptimizationAction[] = [];
 
     // Check response time
     if (performanceMetrics.responseTime > this.optimizationConfig.performanceTargets.responseTime) {
@@ -315,7 +315,7 @@ export class PerformanceOptimizationCoordinatorService
   /**
    * Execute optimization actions
    */
-  private async executeOptimizationActions(actions: OptimizationAction[]): Promise<void> {
+  private async executeOptimizationActions(actions: IOptimizationAction[]): Promise<void> {
     for (const action of actions) {
       try {
         await this.executeOptimizationAction(action);
@@ -340,7 +340,7 @@ export class PerformanceOptimizationCoordinatorService
   /**
    * Execute a specific optimization action
    */
-  private async executeOptimizationAction(action: OptimizationAction): Promise<void> {
+  private async executeOptimizationAction(action: IOptimizationAction): Promise<void> {
     switch (action.action) {
       case "optimize_response_time":
         await this.optimizeResponseTime();
@@ -449,8 +449,8 @@ export class PerformanceOptimizationCoordinatorService
    * Get performance optimization summary
    */
   getOptimizationSummary(): {
-    config: PerformanceOptimizationConfig;
-    recentActions: OptimizationAction[];
+    config: IPerformanceConfig;
+    recentActions: IOptimizationAction[];
     performanceTrends: {
       responseTime: { current: number; trend: "improving" | "degrading" | "stable" };
       cacheHitRate: { current: number; trend: "improving" | "degrading" | "stable" };

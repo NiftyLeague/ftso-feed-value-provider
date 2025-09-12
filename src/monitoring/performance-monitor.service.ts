@@ -2,14 +2,14 @@ import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { PerformanceMetrics, ThresholdsConfig } from "@/common/types/monitoring";
 
-interface OptimizedPerformanceMetrics extends PerformanceMetrics {
+interface IPerformanceMetrics extends PerformanceMetrics {
   cacheEfficiency: number;
   aggregationSpeed: number;
   memoryEfficiency: number;
   cpuEfficiency: number;
 }
 
-interface PerformanceOptimizationSuggestion {
+interface IOptimizationSuggestion {
   component: string;
   issue: string;
   suggestion: string;
@@ -36,7 +36,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
 
   // Performance optimization state
   private adaptiveThresholds = true;
-  private performanceBaseline: OptimizedPerformanceMetrics | null = null;
+  private performanceBaseline: IPerformanceMetrics | null = null;
 
   constructor(config?: ThresholdsConfig) {
     super({
@@ -111,7 +111,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
   /**
    * Get comprehensive performance metrics with advanced calculations
    */
-  getOptimizedPerformanceMetrics(): OptimizedPerformanceMetrics {
+  getPerformanceMetrics(): IPerformanceMetrics {
     const effectiveSize = this.bufferFull ? this.bufferSize : this.bufferIndex;
 
     if (effectiveSize === 0) {
@@ -257,9 +257,9 @@ export class PerformanceMonitorService extends StandardService implements OnModu
   /**
    * Generate intelligent optimization suggestions
    */
-  getOptimizationRecommendations(): PerformanceOptimizationSuggestion[] {
-    const metrics = this.getOptimizedPerformanceMetrics();
-    const suggestions: PerformanceOptimizationSuggestion[] = [];
+  getOptimizationRecommendations(): IOptimizationSuggestion[] {
+    const metrics = this.getPerformanceMetrics();
+    const suggestions: IOptimizationSuggestion[] = [];
 
     // Cache optimization suggestions
     if (metrics.cacheEfficiency < 0.85) {
@@ -307,7 +307,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
    * Adjust thresholds adaptively based on performance history
    */
   private adjustThresholdsAdaptively(): void {
-    const metrics = this.getOptimizedPerformanceMetrics();
+    const metrics = this.getPerformanceMetrics();
 
     if (!this.performanceBaseline) {
       this.performanceBaseline = metrics;
@@ -419,7 +419,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
     return 150;
   }
 
-  private getDefaultMetrics(): OptimizedPerformanceMetrics {
+  private getDefaultMetrics(): IPerformanceMetrics {
     return {
       responseTime: 0,
       responseLatency: 0,
@@ -441,8 +441,8 @@ export class PerformanceMonitorService extends StandardService implements OnModu
    */
   getPerformanceSummary(): {
     overall: "excellent" | "good" | "fair" | "poor";
-    metrics: OptimizedPerformanceMetrics;
-    suggestions: PerformanceOptimizationSuggestion[];
+    metrics: IPerformanceMetrics;
+    suggestions: IOptimizationSuggestion[];
     efficiency: {
       cache: number;
       memory: number;
@@ -450,7 +450,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
       aggregation: number;
     };
   } {
-    const metrics = this.getOptimizedPerformanceMetrics();
+    const metrics = this.getPerformanceMetrics();
     const suggestions = this.getOptimizationRecommendations();
 
     // Calculate overall performance rating

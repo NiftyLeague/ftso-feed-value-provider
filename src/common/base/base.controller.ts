@@ -11,7 +11,7 @@ import type { StandardizedErrorHandlerService } from "@/error-handling/standardi
 import type { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 // Extended Request interface for authentication and session data
-interface ExtendedRequest extends Request {
+interface IExtendedRequest extends Request {
   user?: { id: string; [key: string]: unknown };
   session?: { id: string; [key: string]: unknown };
 }
@@ -635,8 +635,8 @@ export abstract class BaseController extends MonitoringService {
     return {
       correlationId: request.get?.("X-Correlation-ID") || request.get?.("X-Request-ID") || this.generateRequestId(),
       traceId: request.get?.("X-Trace-ID"),
-      userId: request.get?.("X-User-ID") || (request as ExtendedRequest).user?.id,
-      sessionId: request.get?.("X-Session-ID") || (request as ExtendedRequest).session?.id,
+      userId: request.get?.("X-User-ID") || (request as IExtendedRequest).user?.id,
+      sessionId: request.get?.("X-Session-ID") || (request as IExtendedRequest).session?.id,
       clientId: request.get?.("X-Client-ID"),
       userAgent: request.get?.("User-Agent"),
       ipAddress: this.extractClientIp(request),

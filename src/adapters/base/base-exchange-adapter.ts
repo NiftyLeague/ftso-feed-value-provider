@@ -9,7 +9,7 @@ import type { WSConnectionConfig } from "@/common/types/data-manager";
 /**
  * Extended configuration for exchange adapters
  */
-export interface ExchangeAdapterConfig extends BaseServiceConfig {
+export interface IExchangeAdapterConfig extends BaseServiceConfig {
   useEnhancedLogging?: boolean;
   connection?: ExchangeConnectionConfig;
 }
@@ -35,7 +35,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   protected wsManager?: WebSocketConnectionManager;
   protected wsConnectionId?: string;
 
-  constructor(config?: ExchangeAdapterConfig) {
+  constructor(config?: IExchangeAdapterConfig) {
     super(config || { connection: {} });
     this.initValidation();
   }
@@ -412,7 +412,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   override getConfig(): Readonly<BaseServiceConfig> & Partial<ExchangeConnectionConfig> {
     return {
       ...super.getConfig(),
-      ...(super.getConfig() as ExchangeAdapterConfig).connection,
+      ...(super.getConfig() as IExchangeAdapterConfig).connection,
     };
   }
 
@@ -420,7 +420,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
    * Update adapter configuration
    */
   updateConnectionConfig(config: Partial<ExchangeConnectionConfig>): void {
-    const currentConfig = super.getConfig() as ExchangeAdapterConfig;
+    const currentConfig = super.getConfig() as IExchangeAdapterConfig;
     super.updateConfig({
       ...currentConfig,
       connection: {

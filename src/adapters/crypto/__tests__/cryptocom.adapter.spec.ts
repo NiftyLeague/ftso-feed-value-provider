@@ -1,4 +1,4 @@
-import { CryptocomAdapter, CryptocomTickerData, CryptocomRestResponse } from "../cryptocom.adapter";
+import { CryptocomAdapter, ICryptocomTickerData, ICryptocomRestResponse } from "../cryptocom.adapter";
 import { FeedCategory } from "@/common/types/core";
 
 // Define the mock WebSocket type
@@ -543,7 +543,7 @@ describe("CryptocomAdapter", () => {
   let mockWebSocket: MockWebSocket;
   let originalEnv: NodeJS.ProcessEnv;
 
-  const mockTickerData: CryptocomTickerData = {
+  const mockTickerData: ICryptocomTickerData = {
     i: "BTC_USDT",
     b: "49999.0",
     k: "50001.0",
@@ -896,7 +896,7 @@ describe("CryptocomAdapter", () => {
 
   describe("REST API functionality", () => {
     it("should fetch ticker data via REST", async () => {
-      const mockResponse: CryptocomRestResponse = {
+      const mockResponse: ICryptocomRestResponse = {
         id: 1,
         method: "public/get-ticker",
         code: 0,
@@ -929,7 +929,7 @@ describe("CryptocomAdapter", () => {
     });
 
     it("should handle Crypto.com API error responses", async () => {
-      const mockErrorResponse: CryptocomRestResponse = {
+      const mockErrorResponse: ICryptocomRestResponse = {
         id: 1,
         method: "public/get-ticker",
         code: 10001,
@@ -947,7 +947,7 @@ describe("CryptocomAdapter", () => {
     });
 
     it("should handle empty data response", async () => {
-      const mockEmptyResponse: CryptocomRestResponse = {
+      const mockEmptyResponse: ICryptocomRestResponse = {
         id: 1,
         method: "public/get-ticker",
         code: 0,
@@ -1024,7 +1024,7 @@ describe("CryptocomAdapter", () => {
     });
 
     it("should check REST API when not connected", async () => {
-      const mockResponse: CryptocomRestResponse = {
+      const mockResponse: ICryptocomRestResponse = {
         id: 1,
         method: "public/get-instruments",
         code: 0,
@@ -1054,7 +1054,7 @@ describe("CryptocomAdapter", () => {
     });
 
     it("should return false when REST API returns error code", async () => {
-      const mockErrorResponse: CryptocomRestResponse = {
+      const mockErrorResponse: ICryptocomRestResponse = {
         id: 1,
         method: "public/get-instruments",
         code: 10001,

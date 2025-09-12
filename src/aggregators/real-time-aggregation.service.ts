@@ -9,7 +9,7 @@ import { ConsensusAggregator } from "./consensus-aggregator.service";
 
 interface IAggregationService {
   getActiveFeedCount(): number;
-  getCacheStats(): AggregationCacheStats;
+  getCacheStats(): IAggregationCacheStats;
   getSubscriptionCount(): number;
 }
 
@@ -22,7 +22,7 @@ export interface CacheEntry {
   votingRound?: number;
 }
 
-export interface AggregationCacheStats {
+export interface IAggregationCacheStats {
   totalEntries: number;
   hitRate: number;
   missRate: number;
@@ -361,7 +361,7 @@ export class RealTimeAggregationService
   /**
    * Get cache statistics
    */
-  getCacheStats(): AggregationCacheStats {
+  getCacheStats(): IAggregationCacheStats {
     const totalRequests = this.cacheStats.totalRequests;
     const hitRate = totalRequests > 0 ? this.cacheStats.hits / totalRequests : 0;
     const missRate = totalRequests > 0 ? this.cacheStats.misses / totalRequests : 0;

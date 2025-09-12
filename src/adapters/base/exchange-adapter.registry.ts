@@ -1,7 +1,7 @@
 import type { IExchangeAdapter, ExchangeCapabilities } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 
-export interface AdapterRegistryEntry {
+export interface IAdapterRegistryEntry {
   adapter: IExchangeAdapter;
   registeredAt: Date;
   isActive: boolean;
@@ -9,7 +9,7 @@ export interface AdapterRegistryEntry {
   healthStatus?: "healthy" | "degraded" | "unhealthy";
 }
 
-export interface AdapterFilter {
+export interface IAdapterFilter {
   category?: FeedCategory;
   capabilities?: Partial<ExchangeCapabilities>;
   isActive?: boolean;
@@ -17,7 +17,7 @@ export interface AdapterFilter {
 }
 
 export class ExchangeAdapterRegistry {
-  private adapters = new Map<string, AdapterRegistryEntry>();
+  private adapters = new Map<string, IAdapterRegistryEntry>();
 
   /**
    * Register a new exchange adapter
@@ -47,7 +47,7 @@ export class ExchangeAdapterRegistry {
   /**
    * Get all adapters matching the filter criteria
    */
-  getFiltered(filter: AdapterFilter = {}): IExchangeAdapter[] {
+  getFiltered(filter: IAdapterFilter = {}): IExchangeAdapter[] {
     return Array.from(this.adapters.values())
       .filter(entry => this.matchesFilter(entry, filter))
       .map(entry => entry.adapter);
@@ -71,7 +71,7 @@ export class ExchangeAdapterRegistry {
    * Get all supported exchange names
    */
   getSupportedExchanges(category?: FeedCategory): string[] {
-    const filter: AdapterFilter = { isActive: true };
+    const filter: IAdapterFilter = { isActive: true };
     if (category) {
       filter.category = category;
     }
@@ -214,7 +214,7 @@ export class ExchangeAdapterRegistry {
     return Array.from(this.adapters.keys());
   }
 
-  private matchesFilter(entry: AdapterRegistryEntry, filter: AdapterFilter): boolean {
+  private matchesFilter(entry: IAdapterRegistryEntry, filter: IAdapterFilter): boolean {
     if (filter.category !== undefined && entry.adapter.category !== filter.category) {
       return false;
     }

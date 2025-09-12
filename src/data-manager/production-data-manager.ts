@@ -17,7 +17,7 @@ import {
   hasHealthCheckCapability,
 } from "@/common/types/data-manager";
 
-interface ReconnectConfig extends BaseServiceConfig {
+interface IReconnectConfig extends BaseServiceConfig {
   initialDelay: number;
   maxDelay: number;
   backoffMultiplier: number;
@@ -60,8 +60,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   /**
    * Get the typed configuration for this service
    */
-  private get reconnectConfig(): ReconnectConfig {
-    return this.config as ReconnectConfig;
+  private get reconnectConfig(): IReconnectConfig {
+    return this.config as IReconnectConfig;
   }
 
   // Failover and recovery methods

@@ -51,14 +51,14 @@ export interface RestApiResponse {
   [key: string]: unknown;
 }
 
-export interface AdapterRegistryEntry {
+export interface IAdapterRegistryEntry {
   adapter: IExchangeAdapter;
   registeredAt: Date;
   lastActivity: Date;
   isActive: boolean;
 }
 
-export interface AdapterFilter {
+export interface IAdapterFilter {
   category?: FeedCategory;
   capabilities?: Partial<ExchangeCapabilities>;
 }

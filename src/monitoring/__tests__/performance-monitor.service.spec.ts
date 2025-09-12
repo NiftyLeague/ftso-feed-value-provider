@@ -63,7 +63,7 @@ describe("PerformanceMonitorService", () => {
 
       service.recordOptimizedMetrics(metrics);
 
-      const performanceMetrics = service.getOptimizedPerformanceMetrics();
+      const performanceMetrics = service.getPerformanceMetrics();
       expect(performanceMetrics.responseTime).toBe(50);
       expect(performanceMetrics.cacheHitRate).toBeCloseTo(0.9, 2);
     });
@@ -75,14 +75,14 @@ describe("PerformanceMonitorService", () => {
 
       service.recordOptimizedMetrics(metrics);
 
-      const performanceMetrics = service.getOptimizedPerformanceMetrics();
+      const performanceMetrics = service.getPerformanceMetrics();
       expect(performanceMetrics.responseTime).toBe(75);
     });
   });
 
-  describe("getOptimizedPerformanceMetrics", () => {
+  describe("getPerformanceMetrics", () => {
     it("should return default metrics when no data recorded", () => {
-      const metrics = service.getOptimizedPerformanceMetrics();
+      const metrics = service.getPerformanceMetrics();
 
       expect(metrics.responseTime).toBe(0);
       expect(metrics.cacheHitRate).toBe(0);
@@ -98,7 +98,7 @@ describe("PerformanceMonitorService", () => {
         cpuUsage: 30,
       });
 
-      const metrics = service.getOptimizedPerformanceMetrics();
+      const metrics = service.getPerformanceMetrics();
 
       expect(metrics.cacheEfficiency).toBeGreaterThan(0.8);
       expect(metrics.memoryEfficiency).toBe(0.5); // (100-50)/100
@@ -219,7 +219,7 @@ describe("PerformanceMonitorService", () => {
         responseTime: 150, // Exceeds threshold
       });
 
-      const metrics = service.getOptimizedPerformanceMetrics();
+      const metrics = service.getPerformanceMetrics();
       expect(metrics.responseTime).toBe(150);
     });
 
@@ -242,7 +242,7 @@ describe("PerformanceMonitorService", () => {
       // Should handle 1000 metrics in reasonable time
       expect(duration).toBeLessThan(100); // Less than 100ms
 
-      const metrics = service.getOptimizedPerformanceMetrics();
+      const metrics = service.getPerformanceMetrics();
       expect(metrics.responseTime).toBeGreaterThan(0);
       expect(metrics.cacheHitRate).toBeGreaterThan(0);
     });
@@ -260,7 +260,7 @@ describe("PerformanceMonitorService", () => {
         });
       }
 
-      const initialMetrics = service.getOptimizedPerformanceMetrics();
+      const initialMetrics = service.getPerformanceMetrics();
       expect(initialMetrics.responseTime).toBeLessThan(50);
 
       // Record improved performance
@@ -273,7 +273,7 @@ describe("PerformanceMonitorService", () => {
         });
       }
 
-      const improvedMetrics = service.getOptimizedPerformanceMetrics();
+      const improvedMetrics = service.getPerformanceMetrics();
       expect(improvedMetrics.responseTime).toBeLessThan(initialMetrics.responseTime);
     });
   });
