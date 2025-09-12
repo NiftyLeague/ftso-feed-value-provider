@@ -69,20 +69,22 @@ export class OkxAdapter extends BaseExchangeAdapter {
   private pingInterval?: NodeJS.Timeout;
 
   constructor(config?: ExchangeConnectionConfig) {
-    super(config);
+    super({ connection: config });
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.config?.websocketUrl || "wss://ws.okx.com:8443/ws/v5/public";
+    const wsUrl = this.getConfig()?.websocketUrl || "wss://ws.okx.com:8443/ws/v5/public";
 
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
-      reconnectDelay: 5000,
+      protocols: [],
       reconnectInterval: 5000,
       maxReconnectAttempts: 5,
       pingInterval: 30000, // OKX requires periodic ping
       pongTimeout: 10000,
+      reconnectDelay: 5000,
+      headers: {},
     });
 
     this.startPingInterval();
@@ -177,9 +179,8 @@ export class OkxAdapter extends BaseExchangeAdapter {
       return false;
     }
 
-    const tickerData = rawData as OkxTickerData;
-
     try {
+      const tickerData = rawData as OkxTickerData;
       return !!(
         tickerData.instId && // Symbol
         tickerData.last && // Last price

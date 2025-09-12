@@ -49,13 +49,35 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   }
 
   constructor(config?: ExchangeConnectionConfig) {
-    super(config);
+    super({ connection: config });
+    this.initValidation();
+  }
+
+  protected override initValidation(): void {
+    super.initValidation();
+
+    // Add Coinbase-specific validation rules
+    this.addValidationRule({
+      name: "coinbase-ticker-format",
+      validate: (value: unknown) => {
+        if (!value || typeof value !== "object") return false;
+        const data = value as Partial<CoinbaseTickerData>;
+        return !!(
+          data.type === "ticker" &&
+          data.product_id &&
+          data.price &&
+          data.time &&
+          !isNaN(this.parseNumber(data.price))
+        );
+      },
+      message: "Invalid Coinbase ticker format",
+    });
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.config?.websocketUrl || "wss://ws-feed.exchange.coinbase.com";
+    const config = this.getConfig();
+    const wsUrl = config?.websocketUrl || "wss://ws-feed.exchange.coinbase.com";
 
-    // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
@@ -67,15 +89,61 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   }
 
   protected async doDisconnect(): Promise<void> {
-    await this.disconnectWebSocket();
+    // Note: The base class handles WebSocket disconnection in the disconnect() method
+    // We only need to handle any Coinbase-specific cleanup here
+    try {
+      // Clean up any subscriptions if needed
+      const subscriptions = this.getSubscriptions();
+      if (subscriptions.length > 0) {
+        await this.unsubscribe(subscriptions);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger?.warn(`Error during Coinbase-specific disconnection: ${errorMessage}`);
+      // Don't rethrow - let the base class handle the disconnection state
+    }
   }
 
   override isConnected(): boolean {
-    return super.isConnected() && this.isWebSocketConnected();
+    return this.isConnected_ && this.isWebSocketConnected();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
+  /**
+   * Process ticker data from WebSocket message
+   */
+  private processTickerData(ticker: CoinbaseTickerData): void {
+    try {
+      const priceUpdate = this.normalizePriceData(ticker);
+      this.onPriceUpdateCallback?.(priceUpdate);
+      this.recordSuccessfulRequest();
+    } catch (error) {
+      this.logger.error("Error processing ticker data:", error);
+      this.recordFailedRequest();
+      this.onErrorCallback?.(error as Error);
+    }
+  }
+
   protected override handleWebSocketMessage(data: unknown): void {
+    if (!data) return;
+
+    try {
+      // Process the message based on its type
+      const message = data as Record<string, unknown>;
+
+      // Handle different message types (ticker, subscription, etc.)
+      if (message.type === "ticker") {
+        const ticker = message as unknown as CoinbaseTickerData;
+        this.processTickerData(ticker);
+      } else if (message.type === "error") {
+        this.logger.error("WebSocket error:", message);
+        this.onErrorCallback?.(new Error(`WebSocket error: ${JSON.stringify(message)}`));
+      }
+    } catch (error) {
+      this.logger.error("Error processing WebSocket message:", error);
+      this.recordFailedRequest();
+      this.onErrorCallback?.(error as Error);
+    }
     this.safeProcessData(
       data,
       rawData => {
@@ -169,8 +237,9 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
 
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
+    const config = this.getConfig();
     const coinbaseSymbol = this.getSymbolMapping(symbol);
-    const baseUrl = this.config?.restApiUrl || "https://api.exchange.coinbase.com";
+    const baseUrl = config?.restApiUrl || "https://api.exchange.coinbase.com";
     const url = `${baseUrl}/products/${coinbaseSymbol}/ticker`;
 
     try {

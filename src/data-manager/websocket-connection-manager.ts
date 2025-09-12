@@ -59,8 +59,8 @@ export class WebSocketConnectionManager extends EventDrivenService {
     }
   }
 
-  async closeConnection(connectionId: string): Promise<void> {
-    this.logger.log(`Closing WebSocket connection: ${connectionId}`);
+  async closeConnection(connectionId: string, code?: number, reason?: string): Promise<void> {
+    this.logger.log(`Closing WebSocket connection: ${connectionId}`, { code, reason });
 
     // Clear timers
     this.clearTimers(connectionId);
@@ -68,7 +68,7 @@ export class WebSocketConnectionManager extends EventDrivenService {
     // Close WebSocket
     const ws = this.connections.get(connectionId);
     if (ws) {
-      ws.close(1000, "Connection closed by client");
+      ws.close(code ?? 1000, reason ?? "Normal closure");
       this.connections.delete(connectionId);
     }
 

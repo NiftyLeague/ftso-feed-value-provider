@@ -40,6 +40,9 @@ describe("CcxtMultiExchangeAdapter", () => {
       })
       .build();
 
+    // Clear all mock history before each test
+    jest.clearAllMocks();
+
     logger = testModule.get(EnhancedLoggerService);
     adapter = CcxtMultiExchangeAdapter.withConfig(defaultConfig);
     (adapter as any).logger = logger;
@@ -63,7 +66,61 @@ describe("CcxtMultiExchangeAdapter", () => {
       };
 
       const adapter = CcxtMultiExchangeAdapter.withConfig(customConfig);
-      expect(adapter.getConfig()).toEqual(customConfig);
+      expect(adapter.getCcxtConfig()).toEqual(customConfig);
+    });
+
+    it("should properly update adapter config", () => {
+      const newConfig: Partial<CcxtMultiExchangeConfig> = {
+        tradesLimit: 3000,
+        websocketUrl: "wss://new-ws-url.com",
+        apiKey: "new-api-key",
+      };
+
+      adapter.updateConnectionConfig({
+        websocketUrl: newConfig.websocketUrl,
+        apiKey: newConfig.apiKey,
+      });
+
+      (adapter as any).updateAdapterConfig(newConfig);
+      const updatedConfig = adapter.getCcxtConfig();
+
+      // Check that the new config values are set
+      expect(updatedConfig.websocketUrl).toBe("wss://new-ws-url.com");
+      expect(updatedConfig.apiKey).toBe("new-api-key");
+      expect(updatedConfig.tradesLimit).toBe(3000);
+
+      // Check that other config values remain unchanged
+      expect(updatedConfig.lambda).toBe(defaultConfig.lambda);
+      expect(updatedConfig.retryBackoffMs).toBe(defaultConfig.retryBackoffMs);
+    });
+  });
+
+  describe("metrics", () => {
+    it("should handle metrics correctly", () => {
+      // Simulate some metrics activity by calling protected methods through type cast
+      const adapterWithMetrics = adapter as any;
+      adapterWithMetrics._requestCount = 10;
+      adapterWithMetrics._successCount = 8;
+      adapterWithMetrics._errorCount = 2;
+      adapterWithMetrics.tier2ExchangeCount = 5;
+
+      // Get metrics
+      const metrics = adapter.getMetrics();
+
+      // Check metrics values
+      expect(metrics.priceExtractionCount).toBe(10);
+      expect(metrics.successfulExtractions).toBe(8);
+      expect(metrics.failedExtractions).toBe(2);
+      expect(metrics.tier2ExchangeCount).toBe(5);
+
+      // Reset metrics through our resetMetrics method
+      adapter.resetMetrics();
+
+      // Check that metrics are reset
+      expect((adapter as any)._requestCount).toBe(0);
+      expect((adapter as any)._successCount).toBe(0);
+      expect((adapter as any)._errorCount).toBe(0);
+      expect((adapter as any).tier2ExchangeCount).toBe(0);
     });
   });
 
@@ -79,6 +136,52 @@ describe("CcxtMultiExchangeAdapter", () => {
       await adapter.disconnect();
       expect(adapter.isConnected()).toBe(false);
       expect(logger.log).toHaveBeenCalledWith("CCXT multi-exchange adapter disconnected");
+    });
+
+    it("should handle connection errors", async () => {
+      const errorCallbackMock = jest.fn();
+      const connectionChangeCallbackMock = jest.fn();
+
+      // Mock callback registrations
+      adapter.onError(errorCallbackMock);
+      adapter.onConnectionChange(connectionChangeCallbackMock);
+
+      // Mock the logger methods and set up spies
+      const errorSpy = jest.spyOn(logger, "error");
+      const warnSpy = jest.spyOn(logger, "warn");
+
+      // Create an error instance
+      const error = new Error("Connection failed");
+
+      // Mock doConnect to call logger.error directly as the concrete adapter would
+      jest.spyOn(adapter as any, "doConnect").mockImplementation(async () => {
+        // Cast error as a record to satisfy EnhancedLogContext type requirement
+        logger.error("Failed to initialize CCXT multi-exchange adapter:", error as unknown as Record<string, unknown>);
+        throw error;
+      });
+
+      // Mock the retry delay and max retries for fast test
+      (adapter as any).retryDelay = 0;
+      (adapter as any).maxRetries = 2; // This means 3 attempts total
+
+      // Should fail after 3 attempts (initial + 2 retries)
+      await expect(adapter.connect()).rejects.toThrow("Failed to connect to ccxt-multi-exchange after 3 attempts");
+      expect(adapter.isConnected()).toBe(false);
+
+      // Each retry except the last should produce a warning
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      expect(warnSpy.mock.calls[0][0]).toContain("Connection attempt 1 failed");
+      expect(warnSpy.mock.calls[1][0]).toContain("Connection attempt 2 failed");
+
+      // The error is logged on each attempt in doConnect
+      expect(errorSpy).toHaveBeenCalledTimes(3);
+      expect(errorSpy).toHaveBeenNthCalledWith(1, "Failed to initialize CCXT multi-exchange adapter:", error);
+      expect(errorSpy).toHaveBeenNthCalledWith(2, "Failed to initialize CCXT multi-exchange adapter:", error);
+      expect(errorSpy).toHaveBeenNthCalledWith(3, "Failed to initialize CCXT multi-exchange adapter:", error);
+
+      // Verify callbacks were called
+      expect(connectionChangeCallbackMock).toHaveBeenCalledWith(false);
+      expect(errorCallbackMock).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 
@@ -159,14 +262,15 @@ describe("CcxtMultiExchangeAdapter", () => {
     });
   });
 
-  describe("metrics", () => {
-    it("should track and reset metrics correctly", () => {
+  describe("extraction metrics", () => {
+    it("should track extraction metrics correctly", () => {
       const metrics = adapter.getMetrics();
       expect(metrics.priceExtractionCount).toBe(0);
       expect(metrics.successfulExtractions).toBe(0);
       expect(metrics.failedExtractions).toBe(0);
 
-      adapter.resetMetrics();
+      // Reset should be handled by DataProviderMixin now
+      (adapter as any).resetRateLimitCounters();
       const resetMetrics = adapter.getMetrics();
       expect(resetMetrics.priceExtractionCount).toBe(0);
       expect(resetMetrics.successfulExtractions).toBe(0);

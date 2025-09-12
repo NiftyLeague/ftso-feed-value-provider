@@ -101,7 +101,7 @@ export class TestModuleBuilder {
       },
 
       // IFtsoProviderService methods
-      getValue: async (feed: any) => {
+      getValue: async (feed: { name: string }) => {
         const result = {
           feed,
           value: feed?.name === "BTC/USD" ? 50000.0 : 3000.0,
@@ -109,7 +109,7 @@ export class TestModuleBuilder {
         console.log(`Mock getValue returning:`, result);
         return result;
       },
-      getValues: async (feeds: any[]) => {
+      getValues: async (feeds: Array<{ name: string }>) => {
         if (!Array.isArray(feeds)) {
           throw new Error("Invalid feeds array");
         }
@@ -119,7 +119,7 @@ export class TestModuleBuilder {
         }));
         return result;
       },
-      getVolumes: jest.fn().mockImplementation((feeds, _windowSec) => {
+      getVolumes: jest.fn().mockImplementation((feeds: Array<{ name: string }>, _windowSec: number) => {
         if (!Array.isArray(feeds)) {
           throw new Error("Invalid feeds array");
         }
@@ -259,7 +259,7 @@ export class TestModuleBuilder {
       .addProvider(
         RealTimeAggregationService,
         (() => {
-          const mockFn = async (_feed: any) => {
+          const mockFn = async (_feed: { name: string }) => {
             // Return null to trigger fallback to provider service
             return null;
           };

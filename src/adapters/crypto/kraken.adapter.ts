@@ -46,7 +46,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   };
 
   constructor(config?: ExchangeConnectionConfig) {
-    super(config);
+    super({ connection: config });
   }
 
   // Simple symbol mapping - use exact pairs from feeds.json
@@ -56,7 +56,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.config?.websocketUrl || "wss://ws.kraken.com";
+    const wsUrl = this.getConfig()?.websocketUrl || "wss://ws.kraken.com";
 
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({

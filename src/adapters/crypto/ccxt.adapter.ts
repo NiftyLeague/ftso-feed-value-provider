@@ -1,4 +1,5 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
+import { ServiceStatus } from "@/common/base/mixins/data-provider.mixin";
 import type {
   ExchangeCapabilities,
   ExchangeConnectionConfig,
@@ -8,22 +9,17 @@ import type {
 import type { PriceUpdate, VolumeUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
-export interface CcxtMultiExchangeConfig extends ExchangeConnectionConfig {
+export interface CcxtMultiExchangeConnectionConfig extends ExchangeConnectionConfig {
   tradesLimit?: number; // CCXT trades limit (default: 1000)
   lambda?: number; // Exponential decay parameter (default: 0.00005)
   retryBackoffMs?: number; // Retry backoff in milliseconds (default: 10000)
   enableUsdtConversion?: boolean; // Enable USDT to USD conversion (default: true)
   tier1Exchanges?: string[]; // Exchanges handled by custom adapters (default: ["binance", "coinbase", "kraken", "okx"])
+  useEnhancedLogging?: boolean; // Enable enhanced logging (default: false)
 }
 
-export interface CcxtMultiExchangeMetrics {
-  priceExtractionCount: number;
-  successfulExtractions: number;
-  failedExtractions: number;
-  averageExtractionTime: number;
-  lastExtractionTime?: number;
-  tier2ExchangeCount: number;
-}
+// For backward compatibility with tests
+export type CcxtMultiExchangeConfig = CcxtMultiExchangeConnectionConfig;
 
 export interface ExchangePriceData {
   exchange: string;
@@ -44,15 +40,16 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private isInitialized = false;
-  protected adapterConfig: CcxtMultiExchangeConfig;
-  private metrics: CcxtMultiExchangeMetrics = {
-    priceExtractionCount: 0,
-    successfulExtractions: 0,
-    failedExtractions: 0,
-    averageExtractionTime: 0,
-    tier2ExchangeCount: 0,
+  protected adapterConfig: CcxtMultiExchangeConfig = {
+    tradesLimit: 1000,
+    lambda: 0.00005,
+    retryBackoffMs: 10000,
+    enableUsdtConversion: true,
+    tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
   };
+
+  // Metrics tracking
+  protected tier2ExchangeCount = 0;
 
   // Critical USDT/USD feed for conversion
   private readonly usdtToUsdFeedId: CoreFeedId = {
@@ -61,33 +58,21 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   };
 
   constructor(config?: CcxtMultiExchangeConfig) {
-    super(config);
-    this.adapterConfig = {
-      tradesLimit: 1000,
-      lambda: 0.00005,
-      retryBackoffMs: 10000,
-      enableUsdtConversion: true,
-      tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
-      ...config,
-    };
+    super({ connection: {} });
+    if (config) {
+      this.adapterConfig = { ...this.adapterConfig, ...config };
+    }
+    this.initValidation();
+    this.setConnectionStatus(ServiceStatus.Unknown);
   }
 
   // Method to create an adapter with custom configuration (for testing)
   static withConfig(config: Partial<CcxtMultiExchangeConfig>): CcxtMultiExchangeAdapter {
-    const adapter = new CcxtMultiExchangeAdapter();
-    adapter.adapterConfig = {
-      tradesLimit: 1000,
-      lambda: 0.00005,
-      retryBackoffMs: 10000,
-      enableUsdtConversion: true,
-      tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
-      ...config,
-    };
-    return adapter;
+    return new CcxtMultiExchangeAdapter(config);
   }
 
   protected async doConnect(): Promise<void> {
-    if (this.isInitialized) {
+    if (this.isConnected()) {
       return;
     }
 
@@ -102,7 +87,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         process.env.TRADES_HISTORY_SIZE = this.adapterConfig.tradesLimit.toString();
       }
 
-      this.isInitialized = true;
+      this.setConnectionStatus(ServiceStatus.Connected);
       this.logger.log("CCXT multi-exchange adapter initialized successfully");
     } catch (error) {
       this.logger.error("Failed to initialize CCXT multi-exchange adapter:", error);
@@ -111,13 +96,13 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   protected async doDisconnect(): Promise<void> {
-    this.isInitialized = false;
+    this.setConnectionStatus(ServiceStatus.Disconnected);
     // CCXT doesn't have a clean shutdown method, but we can mark as disconnected
     this.logger.log("CCXT multi-exchange adapter disconnected");
   }
 
   override isConnected(): boolean {
-    return super.isConnected() && this.isInitialized;
+    return this.getConnectionStatus() === ServiceStatus.Connected;
   }
 
   normalizePriceData(rawData: RawPriceData): PriceUpdate {
@@ -179,11 +164,10 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   // Get single price from CCXT
   async getCcxtPrice(feedId: CoreFeedId): Promise<PriceUpdate> {
     const startTime = Date.now();
-    this.metrics.priceExtractionCount++;
 
     try {
-      // Ensure CCXT is initialized
-      if (!this.isInitialized) {
+      // Ensure CCXT is connected
+      if (!this.isConnected()) {
         await this.connect();
       }
 
@@ -202,8 +186,8 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     const startTime = Date.now();
 
     try {
-      // Ensure CCXT is initialized
-      if (!this.isInitialized) {
+      // Ensure CCXT is connected
+      if (!this.isConnected()) {
         await this.connect();
       }
 
@@ -288,7 +272,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   // Volume data method
   async getVolumeData(feedId: CoreFeedId, _volumeWindow: number): Promise<VolumeUpdate> {
     try {
-      if (!this.isInitialized) {
+      if (!this.isConnected()) {
         await this.connect();
       }
 
@@ -371,7 +355,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
       );
       const tier2Prices = individualPrices.filter(price => !tier1Exchanges.has(price.exchange.toLowerCase()));
 
-      this.metrics.tier2ExchangeCount = tier2Prices.length;
+      this.tier2ExchangeCount = tier2Prices.length;
 
       this.logger.debug(
         `Tier 2 data source returning ${tier2Prices.length} prices for ${feedId.name} (filtered out ${
@@ -435,25 +419,23 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
   }
 
-  // Get metrics
-  getMetrics(): CcxtMultiExchangeMetrics {
-    return { ...this.metrics };
-  }
-
-  // Reset metrics
-  resetMetrics(): void {
-    this.metrics = {
-      priceExtractionCount: 0,
-      successfulExtractions: 0,
-      failedExtractions: 0,
-      averageExtractionTime: 0,
-      tier2ExchangeCount: 0,
+  // Get metrics with additional CCXT-specific metrics
+  override getMetrics(): Record<string, number> {
+    const baseMetrics = super.getMetrics() || {};
+    const total = this._successCount + this._errorCount;
+    return {
+      ...baseMetrics,
+      priceExtractionCount: this._requestCount,
+      successfulExtractions: this._successCount,
+      failedExtractions: this._errorCount,
+      successRate: total === 0 ? 0 : this._successCount / total,
+      tier2ExchangeCount: this.tier2ExchangeCount,
     };
   }
 
   protected async doHealthCheck(): Promise<boolean> {
     try {
-      if (!this.isInitialized) {
+      if (!this.isConnected()) {
         return false;
       }
 
@@ -470,30 +452,65 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
   }
 
-  // Get configuration
-  override getConfig(): CcxtMultiExchangeConfig {
+  // Get configuration with proper type handling
+  getCcxtConfig(): Readonly<CcxtMultiExchangeConnectionConfig> {
     return { ...this.adapterConfig };
   }
 
-  // Update configuration
-  override updateConfig(config: Partial<CcxtMultiExchangeConfig>): void {
-    this.adapterConfig = { ...this.adapterConfig, ...config };
+  /**
+   * Reset all metrics and statistics
+   */
+  public resetMetrics(): void {
+    // Reset any metrics or statistics being tracked
+    this._requestCount = 0;
+    this._successCount = 0;
+    this._errorCount = 0;
+    this.tier2ExchangeCount = 0;
+    this.logger.debug("Metrics reset");
+  }
+
+  // Update adapter configuration
+  protected updateAdapterConfig(config?: Partial<CcxtMultiExchangeConfig>): void {
+    if (!config) return;
+
+    // Create a clean config object with only the properties we want to pass to the parent
+    const connectionConfig: ExchangeConnectionConfig = {};
+
+    // Copy base connection properties that exist in ExchangeConnectionConfig
+    if ("websocketUrl" in config) {
+      connectionConfig.websocketUrl = config.websocketUrl;
+      this.adapterConfig.websocketUrl = config.websocketUrl;
+    }
+    if ("apiKey" in config) {
+      connectionConfig.apiKey = config.apiKey;
+      this.adapterConfig.apiKey = config.apiKey;
+    }
+    if ("apiSecret" in config) {
+      connectionConfig.apiSecret = config.apiSecret;
+      this.adapterConfig.apiSecret = config.apiSecret;
+    }
+
+    // Only call parent if we have any connection config to update
+    if (Object.keys(connectionConfig).length > 0) {
+      super.updateConnectionConfig(connectionConfig);
+    }
+
+    // Update the adapter config properties that aren't part of the connection config
+    if ("tradesLimit" in config) this.adapterConfig.tradesLimit = config.tradesLimit;
+    if ("lambda" in config) this.adapterConfig.lambda = config.lambda;
+    if ("retryBackoffMs" in config) this.adapterConfig.retryBackoffMs = config.retryBackoffMs;
+    if ("enableUsdtConversion" in config) this.adapterConfig.enableUsdtConversion = config.enableUsdtConversion;
+    if ("tier1Exchanges" in config) this.adapterConfig.tier1Exchanges = config.tier1Exchanges;
+    if ("useEnhancedLogging" in config) this.adapterConfig.useEnhancedLogging = config.useEnhancedLogging;
   }
 
   // Private helper methods
-  private updateMetrics(extractionTime: number, success: boolean): void {
+  private updateMetrics(_extractionTime: number, success: boolean): void {
     if (success) {
-      this.metrics.successfulExtractions++;
+      this.recordSuccessfulRequest();
     } else {
-      this.metrics.failedExtractions++;
+      this.recordFailedRequest();
     }
-
-    // Update average extraction time
-    const totalExtractions = this.metrics.successfulExtractions + this.metrics.failedExtractions;
-    this.metrics.averageExtractionTime =
-      (this.metrics.averageExtractionTime * (totalExtractions - 1) + extractionTime) / totalExtractions;
-
-    this.metrics.lastExtractionTime = Date.now();
   }
 
   // Access CCXT's private latestPrice Map using reflection
@@ -518,7 +535,11 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   // Calculate confidence for individual exchange prices
-  private calculateIndividualConfidence(_priceInfo: unknown, dataAge: number, exchangeName: string): number {
+  private calculateIndividualConfidence(
+    _priceInfo: { value: number; time: number },
+    dataAge: number,
+    exchangeName: string
+  ): number {
     let confidence = 1.0;
 
     // Reduce confidence based on data age (max 2 seconds for FTSO requirements)

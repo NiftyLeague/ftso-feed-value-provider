@@ -65,109 +65,103 @@ export interface DataProviderCapabilities {
  */
 export function WithDataProvider<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
   return class DataProviderMixin extends Base implements DataProviderCapabilities {
-    #connectionStatus: ServiceStatus = ServiceStatus.Unknown;
-    #rateLimitConfig: RateLimitConfig = {
+    _connectionStatus: ServiceStatus = ServiceStatus.Unknown;
+    _rateLimitConfig: RateLimitConfig = {
       maxRequestsPerWindow: 100,
       windowMs: 60000, // 1 minute
       burstLimit: 10,
     };
-    #requestCount = 0;
-    #successCount = 0;
-    #errorCount = 0;
-    #lastResetTime = Date.now();
-    #resetInterval?: NodeJS.Timeout;
+    _requestCount = 0;
+    _successCount = 0;
+    _errorCount = 0;
+    _lastResetTime = Date.now();
+    _resetInterval?: NodeJS.Timeout;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(...args: any[]) {
       super(...args);
-      this.scheduleRateLimitReset();
+      this._scheduleRateLimitReset();
     }
 
-    #scheduleRateLimitReset(): void {
-      this.#resetInterval = setInterval(() => {
+    _scheduleRateLimitReset(): void {
+      this._resetInterval = setInterval(() => {
         this.resetRateLimitCounters();
-      }, this.#rateLimitConfig.windowMs);
+      }, this._rateLimitConfig.windowMs);
     }
 
     public getConnectionStatus(): ServiceStatus {
-      return this.#connectionStatus;
+      return this._connectionStatus;
     }
 
-    protected setConnectionStatus(status: ServiceStatus): void {
-      this.#connectionStatus = status;
+    public setConnectionStatus(status: ServiceStatus): void {
+      this._connectionStatus = status;
       (this as unknown as IBaseService).logDebug(`Connection status changed to: ${status}`);
     }
 
     public getRateLimitConfig(): RateLimitConfig {
-      return { ...this.#rateLimitConfig };
+      return { ...this._rateLimitConfig };
     }
 
     public updateRateLimitConfig(config: Partial<RateLimitConfig>): void {
-      this.#rateLimitConfig = {
-        ...this.#rateLimitConfig,
+      this._rateLimitConfig = {
+        ...this._rateLimitConfig,
         ...config,
       };
-      (this as unknown as IBaseService).logDebug(`Updated rate limit config: ${JSON.stringify(this.#rateLimitConfig)}`);
+      (this as unknown as IBaseService).logDebug(`Updated rate limit config: ${JSON.stringify(this._rateLimitConfig)}`);
 
       // Reset interval with new window
-      if (this.#resetInterval) {
-        clearInterval(this.#resetInterval);
+      if (this._resetInterval) {
+        clearInterval(this._resetInterval);
       }
-      this.scheduleRateLimitReset();
+      this._scheduleRateLimitReset();
     }
 
     public getCurrentRequestCount(): number {
-      return this.#requestCount;
+      return this._requestCount;
     }
 
     public isRateLimited(): boolean {
-      const isLimited = this.#requestCount >= this.#rateLimitConfig.maxRequestsPerWindow;
-      if (isLimited && this.#connectionStatus !== ServiceStatus.RateLimited) {
+      const isLimited = this._requestCount >= this._rateLimitConfig.maxRequestsPerWindow;
+      if (isLimited && this._connectionStatus !== ServiceStatus.RateLimited) {
         this.setConnectionStatus(ServiceStatus.RateLimited);
       }
       return isLimited;
     }
 
     public getTimeToRateLimitReset(): number {
-      const elapsedTime = Date.now() - this.#lastResetTime;
-      return Math.max(0, this.#rateLimitConfig.windowMs - elapsedTime);
+      const elapsedTime = Date.now() - this._lastResetTime;
+      return Math.max(0, this._rateLimitConfig.windowMs - elapsedTime);
     }
 
     public getErrorRate(): number {
-      const total = this.#successCount + this.#errorCount;
-      return total === 0 ? 0 : this.#errorCount / total;
+      const total = this._successCount + this._errorCount;
+      return total === 0 ? 0 : this._errorCount / total;
     }
 
     public getSuccessRate(): number {
-      const total = this.#successCount + this.#errorCount;
-      return total === 0 ? 0 : this.#successCount / total;
+      const total = this._successCount + this._errorCount;
+      return total === 0 ? 0 : this._successCount / total;
     }
 
     public resetRateLimitCounters(): void {
-      this.#requestCount = 0;
-      this.#lastResetTime = Date.now();
+      this._requestCount = 0;
+      this._lastResetTime = Date.now();
       (this as unknown as IBaseService).logDebug("Rate limit counters reset");
 
       // Auto-restore normal status if we were rate limited
-      if (this.#connectionStatus === ServiceStatus.RateLimited) {
+      if (this._connectionStatus === ServiceStatus.RateLimited) {
         this.setConnectionStatus(ServiceStatus.Connected);
       }
     }
 
-    /**
-     * Track a successful request
-     */
-    protected recordSuccessfulRequest(): void {
-      this.#requestCount++;
-      this.#successCount++;
+    public recordSuccessfulRequest(): void {
+      this._requestCount++;
+      this._successCount++;
     }
 
-    /**
-     * Track a failed request
-     */
-    protected recordFailedRequest(): void {
-      this.#requestCount++;
-      this.#errorCount++;
+    public recordFailedRequest(): void {
+      this._requestCount++;
+      this._errorCount++;
     }
   };
 }

@@ -1,22 +1,29 @@
-import { Logger } from "@nestjs/common";
 import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager";
+import { DataProviderService } from "@/common/base/composed.service";
 import { FeedCategory } from "@/common/types/core";
+import type { BaseServiceConfig } from "@/common/types/services";
+import type { ExchangeCapabilities, ExchangeConnectionConfig, IExchangeAdapter } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import type { WSConnectionConfig } from "@/common/types/data-manager";
-import type { IExchangeAdapter, ExchangeConnectionConfig, ExchangeCapabilities } from "@/common/types/adapters";
+
+/**
+ * Extended configuration for exchange adapters
+ */
+export interface ExchangeAdapterConfig extends BaseServiceConfig {
+  useEnhancedLogging?: boolean;
+  connection?: ExchangeConnectionConfig;
+}
 
 /**
  * Base exchange adapter class that eliminates adapter boilerplate
- * Includes integrated WebSocket functionality
+ * Includes integrated WebSocket functionality and data provider capabilities
  */
-export abstract class BaseExchangeAdapter implements IExchangeAdapter {
-  protected config?: ExchangeConnectionConfig;
-  protected readonly logger: Logger;
-  protected isConnectedFlag = false;
+export abstract class BaseExchangeAdapter extends DataProviderService implements IExchangeAdapter {
   protected subscriptions = new Set<string>();
   protected connectionRetryCount = 0;
   protected maxRetries = 3;
   protected retryDelay = 1000; // ms
+  protected isConnected_ = false;
 
   // Event callbacks
   protected onPriceUpdateCallback?: (update: PriceUpdate) => void;
@@ -28,9 +35,24 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   protected wsManager?: WebSocketConnectionManager;
   protected wsConnectionId?: string;
 
-  constructor(config?: ExchangeConnectionConfig) {
-    this.config = config;
-    this.logger = new Logger(this.constructor.name);
+  constructor(config?: ExchangeAdapterConfig) {
+    super(config || { connection: {} });
+    this.initValidation();
+  }
+
+  /**
+   * Initialize validation rules for the exchange adapter
+   */
+  protected initValidation(): void {
+    // Use silent=true to allow child classes to override these rules
+    this.addValidationRule(
+      {
+        name: "exchange-symbol-format",
+        validate: (value: unknown) => typeof value === "string" && this.validateSymbol(value),
+        message: "Invalid exchange symbol format",
+      },
+      true // silent mode to prevent duplicate rule errors
+    );
   }
 
   // Abstract properties that must be implemented
@@ -47,7 +69,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
    * Standard connection implementation with retry logic
    */
   async connect(): Promise<void> {
-    if (this.isConnectedFlag) {
+    if (this.isConnected_) {
       return;
     }
 
@@ -57,7 +79,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
       try {
         await this.doConnect();
         this.connectionRetryCount = 0;
-        this.isConnectedFlag = true;
+        this.isConnected_ = true;
         this.logger.log(`Connected to ${this.exchangeName}`);
         this.onConnectionChangeCallback?.(true);
         return;
@@ -73,7 +95,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
       }
     }
 
-    this.isConnectedFlag = false;
+    this.isConnected_ = false;
     const finalError = new Error(
       `Failed to connect to ${this.exchangeName} after ${this.maxRetries + 1} attempts: ${lastError?.message}`
     );
@@ -84,20 +106,48 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
 
   /**
    * Standard disconnection implementation
+   * @param code - The WebSocket close code (default: 1000)
+   * @param reason - The WebSocket close reason (default: "Normal closure")
    */
-  async disconnect(): Promise<void> {
-    if (!this.isConnectedFlag) {
+  async disconnect(code = 1000, reason = "Normal closure"): Promise<void> {
+    if (!this.isConnected_) {
       return;
     }
 
     try {
-      await this.doDisconnect();
-      this.isConnectedFlag = false;
+      // Disconnect WebSocket if connected
+      if (this.isWebSocketConnected()) {
+        try {
+          await this.disconnectWebSocket(code, reason);
+        } catch (error: unknown) {
+          // Log the error but don't fail the disconnection
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          this.logger?.warn(`Error disconnecting WebSocket: ${errorMessage}`);
+        }
+      }
+
+      // Call the adapter-specific disconnection logic
+      try {
+        await this.doDisconnect();
+      } catch (error: unknown) {
+        // Log the error but don't fail the disconnection
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        this.logger?.warn(`Error in adapter-specific disconnection: ${errorMessage}`);
+      }
+
+      // Update connection state
+      const wasConnected = this.isConnected_;
+      this.isConnected_ = false;
+      this.connectionRetryCount = 0;
       this.subscriptions.clear();
-      this.logger.log(`Disconnected from ${this.exchangeName}`);
-      this.onConnectionChangeCallback?.(false);
+
+      // Notify listeners if we were actually connected
+      if (wasConnected) {
+        this.onConnectionChangeCallback?.(false);
+        this.logger.log(`Disconnected from ${this.exchangeName}`);
+      }
     } catch (error) {
-      this.logger.error(`Error during disconnection from ${this.exchangeName}:`, error);
+      this.logger.error(`Error disconnecting from ${this.exchangeName}:`, error);
       throw error;
     }
   }
@@ -106,7 +156,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
    * Check connection status
    */
   isConnected(): boolean {
-    return this.isConnectedFlag;
+    return this.isConnected_;
   }
 
   /**
@@ -248,13 +298,6 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   }
 
   /**
-   * Utility method for sleep/delay
-   */
-  protected sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
    * Symbol mapping - override if exchange needs symbol transformation
    */
   getSymbolMapping(feedSymbol: string): string {
@@ -366,15 +409,29 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   /**
    * Get adapter configuration
    */
-  getConfig(): ExchangeConnectionConfig | undefined {
-    return this.config;
+  override getConfig(): Readonly<BaseServiceConfig> & Partial<ExchangeConnectionConfig> {
+    return {
+      ...super.getConfig(),
+      ...(super.getConfig() as ExchangeAdapterConfig).connection,
+    };
   }
 
   /**
    * Update adapter configuration
    */
-  updateConfig(config: Partial<ExchangeConnectionConfig>): void {
-    this.config = { ...this.config, ...config };
+  updateConnectionConfig(config: Partial<ExchangeConnectionConfig>): void {
+    const currentConfig = super.getConfig() as ExchangeAdapterConfig;
+    super.updateConfig({
+      ...currentConfig,
+      connection: {
+        ...(currentConfig?.connection || {}),
+        ...config,
+      },
+    });
+  }
+
+  override updateConfig(config: Partial<BaseServiceConfig>): void {
+    super.updateConfig(config);
   }
 
   /**
@@ -426,11 +483,13 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
 
   /**
    * Disconnect WebSocket
+   * @param code - The WebSocket close code
+   * @param reason - The WebSocket close reason
    */
-  protected async disconnectWebSocket(): Promise<void> {
+  protected async disconnectWebSocket(code?: number, reason?: string): Promise<void> {
     if (this.wsManager && this.wsConnectionId) {
       try {
-        await this.wsManager.closeConnection(this.wsConnectionId);
+        await this.wsManager.closeConnection(this.wsConnectionId, code, reason);
       } catch (error) {
         this.logger.error(`Failed to disconnect WebSocket: ${error}`);
         throw error;
@@ -484,7 +543,7 @@ export abstract class BaseExchangeAdapter implements IExchangeAdapter {
   protected handleWebSocketClose(): void {
     // Default implementation - adapters should override this
     this.logger.warn(`WebSocket connection closed for ${this.exchangeName}`);
-    this.isConnectedFlag = false;
+    this.isConnected_ = false;
     this.onConnectionChangeCallback?.(false);
   }
 

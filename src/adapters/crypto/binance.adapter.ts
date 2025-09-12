@@ -73,11 +73,11 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   }
 
   constructor(config?: ExchangeConnectionConfig) {
-    super(config);
+    super({ connection: config });
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.config?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
+    const wsUrl = this.getConfig()?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
 
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({

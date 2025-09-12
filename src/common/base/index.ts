@@ -9,6 +9,8 @@ export * from "./mixins/lifecycle.mixin";
 export * from "./mixins/monitoring.mixin";
 export * from "./mixins/error-handling.mixin";
 export * from "./mixins/events.mixin";
+export * from "./mixins/data-provider.mixin";
+export * from "./mixins/validation.mixin";
 
 // Composed service classes
 export * from "./composed.service";
