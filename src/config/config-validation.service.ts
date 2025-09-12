@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
+import { EnvironmentUtils } from "@/common/utils/environment.utils";
 import { ConfigUtils } from "@/common/utils/config.utils";
 import type { ConfigValidationResult, EnvironmentConfiguration } from "@/common/types";
 
@@ -15,21 +16,25 @@ export class ConfigValidationService extends StandardService {
   loadAndValidateEnvironmentConfig(): EnvironmentConfiguration {
     const config: EnvironmentConfiguration = {
       // Core application settings
-      logLevel: process.env.LOG_LEVEL || "log",
-      port: ConfigUtils.parsePort(process.env.VALUE_PROVIDER_CLIENT_PORT, 3101, "VALUE_PROVIDER_CLIENT_PORT"),
-      basePath: process.env.VALUE_PROVIDER_CLIENT_BASE_PATH || "",
-      nodeEnv: process.env.NODE_ENV || "development",
+      logLevel: EnvironmentUtils.parseString("LOG_LEVEL", "log"),
+      port: EnvironmentUtils.parseInt("VALUE_PROVIDER_CLIENT_PORT", 3101, {
+        min: 1,
+        max: 65535,
+        fieldName: "VALUE_PROVIDER_CLIENT_PORT",
+      }),
+      basePath: EnvironmentUtils.parseString("VALUE_PROVIDER_CLIENT_BASE_PATH", ""),
+      nodeEnv: EnvironmentUtils.parseString("NODE_ENV", "development"),
 
       // Provider implementation settings (production only)
       useProductionIntegration: true, // Always use production integration
 
       // Data processing settings
-      medianDecay: ConfigUtils.parseFloatWithDefault(process.env.MEDIAN_DECAY, 0.00005, {
+      medianDecay: EnvironmentUtils.parseFloat("MEDIAN_DECAY", 0.00005, {
         min: 0,
         max: 1,
         fieldName: "MEDIAN_DECAY",
       }),
-      tradesHistorySize: ConfigUtils.parseIntWithDefault(process.env.TRADES_HISTORY_SIZE, 1000, {
+      tradesHistorySize: EnvironmentUtils.parseInt("TRADES_HISTORY_SIZE", 1000, {
         min: 1,
         max: 10000,
         fieldName: "TRADES_HISTORY_SIZE",
@@ -38,34 +43,36 @@ export class ConfigValidationService extends StandardService {
       // Alerting configuration
       alerting: {
         email: {
-          enabled: ConfigUtils.parseBooleanWithDefault(process.env.ALERT_EMAIL_ENABLED, false, {
-            fieldName: "ALERT_EMAIL_ENABLED",
+          enabled: EnvironmentUtils.parseBoolean("ALERT_EMAIL_ENABLED", false, { fieldName: "ALERT_EMAIL_ENABLED" }),
+          smtpHost: EnvironmentUtils.parseString("ALERT_SMTP_HOST", "localhost"),
+          smtpPort: EnvironmentUtils.parseInt("ALERT_SMTP_PORT", 587, {
+            min: 1,
+            max: 65535,
+            fieldName: "ALERT_SMTP_PORT",
           }),
-          smtpHost: process.env.ALERT_SMTP_HOST || "localhost",
-          smtpPort: ConfigUtils.parsePort(process.env.ALERT_SMTP_PORT, 587, "ALERT_SMTP_PORT"),
-          username: process.env.ALERT_SMTP_USERNAME || "",
-          password: process.env.ALERT_SMTP_PASSWORD || "",
-          from: process.env.ALERT_EMAIL_FROM || "alerts@ftso-provider.com",
-          to: ConfigUtils.parseListWithDefault(process.env.ALERT_EMAIL_TO, [], { fieldName: "ALERT_EMAIL_TO" }),
+          username: EnvironmentUtils.parseString("ALERT_SMTP_USERNAME", ""),
+          password: EnvironmentUtils.parseString("ALERT_SMTP_PASSWORD", ""),
+          from: EnvironmentUtils.parseString("ALERT_EMAIL_FROM", "alerts@ftso-provider.com"),
+          to: EnvironmentUtils.parseList("ALERT_EMAIL_TO", []),
         },
         webhook: {
-          enabled: ConfigUtils.parseBooleanWithDefault(process.env.ALERT_WEBHOOK_ENABLED, false, {
+          enabled: EnvironmentUtils.parseBoolean("ALERT_WEBHOOK_ENABLED", false, {
             fieldName: "ALERT_WEBHOOK_ENABLED",
           }),
-          url: process.env.ALERT_WEBHOOK_URL || "",
-          headers: ConfigUtils.parseJsonWithDefault(
-            process.env.ALERT_WEBHOOK_HEADERS,
-            {},
-            { fieldName: "ALERT_WEBHOOK_HEADERS" }
-          ),
-          timeout: ConfigUtils.parseTimeoutMs(process.env.ALERT_WEBHOOK_TIMEOUT, 5000, "ALERT_WEBHOOK_TIMEOUT"),
+          url: EnvironmentUtils.parseString("ALERT_WEBHOOK_URL", ""),
+          headers: EnvironmentUtils.parseJSON("ALERT_WEBHOOK_HEADERS", {}),
+          timeout: EnvironmentUtils.parseInt("ALERT_WEBHOOK_TIMEOUT", 5000, {
+            min: 1000,
+            max: 30000,
+            fieldName: "ALERT_WEBHOOK_TIMEOUT",
+          }),
         },
-        maxAlertsPerHour: ConfigUtils.parseIntWithDefault(process.env.ALERT_MAX_PER_HOUR, 20, {
+        maxAlertsPerHour: EnvironmentUtils.parseInt("ALERT_MAX_PER_HOUR", 20, {
           min: 1,
           max: 1000,
           fieldName: "ALERT_MAX_PER_HOUR",
         }),
-        alertRetentionDays: ConfigUtils.parseIntWithDefault(process.env.ALERT_RETENTION_DAYS, 30, {
+        alertRetentionDays: EnvironmentUtils.parseInt("ALERT_RETENTION_DAYS", 30, {
           min: 1,
           max: 365,
           fieldName: "ALERT_RETENTION_DAYS",
@@ -77,58 +84,60 @@ export class ConfigValidationService extends StandardService {
 
       // Cache configuration
       cache: {
-        ttlMs: ConfigUtils.parseIntWithDefault(process.env.CACHE_TTL_MS, 1000, {
+        ttlMs: EnvironmentUtils.parseInt("CACHE_TTL_MS", 1000, {
           min: 100,
           max: 10000,
           fieldName: "CACHE_TTL_MS",
         }),
-        maxEntries: ConfigUtils.parseIntWithDefault(process.env.CACHE_MAX_ENTRIES, 10000, {
+        maxEntries: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 10000, {
           min: 100,
           max: 1000000,
           fieldName: "CACHE_MAX_ENTRIES",
         }),
-        warmupInterval: ConfigUtils.parseTimeoutMs(
-          process.env.CACHE_WARMUP_INTERVAL_MS,
-          30000,
-          "CACHE_WARMUP_INTERVAL_MS"
-        ),
+        warmupInterval: EnvironmentUtils.parseInt("CACHE_WARMUP_INTERVAL_MS", 30000, {
+          min: 1000,
+          max: 300000,
+          fieldName: "CACHE_WARMUP_INTERVAL_MS",
+        }),
       },
 
       // Monitoring configuration
       monitoring: {
-        enabled: ConfigUtils.parseBooleanWithDefault(process.env.MONITORING_ENABLED, true, {
-          fieldName: "MONITORING_ENABLED",
+        enabled: EnvironmentUtils.parseBoolean("MONITORING_ENABLED", true, { fieldName: "MONITORING_ENABLED" }),
+        metricsPort: EnvironmentUtils.parseInt("MONITORING_METRICS_PORT", 9090, {
+          min: 1,
+          max: 65535,
+          fieldName: "MONITORING_METRICS_PORT",
         }),
-        metricsPort: ConfigUtils.parsePort(process.env.MONITORING_METRICS_PORT, 9090, "MONITORING_METRICS_PORT"),
-        healthCheckInterval: ConfigUtils.parseTimeoutMs(
-          process.env.MONITORING_HEALTH_CHECK_INTERVAL_MS,
-          5000,
-          "MONITORING_HEALTH_CHECK_INTERVAL_MS"
-        ),
+        healthCheckInterval: EnvironmentUtils.parseInt("MONITORING_HEALTH_CHECK_INTERVAL_MS", 5000, {
+          min: 1000,
+          max: 60000,
+          fieldName: "MONITORING_HEALTH_CHECK_INTERVAL_MS",
+        }),
       },
 
       // Error handling configuration
       errorHandling: {
-        maxRetries: ConfigUtils.parseIntWithDefault(process.env.ERROR_HANDLING_MAX_RETRIES, 3, {
+        maxRetries: EnvironmentUtils.parseInt("ERROR_HANDLING_MAX_RETRIES", 3, {
           min: 0,
           max: 10,
           fieldName: "ERROR_HANDLING_MAX_RETRIES",
         }),
-        retryDelayMs: ConfigUtils.parseTimeoutMs(
-          process.env.ERROR_HANDLING_RETRY_DELAY_MS,
-          1000,
-          "ERROR_HANDLING_RETRY_DELAY_MS"
-        ),
-        circuitBreakerThreshold: ConfigUtils.parseIntWithDefault(
-          process.env.ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD,
-          5,
-          { min: 1, max: 100, fieldName: "ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD" }
-        ),
-        circuitBreakerTimeout: ConfigUtils.parseTimeoutMs(
-          process.env.ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS,
-          60000,
-          "ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS"
-        ),
+        retryDelayMs: EnvironmentUtils.parseInt("ERROR_HANDLING_RETRY_DELAY_MS", 1000, {
+          min: 100,
+          max: 30000,
+          fieldName: "ERROR_HANDLING_RETRY_DELAY_MS",
+        }),
+        circuitBreakerThreshold: EnvironmentUtils.parseInt("ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD", 5, {
+          min: 1,
+          max: 100,
+          fieldName: "ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD",
+        }),
+        circuitBreakerTimeout: EnvironmentUtils.parseInt("ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS", 60000, {
+          min: 1000,
+          max: 300000,
+          fieldName: "ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS",
+        }),
       },
     };
 

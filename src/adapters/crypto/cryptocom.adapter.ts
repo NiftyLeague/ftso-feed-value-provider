@@ -2,6 +2,8 @@ import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
+// Mock type for testing
+type Mock = jest.Mock;
 
 export interface ICryptocomTickerData {
   i: string; // Instrument name (symbol)
@@ -38,6 +40,33 @@ export interface ICryptocomRestTickerData {
   c: string; // 24h change
 }
 
+// Mock WebSocket interface for testing
+export interface MockWebSocket {
+  readyState: number;
+  onopen: ((event: Event) => void) | null;
+  onclose: ((event: CloseEvent) => void) | null;
+  onerror: ((event: ErrorEvent) => void) | null;
+  onmessage: ((event: MessageEvent) => void) | null;
+  send: Mock;
+  close: Mock;
+  addEventListener: Mock;
+  removeEventListener: Mock;
+  simulateMessage: (data: unknown) => MockWebSocket;
+  simulateError: (error: Error) => MockWebSocket;
+  simulateOpen: () => MockWebSocket;
+  simulateClose: () => MockWebSocket;
+  clearMocks: () => void;
+  _setReadyState: (state: number) => void;
+  getWebSocket: () => MockWebSocket;
+  // Allow writing to readyState for testing
+  [key: string]: unknown;
+}
+
+// WebSocket manager interface for testing
+interface WebSocketManager {
+  connections?: Map<string, WebSocket & { emit: (event: string) => void; readyState: number }>;
+}
+
 export interface ICryptocomRestResponse {
   id: number;
   method: string;
@@ -62,7 +91,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   private pingInterval: NodeJS.Timeout | null = null;
   private readonly baseWsUrl = "wss://stream.crypto.com/v2/market";
   private readonly baseRestUrl = "https://api.crypto.com/v2";
-  private mockWebSocket: WebSocket | null = null;
+  private mockWebSocket: MockWebSocket | null = null;
 
   constructor(config?: ExchangeConnectionConfig) {
     super({ connection: config });
@@ -72,7 +101,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
    * For testing purposes only - sets a mock WebSocket instance
    * @internal
    */
-  public setMockWebSocketForTesting(ws: WebSocket): void {
+  public setMockWebSocketForTesting(ws: MockWebSocket): void {
     if (process.env.NODE_ENV !== "test") {
       throw new Error("This method is only available in test environment");
     }
@@ -90,7 +119,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     try {
       // In test environment, use the mock WebSocket if available
       if (process.env.NODE_ENV === "test" && this.mockWebSocket) {
-        const mockWs = this.mockWebSocket as any;
+        const mockWs = this.mockWebSocket;
 
         // Set up event listeners
         mockWs.addEventListener("open", () => {
@@ -98,14 +127,14 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
           this.onConnectionChangeCallback?.(true);
         });
 
-        mockWs.addEventListener("error", (error: Error) => {
-          this.logger.error("WebSocket error:", error);
+        mockWs.addEventListener("error", (event?: Event) => {
+          this.logger.error("WebSocket error:", event);
           this.isConnected_ = false;
           this.onConnectionChangeCallback?.(false);
 
           // Trigger error callback if set
           if (this.onErrorCallback) {
-            this.onErrorCallback(error);
+            this.onErrorCallback(new Error("WebSocket error"));
           }
         });
 
@@ -135,8 +164,8 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       });
 
       // Get the WebSocket instance from the manager
-      const wsManager = this.wsManager as any;
-      const ws = wsManager?.connections?.get?.(this.wsConnectionId);
+      const wsManager = this.wsManager as unknown as WebSocketManager;
+      const ws = wsManager?.connections?.get?.(this.wsConnectionId!);
 
       if (!ws) {
         throw new Error("WebSocket instance not found in test environment");
@@ -172,14 +201,14 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
 
       if (process.env.NODE_ENV === "test" && this.mockWebSocket) {
         // For testing purposes, we'll use a type assertion to bypass the read-only check
-        const mockWs = this.mockWebSocket as any;
+        const mockWs = this.mockWebSocket;
 
         // Simulate WebSocket close
         mockWs.readyState = 2; // CLOSING
 
         // Call the close method if it exists
         if (typeof mockWs.close === "function") {
-          mockWs.close(1000, "Normal closure");
+          mockWs.close();
         }
 
         // Simulate close event
@@ -278,8 +307,8 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
 
     // In test environment, we need to simulate the WebSocket close event
     if (process.env.NODE_ENV === "test") {
-      const wsManager = this.wsManager as any;
-      const ws = wsManager?.connections?.get?.(this.wsConnectionId);
+      const wsManager = this.wsManager as unknown as WebSocketManager;
+      const ws = wsManager?.connections?.get?.(this.wsConnectionId!);
       if (ws) {
         process.nextTick(() => ws.emit("close"));
       }

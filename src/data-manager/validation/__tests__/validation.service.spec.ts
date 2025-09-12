@@ -35,7 +35,9 @@ describe("ValidationService", () => {
     };
 
     const mockUniversalRetryService = {
-      executeWithRetry: jest.fn(),
+      executeWithRetry: jest.fn().mockImplementation(async fn => {
+        return await fn();
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({

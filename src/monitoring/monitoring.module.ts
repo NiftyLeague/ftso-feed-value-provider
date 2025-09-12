@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import type { AlertSeverity, AlertAction, MonitoringConfig } from "@/common/types/monitoring";
+import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { createConfigurableServiceFactory } from "@/common/factories/service.factory";
 
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -15,44 +17,44 @@ import { ConfigService } from "@/config/config.service";
 @Module({
   imports: [CacheModule, AggregatorsModule, ConfigModule],
   providers: [
-    {
-      provide: AccuracyMonitorService,
-      useFactory: (config: MonitoringConfig) => new AccuracyMonitorService(config.thresholds),
-      inject: ["MonitoringConfig"],
-    },
-    {
-      provide: PerformanceMonitorService,
-      useFactory: (config: MonitoringConfig) => new PerformanceMonitorService(config.thresholds),
-      inject: ["MonitoringConfig"],
-    },
-    {
-      provide: AlertingService,
-      useFactory: (config: MonitoringConfig) => new AlertingService(config.alerting),
-      inject: ["MonitoringConfig"],
-    },
+    createConfigurableServiceFactory(
+      AccuracyMonitorService,
+      "MonitoringConfig",
+      (config: unknown) => (config as MonitoringConfig).thresholds
+    ),
+    createConfigurableServiceFactory(
+      PerformanceMonitorService,
+      "MonitoringConfig",
+      (config: unknown) => (config as MonitoringConfig).thresholds
+    ),
+    createConfigurableServiceFactory(
+      AlertingService,
+      "MonitoringConfig",
+      (config: unknown) => (config as MonitoringConfig).alerting
+    ),
     PerformanceOptimizationCoordinatorService,
     {
       provide: "MonitoringConfig",
       useFactory: (_configService: ConfigService) => {
         return {
           accuracyThresholds: {
-            maxConsensusDeviation: 0.5, // 0.5% FTSO requirement
-            minAccuracyRate: 80, // 80% target
-            minQualityScore: 70,
+            maxConsensusDeviation: EnvironmentUtils.parseFloat("MAX_CONSENSUS_DEVIATION", 0.5, { min: 0, max: 10 }),
+            minAccuracyRate: EnvironmentUtils.parseInt("MIN_ACCURACY_RATE", 80, { min: 0, max: 100 }),
+            minQualityScore: EnvironmentUtils.parseInt("MIN_QUALITY_SCORE", 70, { min: 0, max: 100 }),
           },
           performanceThresholds: {
-            maxResponseLatency: 80, // Reduced from 100ms for better performance target
-            maxDataAge: 2000, // 2s target
-            minThroughput: 150, // Increased from 100 for better performance
-            minCacheHitRate: 90, // Increased from 80 for better caching
+            maxResponseLatency: EnvironmentUtils.parseInt("MAX_RESPONSE_LATENCY", 80, { min: 1, max: 10000 }),
+            maxDataAge: EnvironmentUtils.parseInt("MAX_DATA_AGE", 2000, { min: 100, max: 60000 }),
+            minThroughput: EnvironmentUtils.parseInt("MIN_THROUGHPUT", 150, { min: 1, max: 10000 }),
+            minCacheHitRate: EnvironmentUtils.parseInt("MIN_CACHE_HIT_RATE", 90, { min: 0, max: 100 }),
           },
           healthThresholds: {
-            maxErrorRate: 3, // 3 errors per minute
-            maxCpuUsage: 70, // 70% cpu
-            maxMemoryUsage: 70, // 70% memory
-            minConnectionRate: 95, // 95% of exchanges connected
+            maxErrorRate: EnvironmentUtils.parseInt("MAX_ERROR_RATE", 3, { min: 0, max: 1000 }),
+            maxCpuUsage: EnvironmentUtils.parseInt("MAX_CPU_USAGE", 70, { min: 0, max: 100 }),
+            maxMemoryUsage: EnvironmentUtils.parseInt("MAX_MEMORY_USAGE", 70, { min: 0, max: 100 }),
+            minConnectionRate: EnvironmentUtils.parseInt("MIN_CONNECTION_RATE", 95, { min: 0, max: 100 }),
           },
-          monitoringInterval: 5000, // 5 seconds
+          monitoringInterval: EnvironmentUtils.parseInt("MONITORING_INTERVAL", 5000, { min: 1000, max: 60000 }),
           alerting: {
             rules: [
               {
@@ -162,23 +164,23 @@ import { ConfigService } from "@/config/config.service";
             ],
             deliveryConfig: {
               email: {
-                enabled: process.env.ALERT_EMAIL_ENABLED === "true",
-                smtpHost: process.env.ALERT_SMTP_HOST || "localhost",
-                smtpPort: parseInt(process.env.ALERT_SMTP_PORT || "587", 10),
-                username: process.env.ALERT_SMTP_USERNAME || "",
-                password: process.env.ALERT_SMTP_PASSWORD || "",
-                from: process.env.ALERT_EMAIL_FROM || '"Alerting Service" <alerts@ftso-provider.com>',
-                to: (process.env.ALERT_EMAIL_TO || "").split(",").filter(Boolean),
+                enabled: EnvironmentUtils.parseBoolean("ALERT_EMAIL_ENABLED", false),
+                smtpHost: EnvironmentUtils.parseString("ALERT_SMTP_HOST", "localhost"),
+                smtpPort: EnvironmentUtils.parseInt("ALERT_SMTP_PORT", 587, { min: 1, max: 65535 }),
+                username: EnvironmentUtils.parseString("ALERT_SMTP_USERNAME", ""),
+                password: EnvironmentUtils.parseString("ALERT_SMTP_PASSWORD", ""),
+                from: EnvironmentUtils.parseString("ALERT_EMAIL_FROM", '"Alerting Service" <alerts@ftso-provider.com>'),
+                to: EnvironmentUtils.parseList("ALERT_EMAIL_TO", []),
               },
               webhook: {
-                enabled: process.env.ALERT_WEBHOOK_ENABLED === "true",
-                url: process.env.ALERT_WEBHOOK_URL || "",
-                headers: process.env.ALERT_WEBHOOK_HEADERS ? JSON.parse(process.env.ALERT_WEBHOOK_HEADERS) : {},
-                timeout: parseInt(process.env.ALERT_WEBHOOK_TIMEOUT || "5000", 10),
+                enabled: EnvironmentUtils.parseBoolean("ALERT_WEBHOOK_ENABLED", false),
+                url: EnvironmentUtils.parseString("ALERT_WEBHOOK_URL", ""),
+                headers: EnvironmentUtils.parseJSON("ALERT_WEBHOOK_HEADERS", {}),
+                timeout: EnvironmentUtils.parseInt("ALERT_WEBHOOK_TIMEOUT", 5000, { min: 1000, max: 30000 }),
               },
             },
-            maxAlertsPerHour: parseInt(process.env.ALERT_MAX_PER_HOUR || "20", 10),
-            alertRetention: parseInt(process.env.ALERT_RETENTION_DAYS || "30", 10),
+            maxAlertsPerHour: EnvironmentUtils.parseInt("ALERT_MAX_PER_HOUR", 20, { min: 1, max: 1000 }),
+            alertRetention: EnvironmentUtils.parseInt("ALERT_RETENTION_DAYS", 30, { min: 1, max: 365 }),
           },
         };
       },

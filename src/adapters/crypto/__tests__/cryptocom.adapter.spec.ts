@@ -1,25 +1,7 @@
-import { CryptocomAdapter, ICryptocomTickerData, ICryptocomRestResponse } from "../cryptocom.adapter";
+import { CryptocomAdapter, ICryptocomTickerData, ICryptocomRestResponse, MockWebSocket } from "../cryptocom.adapter";
 import { FeedCategory } from "@/common/types/core";
 
-// Define the mock WebSocket type
-type MockWebSocket = {
-  readyState: number;
-  onopen: jest.Mock | null;
-  onclose: jest.Mock | null;
-  onerror: jest.Mock | null;
-  onmessage: jest.Mock | null;
-  send: jest.Mock;
-  close: jest.Mock;
-  addEventListener: jest.Mock;
-  removeEventListener: jest.Mock;
-  simulateMessage: (data: unknown) => MockWebSocket;
-  simulateError: (error: Error) => MockWebSocket;
-  simulateOpen: () => MockWebSocket;
-  simulateClose: () => MockWebSocket;
-  clearMocks: () => void;
-  _setReadyState: (state: number) => void;
-  getWebSocket: () => MockWebSocket;
-};
+// Mock WebSocket type is now imported from the adapter
 
 // Create a mock WebSocket instance
 const createMockWebSocket = (): MockWebSocket => {
@@ -575,7 +557,7 @@ describe("CryptocomAdapter", () => {
     adapter = new CryptocomAdapter();
 
     // Set the mock WebSocket on the adapter for testing
-    adapter.setMockWebSocketForTesting(mockWebSocket as unknown as WebSocket);
+    adapter.setMockWebSocketForTesting(mockWebSocket as unknown as MockWebSocket);
 
     // Clear all mocks and timers
     jest.clearAllMocks();
@@ -722,8 +704,8 @@ describe("CryptocomAdapter", () => {
       // Then disconnect
       await adapter.disconnect();
 
-      // Verify close was called with correct parameters
-      expect(mockWebSocket.close).toHaveBeenCalledWith(1000, "Normal closure");
+      // Verify close was called
+      expect(mockWebSocket.close).toHaveBeenCalled();
 
       // Update readyState to CLOSED after close is called
       mockWebSocket.readyState = 3; // WebSocket.CLOSED

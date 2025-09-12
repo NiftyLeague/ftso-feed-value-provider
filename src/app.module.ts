@@ -26,6 +26,7 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { ConfigService } from "@/config/config.service";
+import { EnvironmentUtils } from "@/common/utils/environment.utils";
 
 @Module({
   imports: [
@@ -46,7 +47,7 @@ import { ConfigService } from "@/config/config.service";
       useFactory: (_configService: ConfigService) => {
         return new RateLimiterService({
           windowMs: 60000, // 1 minute
-          maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000", 10),
+          maxRequests: EnvironmentUtils.parseInt("RATE_LIMIT_MAX_REQUESTS", 1000, { min: 1, max: 10000 }),
           skipSuccessfulRequests: false,
           skipFailedRequests: false,
         });

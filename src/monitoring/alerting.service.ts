@@ -373,101 +373,171 @@ ${JSON.stringify(alert.metadata, null, 2)}
    * Evaluate a metric against configured rules and create/resolve alerts
    */
   public evaluateMetric(metric: string, value: number, metadata?: Record<string, unknown>): void {
-    const rule = this.alertingConfig?.rules?.find(r => r.condition.metric === metric);
-    if (!rule || !rule.enabled) return;
+    const rule = this.findRuleForMetric(metric);
+    if (!rule) return;
 
     const now = Date.now();
+    if (this.isInCooldown(rule, now)) return;
 
-    // Cooldown check
+    const triggered = this.evaluateCondition(value, rule.condition);
+
+    if (triggered && this.isRateLimited()) {
+      this.logRateLimitExceeded(rule, metric, value, rule.condition.threshold);
+      return;
+    }
+
+    if (triggered) {
+      this.handleTriggeredAlert(rule, metric, value, metadata, now);
+    } else if (this.activeAlerts.has(rule.id)) {
+      this.handleResolvedAlert(rule, metric, value, metadata, now);
+    }
+  }
+
+  /**
+   * Find the rule for the given metric
+   */
+  private findRuleForMetric(metric: string) {
+    return this.alertingConfig?.rules?.find(r => r.condition.metric === metric && r.enabled);
+  }
+
+  /**
+   * Check if rule is in cooldown period
+   */
+  private isInCooldown(rule: AlertRule, now: number): boolean {
     const lastTs = this.alertCooldowns.get(rule.id) ?? 0;
     const cooldownMs = rule.cooldown ?? 0;
-    if (cooldownMs > 0 && now - lastTs < cooldownMs) {
-      return;
-    }
+    return cooldownMs > 0 && now - lastTs < cooldownMs;
+  }
 
-    // Determine trigger based on operator
-    const threshold = rule.condition.threshold;
-    const op = rule.condition.operator;
-    const compare = (v: number, t: number, operator: typeof op): boolean => {
-      switch (operator) {
-        case ">":
-        case "gt":
-          return v > t;
-        case "gte":
-          return v >= t;
-        case "<":
-        case "lt":
-          return v < t;
-        case "lte":
-          return v <= t;
-        case "==":
-        case "eq":
-          return v === t;
-        default:
-          return false;
-      }
+  /**
+   * Evaluate condition using operator
+   */
+  private evaluateCondition(value: number, condition: { threshold: number; operator: string }): boolean {
+    const { threshold, operator } = condition;
+
+    const operatorMap: Record<string, (v: number, t: number) => boolean> = {
+      ">": (v: number, t: number) => v > t,
+      gt: (v: number, t: number) => v > t,
+      gte: (v: number, t: number) => v >= t,
+      "<": (v: number, t: number) => v < t,
+      lt: (v: number, t: number) => v < t,
+      lte: (v: number, t: number) => v <= t,
+      "==": (v: number, t: number) => v === t,
+      eq: (v: number, t: number) => v === t,
     };
 
-    const triggered = compare(value, threshold, op);
+    const compareFn = operatorMap[operator];
+    return compareFn ? compareFn(value, threshold) : false;
+  }
 
-    // If triggered, enforce global rate limit
-    if (triggered) {
-      const maxPerHour = this.alertingConfig?.maxAlertsPerHour ?? Infinity;
-      const totalCount = this.alertCounts.get("total") ?? 0;
-      if (totalCount >= maxPerHour) {
-        this.enhancedLogger?.warn("Alert rate limit exceeded", { ruleId: rule.id, metric, value, threshold });
-        return;
-      }
-    }
+  /**
+   * Check if rate limit is exceeded
+   */
+  private isRateLimited(): boolean {
+    const maxPerHour = this.alertingConfig?.maxAlertsPerHour ?? Infinity;
+    const totalCount = this.alertCounts.get("total") ?? 0;
+    return totalCount >= maxPerHour;
+  }
 
-    // Resolution path: previously active, now back to normal
-    if (!triggered && this.activeAlerts.has(rule.id)) {
-      const resolveAlert: Alert = {
-        id: `${rule.id}_${now}`,
-        ruleId: rule.id,
-        type: "metric",
-        title: `Alert resolved: ${rule.name}`,
-        message: `Alert resolved: ${rule.name} - metric: ${metric} back to normal (value: ${value}, threshold: ${threshold})`,
-        timestamp: now,
-        status: "resolved",
-        resolved: true,
-        resolvedAt: now,
-        metadata,
-        severity: rule.severity,
-      };
-      // Deliver and clear active state
-      void this.deliverAlert(resolveAlert, rule);
-      return;
-    }
+  /**
+   * Log rate limit exceeded warning
+   */
+  private logRateLimitExceeded(rule: AlertRule, metric: string, value: number, threshold: number): void {
+    this.enhancedLogger?.warn("Alert rate limit exceeded", {
+      ruleId: rule.id,
+      metric,
+      value,
+      threshold,
+    });
+  }
 
-    if (!triggered) return;
+  /**
+   * Handle triggered alert
+   */
+  private handleTriggeredAlert(
+    rule: AlertRule,
+    metric: string,
+    value: number,
+    metadata: Record<string, unknown> | undefined,
+    now: number
+  ): void {
+    const alert = this.createAlert(rule, metric, value, metadata, now, "active");
+    this.updateCountersAndCooldowns(rule, now);
+    void this.deliverAlert(alert, rule);
+  }
 
-    // Build alert
-    const details: string[] = [`metric: ${metric}`, `value: ${value}`, `threshold: ${threshold}`];
-    if (metadata) {
-      if (typeof metadata.feedId === "string") details.push(`feedId: ${String(metadata.feedId)}`);
-      if (typeof metadata.exchange === "string") details.push(`exchange: ${String(metadata.exchange)}`);
-    }
+  /**
+   * Handle resolved alert
+   */
+  private handleResolvedAlert(
+    rule: AlertRule,
+    metric: string,
+    value: number,
+    metadata: Record<string, unknown> | undefined,
+    now: number
+  ): void {
+    const resolveAlert = this.createAlert(rule, metric, value, metadata, now, "resolved");
+    void this.deliverAlert(resolveAlert, rule);
+  }
 
-    const alert: Alert = {
+  /**
+   * Create alert object
+   */
+  private createAlert(
+    rule: AlertRule,
+    metric: string,
+    value: number,
+    metadata: Record<string, unknown> | undefined,
+    now: number,
+    status: "active" | "resolved"
+  ): Alert {
+    const details = this.buildAlertDetails(metric, value, rule.condition.threshold, metadata);
+    const isResolved = status === "resolved";
+
+    return {
       id: `${rule.id}_${now}`,
       ruleId: rule.id,
       type: "metric",
-      title: `Alert: ${rule.name}`,
-      message: `Alert: ${rule.name} - ${details.join(", ")}`,
+      title: isResolved ? `Alert resolved: ${rule.name}` : `Alert: ${rule.name}`,
+      message: isResolved
+        ? `Alert resolved: ${rule.name} - metric: ${metric} back to normal (value: ${value}, threshold: ${rule.condition.threshold})`
+        : `Alert: ${rule.name} - ${details.join(", ")}`,
       timestamp: now,
-      status: "active",
-      resolved: false,
-      metadata: { metric, value, threshold, ...(metadata || {}) },
+      status,
+      resolved: isResolved,
+      resolvedAt: isResolved ? now : undefined,
+      metadata: { metric, value, threshold: rule.condition.threshold, ...(metadata || {}) },
       severity: rule.severity,
     };
+  }
 
-    // Update counters and cooldowns
+  /**
+   * Build alert details array
+   */
+  private buildAlertDetails(
+    metric: string,
+    value: number,
+    threshold: number,
+    metadata?: Record<string, unknown>
+  ): string[] {
+    const details = [`metric: ${metric}`, `value: ${value}`, `threshold: ${threshold}`];
+
+    if (metadata) {
+      if (typeof metadata.feedId === "string") details.push(`feedId: ${metadata.feedId}`);
+      if (typeof metadata.exchange === "string") details.push(`exchange: ${metadata.exchange}`);
+    }
+
+    return details;
+  }
+
+  /**
+   * Update counters and cooldowns
+   */
+  private updateCountersAndCooldowns(rule: AlertRule, now: number): void {
     this.alertCounts.set("total", (this.alertCounts.get("total") ?? 0) + 1);
-    if (cooldownMs > 0) this.alertCooldowns.set(rule.id, now);
-
-    // Deliver alert (logs appropriately and stores active)
-    void this.deliverAlert(alert, rule);
+    if (rule.cooldown && rule.cooldown > 0) {
+      this.alertCooldowns.set(rule.id, now);
+    }
   }
 
   /**

@@ -100,74 +100,112 @@ export class ConsensusAggregator extends StandardService {
     const feedKey = `${feedId.category}:${feedId.name}`;
 
     try {
-      // Check aggregation cache first
-      const cachedResult = this.checkAggregationCache(feedKey, updates);
+      // Check cache first
+      const cachedResult = this.tryGetCachedResult(feedKey, updates);
       if (cachedResult) {
-        this.performanceMetrics.cacheHits++;
-        const responseTime = this.endTimer(`aggregate_${feedId.name}`);
-        this.updatePerformanceMetrics(responseTime);
         return cachedResult;
       }
 
-      this.performanceMetrics.cacheMisses++;
+      // Validate and process updates
+      const validUpdates = this.validateAndFilterUpdates(updates, feedId.name);
 
-      // Fast validation and filtering
-      const validUpdates = this.fastValidateUpdates(updates);
+      // Perform aggregation
+      const result = this.performAggregation(feedId, validUpdates);
 
-      // Handle empty updates array
-      if (updates.length === 0) {
-        throw new Error(`No price updates available for feed ${feedId.name}`);
-      }
-
-      // Handle all invalid updates
-      if (validUpdates.length === 0) {
-        throw new Error(`No valid price data available for feed ${feedId.name}`);
-      }
-
-      if (validUpdates.length < this.consensusConfig.minSources) {
-        throw new Error(`Insufficient valid sources: ${validUpdates.length} < ${this.consensusConfig.minSources}`);
-      }
-
-      // Convert to optimized price points with precomputed weights
-      const pricePoints = this.convertToPricePoints(validUpdates);
-
-      // Fast weighted median calculation
-      const aggregatedPrice = this.calculateOptimizedWeightedMedian(pricePoints);
-
-      // Calculate consensus score efficiently
-      const consensusScore = this.calculateFastConsensusScore(pricePoints, aggregatedPrice);
-
-      // Calculate confidence efficiently
-      const confidence = this.calculateOptimizedConfidence(pricePoints, consensusScore);
-
-      const result: AggregatedPrice = {
-        symbol: feedId.name,
-        price: aggregatedPrice,
-        timestamp: Date.now(),
-        sources: validUpdates.map(u => u.source),
-        confidence,
-        consensusScore,
-      };
-
-      // Cache the result
-      this.cacheAggregationResult(feedKey, result, updates);
-
-      const responseTime = this.endTimer(`aggregate_${feedId.name}`);
-      this.updatePerformanceMetrics(responseTime);
-      this.performanceMetrics.totalAggregations++;
-
-      this.logger.debug(
-        `Optimized aggregation for ${feedId.name}: ${aggregatedPrice.toFixed(6)} ` +
-          `(${validUpdates.length} sources, ${responseTime.toFixed(2)}ms, consensus: ${consensusScore.toFixed(3)})`
-      );
+      // Cache and log result
+      this.cacheAndLogResult(feedKey, result, updates, validUpdates.length);
 
       return result;
     } catch (error) {
-      const responseTime = this.endTimer(`aggregate_${feedId.name}`);
-      this.updatePerformanceMetrics(responseTime);
-      this.logger.error(`Optimized aggregation failed for ${feedId.name}:`, error);
+      this.handleAggregationError(feedId.name, error);
       throw error;
     }
+  }
+
+  /**
+   * Try to get cached aggregation result
+   */
+  private tryGetCachedResult(feedKey: string, updates: PriceUpdate[]): AggregatedPrice | null {
+    const cachedResult = this.checkAggregationCache(feedKey, updates);
+    if (cachedResult) {
+      this.performanceMetrics.cacheHits++;
+      const responseTime = this.endTimer(`aggregate_${feedKey.split(":")[1]}`);
+      this.updatePerformanceMetrics(responseTime);
+      return cachedResult;
+    }
+
+    this.performanceMetrics.cacheMisses++;
+    return null;
+  }
+
+  /**
+   * Validate and filter price updates
+   */
+  private validateAndFilterUpdates(updates: PriceUpdate[], feedName: string): PriceUpdate[] {
+    if (updates.length === 0) {
+      throw new Error(`No price updates available for feed ${feedName}`);
+    }
+
+    const validUpdates = this.fastValidateUpdates(updates);
+
+    if (validUpdates.length === 0) {
+      throw new Error(`No valid price data available for feed ${feedName}`);
+    }
+
+    if (validUpdates.length < this.consensusConfig.minSources) {
+      throw new Error(`Insufficient valid sources: ${validUpdates.length} < ${this.consensusConfig.minSources}`);
+    }
+
+    return validUpdates;
+  }
+
+  /**
+   * Perform the actual aggregation calculation
+   */
+  private performAggregation(feedId: CoreFeedId, validUpdates: PriceUpdate[]): AggregatedPrice {
+    const pricePoints = this.convertToPricePoints(validUpdates);
+    const aggregatedPrice = this.calculateOptimizedWeightedMedian(pricePoints);
+    const consensusScore = this.calculateFastConsensusScore(pricePoints, aggregatedPrice);
+    const confidence = this.calculateOptimizedConfidence(pricePoints, consensusScore);
+
+    return {
+      symbol: feedId.name,
+      price: aggregatedPrice,
+      timestamp: Date.now(),
+      sources: validUpdates.map(u => u.source),
+      confidence,
+      consensusScore,
+    };
+  }
+
+  /**
+   * Cache result and log performance metrics
+   */
+  private cacheAndLogResult(
+    feedKey: string,
+    result: AggregatedPrice,
+    updates: PriceUpdate[],
+    sourceCount: number
+  ): void {
+    this.cacheAggregationResult(feedKey, result, updates);
+
+    const responseTime = this.endTimer(`aggregate_${result.symbol}`);
+    this.updatePerformanceMetrics(responseTime);
+    this.performanceMetrics.totalAggregations++;
+
+    this.logger.debug(
+      `Optimized aggregation for ${result.symbol}: ${result.price.toFixed(6)} ` +
+        `(${sourceCount} sources, ${responseTime.toFixed(2)}ms, consensus: ${result.consensusScore.toFixed(3)})`
+    );
+  }
+
+  /**
+   * Handle aggregation errors
+   */
+  private handleAggregationError(feedName: string, error: unknown): void {
+    const responseTime = this.endTimer(`aggregate_${feedName}`);
+    this.updatePerformanceMetrics(responseTime);
+    this.logger.error(`Optimized aggregation failed for ${feedName}:`, error);
   }
 
   /**
@@ -234,22 +272,16 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Convert updates to optimized price points with precomputed weights
+   * Convert updates to price points with calculated weights
    */
   private convertToPricePoints(updates: PriceUpdate[]): IPricePoint[] {
     const now = Date.now();
 
     return updates.map(update => {
-      const weights = this.precomputedWeights[update.source] || {
-        baseWeight: 0.05,
-        tierMultiplier: 1.0,
-        reliabilityScore: 0.7,
-        lastUpdated: now,
-      };
-
+      const weights = this.getWeightsForSource(update.source, now);
       const staleness = now - update.timestamp;
-      const timeWeight = Math.exp(-this.consensusConfig.lambda * staleness);
-      const combinedWeight = weights.baseWeight * weights.tierMultiplier * timeWeight * update.confidence;
+      const timeWeight = this.calculateTimeWeight(staleness);
+      const combinedWeight = this.calculateCombinedWeight(weights, timeWeight, update.confidence);
 
       return {
         price: update.price,
@@ -257,9 +289,48 @@ export class ConsensusAggregator extends StandardService {
         confidence: update.confidence,
         staleness,
         source: update.source,
-        tier: weights.tierMultiplier > 1.0 ? 1 : 2,
+        tier: this.determineTier(weights.tierMultiplier),
       };
     });
+  }
+
+  /**
+   * Get weights for a specific source
+   */
+  private getWeightsForSource(source: string, now: number) {
+    return (
+      this.precomputedWeights[source] || {
+        baseWeight: 0.05,
+        tierMultiplier: 1.0,
+        reliabilityScore: 0.7,
+        lastUpdated: now,
+      }
+    );
+  }
+
+  /**
+   * Calculate time-based weight using exponential decay
+   */
+  private calculateTimeWeight(staleness: number): number {
+    return Math.exp(-this.consensusConfig.lambda * staleness);
+  }
+
+  /**
+   * Calculate combined weight from all factors
+   */
+  private calculateCombinedWeight(
+    weights: { baseWeight: number; tierMultiplier: number; reliabilityScore: number; lastUpdated: number },
+    timeWeight: number,
+    confidence: number
+  ): number {
+    return weights.baseWeight * weights.tierMultiplier * timeWeight * confidence;
+  }
+
+  /**
+   * Determine tier based on multiplier
+   */
+  private determineTier(tierMultiplier: number): number {
+    return tierMultiplier > 1.0 ? 1 : 2;
   }
 
   /**

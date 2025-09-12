@@ -5,9 +5,27 @@ import { MonitoringService } from "./composed.service";
 import { ValidationUtils } from "../utils/validation.utils";
 import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
 import type { ApiResponse } from "../types/http/http.types";
-import type { StandardErrorMetadata } from "../types/error-handling";
+import type { StandardErrorMetadata, RetryConfig } from "../types/error-handling";
 import { ErrorCode } from "../types/error-handling";
 import { createTimer, PerformanceUtils } from "../utils/performance.utils";
+
+/**
+ * Controller operation options interface
+ */
+interface ControllerOperationOptions {
+  requestId: string;
+  body: unknown;
+  timeout: number | undefined;
+  performanceThreshold: number;
+  userId: string | undefined;
+  sessionId: string | undefined;
+  clientId: string | undefined;
+  userAgent: string | undefined;
+  ipAddress: string | undefined;
+  useStandardizedErrorHandling: boolean;
+  useRetryLogic: boolean;
+  retryConfig: Partial<RetryConfig>;
+}
 import type { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import type { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
@@ -353,128 +371,184 @@ export abstract class BaseController extends MonitoringService {
       ipAddress?: string;
       useStandardizedErrorHandling?: boolean;
       useRetryLogic?: boolean;
-      retryConfig?: {
-        maxRetries?: number;
-        initialDelayMs?: number;
-        maxDelayMs?: number;
-      };
+      retryConfig?: Partial<RetryConfig>;
     } = {}
   ): Promise<T> {
-    const {
-      requestId = this.generateRequestId(),
-      body,
-      timeout,
-      performanceThreshold = 1000,
-      userId,
-      sessionId,
-      clientId,
-      userAgent,
-      ipAddress,
-      useStandardizedErrorHandling = true,
-      useRetryLogic = false,
-      retryConfig,
-    } = options;
-
+    const normalizedOptions = this.normalizeControllerOptions(options);
     const startTime = performance.now();
 
-    // Log API request
-    this.logApiRequest(method, url, body, requestId);
+    this.logApiRequest(method, url, normalizedOptions.body, normalizedOptions.requestId);
 
     try {
-      let result: T;
-
-      // Use standardized error handling if available and requested
-      if (useStandardizedErrorHandling && this.standardizedErrorHandler) {
-        result = await this.standardizedErrorHandler.executeWithStandardizedHandling(
-          async () => {
-            if (useRetryLogic && this.universalRetryService) {
-              return await this.universalRetryService.executeWithRetry(
-                () => handleAsyncOperation(operation, operationName, { requestId, timeout }),
-                {
-                  serviceId: this.controllerName,
-                  operationName,
-                  retryConfig,
-                }
-              );
-            } else {
-              return await handleAsyncOperation(operation, operationName, { requestId, timeout });
-            }
-          },
-          {
-            serviceId: this.controllerName,
-            operationName,
-            component: this.controllerName,
-            requestId,
-            metadata: {
-              operation: operationName,
-              correlationId: requestId,
-              userId,
-              sessionId,
-              clientId,
-              userAgent,
-              ipAddress,
-              additionalContext: {
-                method,
-                path: url,
-                body: this.sanitizeForLogging(body),
-              },
-            },
-          }
-        );
-      } else {
-        // Fallback to basic operation execution
-        if (useRetryLogic && this.universalRetryService) {
-          result = await this.universalRetryService.executeWithRetry(
-            () => handleAsyncOperation(operation, operationName, { requestId, timeout }),
-            {
-              serviceId: this.controllerName,
-              operationName,
-              retryConfig,
-            }
-          );
-        } else {
-          result = await handleAsyncOperation(operation, operationName, { requestId, timeout });
-        }
-      }
-
-      const responseTime = performance.now() - startTime;
-
-      // Log API response
-      this.logApiResponse(method, url, 200, responseTime, this.calculateResponseSize(result), requestId);
-
-      // Log performance warning if operation is slow
-      if (responseTime > performanceThreshold) {
-        this.logger.warn(PerformanceUtils.createWarningMessage(operationName, responseTime, performanceThreshold), {
-          requestId,
-          responseTime,
-        });
-      } else {
-        this.logger.debug(`${operationName} completed in ${PerformanceUtils.formatDuration(responseTime)}`, {
-          requestId,
-          responseTime,
-        });
-      }
-
+      const result = await this.executeOperationWithErrorHandling(
+        operation,
+        operationName,
+        normalizedOptions,
+        method,
+        url
+      );
+      this.handleSuccessfulOperation(result, operationName, method, url, startTime, normalizedOptions);
       return result;
     } catch (error) {
-      const responseTime = performance.now() - startTime;
-      const err = error as Error;
+      this.handleFailedOperation(error, operationName, method, url, startTime, normalizedOptions);
+      throw error;
+    }
+  }
 
-      // Determine status code based on error type
-      let statusCode = 500;
-      if (error instanceof HttpException) {
-        statusCode = error.getStatus();
-      }
+  /**
+   * Normalize controller operation options with defaults
+   */
+  private normalizeControllerOptions(options: Record<string, unknown>) {
+    return {
+      requestId: (options.requestId as string) || this.generateRequestId(),
+      body: options.body,
+      timeout: options.timeout as number | undefined,
+      performanceThreshold: (options.performanceThreshold as number) || 1000,
+      userId: options.userId as string | undefined,
+      sessionId: options.sessionId as string | undefined,
+      clientId: options.clientId as string | undefined,
+      userAgent: options.userAgent as string | undefined,
+      ipAddress: options.ipAddress as string | undefined,
+      useStandardizedErrorHandling: (options.useStandardizedErrorHandling as boolean) ?? true,
+      useRetryLogic: (options.useRetryLogic as boolean) ?? false,
+      retryConfig: options.retryConfig,
+    } as ControllerOperationOptions;
+  }
 
-      // Log error response
-      this.logApiResponse(method, url, statusCode, responseTime, 0, requestId, err.message);
+  /**
+   * Execute operation with appropriate error handling strategy
+   */
+  private async executeOperationWithErrorHandling<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    options: ControllerOperationOptions,
+    method: string,
+    url: string
+  ): Promise<T> {
+    const executeOperation = () =>
+      handleAsyncOperation(operation, operationName, {
+        requestId: options.requestId,
+        timeout: options.timeout,
+      });
 
-      this.logger.error(`${operationName} failed in ${PerformanceUtils.formatDuration(responseTime)}:`, err, {
+    if (options.useStandardizedErrorHandling && this.standardizedErrorHandler) {
+      return await this.standardizedErrorHandler.executeWithStandardizedHandling(
+        async () => this.executeWithRetryIfNeeded(executeOperation, operationName, options),
+        this.buildErrorHandlingMetadata(operationName, options, method, url)
+      );
+    } else {
+      return await this.executeWithRetryIfNeeded(executeOperation, operationName, options);
+    }
+  }
+
+  /**
+   * Execute operation with retry logic if configured
+   */
+  private async executeWithRetryIfNeeded<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    options: ControllerOperationOptions
+  ): Promise<T> {
+    if (options.useRetryLogic && this.universalRetryService) {
+      return await this.universalRetryService.executeWithRetry(operation, {
+        serviceId: this.controllerName,
+        operationName,
+        retryConfig: options.retryConfig,
+      });
+    } else {
+      return await operation();
+    }
+  }
+
+  /**
+   * Build error handling metadata for standardized error handler
+   */
+  private buildErrorHandlingMetadata(
+    operationName: string,
+    options: ControllerOperationOptions,
+    method: string,
+    url: string
+  ) {
+    return {
+      serviceId: this.controllerName,
+      operationName,
+      component: this.controllerName,
+      requestId: options.requestId,
+      metadata: {
+        operation: operationName,
+        correlationId: options.requestId,
+        userId: options.userId,
+        sessionId: options.sessionId,
+        clientId: options.clientId,
+        userAgent: options.userAgent,
+        ipAddress: options.ipAddress,
+        additionalContext: {
+          method,
+          path: url,
+          body: this.sanitizeForLogging(options.body),
+        },
+      },
+    };
+  }
+
+  /**
+   * Handle successful operation completion
+   */
+  private handleSuccessfulOperation<T>(
+    result: T,
+    operationName: string,
+    method: string,
+    url: string,
+    startTime: number,
+    options: ControllerOperationOptions
+  ): void {
+    const responseTime = performance.now() - startTime;
+
+    this.logApiResponse(method, url, 200, responseTime, this.calculateResponseSize(result), options.requestId);
+    this.logPerformanceMetrics(operationName, responseTime, options.performanceThreshold, options.requestId);
+  }
+
+  /**
+   * Handle failed operation
+   */
+  private handleFailedOperation(
+    error: unknown,
+    operationName: string,
+    method: string,
+    url: string,
+    startTime: number,
+    options: ControllerOperationOptions
+  ): void {
+    const responseTime = performance.now() - startTime;
+    const err = error as Error;
+    const statusCode = error instanceof HttpException ? error.getStatus() : 500;
+
+    this.logApiResponse(method, url, statusCode, responseTime, 0, options.requestId, err.message);
+    this.logger.error(`${operationName} failed in ${PerformanceUtils.formatDuration(responseTime)}:`, err, {
+      requestId: options.requestId,
+      responseTime,
+    });
+  }
+
+  /**
+   * Log performance metrics for operation
+   */
+  private logPerformanceMetrics(
+    operationName: string,
+    responseTime: number,
+    performanceThreshold: number,
+    requestId: string
+  ): void {
+    if (responseTime > performanceThreshold) {
+      this.logger.warn(PerformanceUtils.createWarningMessage(operationName, responseTime, performanceThreshold), {
         requestId,
         responseTime,
       });
-
-      throw error; // Re-throw to let HTTP exception handling work
+    } else {
+      this.logger.debug(`${operationName} completed in ${PerformanceUtils.formatDuration(responseTime)}`, {
+        requestId,
+        responseTime,
+      });
     }
   }
 
@@ -564,11 +638,7 @@ export abstract class BaseController extends MonitoringService {
       operationName: string;
       serviceType?: "http" | "database" | "cache" | "external-api" | "websocket";
       endpoint?: string;
-      retryConfig?: {
-        maxRetries?: number;
-        initialDelayMs?: number;
-        maxDelayMs?: number;
-      };
+      retryConfig?: Partial<RetryConfig>;
     }
   ): Promise<T> {
     if (this.universalRetryService) {

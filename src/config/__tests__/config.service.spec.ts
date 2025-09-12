@@ -1,12 +1,87 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "../config.service";
+import { ConfigValidationService } from "../config-validation.service";
+import { FileWatcherService } from "../file-watcher.service";
 
 describe("ConfigService", () => {
   let service: ConfigService;
+  let isWatchingMock: jest.Mock;
+  let isWatchingState: boolean;
 
   beforeEach(async () => {
+    isWatchingState = false;
+    isWatchingMock = jest.fn().mockImplementation(() => isWatchingState);
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ConfigService],
+      providers: [
+        ConfigService,
+        {
+          provide: ConfigValidationService,
+          useValue: {
+            validateConfiguration: jest.fn().mockResolvedValue({ isValid: true, errors: [] }),
+            validateFeedConfiguration: jest.fn().mockResolvedValue({ isValid: true, errors: [] }),
+            loadAndValidateEnvironmentConfig: jest.fn().mockReturnValue({
+              logLevel: "log",
+              port: 3101,
+              basePath: "",
+              nodeEnv: "development",
+              useProductionIntegration: true,
+              medianDecay: 0.00005,
+              tradesHistorySize: 1000,
+              alerting: {
+                email: {
+                  enabled: false,
+                  smtpHost: "localhost",
+                  smtpPort: 587,
+                  username: "",
+                  password: "",
+                  from: "alerts@ftso-provider.com",
+                  to: [],
+                },
+                webhook: { enabled: false, url: "", timeout: 5000 },
+                maxAlertsPerHour: 10,
+                alertRetentionDays: 7,
+              },
+              cache: { ttlMs: 300000, maxEntries: 1000, warmupInterval: 60000 },
+              monitoring: { enabled: true, metricsPort: 9090, healthCheckInterval: 30000 },
+              errorHandling: {
+                maxRetries: 3,
+                retryDelayMs: 1000,
+                circuitBreakerThreshold: 5,
+                circuitBreakerTimeout: 30000,
+              },
+              logging: { level: "info", format: "json" },
+              exchangeApiKeys: {},
+            }),
+            validateEnvironmentConfig: jest
+              .fn()
+              .mockReturnValue({ isValid: true, errors: [], warnings: [], missingRequired: [], invalidValues: [] }),
+            validateSources: jest.fn().mockImplementation(sources => {
+              const warnings = sources
+                .filter((source: any) => source.exchange === "unknown-exchange")
+                .map((source: any) => `Unknown exchange: ${source.exchange}`);
+              return { isValid: true, errors: [], warnings, missingRequired: [], invalidValues: [] };
+            }),
+            validateFeedConfigurationStructure: jest
+              .fn()
+              .mockReturnValue({ isValid: true, errors: [], warnings: [], missingRequired: [], invalidValues: [] }),
+          },
+        },
+        {
+          provide: FileWatcherService,
+          useValue: {
+            watchFile: jest.fn().mockImplementation(() => {
+              isWatchingState = true;
+            }),
+            stopWatching: jest.fn().mockImplementation(() => {
+              isWatchingState = false;
+            }),
+            unwatchFile: jest.fn().mockImplementation(() => {
+              isWatchingState = false;
+            }),
+            isWatching: isWatchingMock,
+          },
+        },
+      ],
     }).compile();
 
     service = module.get<ConfigService>(ConfigService);

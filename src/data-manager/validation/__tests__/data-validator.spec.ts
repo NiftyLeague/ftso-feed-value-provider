@@ -11,7 +11,9 @@ describe("DataValidator", () => {
 
   beforeEach(async () => {
     mockUniversalRetryService = {
-      executeWithRetry: jest.fn(),
+      executeWithRetry: jest.fn().mockImplementation(async fn => {
+        return await fn();
+      }),
     } as any;
 
     module = await Test.createTestingModule({

@@ -889,29 +889,16 @@ export class RealTimeAggregationService
     throughputImprovement: number;
     recommendations: string[];
   } {
-    const averageBatchTime =
-      this.performanceBuffer.length > 0
-        ? this.performanceBuffer.reduce((sum, time) => sum + time, 0) / this.performanceBuffer.length
-        : 0;
-
+    const averageBatchTime = this.calculateAverageBatchTime();
     const cacheStats = this.getCacheStats();
-    const batchEfficiency = this.batchProcessor.size > 0 ? 1 - this.batchProcessor.size / 100 : 1;
+    const batchEfficiency = this.calculateBatchEfficiency();
     const cacheOptimization = cacheStats.hitRate;
-    const throughputImprovement = Math.min(2.0, 1 + cacheStats.hitRate * 0.5);
-
-    const recommendations: string[] = [];
-
-    if (averageBatchTime > 20) {
-      recommendations.push("Consider increasing batch processing interval or optimizing aggregation algorithms");
-    }
-
-    if (cacheStats.hitRate < 0.9) {
-      recommendations.push("Implement more aggressive cache warming to improve hit rates");
-    }
-
-    if (batchEfficiency < 0.8) {
-      recommendations.push("High batch queue detected - consider scaling processing capacity");
-    }
+    const throughputImprovement = this.calculateThroughputImprovement(cacheStats.hitRate);
+    const recommendations = this.generatePerformanceRecommendations(
+      averageBatchTime,
+      cacheStats.hitRate,
+      batchEfficiency
+    );
 
     return {
       averageBatchTime,
@@ -920,6 +907,55 @@ export class RealTimeAggregationService
       throughputImprovement,
       recommendations,
     };
+  }
+
+  /**
+   * Calculate average batch processing time
+   */
+  private calculateAverageBatchTime(): number {
+    if (this.performanceBuffer.length === 0) return 0;
+    const sum = this.performanceBuffer.reduce((total, time) => total + time, 0);
+    return sum / this.performanceBuffer.length;
+  }
+
+  /**
+   * Calculate batch processing efficiency
+   */
+  private calculateBatchEfficiency(): number {
+    if (this.batchProcessor.size === 0) return 1;
+    return Math.max(0, 1 - this.batchProcessor.size / 100);
+  }
+
+  /**
+   * Calculate throughput improvement based on cache hit rate
+   */
+  private calculateThroughputImprovement(hitRate: number): number {
+    return Math.min(2.0, 1 + hitRate * 0.5);
+  }
+
+  /**
+   * Generate performance recommendations
+   */
+  private generatePerformanceRecommendations(
+    averageBatchTime: number,
+    hitRate: number,
+    batchEfficiency: number
+  ): string[] {
+    const recommendations: string[] = [];
+
+    if (averageBatchTime > 20) {
+      recommendations.push("Consider increasing batch processing interval or optimizing aggregation algorithms");
+    }
+
+    if (hitRate < 0.9) {
+      recommendations.push("Implement more aggressive cache warming to improve hit rates");
+    }
+
+    if (batchEfficiency < 0.8) {
+      recommendations.push("High batch queue detected - consider scaling processing capacity");
+    }
+
+    return recommendations;
   }
 
   /**

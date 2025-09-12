@@ -80,8 +80,8 @@ import { StartupValidationService } from "./services/startup-validation.service"
     },
     {
       provide: ValidationService,
-      useFactory: (validator: DataValidator, universalRetryService: UniversalRetryService) => {
-        return new ValidationService(validator, universalRetryService);
+      useFactory: (dataValidator: DataValidator, universalRetryService: UniversalRetryService) => {
+        return new ValidationService(dataValidator, universalRetryService);
       },
       inject: [DataValidator, UniversalRetryService],
     },

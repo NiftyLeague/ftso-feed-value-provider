@@ -46,183 +46,22 @@ export class ValidationUtils {
   } as const;
 
   /**
-   * Valid feed name pattern (BASE/QUOTE format)
-   */
-  private static readonly FEED_NAME_PATTERN = /^[A-Z0-9]{1,10}\/[A-Z]{3,4}$/;
-
-  /**
-   * Supported base currencies for FTSO feeds
-   */
-  private static readonly VALID_BASE_CURRENCIES = new Set([
-    // Crypto
-    "BTC",
-    "ETH",
-    "XRP",
-    "LTC",
-    "ADA",
-    "DOT",
-    "LINK",
-    "UNI",
-    "AVAX",
-    "SOL",
-    "MATIC",
-    "POL",
-    "ATOM",
-    "ALGO",
-    "FIL",
-    "ICP",
-    "NEAR",
-    "SHIB",
-    "DOGE",
-    "BCH",
-    "TRX",
-    "ETC",
-    "XLM",
-    "BNB",
-    "USDC",
-    "USDT",
-    "USDS",
-    "FLR",
-    "SGB",
-    "XDC",
-    "ARB",
-    "INJ",
-    "TON",
-    "LEO",
-    "WIF",
-    "BONK",
-    "JUP",
-    "ETHFI",
-    "ENA",
-    "PYTH",
-    "HNT",
-    "SUI",
-    "PEPE",
-    "QNT",
-    "AAVE",
-    "ONDO",
-    "TAO",
-    "FET",
-    "RENDER",
-    "NOT",
-    // Forex
-    "EUR",
-    "GBP",
-    "JPY",
-    "CHF",
-    "CAD",
-    "AUD",
-    "NZD",
-    "USD",
-    // Commodities
-    "XAU",
-    "XAG",
-    "XPT",
-    "XPD",
-    "OIL",
-    "GAS",
-    // Stocks (examples)
-    "AAPL",
-    "GOOGL",
-    "MSFT",
-    "TSLA",
-    "AMZN",
-    "META",
-    "NVDA",
-  ]);
-
-  /**
-   * Valid quote currencies
-   */
-  private static readonly VALID_QUOTE_CURRENCIES = new Set(["USD", "USDT", "USDC", "EUR", "BTC", "ETH"]);
-  /**
    * Validate feed ID structure and content with FTSO compliance
    */
   static validateFeedId(feed: unknown, fieldName = "feed"): FeedId {
     if (!feed || typeof feed !== "object") {
-      throw new TimestampedBadRequestException(`${fieldName} must be an object with category and name properties`);
+      throw new BadRequestException(`${fieldName} must be an object with category and name properties`);
     }
 
     const feedObj = feed as Record<string, unknown>;
 
-    // Validate category with FTSO-specific validation
+    // Validate category
     const category = this.validateFeedCategory(feedObj.category, `${fieldName}.category`);
 
-    // Validate name with enhanced format checking
+    // Validate name
     const name = this.validateFeedName(feedObj.name, `${fieldName}.name`);
 
     return { category, name };
-  }
-
-  /**
-   * Validate feed category according to FTSO specification
-   */
-  static validateFeedCategory(category: unknown, fieldName: string): number {
-    if (typeof category !== "number") {
-      throw new TimestampedBadRequestException(
-        `${fieldName} must be a number. Valid categories: ${this.VALID_CATEGORIES.map(
-          c => `${c} (${this.CATEGORY_DESCRIPTIONS[c]})`
-        ).join(", ")}`
-      );
-    }
-
-    if (!Number.isInteger(category)) {
-      throw new TimestampedBadRequestException(`${fieldName} must be an integer`);
-    }
-
-    if (!this.VALID_CATEGORIES.includes(category as 1 | 2 | 3 | 4)) {
-      throw new TimestampedBadRequestException(
-        `${fieldName} must be one of: ${this.VALID_CATEGORIES.map(c => `${c} (${this.CATEGORY_DESCRIPTIONS[c]})`).join(
-          ", "
-        )}`
-      );
-    }
-
-    return category;
-  }
-
-  /**
-   * Validate feed name format with enhanced FTSO compliance
-   * Automatically converts to uppercase for consistent processing
-   */
-  static validateFeedName(name: unknown, fieldName: string): string {
-    if (typeof name !== "string") {
-      throw new TimestampedBadRequestException(`${fieldName} must be a string`);
-    }
-
-    if (!name.trim()) {
-      throw new TimestampedBadRequestException(`${fieldName} cannot be empty`);
-    }
-
-    // Normalize to uppercase for consistent processing
-    const upperCaseName = name.trim().toUpperCase();
-
-    if (!this.FEED_NAME_PATTERN.test(upperCaseName)) {
-      throw new TimestampedBadRequestException(
-        `${fieldName} must be in format "BASE/QUOTE" (e.g., "BTC/USD"). ` +
-          `Base currency: 1-10 alphanumeric characters, Quote currency: 3-4 letters`
-      );
-    }
-
-    const [base, quote] = upperCaseName.split("/");
-
-    // Validate base currency
-    if (!this.VALID_BASE_CURRENCIES.has(base)) {
-      throw new TimestampedBadRequestException(
-        `${fieldName} contains unsupported base currency "${base}". ` +
-          `Supported currencies include: ${Array.from(this.VALID_BASE_CURRENCIES).slice(0, 10).join(", ")}...`
-      );
-    }
-
-    // Validate quote currency
-    if (!this.VALID_QUOTE_CURRENCIES.has(quote)) {
-      throw new TimestampedBadRequestException(
-        `${fieldName} contains unsupported quote currency "${quote}". ` +
-          `Supported quote currencies: ${Array.from(this.VALID_QUOTE_CURRENCIES).join(", ")}`
-      );
-    }
-
-    return upperCaseName;
   }
 
   /**
@@ -673,7 +512,7 @@ export class ValidationUtils {
    */
   static isValidFeedNameFormat(name: string): boolean {
     try {
-      this.validateFeedName(name, "name");
+      this.validateFeedId({ name, category: 1 }, "name");
       return true;
     } catch {
       return false;
@@ -685,5 +524,79 @@ export class ValidationUtils {
    */
   static isValidCategory(category: number): boolean {
     return this.VALID_CATEGORIES.includes(category as 1 | 2 | 3 | 4);
+  }
+
+  /**
+   * Validate feed category
+   */
+  static validateFeedCategory(category: unknown, fieldName: string): number {
+    if (typeof category !== "number") {
+      throw new BadRequestException(`${fieldName} must be a number`);
+    }
+
+    if (!Number.isInteger(category)) {
+      throw new BadRequestException(`${fieldName} must be an integer`);
+    }
+
+    const validCategories = [1, 2, 3, 4]; // Crypto, Forex, Commodity, Stock
+    if (!validCategories.includes(category)) {
+      throw new BadRequestException(`${fieldName} must be one of: 1 (Crypto), 2 (Forex), 3 (Commodity), 4 (Stock)`);
+    }
+
+    return category;
+  }
+
+  /**
+   * Validate feed name
+   */
+  static validateFeedName(name: unknown, fieldName: string): string {
+    if (typeof name !== "string") {
+      throw new BadRequestException(`${fieldName} must be a string`);
+    }
+
+    const trimmedName = name.trim().toUpperCase();
+    if (!trimmedName) {
+      throw new BadRequestException(`${fieldName} cannot be empty`);
+    }
+
+    // Basic format validation (BASE/QUOTE)
+    const parts = trimmedName.split("/");
+    if (parts.length !== 2) {
+      throw new BadRequestException(`${fieldName} must be in format BASE/QUOTE (e.g., BTC/USD)`);
+    }
+
+    const [base, quote] = parts;
+    if (!base || !quote) {
+      throw new BadRequestException(`${fieldName} must have both base and quote currencies`);
+    }
+
+    // Validate base currency
+    const validBaseCurrencies = [
+      "BTC",
+      "ETH",
+      "XRP",
+      "ALGO",
+      "FLR",
+      "EUR",
+      "XAU",
+      "USD",
+      "GBP",
+      "JPY",
+      "CHF",
+      "CAD",
+      "AUD",
+      "NZD",
+    ];
+    if (!validBaseCurrencies.includes(base)) {
+      throw new BadRequestException(`${fieldName} contains unsupported base currency: ${base}`);
+    }
+
+    // Validate quote currency
+    const validQuoteCurrencies = ["USD", "USDT", "USDC", "EUR", "BTC", "ETH"];
+    if (!validQuoteCurrencies.includes(quote)) {
+      throw new BadRequestException(`${fieldName} contains unsupported quote currency: ${quote}`);
+    }
+
+    return trimmedName;
   }
 }
