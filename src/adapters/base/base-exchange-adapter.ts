@@ -1,4 +1,4 @@
-import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager";
+import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
 import { DataProviderService } from "@/common/base/composed.service";
 import { FeedCategory } from "@/common/types/core";
 import type { BaseServiceConfig } from "@/common/types/services";

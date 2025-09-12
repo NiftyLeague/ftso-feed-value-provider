@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 
 // Core components
-import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 
 // Error handling

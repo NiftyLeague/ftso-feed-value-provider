@@ -4,7 +4,7 @@ import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
-import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
 import { DataSourceIntegrationService } from "../../services/data-source-integration.service";

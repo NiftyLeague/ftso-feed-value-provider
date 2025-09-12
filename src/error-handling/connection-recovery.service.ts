@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { FailoverManager } from "@/data-manager/failover-manager";
+import { FailoverManager } from "@/data-manager/failover-manager.service";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, CoreFeedId } from "@/common/types/core";

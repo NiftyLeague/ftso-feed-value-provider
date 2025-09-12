@@ -12,7 +12,7 @@ import { AggregatorsModule } from "@/aggregators/aggregators.module";
 import { MonitoringModule } from "@/monitoring/monitoring.module";
 
 // Core services
-import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 import { ConfigService } from "@/config/config.service";
 
 // Error handling services
@@ -29,10 +29,10 @@ import { ValidationService } from "@/data-manager/validation/validation.service"
 import { DataValidator } from "@/data-manager/validation/data-validator";
 
 // WebSocket connection management
-import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager";
+import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
 
 // Failover management
-import { FailoverManager } from "@/data-manager/failover-manager";
+import { FailoverManager } from "@/data-manager/failover-manager.service";
 
 // Data source factory
 import { DataSourceFactory } from "./services/data-source.factory";

@@ -6,7 +6,7 @@ import type { RawPriceData, RawVolumeData } from "@/common/types/adapters";
 import type { CoreFeedId, PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
-import { ProductionDataManagerService } from "../production-data-manager";
+import { ProductionDataManagerService } from "../production-data-manager.service";
 import { DataValidator } from "../validation/data-validator";
 
 // Mock adapter for testing that implements DataSource interface

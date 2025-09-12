@@ -4,7 +4,7 @@ import { AlertingService } from "@/monitoring/alerting.service";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { PerformanceMonitorService } from "@/monitoring/performance-monitor.service";
-import { ProductionDataManagerService } from "@/data-manager/production-data-manager";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { ConfigService } from "@/config/config.service";

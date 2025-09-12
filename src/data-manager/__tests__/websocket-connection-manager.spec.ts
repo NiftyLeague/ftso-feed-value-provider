@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import WebSocket from "ws";
-import { WebSocketConnectionManager } from "../websocket-connection-manager";
+import { WebSocketConnectionManager } from "../websocket-connection-manager.service";
 import type { WSConnectionConfig } from "@/common/types/data-manager";
 import { TestHelpers } from "@/__tests__/utils/test.helpers";
 

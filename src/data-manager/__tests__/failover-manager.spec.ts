@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { FailoverManager } from "../failover-manager";
+import { FailoverManager } from "../failover-manager.service";
 import type { FailoverConfig } from "@/common/types/data-manager";
 import type { DataSource, PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
