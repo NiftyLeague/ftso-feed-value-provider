@@ -14,6 +14,8 @@
  */
 
 import { ConfigService } from "./config.service";
+import { ConfigValidationService } from "./config-validation.service";
+import { FileWatcherService } from "./file-watcher.service";
 import type { ConfigValidationResult } from "@/common/types";
 
 type ConfigurationStatus = ReturnType<ConfigService["getConfigurationStatus"]>;
@@ -126,7 +128,9 @@ async function main() {
   try {
     // Initialize configuration service
     console.log("\n📥 Loading configuration...");
-    const configService = new ConfigService();
+    const configValidationService = new ConfigValidationService();
+    const fileWatcherService = new FileWatcherService();
+    const configService = new ConfigService(configValidationService, fileWatcherService);
 
     // Get configuration status
     const status = configService.getConfigurationStatus();

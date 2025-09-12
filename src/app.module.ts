@@ -25,6 +25,7 @@ import { ResponseTimeInterceptor } from "@/common/interceptors/response-time.int
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
+import { ConfigService } from "@/config/config.service";
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
     StandardizedErrorHandlerService,
     {
       provide: RateLimiterService,
-      useFactory: () => {
+      useFactory: (_configService: ConfigService) => {
         return new RateLimiterService({
           windowMs: 60000, // 1 minute
           maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "1000", 10),
@@ -50,6 +51,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
           skipFailedRequests: false,
         });
       },
+      inject: [ConfigService],
     },
     {
       provide: RateLimitGuard,

@@ -49,15 +49,14 @@ export class ConfigService extends StandardService implements IConfigurationServ
   private feedConfigurations: FeedConfiguration[] = [];
   private environmentConfig: EnvironmentConfiguration;
   private feedsFilePath: string;
-  private configValidationService: ConfigValidationService;
-  private fileWatcherService: FileWatcherService;
 
-  constructor() {
+  constructor(
+    private readonly configValidationService: ConfigValidationService,
+    private readonly fileWatcherService: FileWatcherService
+  ) {
     super({ useEnhancedLogging: true });
     this.feedsFilePath = join(__dirname, "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
-    this.configValidationService = new ConfigValidationService();
-    this.fileWatcherService = new FileWatcherService();
     this.environmentConfig = this.configValidationService.loadAndValidateEnvironmentConfig();
     this.loadFeedConfigurations();
   }

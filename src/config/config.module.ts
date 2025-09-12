@@ -5,7 +5,17 @@ import { ConfigValidationService } from "./config-validation.service";
 import { FileWatcherService } from "./file-watcher.service";
 
 @Module({
-  providers: [ConfigService, ConfigValidationService, FileWatcherService],
+  providers: [
+    ConfigValidationService,
+    FileWatcherService,
+    {
+      provide: ConfigService,
+      useFactory: (configValidationService: ConfigValidationService, fileWatcherService: FileWatcherService) => {
+        return new ConfigService(configValidationService, fileWatcherService);
+      },
+      inject: [ConfigValidationService, FileWatcherService],
+    },
+  ],
   controllers: [ConfigController],
   exports: [ConfigService, ConfigValidationService, FileWatcherService],
 })
