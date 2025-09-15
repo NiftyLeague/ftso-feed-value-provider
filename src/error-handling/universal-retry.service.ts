@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
-import { retryWithBackoff, isRetryableError } from "@/common/utils/error.utils";
+import { isRetryableError } from "@/common/utils/error.utils";
 import type { RetryConfig } from "@/common/types/error-handling";
 import { DEFAULT_RETRY_CONFIG } from "@/common/types/error-handling";
 
@@ -58,37 +58,55 @@ export class UniversalRetryService extends EventDrivenService {
     let lastError: Error | undefined;
 
     try {
-      const result = await retryWithBackoff(
-        async () => {
-          attemptCount++;
+      // Implement retry logic directly
+      let delayMs = config.initialDelayMs;
+      let result: T | undefined;
+
+      for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
+        try {
+          attemptCount = attempt;
 
           // Execute through circuit breaker
-          return await this.circuitBreaker.execute(serviceId, async () => {
-            this.enhancedLogger?.debug(`Executing ${operationName} (attempt ${attemptCount})`, {
+          result = await this.circuitBreaker.execute(serviceId, async () => {
+            this.enhancedLogger?.debug(`Executing ${operationName} (attempt ${attempt})`, {
               component: "UniversalRetryService",
               operation: "execute_with_retry",
               serviceId,
               operationName,
-              attempt: attemptCount,
+              attempt,
             });
 
             return await operation();
           });
-        },
-        {
-          maxRetries: config.maxRetries,
-          initialDelayMs: config.initialDelayMs,
-          maxDelayMs: config.maxDelayMs,
-          backoffMultiplier: config.backoffMultiplier,
-          jitter: config.jitter,
-          logger: this.logger,
+
+          // Success - break out of retry loop
+          break;
+        } catch (error) {
+          lastError = error as Error;
+
+          if (attempt === config.maxRetries + 1) {
+            // Final attempt failed
+            throw lastError;
+          }
+
+          // Log retry attempt
+          this.logger?.warn(
+            `Attempt ${attempt}/${config.maxRetries + 1} failed: ${lastError.message}. Retrying in ${delayMs}ms...`
+          );
+
+          // Apply jitter if enabled
+          const actualDelay = config.jitter ? delayMs * (0.5 + Math.random() * 0.5) : delayMs;
+          await new Promise(resolve => setTimeout(resolve, actualDelay));
+
+          // Calculate next delay with backoff
+          delayMs = Math.min(delayMs * config.backoffMultiplier, config.maxDelayMs);
         }
-      );
+      }
 
       // Record successful execution
       this.recordRetrySuccess(serviceId, operationName, attemptCount, Date.now() - startTime);
 
-      return result;
+      return result!;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 

@@ -23,6 +23,7 @@ describe("FeedController - Feed Value Endpoints", () => {
   beforeEach(async () => {
     const module = await new TestModuleBuilder()
       .addController(FeedController)
+      .addCommonMocks()
       .addProvider("FTSO_PROVIDER_SERVICE", {
         getValue: jest.fn(),
         getValues: jest.fn(),

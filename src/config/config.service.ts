@@ -179,6 +179,32 @@ export class ConfigService extends StandardService implements IConfigurationServ
   }
 
   /**
+   * Get all unique exchanges from feeds.json configuration
+   * Requirements: 1.4
+   */
+  getAllExchangesFromFeeds(): string[] {
+    const feeds = this.getFeedConfigurations();
+    const exchanges = new Set<string>();
+
+    feeds.forEach(feed => {
+      feed.sources.forEach(source => {
+        exchanges.add(source.exchange);
+      });
+    });
+
+    return Array.from(exchanges);
+  }
+
+  /**
+   * Get CCXT-only exchanges from feeds.json (exchanges that don't have custom adapters)
+   * Requirements: 1.4
+   */
+  getCcxtExchangesFromFeeds(): string[] {
+    const allExchanges = this.getAllExchangesFromFeeds();
+    return allExchanges.filter(exchange => !this.hasCustomAdapter(exchange));
+  }
+
+  /**
    * Add new exchange mapping (for dynamic configuration)
    * Requirements: 1.1, 1.4
    */

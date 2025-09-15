@@ -1,7 +1,8 @@
 import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
-import { retryWithBackoff, isRetryableError } from "@/common/utils/error.utils";
+import { UniversalRetryService } from "./universal-retry.service";
+import { isRetryableError } from "@/common/utils/error.utils";
 import {
   type IErrorDetails,
   type EnhancedErrorResponse,
@@ -37,8 +38,11 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
     }
   >();
 
-  constructor(private readonly circuitBreaker: CircuitBreakerService) {
-    super();
+  constructor(
+    private readonly circuitBreaker: CircuitBreakerService,
+    private readonly universalRetryService: UniversalRetryService
+  ) {
+    super({ serviceName: "StandardizedErrorHandlerService" });
     this.initializeDefaultConfigs();
   }
 
@@ -77,17 +81,14 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
 
     try {
       // Execute with retry and circuit breaker
-      const result = await retryWithBackoff(
+      const result = await this.universalRetryService.executeWithRetry(
         async () => {
           return await this.circuitBreaker.execute(serviceId, operation);
         },
         {
-          maxRetries: config.maxRetries,
-          initialDelayMs: config.initialDelayMs,
-          maxDelayMs: config.maxDelayMs,
-          backoffMultiplier: config.backoffMultiplier,
-          jitter: config.jitter,
-          logger: this.logger,
+          serviceId,
+          operationName: context.operationName,
+          retryConfig: config,
         }
       );
 

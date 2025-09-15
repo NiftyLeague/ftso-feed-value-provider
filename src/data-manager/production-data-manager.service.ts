@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { ErrorCode } from "@/common/types/error-handling";
+import { ConfigService } from "@/config/config.service";
 
 import type { AggregatedPrice, BaseServiceConfig } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
@@ -48,7 +49,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthMonitorInterval?: NodeJS.Timeout;
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     super({
       initialDelay: 1000,
       maxDelay: 30000,
@@ -384,37 +385,189 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     return Array.from(this.dataSources.values()).filter(source => source.isConnected());
   }
 
+  // Feed-specific exchange selection methods
+  /**
+   * Get the specific exchanges configured for a feed from feeds.json
+   */
+  private getConfiguredExchangesForFeed(feedId: CoreFeedId): string[] {
+    const feedConfig = this.configService.getFeedConfiguration(feedId);
+    if (!feedConfig) {
+      this.logger.warn(`No configuration found for feed: ${feedId.name}`);
+      return [];
+    }
+
+    return feedConfig.sources.map(source => source.exchange);
+  }
+
+  /**
+   * Get data sources for a specific feed based on feeds.json configuration
+   */
+  private getSourcesForFeed(feedId: CoreFeedId): DataSource[] {
+    const configuredExchanges = this.getConfiguredExchangesForFeed(feedId);
+    const sources: DataSource[] = [];
+
+    for (const exchange of configuredExchanges) {
+      const source = this.getDataSourceForExchange(exchange);
+      if (source && source.isConnected()) {
+        sources.push(source);
+      } else {
+        this.logger.warn(`Exchange ${exchange} not available for feed ${feedId.name}`);
+      }
+    }
+
+    if (sources.length === 0) {
+      this.logger.error(
+        `No available sources for feed ${feedId.name}. Configured exchanges: ${configuredExchanges.join(", ")}`
+      );
+    }
+
+    return sources;
+  }
+
+  /**
+   * Get data source for a specific exchange
+   */
+  private getDataSourceForExchange(exchange: string): DataSource | null {
+    // First try to find by exact exchange name
+    let source = this.dataSources.get(exchange);
+    if (source) {
+      return source;
+    }
+
+    // Check if this is a custom adapter exchange
+    if (this.configService.hasCustomAdapter(exchange)) {
+      // Try to find by adapter name pattern
+      for (const [sourceId, dataSource] of this.dataSources.entries()) {
+        if (
+          sourceId.toLowerCase().includes(exchange.toLowerCase()) ||
+          exchange.toLowerCase().includes(sourceId.toLowerCase())
+        ) {
+          return dataSource;
+        }
+      }
+    } else {
+      // This is a CCXT exchange - find the CCXT adapter
+      const ccxtSource = this.dataSources.get("ccxt-multi-exchange");
+      if (ccxtSource) {
+        return ccxtSource;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Validate that all configured exchanges for a feed are available
+   */
+  private validateFeedSources(feedId: CoreFeedId): { isValid: boolean; missingExchanges: string[] } {
+    const configuredExchanges = this.getConfiguredExchangesForFeed(feedId);
+    const missingExchanges: string[] = [];
+
+    for (const exchange of configuredExchanges) {
+      const source = this.getDataSourceForExchange(exchange);
+      if (!source || !source.isConnected()) {
+        missingExchanges.push(exchange);
+      }
+    }
+
+    return {
+      isValid: missingExchanges.length === 0,
+      missingExchanges,
+    };
+  }
+
+  /**
+   * Get price updates from feed-specific sources
+   */
+  async getPriceUpdatesForFeed(feedId: CoreFeedId): Promise<PriceUpdate[]> {
+    const configuredExchanges = this.getConfiguredExchangesForFeed(feedId);
+    const priceUpdates: PriceUpdate[] = [];
+
+    for (const exchange of configuredExchanges) {
+      try {
+        const source = this.getDataSourceForExchange(exchange);
+        if (!source) {
+          this.logger.debug(`Source not found for exchange ${exchange}`);
+          continue;
+        }
+
+        // Check if this is a CCXT exchange
+        if (!this.configService.hasCustomAdapter(exchange)) {
+          // This is a CCXT exchange - get price from specific exchange
+          const adapterDataSource = source as {
+            getAdapter?: () => {
+              getPriceFromExchange?: (exchange: string, feedId: CoreFeedId) => Promise<PriceUpdate | null>;
+            };
+          }; // Cast to AdapterDataSource
+          if (adapterDataSource.getAdapter && "getPriceFromExchange" in adapterDataSource.getAdapter()) {
+            const ccxtAdapter = adapterDataSource.getAdapter();
+            if (ccxtAdapter?.getPriceFromExchange) {
+              const priceUpdate = await ccxtAdapter.getPriceFromExchange(exchange, feedId);
+              if (priceUpdate) {
+                priceUpdates.push(priceUpdate);
+              }
+            }
+          }
+        } else {
+          // This is a custom adapter - use REST fallback
+          if (hasRestFallbackCapability(source)) {
+            const restUpdate = await source.fetchPriceViaREST(feedId.name);
+            if (restUpdate) {
+              priceUpdates.push(restUpdate);
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.debug(`Failed to get price from ${exchange} for ${feedId.name}:`, error);
+      }
+    }
+
+    return priceUpdates;
+  }
+
   // Real-time data management methods
   async subscribeToFeed(feedId: CoreFeedId): Promise<void> {
     this.logger.log(`Subscribing to feed: ${feedId.name}`);
 
     const symbol = feedId.name;
-    const connectedSources = this.getConnectedSources();
 
-    if (connectedSources.length === 0) {
-      throw new Error("No connected data sources available");
+    // Validate that all configured exchanges are available
+    const validation = this.validateFeedSources(feedId);
+    if (!validation.isValid) {
+      this.logger.warn(`Missing exchanges for feed ${feedId.name}: ${validation.missingExchanges.join(", ")}`);
     }
 
-    // Subscribe to all compatible sources
-    for (const source of connectedSources) {
-      if (source.category === feedId.category) {
-        try {
-          await source.subscribe([symbol]);
+    // Get only the sources configured for this specific feed
+    const feedSources = this.getSourcesForFeed(feedId);
 
-          // Track subscription
-          const sourceSubscriptions = this.subscriptions.get(source.id) || [];
-          sourceSubscriptions.push({
-            sourceId: source.id,
-            feedId,
-            symbols: [symbol],
-            timestamp: Date.now(),
-            lastUpdate: Date.now(),
-            active: true,
-          });
-          this.subscriptions.set(source.id, sourceSubscriptions);
-        } catch (error) {
-          this.logger.error(`Failed to subscribe to ${symbol} on ${source.id}:`, error);
-        }
+    if (feedSources.length === 0) {
+      throw new Error(
+        `No available data sources for feed ${feedId.name}. Check feed configuration and adapter availability.`
+      );
+    }
+
+    this.logger.log(`Subscribing to ${feedSources.length} configured sources for feed ${feedId.name}`);
+
+    // Subscribe only to feed-specific sources
+    for (const source of feedSources) {
+      try {
+        await source.subscribe([symbol]);
+
+        // Track subscription
+        const sourceSubscriptions = this.subscriptions.get(source.id) || [];
+        sourceSubscriptions.push({
+          sourceId: source.id,
+          feedId,
+          symbols: [symbol],
+          timestamp: Date.now(),
+          lastUpdate: Date.now(),
+          active: true,
+        });
+        this.subscriptions.set(source.id, sourceSubscriptions);
+
+        this.logger.debug(`Successfully subscribed ${source.id} to ${symbol}`);
+      } catch (error) {
+        this.logger.error(`Failed to subscribe to ${symbol} on ${source.id}:`, error);
       }
     }
   }

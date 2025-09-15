@@ -18,14 +18,19 @@ describe("FTSO API Compliance Integration Tests", () => {
     configService = module.get(ConfigService);
 
     // Mock feed configuration
-    jest.spyOn(configService, "getFeedConfigurations").mockReturnValue([
+    const mockFeeds = [
       { feed: { category: 1, name: "BTC/USD" }, sources: [] },
       { feed: { category: 1, name: "ETH/USD" }, sources: [] },
       { feed: { category: 1, name: "XRP/USD" }, sources: [] },
       { feed: { category: 2, name: "EUR/USD" }, sources: [] },
       { feed: { category: 3, name: "XAU/USD" }, sources: [] },
       { feed: { category: 4, name: "AAPL/USD" }, sources: [] },
-    ] as any);
+    ];
+
+    jest.spyOn(configService, "getFeedConfigurations").mockReturnValue(mockFeeds as any);
+
+    // Verify the mock is working
+    console.log("Mock feeds:", configService.getFeedConfigurations());
 
     await app.init();
   });
@@ -52,6 +57,10 @@ describe("FTSO API Compliance Integration Tests", () => {
           };
 
           const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody);
+
+          if (response.status !== 200) {
+            console.log(`Error response for category ${category}:`, response.status, response.body);
+          }
 
           expect(response.status).toBe(200);
           if (response.status === 200) {

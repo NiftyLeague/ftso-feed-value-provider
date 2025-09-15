@@ -128,14 +128,14 @@ describe("CcxtMultiExchangeAdapter", () => {
     it("should connect successfully", async () => {
       await adapter.connect();
       expect(adapter.isConnected()).toBe(true);
-      expect(logger.log).toHaveBeenCalledWith("Initializing CCXT multi-exchange adapter...");
+      expect(logger.log).toHaveBeenCalledWith("Initializing CCXT Pro multi-exchange adapter...");
     });
 
     it("should disconnect successfully", async () => {
       await adapter.connect();
       await adapter.disconnect();
       expect(adapter.isConnected()).toBe(false);
-      expect(logger.log).toHaveBeenCalledWith("CCXT multi-exchange adapter disconnected");
+      expect(logger.log).toHaveBeenCalledWith("CCXT Pro multi-exchange adapter disconnected");
     });
 
     it("should handle connection errors", async () => {
@@ -247,17 +247,17 @@ describe("CcxtMultiExchangeAdapter", () => {
   });
 
   describe("tier 2 data handling", () => {
-    it("should check if can provide tier 2 data", () => {
+    it("should check if can provide tier 2 data", async () => {
       const feedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
-      expect(adapter.canProvideTier2Data(feedId)).toBe(false);
+      expect(await adapter.canProvideTier2Data(feedId)).toBe(false);
 
       const invalidFeedId = { category: FeedCategory.Forex, name: "EUR/USD" };
-      expect(adapter.canProvideTier2Data(invalidFeedId)).toBe(false);
+      expect(await adapter.canProvideTier2Data(invalidFeedId)).toBe(false);
     });
 
-    it("should return available tier 2 exchanges", () => {
+    it("should return available tier 2 exchanges", async () => {
       const feedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
-      const exchanges = adapter.getAvailableTier2Exchanges(feedId);
+      const exchanges = await adapter.getAvailableTier2Exchanges(feedId);
       expect(Array.isArray(exchanges)).toBe(true);
     });
   });

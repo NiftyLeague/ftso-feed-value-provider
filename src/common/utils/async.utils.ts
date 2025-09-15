@@ -3,7 +3,7 @@
  * Consolidates common async patterns and error handling
  */
 
-import { retryWithBackoff, isRetryableError } from "./error.utils";
+import { isRetryableError } from "./error.utils";
 import type { ILogger } from "../types/logging";
 
 /**
@@ -157,11 +157,29 @@ export async function batchProcessWithRetry<T, R>(
 
   for (const [batchIndex, batch] of batches.entries()) {
     try {
-      const batchResults = await retryWithBackoff(() => processor(batch), {
-        maxRetries,
-        initialDelayMs: retryDelay,
-        logger,
-      });
+      // Simple retry implementation
+      let batchResults: R[] | undefined;
+      let lastError: Error | undefined;
+
+      for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+        try {
+          batchResults = await processor(batch);
+          break;
+        } catch (error) {
+          lastError = error as Error;
+
+          if (attempt === maxRetries + 1) {
+            throw lastError;
+          }
+
+          logger?.warn(`Batch ${batchIndex + 1} attempt ${attempt} failed: ${lastError.message}. Retrying...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+        }
+      }
+
+      if (!batchResults) {
+        throw new Error("Failed to process batch after all retry attempts");
+      }
 
       results.push(...batchResults);
       processedBatches++;

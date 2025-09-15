@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@/config/config.service";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 
 import type { AggregatedPrice } from "@/common/types/services";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
@@ -25,6 +26,10 @@ describe("RealTimeAggregationService", () => {
       getConfig: jest.fn(),
     };
 
+    const mockDataManager = {
+      getPriceUpdatesForFeed: jest.fn().mockResolvedValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RealTimeAggregationService,
@@ -35,6 +40,10 @@ describe("RealTimeAggregationService", () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: ProductionDataManagerService,
+          useValue: mockDataManager,
         },
       ],
     }).compile();

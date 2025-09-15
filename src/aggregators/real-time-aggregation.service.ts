@@ -6,6 +6,7 @@ import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/commo
 import type { ServicePerformanceMetrics } from "@/common/types/services";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
+import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 
 interface IAggregationService {
   getActiveFeedCount(): number;
@@ -78,7 +79,8 @@ export class RealTimeAggregationService
 
   constructor(
     private readonly consensusAggregator: ConsensusAggregator,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly dataManager: ProductionDataManagerService
   ) {
     super({
       useEnhancedLogging: true,
@@ -140,8 +142,24 @@ export class RealTimeAggregationService
 
       this.recordCacheMiss();
 
-      // Get active price updates for this feed
-      const updates = this.activePriceUpdates.get(feedKey) || [];
+      // Get active price updates for this feed from feed-specific sources
+      let updates = this.activePriceUpdates.get(feedKey) || [];
+
+      // If no active updates, try to get fresh data from feed-specific sources
+      if (updates.length === 0) {
+        try {
+          const freshUpdates = await this.dataManager.getPriceUpdatesForFeed(feedId);
+          updates = freshUpdates;
+
+          // Store fresh updates for future use
+          if (freshUpdates.length > 0) {
+            this.activePriceUpdates.set(feedKey, freshUpdates);
+          }
+        } catch (error) {
+          this.logger.debug(`Failed to get fresh price updates for ${feedId.name}:`, error);
+        }
+      }
+
       if (updates.length === 0) {
         this.enhancedLogger?.warn(`No price updates available for ${feedId.name}`, {
           component: "RealTimeAggregation",

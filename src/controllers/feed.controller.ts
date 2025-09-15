@@ -28,8 +28,10 @@ import type {
   RoundFeedValuesResponse,
   VolumesRequest,
 } from "@/common/types/http";
+import type { CoreFeedId } from "@/common/types/core";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
+import { ConfigService } from "@/config/config.service";
 
 import { StandardizedErrorHandlerService } from "../error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "../error-handling/universal-retry.service";
@@ -45,7 +47,8 @@ export class FeedController extends BaseController {
     universalRetryService: UniversalRetryService,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
-    private readonly apiMonitor: ApiMonitorService
+    private readonly apiMonitor: ApiMonitorService,
+    private readonly configService: ConfigService
   ) {
     super();
     // Inject standardized error handling services
@@ -226,9 +229,17 @@ export class FeedController extends BaseController {
   // Private helper methods
 
   private validateFeedRequest(body: FeedValuesRequest): void {
-    // Use enhanced validation for FTSO API compliance
-    // ValidationUtils now includes timestamps automatically
-    ValidationUtils.validateFeedValuesRequest(body);
+    // Try to get configured feeds from the configuration service
+    let configuredFeeds: CoreFeedId[] | undefined;
+    try {
+      configuredFeeds = this.configService.getFeedConfigurations().map(config => config.feed);
+    } catch {
+      // If configuration service is not available, fall back to basic validation
+      this.logger.debug("ConfigService not available, using basic validation");
+    }
+
+    // Use enhanced validation for FTSO API compliance with optional feed configuration validation
+    ValidationUtils.validateFeedValuesRequest(body, configuredFeeds);
   }
 
   private validateVolumeRequest(body: VolumesRequest, windowSec: number): void {

@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
-import { ErrorCode } from "../types/error-handling";
+import { ErrorCode } from "@/common/types/error-handling";
 import type { FeedId } from "@/common/types/http";
+import type { CoreFeedId } from "@/common/types/core";
 import type {
   UnknownInput,
   ArrayValidationOptions,
@@ -8,7 +9,7 @@ import type {
   ValidatedVolumesRequest,
   ValidatedPagination,
   ValidatedTimeRange,
-} from "../types/utils/validation.types";
+} from "@/common/types/utils/validation.types";
 
 /**
  * Enhanced BadRequestException that includes timestamp and error field for test compliance
@@ -48,9 +49,9 @@ export class ValidationUtils {
   /**
    * Validate feed ID structure and content with FTSO compliance
    */
-  static validateFeedId(feed: unknown, fieldName = "feed"): FeedId {
+  static validateFeedId(feed: unknown, fieldName = "feed", configuredFeeds?: CoreFeedId[]): FeedId {
     if (!feed || typeof feed !== "object") {
-      throw new BadRequestException(`${fieldName} must be an object with category and name properties`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an object with category and name properties`);
     }
 
     const feedObj = feed as Record<string, unknown>;
@@ -58,8 +59,8 @@ export class ValidationUtils {
     // Validate category
     const category = this.validateFeedCategory(feedObj.category, `${fieldName}.category`);
 
-    // Validate name
-    const name = this.validateFeedName(feedObj.name, `${fieldName}.name`);
+    // Validate name against configured feeds
+    const name = this.validateFeedName(feedObj.name, `${fieldName}.name`, configuredFeeds);
 
     return { category, name };
   }
@@ -67,7 +68,7 @@ export class ValidationUtils {
   /**
    * Validate array of feed IDs with duplicate detection
    */
-  static validateFeedIds(feeds: unknown, fieldName = "feeds"): FeedId[] {
+  static validateFeedIds(feeds: unknown, fieldName = "feeds", configuredFeeds?: CoreFeedId[]): FeedId[] {
     if (!Array.isArray(feeds)) {
       throw new TimestampedBadRequestException(`${fieldName} must be an array`);
     }
@@ -84,7 +85,7 @@ export class ValidationUtils {
     const seenFeeds = new Set<string>();
 
     for (let i = 0; i < feeds.length; i++) {
-      const feed = this.validateFeedId(feeds[i], `${fieldName}[${i}]`);
+      const feed = this.validateFeedId(feeds[i], `${fieldName}[${i}]`, configuredFeeds);
 
       // Check for duplicates
       const feedKey = `${feed.category}:${feed.name}`;
@@ -218,7 +219,7 @@ export class ValidationUtils {
   /**
    * Validate feed values request
    */
-  static validateFeedValuesRequest(body: unknown): ValidatedFeedValuesRequest {
+  static validateFeedValuesRequest(body: unknown, configuredFeeds?: CoreFeedId[]): ValidatedFeedValuesRequest {
     const validatedBody = this.validateRequestBody(body);
 
     if (!validatedBody.feeds) {
@@ -226,7 +227,7 @@ export class ValidationUtils {
     }
 
     return {
-      feeds: this.validateFeedIds(validatedBody.feeds),
+      feeds: this.validateFeedIds(validatedBody.feeds, "feeds", configuredFeeds),
     };
   }
 
@@ -531,72 +532,89 @@ export class ValidationUtils {
    */
   static validateFeedCategory(category: unknown, fieldName: string): number {
     if (typeof category !== "number") {
-      throw new BadRequestException(`${fieldName} must be a number`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a number`);
     }
 
     if (!Number.isInteger(category)) {
-      throw new BadRequestException(`${fieldName} must be an integer`);
+      throw new TimestampedBadRequestException(`${fieldName} must be an integer`);
     }
 
     const validCategories = [1, 2, 3, 4]; // Crypto, Forex, Commodity, Stock
     if (!validCategories.includes(category)) {
-      throw new BadRequestException(`${fieldName} must be one of: 1 (Crypto), 2 (Forex), 3 (Commodity), 4 (Stock)`);
+      throw new TimestampedBadRequestException(
+        `${fieldName} must be one of: 1 (Crypto), 2 (Forex), 3 (Commodity), 4 (Stock)`
+      );
     }
 
     return category;
   }
 
   /**
-   * Validate feed name
+   * Validate feed name against configured feeds
    */
-  static validateFeedName(name: unknown, fieldName: string): string {
+  static validateFeedName(name: unknown, fieldName: string, configuredFeeds?: CoreFeedId[]): string {
     if (typeof name !== "string") {
-      throw new BadRequestException(`${fieldName} must be a string`);
+      throw new TimestampedBadRequestException(`${fieldName} must be a string`);
     }
 
     const trimmedName = name.trim().toUpperCase();
     if (!trimmedName) {
-      throw new BadRequestException(`${fieldName} cannot be empty`);
+      throw new TimestampedBadRequestException(`${fieldName} cannot be empty`);
     }
 
     // Basic format validation (BASE/QUOTE)
     const parts = trimmedName.split("/");
     if (parts.length !== 2) {
-      throw new BadRequestException(`${fieldName} must be in format BASE/QUOTE (e.g., BTC/USD)`);
+      throw new TimestampedBadRequestException(`${fieldName} must be in format BASE/QUOTE (e.g., BTC/USD)`);
     }
 
     const [base, quote] = parts;
     if (!base || !quote) {
-      throw new BadRequestException(`${fieldName} must have both base and quote currencies`);
+      throw new TimestampedBadRequestException(`${fieldName} must have both base and quote currencies`);
     }
 
-    // Validate base currency
-    const validBaseCurrencies = [
-      "BTC",
-      "ETH",
-      "XRP",
-      "ALGO",
-      "FLR",
-      "EUR",
-      "XAU",
-      "USD",
-      "GBP",
-      "JPY",
-      "CHF",
-      "CAD",
-      "AUD",
-      "NZD",
-    ];
-    if (!validBaseCurrencies.includes(base)) {
-      throw new BadRequestException(`${fieldName} contains unsupported base currency: ${base}`);
+    // If configured feeds are provided, validate against them
+    if (configuredFeeds && configuredFeeds.length > 0) {
+      const feedExists = configuredFeeds.some(feed => feed.name === trimmedName);
+      if (!feedExists) {
+        throw new TimestampedBadRequestException(
+          `${fieldName} "${trimmedName}" is not configured in the system. ` +
+            `Available feeds: ${configuredFeeds.map(f => f.name).join(", ")}`
+        );
+      }
+      return trimmedName;
     }
 
-    // Validate quote currency
-    const validQuoteCurrencies = ["USD", "USDT", "USDC", "EUR", "BTC", "ETH"];
-    if (!validQuoteCurrencies.includes(quote)) {
-      throw new BadRequestException(`${fieldName} contains unsupported quote currency: ${quote}`);
+    // Fallback to basic validation if no configured feeds provided
+    // This maintains backward compatibility for tests and other use cases
+    return this.validateFeedNameBasic(trimmedName, fieldName);
+  }
+
+  /**
+   * Basic feed name validation (fallback when no configured feeds available)
+   */
+  private static validateFeedNameBasic(name: string, fieldName: string): string {
+    const parts = name.split("/");
+    const [base, quote] = parts;
+
+    // Basic currency validation - check for reasonable length and format
+    if (base.length < 1 || base.length > 10) {
+      throw new TimestampedBadRequestException(`${fieldName} base currency must be 1-10 characters`);
     }
 
-    return trimmedName;
+    if (quote.length < 3 || quote.length > 4) {
+      throw new TimestampedBadRequestException(`${fieldName} quote currency must be 3-4 characters`);
+    }
+
+    // Check for valid characters (letters only, no numbers)
+    if (!/^[A-Z]+$/.test(base)) {
+      throw new TimestampedBadRequestException(`${fieldName} base currency must contain only letters`);
+    }
+
+    if (!/^[A-Z]+$/.test(quote)) {
+      throw new TimestampedBadRequestException(`${fieldName} quote currency must contain only letters`);
+    }
+
+    return name;
   }
 }

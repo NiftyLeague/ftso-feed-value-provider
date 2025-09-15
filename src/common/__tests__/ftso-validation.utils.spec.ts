@@ -63,10 +63,25 @@ describe("ValidationUtils", () => {
       });
     });
 
-    it("should reject unsupported currencies", () => {
-      expect(() => ValidationUtils.validateFeedName("UNKNOWN/USD", "name")).toThrow(/unsupported base currency/);
+    it("should reject currencies with invalid format", () => {
+      // Test with configured feeds - should validate against actual configuration
+      const configuredFeeds = [
+        { category: 1, name: "BTC/USD" },
+        { category: 1, name: "ETH/USD" },
+      ];
 
-      expect(() => ValidationUtils.validateFeedName("BTC/XYZ", "name")).toThrow(/unsupported quote currency/);
+      expect(() => ValidationUtils.validateFeedName("UNKNOWN/USD", "name", configuredFeeds)).toThrow(
+        /not configured in the system/
+      );
+      expect(() => ValidationUtils.validateFeedName("BTC/XYZ", "name", configuredFeeds)).toThrow(
+        /not configured in the system/
+      );
+    });
+
+    it("should use basic validation when no configured feeds provided", () => {
+      // Without configured feeds, should use basic validation (format and length only)
+      expect(() => ValidationUtils.validateFeedName("UNKNOWN/USD", "name")).not.toThrow();
+      expect(() => ValidationUtils.validateFeedName("BTC/XYZ", "name")).not.toThrow();
     });
 
     it("should provide format guidance in error messages", () => {
