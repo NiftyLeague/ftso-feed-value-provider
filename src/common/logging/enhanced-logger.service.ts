@@ -9,6 +9,7 @@ import type {
 } from "../types/logging";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
+import type { EnvironmentConfiguration } from "../types/services/configuration.types";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -28,16 +29,24 @@ export class EnhancedLoggerService implements ILogger {
   private readonly enablePerformanceLogging: boolean;
   private readonly enableDebugLogging: boolean;
 
-  constructor(context: string = "EnhancedLogger") {
+  constructor(context: string = "EnhancedLogger", config?: EnvironmentConfiguration) {
     this.logger = new Logger(context);
 
-    // Configure logging based on environment
-    this.enableFileLogging = process.env.ENABLE_FILE_LOGGING === "true";
-    this.enablePerformanceLogging = process.env.ENABLE_PERFORMANCE_LOGGING !== "false"; // Default true
-    this.enableDebugLogging = process.env.ENABLE_DEBUG_LOGGING === "true";
+    // Configure logging based on provided config or fallback to environment variables
+    if (config?.logging) {
+      this.enableFileLogging = config.logging.enableFileLogging;
+      this.enablePerformanceLogging = config.logging.enablePerformanceLogging;
+      this.enableDebugLogging = config.logging.enableDebugLogging;
+      this.logDirectory = path.resolve(config.logging.logDirectory);
+    } else {
+      // Fallback to environment variables for backward compatibility
+      this.enableFileLogging = process.env.ENABLE_FILE_LOGGING === "true";
+      this.enablePerformanceLogging = process.env.ENABLE_PERFORMANCE_LOGGING !== "false"; // Default true
+      this.enableDebugLogging = process.env.ENABLE_DEBUG_LOGGING === "true";
+      this.logDirectory = path.join(process.cwd(), process.env.LOG_DIRECTORY || "logs");
+    }
 
-    // Setup log directories and files
-    this.logDirectory = path.join(process.cwd(), "logs");
+    // Setup log files
     this.debugLogFile = path.join(this.logDirectory, "debug.log");
     this.auditLogFile = path.join(this.logDirectory, "audit.log");
 

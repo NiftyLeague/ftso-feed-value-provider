@@ -68,6 +68,40 @@ export interface EnvironmentConfiguration {
     circuitBreakerThreshold: number;
     circuitBreakerTimeout: number;
   };
+
+  // Logging configuration
+  logging: {
+    // File logging configuration
+    enableFileLogging: boolean;
+    logDirectory: string;
+    maxLogFileSize: string;
+    maxLogFiles: number;
+
+    // Performance logging configuration
+    enablePerformanceLogging: boolean;
+    performanceLogThreshold: number; // ms
+
+    // Debug logging configuration
+    enableDebugLogging: boolean;
+    debugLogLevel: "verbose" | "debug" | "log";
+
+    // Error logging configuration
+    errorLogRetention: number; // days
+    maxErrorHistorySize: number;
+
+    // Audit logging configuration
+    enableAuditLogging: boolean;
+    auditLogCriticalOperations: boolean;
+
+    // Log formatting
+    logFormat: "json" | "text";
+    includeTimestamp: boolean;
+    includeContext: boolean;
+    includeStackTrace: boolean;
+
+    // Log levels by component
+    componentLogLevels: Record<string, string>;
+  };
 }
 
 /**

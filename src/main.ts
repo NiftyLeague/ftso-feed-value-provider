@@ -10,46 +10,52 @@ import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
 import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ConfigService } from "@/config/config.service";
 
 // Global application instance for graceful shutdown
 let app: INestApplication | null = null;
 const logger = new Logger("Bootstrap");
-const enhancedLogger = new EnhancedLoggerService("Bootstrap");
+let enhancedLogger: EnhancedLoggerService;
 
 async function bootstrap() {
   const operationId = `bootstrap_${Date.now()}`;
-  enhancedLogger.startPerformanceTimer(operationId, "application_bootstrap", "Bootstrap");
 
   try {
-    enhancedLogger.logCriticalOperation("application_startup", "Bootstrap", {
-      nodeVersion: process.version,
-      platform: process.platform,
-      pid: process.pid,
-      environment: process.env.NODE_ENV || "development",
-      timestamp: Date.now(),
-    });
-
-    // Validate critical environment variables
+    // Validate critical environment variables first
     await validateEnvironment();
-
-    // Configure logging levels
-    const logLevels = getLogLevels();
-    enhancedLogger.log(`Log level configured: ${process.env.LOG_LEVEL || "log"}`, {
-      component: "Bootstrap",
-      operation: "configure_logging",
-      metadata: {
-        logLevel: process.env.LOG_LEVEL || "log",
-        enableFileLogging: process.env.ENABLE_FILE_LOGGING,
-        enablePerformanceLogging: process.env.ENABLE_PERFORMANCE_LOGGING,
-        enableDebugLogging: process.env.ENABLE_DEBUG_LOGGING,
-      },
-    });
 
     // Create NestJS application
     const appCreationStart = performance.now();
     app = await NestFactory.create(AppModule, {
-      logger: logLevels,
+      logger: getLogLevels(),
       abortOnError: false, // Allow graceful error handling during startup
+    });
+
+    // Get configuration service and initialize enhanced logger
+    const configService = app.get(ConfigService);
+    const config = configService.getEnvironmentConfig();
+    enhancedLogger = new EnhancedLoggerService("Bootstrap", config);
+
+    enhancedLogger.startPerformanceTimer(operationId, "application_bootstrap", "Bootstrap");
+
+    enhancedLogger.logCriticalOperation("application_startup", "Bootstrap", {
+      nodeVersion: process.version,
+      platform: process.platform,
+      pid: process.pid,
+      environment: config.nodeEnv,
+      timestamp: Date.now(),
+    });
+
+    // Configure logging levels
+    enhancedLogger.log(`Log level configured: ${config.logLevel}`, {
+      component: "Bootstrap",
+      operation: "configure_logging",
+      metadata: {
+        logLevel: config.logLevel,
+        enableFileLogging: config.logging.enableFileLogging,
+        enablePerformanceLogging: config.logging.enablePerformanceLogging,
+        enableDebugLogging: config.logging.enableDebugLogging,
+      },
     });
 
     // Configure CORS

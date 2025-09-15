@@ -139,6 +139,94 @@ export class ConfigValidationService extends StandardService {
           fieldName: "ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS",
         }),
       },
+
+      // Logging configuration
+      logging: {
+        // File logging configuration
+        enableFileLogging: EnvironmentUtils.parseBoolean("ENABLE_FILE_LOGGING", false, {
+          fieldName: "ENABLE_FILE_LOGGING",
+        }),
+        logDirectory: EnvironmentUtils.parseString("LOG_DIRECTORY", "./logs", { fieldName: "LOG_DIRECTORY" }),
+        maxLogFileSize: EnvironmentUtils.parseString("MAX_LOG_FILE_SIZE", "10MB", { fieldName: "MAX_LOG_FILE_SIZE" }),
+        maxLogFiles: EnvironmentUtils.parseInt("MAX_LOG_FILES", 5, {
+          min: 1,
+          max: 100,
+          fieldName: "MAX_LOG_FILES",
+        }),
+
+        // Performance logging configuration
+        enablePerformanceLogging: EnvironmentUtils.parseBoolean("ENABLE_PERFORMANCE_LOGGING", true, {
+          fieldName: "ENABLE_PERFORMANCE_LOGGING",
+        }),
+        performanceLogThreshold: EnvironmentUtils.parseInt("PERFORMANCE_LOG_THRESHOLD", 100, {
+          min: 1,
+          max: 10000,
+          fieldName: "PERFORMANCE_LOG_THRESHOLD",
+        }),
+
+        // Debug logging configuration
+        enableDebugLogging: EnvironmentUtils.parseBoolean("ENABLE_DEBUG_LOGGING", false, {
+          fieldName: "ENABLE_DEBUG_LOGGING",
+        }),
+        debugLogLevel:
+          (EnvironmentUtils.parseString("DEBUG_LOG_LEVEL", "debug", { fieldName: "DEBUG_LOG_LEVEL" }) as
+            | "verbose"
+            | "debug"
+            | "log") || "debug",
+
+        // Error logging configuration
+        errorLogRetention: EnvironmentUtils.parseInt("ERROR_LOG_RETENTION_DAYS", 30, {
+          min: 1,
+          max: 365,
+          fieldName: "ERROR_LOG_RETENTION_DAYS",
+        }),
+        maxErrorHistorySize: EnvironmentUtils.parseInt("MAX_ERROR_HISTORY_SIZE", 1000, {
+          min: 100,
+          max: 10000,
+          fieldName: "MAX_ERROR_HISTORY_SIZE",
+        }),
+
+        // Audit logging configuration
+        enableAuditLogging: EnvironmentUtils.parseBoolean("ENABLE_AUDIT_LOGGING", true, {
+          fieldName: "ENABLE_AUDIT_LOGGING",
+        }),
+        auditLogCriticalOperations: EnvironmentUtils.parseBoolean("AUDIT_LOG_CRITICAL_OPERATIONS", true, {
+          fieldName: "AUDIT_LOG_CRITICAL_OPERATIONS",
+        }),
+
+        // Log formatting
+        logFormat:
+          (EnvironmentUtils.parseString("LOG_FORMAT", "json", { fieldName: "LOG_FORMAT" }) as "json" | "text") ||
+          "json",
+        includeTimestamp: EnvironmentUtils.parseBoolean("INCLUDE_TIMESTAMP", true, { fieldName: "INCLUDE_TIMESTAMP" }),
+        includeContext: EnvironmentUtils.parseBoolean("INCLUDE_CONTEXT", true, { fieldName: "INCLUDE_CONTEXT" }),
+        includeStackTrace: EnvironmentUtils.parseBoolean("INCLUDE_STACK_TRACE", true, {
+          fieldName: "INCLUDE_STACK_TRACE",
+        }),
+
+        // Component-specific log levels
+        componentLogLevels: {
+          ProductionIntegration: EnvironmentUtils.parseString("LOG_LEVEL_PRODUCTION_INTEGRATION", "log", {
+            fieldName: "LOG_LEVEL_PRODUCTION_INTEGRATION",
+          }),
+          ProductionDataManager: EnvironmentUtils.parseString("LOG_LEVEL_DATA_MANAGER", "log", {
+            fieldName: "LOG_LEVEL_DATA_MANAGER",
+          }),
+          RealTimeAggregation: EnvironmentUtils.parseString("LOG_LEVEL_AGGREGATION", "log", {
+            fieldName: "LOG_LEVEL_AGGREGATION",
+          }),
+          HybridErrorHandler: EnvironmentUtils.parseString("LOG_LEVEL_ERROR_HANDLER", "log", {
+            fieldName: "LOG_LEVEL_ERROR_HANDLER",
+          }),
+          PerformanceMonitor: EnvironmentUtils.parseString("LOG_LEVEL_PERFORMANCE_MONITOR", "log", {
+            fieldName: "LOG_LEVEL_PERFORMANCE_MONITOR",
+          }),
+          AlertingService: EnvironmentUtils.parseString("LOG_LEVEL_ALERTING", "log", {
+            fieldName: "LOG_LEVEL_ALERTING",
+          }),
+          Bootstrap: EnvironmentUtils.parseString("LOG_LEVEL_BOOTSTRAP", "log", { fieldName: "LOG_LEVEL_BOOTSTRAP" }),
+        },
+      },
     };
 
     // Validate the configuration

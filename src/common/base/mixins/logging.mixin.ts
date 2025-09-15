@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
 import type { Constructor, AbstractConstructor } from "../../types/services/mixins";
+import type { EnvironmentConfiguration } from "../../types/services/configuration.types";
 
 /**
  * Logging capabilities interface
@@ -31,9 +32,9 @@ export function WithLogging<TBase extends Constructor | AbstractConstructor>(Bas
       this.logger = new Logger(this.constructor.name);
     }
 
-    initializeEnhancedLogging(useEnhancedLogging: boolean): void {
+    initializeEnhancedLogging(useEnhancedLogging: boolean, config?: EnvironmentConfiguration): void {
       if (useEnhancedLogging) {
-        this.enhancedLogger = new EnhancedLoggerService(this.constructor.name);
+        this.enhancedLogger = new EnhancedLoggerService(this.constructor.name, config);
       } else {
         this.enhancedLogger = undefined;
       }

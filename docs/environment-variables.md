@@ -3,6 +3,20 @@
 This document describes all environment variables used by the FTSO Feed Value
 Provider system.
 
+## Configuration Management
+
+All environment variables are centrally managed through the `ConfigService` and
+validated by the `ConfigValidationService`. The configuration system provides:
+
+- **Centralized parsing**: All environment variables are parsed in one place
+- **Type safety**: Configuration is strongly typed with TypeScript interfaces
+- **Validation**: Environment variables are validated with proper error handling
+- **Hot reload**: Configuration can be reloaded without restarting the
+  application
+
+The configuration is accessible throughout the application via dependency
+injection of the `ConfigService`.
+
 ## Core Application Settings
 
 ### LOG_LEVEL
