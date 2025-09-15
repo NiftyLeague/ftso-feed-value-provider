@@ -141,7 +141,6 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
       activeFeedCount: number;
     }
   > {
-    // const startTime = Date.now(); // Unused for now
     const uptime = process.uptime();
 
     return {

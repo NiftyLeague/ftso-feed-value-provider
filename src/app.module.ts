@@ -25,8 +25,15 @@ import { ResponseTimeInterceptor } from "@/common/interceptors/response-time.int
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
+import { DebugService } from "@/common/debug/debug.service";
 import { ConfigService } from "@/config/config.service";
 import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import {
+  createServiceFactory,
+  createCustomConfigFactory,
+  createAsyncProvider,
+  createConditionalServiceFactory,
+} from "@/common/factories/service.factory";
 
 @Module({
   imports: [
@@ -42,32 +49,31 @@ import { EnvironmentUtils } from "@/common/utils/environment.utils";
   providers: [
     // API middleware and guards
     StandardizedErrorHandlerService,
-    {
-      provide: RateLimiterService,
-      useFactory: (_configService: ConfigService) => {
-        return new RateLimiterService({
-          windowMs: 60000, // 1 minute
-          maxRequests: EnvironmentUtils.parseInt("RATE_LIMIT_MAX_REQUESTS", 1000, { min: 1, max: 10000 }),
-          skipSuccessfulRequests: false,
-          skipFailedRequests: false,
-        });
-      },
-      inject: [ConfigService],
-    },
-    {
-      provide: RateLimitGuard,
-      useFactory: (rateLimiterService: RateLimiterService) => {
-        return new RateLimitGuard(rateLimiterService);
-      },
-      inject: [RateLimiterService],
-    },
+    createCustomConfigFactory(
+      RateLimiterService,
+      () => ({
+        windowMs: 60000, // 1 minute
+        maxRequests: EnvironmentUtils.parseInt("RATE_LIMIT_MAX_REQUESTS", 1000, { min: 1, max: 10000 }),
+        skipSuccessfulRequests: false,
+        skipFailedRequests: false,
+      }),
+      [ConfigService.name]
+    ),
+    createServiceFactory(RateLimitGuard, [RateLimiterService.name]),
     ResponseTimeInterceptor,
     ApiMonitorService,
 
+    // Debug service - only available in development
+    createConditionalServiceFactory(
+      DebugService,
+      (config: unknown) => (config as { nodeEnv: string }).nodeEnv === "development",
+      [ConfigService.name]
+    ),
+
     // Main FTSO provider service factory
-    {
-      provide: "FTSO_PROVIDER_SERVICE",
-      useFactory: async (
+    createAsyncProvider(
+      "FTSO_PROVIDER_SERVICE",
+      async (
         cacheService: RealTimeCacheService,
         aggregationService: RealTimeAggregationService,
         integrationService: IntegrationService
@@ -86,8 +92,8 @@ import { EnvironmentUtils } from "@/common/utils/environment.utils";
           throw error;
         }
       },
-      inject: [RealTimeCacheService, RealTimeAggregationService, IntegrationService],
-    },
+      [RealTimeCacheService.name, RealTimeAggregationService.name, IntegrationService.name]
+    ),
 
     // Provide the service for direct injection (for health checks)
     {

@@ -9,13 +9,13 @@ import { FactoryProvider } from "@nestjs/common";
 /**
  * Create a simple service factory provider
  */
-export function createServiceFactory<T>(
-  serviceClass: new (...args: unknown[]) => T,
+export function createServiceFactory<T, TArgs extends unknown[]>(
+  serviceClass: new (...args: TArgs) => T,
   dependencies: string[] = []
 ): FactoryProvider<T> {
   return {
     provide: serviceClass,
-    useFactory: (...args: unknown[]) => new serviceClass(...args),
+    useFactory: (...args: TArgs) => new serviceClass(...args),
     inject: dependencies,
   };
 }
@@ -41,13 +41,13 @@ export function createConfigurableServiceFactory<T, C>(
 /**
  * Create a service factory with multiple dependencies
  */
-export function createMultiDependencyServiceFactory<T>(
-  serviceClass: new (...args: unknown[]) => T,
+export function createMultiDependencyServiceFactory<T, TArgs extends unknown[]>(
+  serviceClass: new (...args: TArgs) => T,
   dependencies: string[]
 ): FactoryProvider<T> {
   return {
     provide: serviceClass,
-    useFactory: (...args: unknown[]) => new serviceClass(...args),
+    useFactory: (...args: TArgs) => new serviceClass(...args),
     inject: dependencies,
   };
 }
@@ -55,14 +55,14 @@ export function createMultiDependencyServiceFactory<T>(
 /**
  * Create a conditional service factory
  */
-export function createConditionalServiceFactory<T>(
-  serviceClass: new (...args: unknown[]) => T,
+export function createConditionalServiceFactory<T, TArgs extends unknown[]>(
+  serviceClass: new (...args: TArgs) => T,
   condition: (config: unknown) => boolean,
   dependencies: string[] = []
 ): FactoryProvider<T | null> {
   return {
     provide: serviceClass,
-    useFactory: (...args: unknown[]) => {
+    useFactory: (...args: TArgs) => {
       const config = args[0];
       if (condition(config)) {
         return new serviceClass(...args);
@@ -76,20 +76,53 @@ export function createConditionalServiceFactory<T>(
 /**
  * Create a singleton service factory
  */
-export function createSingletonServiceFactory<T>(
-  serviceClass: new (...args: unknown[]) => T,
+export function createSingletonServiceFactory<T, TArgs extends unknown[]>(
+  serviceClass: new (...args: TArgs) => T,
   dependencies: string[] = []
 ): FactoryProvider<T> {
   let instance: T | null = null;
 
   return {
     provide: serviceClass,
-    useFactory: (...args: unknown[]) => {
+    useFactory: (...args: TArgs) => {
       if (!instance) {
         instance = new serviceClass(...args);
       }
       return instance;
     },
+    inject: dependencies,
+  };
+}
+
+/**
+ * Create a service factory with custom configuration creation
+ */
+export function createCustomConfigFactory<T, TConfig>(
+  serviceClass: new (config: TConfig) => T,
+  configFactory: (...args: unknown[]) => TConfig,
+  dependencies: string[] = []
+): FactoryProvider<T> {
+  return {
+    provide: serviceClass,
+    useFactory: (...args: unknown[]) => {
+      const config = configFactory(...args);
+      return new serviceClass(config);
+    },
+    inject: dependencies,
+  };
+}
+
+/**
+ * Create an async provider factory
+ */
+export function createAsyncProvider<T, TArgs extends unknown[]>(
+  providerKey: string,
+  asyncFactory: (...args: TArgs) => Promise<T>,
+  dependencies: string[] = []
+): FactoryProvider<T> {
+  return {
+    provide: providerKey,
+    useFactory: async (...args: TArgs) => await asyncFactory(...args),
     inject: dependencies,
   };
 }

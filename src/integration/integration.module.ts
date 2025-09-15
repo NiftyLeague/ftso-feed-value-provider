@@ -18,6 +18,12 @@ import { ConfigService } from "@/config/config.service";
 // Error handling services
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
+import {
+  createServiceFactory,
+  createMultiDependencyServiceFactory,
+  createAsyncProvider,
+  createSingletonServiceFactory,
+} from "@/common/factories/service.factory";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
@@ -55,7 +61,7 @@ import { StartupValidationService } from "./services/startup-validation.service"
 
     // Data management
     ProductionDataManagerService,
-    WebSocketConnectionManager,
+    createSingletonServiceFactory(WebSocketConnectionManager, [ConfigService.name]),
     FailoverManager,
 
     // Data source factory
@@ -71,25 +77,13 @@ import { StartupValidationService } from "./services/startup-validation.service"
     ConnectionRecoveryService,
 
     // Validation
-    {
-      provide: DataValidator,
-      useFactory: (universalRetryService: UniversalRetryService) => {
-        return new DataValidator(universalRetryService);
-      },
-      inject: [UniversalRetryService],
-    },
-    {
-      provide: ValidationService,
-      useFactory: (dataValidator: DataValidator, universalRetryService: UniversalRetryService) => {
-        return new ValidationService(dataValidator, universalRetryService);
-      },
-      inject: [DataValidator, UniversalRetryService],
-    },
+    createServiceFactory(DataValidator, [UniversalRetryService.name]),
+    createMultiDependencyServiceFactory(ValidationService, [DataValidator.name, UniversalRetryService.name]),
 
     // Factory for creating the integrated FTSO provider service
-    {
-      provide: "INTEGRATED_FTSO_PROVIDER",
-      useFactory: async (integrationService: IntegrationService) => {
+    createAsyncProvider(
+      "INTEGRATED_FTSO_PROVIDER",
+      async (integrationService: IntegrationService) => {
         // Wait for initialization to complete
         await new Promise<void>(resolve => {
           if (integrationService.listenerCount("initialized") > 0) {
@@ -102,8 +96,8 @@ import { StartupValidationService } from "./services/startup-validation.service"
 
         return integrationService;
       },
-      inject: [IntegrationService],
-    },
+      [IntegrationService.name]
+    ),
   ],
   exports: [
     // Decomposed services

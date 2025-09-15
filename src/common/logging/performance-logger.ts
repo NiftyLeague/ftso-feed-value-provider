@@ -84,12 +84,6 @@ export class PerformanceLogger {
 
     // Log performance result
     const performanceMessage = `Performance: ${entry.operation} completed in ${duration.toFixed(2)}ms`;
-    // const context: LogContext = {
-    //   component: entry.component,
-    //   operation: entry.operation,
-    //   duration,
-    //   metadata: entry.metadata,
-    // };
 
     if (success) {
       this.logger.log(performanceMessage);

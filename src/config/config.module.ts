@@ -3,18 +3,13 @@ import { ConfigService } from "./config.service";
 import { ConfigController } from "./config.controller";
 import { ConfigValidationService } from "./config-validation.service";
 import { FileWatcherService } from "./file-watcher.service";
+import { createMultiDependencyServiceFactory } from "@/common/factories/service.factory";
 
 @Module({
   providers: [
     ConfigValidationService,
     FileWatcherService,
-    {
-      provide: ConfigService,
-      useFactory: (configValidationService: ConfigValidationService, fileWatcherService: FileWatcherService) => {
-        return new ConfigService(configValidationService, fileWatcherService);
-      },
-      inject: [ConfigValidationService, FileWatcherService],
-    },
+    createMultiDependencyServiceFactory(ConfigService, [ConfigValidationService.name, FileWatcherService.name]),
   ],
   controllers: [ConfigController],
   exports: [ConfigService, ConfigValidationService, FileWatcherService],
