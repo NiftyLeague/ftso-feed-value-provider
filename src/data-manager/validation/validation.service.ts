@@ -432,10 +432,35 @@ export class ValidationService extends EventDrivenService implements IDataValida
     );
   }
 
-  private getConsensusMedian(_feedId: CoreFeedId): number | undefined {
-    // This would be implemented when consensus data is available
-    // For now, return undefined
-    return undefined;
+  private getConsensusMedian(feedId: CoreFeedId): number | undefined {
+    const feedKey = this.getFeedKey(feedId);
+    const historicalPrices = this.historicalPrices.get(feedKey) || [];
+
+    if (historicalPrices.length === 0) {
+      return undefined;
+    }
+
+    // Get recent prices (last 10 updates) for consensus calculation
+    const recentPrices = historicalPrices
+      .slice(-10)
+      .map(update => update.price)
+      .filter(price => price > 0);
+
+    if (recentPrices.length === 0) {
+      return undefined;
+    }
+
+    // Sort prices for median calculation
+    const sortedPrices = [...recentPrices].sort((a, b) => a - b);
+    const mid = Math.floor(sortedPrices.length / 2);
+
+    if (sortedPrices.length % 2 === 0) {
+      // Even number of prices - average the two middle values
+      return (sortedPrices[mid - 1] + sortedPrices[mid]) / 2;
+    } else {
+      // Odd number of prices - return the middle value
+      return sortedPrices[mid];
+    }
   }
 
   private updateHistoricalData(update: PriceUpdate, feedId: CoreFeedId): void {

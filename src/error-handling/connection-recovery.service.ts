@@ -506,10 +506,32 @@ export class ConnectionRecoveryService extends EventDrivenService {
     }
   }
 
-  private getActivatedBackupSources(_failedSourceId: string): string[] {
-    // This would be implemented based on the failover manager's response
-    // For now, return empty array as placeholder
-    return [];
+  private getActivatedBackupSources(failedSourceId: string): string[] {
+    // Get all feed keys that use this source
+    const affectedFeeds = Array.from(this.feedSourceMapping.entries())
+      .filter(([_, sourceIds]) => sourceIds.includes(failedSourceId))
+      .map(([feedKey, _]) => feedKey);
+
+    const activatedBackupSources: string[] = [];
+
+    for (const feedKey of affectedFeeds) {
+      const sourceIds = this.feedSourceMapping.get(feedKey) || [];
+
+      // Find backup sources (sources that are not the failed one and are healthy)
+      const backupSources = sourceIds.filter(sourceId => {
+        if (sourceId === failedSourceId) return false;
+
+        const health = this.connectionHealth.get(sourceId);
+        const source = this.dataSources.get(sourceId);
+
+        return health?.isHealthy && source?.isConnected();
+      });
+
+      activatedBackupSources.push(...backupSources);
+    }
+
+    // Remove duplicates
+    return [...new Set(activatedBackupSources)];
   }
 
   private getFeedKey(feedId: CoreFeedId): string {

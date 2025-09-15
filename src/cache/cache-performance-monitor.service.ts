@@ -205,7 +205,7 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
   // Calculate eviction rate (evictions per request)
   private calculateEvictionRate(): number {
     const cacheStats = this.cacheService.getStats();
-    return cacheStats.totalRequests > 0 ? 0 : 0; // Placeholder - would need eviction count from cache service
+    return cacheStats.totalRequests > 0 ? cacheStats.evictions / cacheStats.totalRequests : 0;
   }
 
   // Calculate percentile from sorted array

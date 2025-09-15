@@ -179,8 +179,8 @@ describe("ConnectionRecoveryService", () => {
       service.configureFeedSources(feedId, primarySources, backupSources);
 
       // Verify configuration was applied
-      // This would be tested through the failover manager integration
-      expect(true).toBe(true); // Placeholder assertion
+      // Check that the failover manager was configured with the correct sources
+      expect(failoverManager.configureFailoverGroup).toHaveBeenCalledWith(feedId, primarySources, backupSources);
     });
   });
 
@@ -260,8 +260,9 @@ describe("ConnectionRecoveryService", () => {
 
       await service.implementGracefulDegradation(feedId);
 
-      // The test would need to be adjusted based on the actual implementation
-      expect(true).toBe(true); // Placeholder assertion
+      // Verify that graceful degradation was implemented
+      // This should trigger appropriate fallback mechanisms
+      expect(failoverManager.triggerFailover).toHaveBeenCalled();
     });
 
     it("should emit complete service degradation when no sources available", async () => {

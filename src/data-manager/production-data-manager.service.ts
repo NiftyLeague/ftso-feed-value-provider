@@ -713,15 +713,40 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         throw new Error(`Data too stale for feed ${feedId.name}: ${freshness}ms old`);
       }
 
-      // For now, we emit a request for current price and let the aggregation service handle it
-      // In a fully integrated system, this would directly call the aggregation service
+      // Get fresh price updates for this feed
+      const priceUpdates = await this.getPriceUpdatesForFeed(feedId);
+
+      if (priceUpdates.length === 0) {
+        throw new Error(`No price updates available for feed ${feedId.name}`);
+      }
+
+      // Emit request for aggregation (this will be handled by the aggregation service)
       this.emit("priceRequest", feedId);
 
-      // This is a placeholder implementation - in the real system, this would:
-      // 1. Query the aggregation service directly
-      // 2. Return cached aggregated price if fresh enough
-      // 3. Trigger fresh aggregation if needed
-      throw new Error(`getCurrentPrice requires aggregation service integration for ${feedId.name}`);
+      // For now, return a simple aggregated result
+      // In a fully integrated system, this would call the RealTimeAggregationService
+      const validUpdates = priceUpdates.filter(
+        update => update.price > 0 && update.timestamp > Date.now() - this.maxDataAge
+      );
+
+      if (validUpdates.length === 0) {
+        throw new Error(`No valid price updates for feed ${feedId.name}`);
+      }
+
+      // Simple aggregation: weighted average by confidence
+      const totalWeight = validUpdates.reduce((sum, update) => sum + (update.confidence || 0.5), 0);
+      const weightedPrice = validUpdates.reduce((sum, update) => sum + update.price * (update.confidence || 0.5), 0);
+
+      const aggregatedPrice: AggregatedPrice = {
+        symbol: feedId.name,
+        price: weightedPrice / totalWeight,
+        timestamp: Date.now(),
+        sources: validUpdates.map(update => update.source),
+        confidence: totalWeight / validUpdates.length,
+        consensusScore: validUpdates.length > 1 ? 0.8 : 0.5, // Higher score for multiple sources
+      };
+
+      return aggregatedPrice;
     } catch (error) {
       this.logger.error(`Error getting current price for ${feedId.name}:`, error);
       throw error;

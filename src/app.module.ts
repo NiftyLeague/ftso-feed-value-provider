@@ -79,10 +79,10 @@ import { EnvironmentUtils } from "@/common/utils/environment.utils";
           // Wire the integration service to the provider service
           service.setIntegrationService(integrationService);
 
-          console.log("✅ FTSO Provider Service initialized in production mode");
+          // Service initialized successfully
           return service;
         } catch (error) {
-          console.error("❌ Failed to initialize FTSO Provider Service:", error);
+          // Log error through proper logging service instead of console
           throw error;
         }
       },

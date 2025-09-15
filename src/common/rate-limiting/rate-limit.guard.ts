@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from "@nestjs/common";
+import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, Logger } from "@nestjs/common";
 
 import { ApiErrorCodes } from "@/common/types/error-handling";
 import { ClientIdentificationUtils } from "../utils/client-identification.utils";
@@ -6,6 +6,8 @@ import { RateLimiterService } from "./rate-limiter.service";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
+  private readonly logger = new Logger(RateLimitGuard.name);
+
   constructor(private readonly rateLimiter: RateLimiterService) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -62,8 +64,8 @@ export class RateLimitGuard implements CanActivate {
         HttpStatus.TOO_MANY_REQUESTS
       );
 
-      // Log rate limit violation with context
-      console.warn(`Rate limit exceeded for client ${clientInfo.sanitized}`, {
+      // Log rate limit violation with context through proper logging service
+      this.logger.warn(`Rate limit exceeded for client ${clientInfo.sanitized}`, {
         requestId,
         clientId: clientInfo.sanitized,
         method,
@@ -87,7 +89,7 @@ export class RateLimitGuard implements CanActivate {
 
     // Log successful rate limit check for high-frequency clients
     if (rateLimitInfo.totalHitsInWindow > this.rateLimiter.getRateLimitConfig().maxRequests * 0.8) {
-      console.log(`High request volume from client ${clientInfo.sanitized}`, {
+      this.logger.log(`High request volume from client ${clientInfo.sanitized}`, {
         clientId: clientInfo.sanitized,
         method,
         url,

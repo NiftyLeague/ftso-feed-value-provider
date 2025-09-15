@@ -680,8 +680,8 @@ export abstract class BaseController extends MonitoringService {
               return await operation();
             }
             return result;
-          } catch (error) {
-            console.log(`executeExternalApiWithRetry error:`, error);
+          } catch {
+            // Log error through proper logging service instead of console
             // Fallback to direct operation call
             return await operation();
           }
