@@ -55,7 +55,7 @@ describe("WebSocketConnectionManager", () => {
     mockServer = new MockWebSocketServer(testPort);
 
     // Wait to ensure server is closed from previous test
-    await TestHelpers.wait(100);
+    await TestHelpers.wait(10);
     const module: TestingModule = await Test.createTestingModule({
       providers: [WebSocketConnectionManager],
     }).compile();
@@ -63,7 +63,7 @@ describe("WebSocketConnectionManager", () => {
     connectionManager = module.get<WebSocketConnectionManager>(WebSocketConnectionManager);
 
     // Wait for server to be ready
-    await TestHelpers.wait(100);
+    await TestHelpers.wait(10);
   });
 
   afterEach(async () => {
@@ -79,7 +79,7 @@ describe("WebSocketConnectionManager", () => {
 
     // Close mock server and wait for cleanup
     await mockServer.close();
-    await TestHelpers.wait(200);
+    await TestHelpers.wait(50);
   });
 
   it("should be defined", () => {

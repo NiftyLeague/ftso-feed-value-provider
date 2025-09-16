@@ -5,5 +5,7 @@
 
 export { TestModuleBuilder, createTestModule } from "./test-module.builder";
 export { TestDataBuilder } from "./test-data.builders";
-export { MockFactory, MockSetup } from "./mock.factories";
 export { TestHelpers } from "./test.helpers";
+export { MockFactory, MockSetup } from "./mock.factories";
+export { enableLoggingForTest, disableLoggingForTest, withLogging, withLoggingAsync } from "./test-logging.helpers";
+export type { GlobalTestLogging, ConsoleOverride } from "./test-logging.types";

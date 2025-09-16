@@ -30,7 +30,8 @@ describe("Standardized Error Handling Integration", () => {
   });
 
   describe("StandardizedErrorHandlerService", () => {
-    it("should create standardized error responses", () => {
+    it("should handle all error scenarios", () => {
+      // Test basic error response creation
       const error = new Error("Test validation error");
       const requestId = "test-request-123";
 
@@ -51,9 +52,8 @@ describe("Standardized Error Handling Integration", () => {
       expect(response.requestId).toBe(requestId);
       expect(response.retryable).toBeDefined();
       expect(response.timestamp).toBeDefined();
-    });
 
-    it("should classify errors correctly", () => {
+      // Test error classification
       const testCases = [
         { error: new Error("timeout occurred"), expectedClass: ErrorClass.TIMEOUT_ERROR },
         { error: new Error("connection refused"), expectedClass: ErrorClass.CONNECTION_ERROR },
@@ -65,43 +65,38 @@ describe("Standardized Error Handling Integration", () => {
 
       testCases.forEach(({ error, expectedClass }) => {
         const httpException = standardizedErrorHandler.createStandardizedError(error, { component: "TestController" });
-
         const response = httpException.getResponse() as EnhancedErrorResponse;
         expect(response.error.context?.classification).toBe(expectedClass);
       });
-    });
 
-    it("should handle validation errors with standardized format", () => {
+      // Test validation error handling
       const message = "Invalid input data";
       const details = { field: "email", value: "invalid-email" };
-      const requestId = "validation-test-123";
+      const validationRequestId = "validation-test-123";
 
-      const httpException = standardizedErrorHandler.handleValidationError(message, details, requestId);
+      const validationException = standardizedErrorHandler.handleValidationError(message, details, validationRequestId);
+      expect(validationException.getStatus()).toBe(HttpStatus.BAD_REQUEST);
 
-      expect(httpException.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      const validationResponse = validationException.getResponse() as EnhancedErrorResponse;
+      expect(validationResponse.error.message).toBe(message);
+      expect(validationResponse.requestId).toBe(validationRequestId);
+      expect(validationResponse.retryable).toBe(false);
 
-      const response = httpException.getResponse() as EnhancedErrorResponse;
-      expect(response.error.message).toBe(message);
-      expect(response.requestId).toBe(requestId);
-      expect(response.retryable).toBe(false);
-    });
-
-    it("should handle rate limit errors with retry information", () => {
-      const requestId = "rate-limit-test-123";
+      // Test rate limit error handling
+      const rateLimitRequestId = "rate-limit-test-123";
       const retryAfter = 30000; // 30 seconds
 
-      const httpException = standardizedErrorHandler.handleRateLimitError(requestId, retryAfter);
+      const rateLimitException = standardizedErrorHandler.handleRateLimitError(rateLimitRequestId, retryAfter);
+      expect(rateLimitException.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
 
-      expect(httpException.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
-
-      const response = httpException.getResponse() as EnhancedErrorResponse;
-      expect(response.error.message).toBe("Rate limit exceeded");
-      expect(response.requestId).toBe(requestId);
-      expect(response.retryable).toBe(true);
-      expect(response.retryAfter).toBe(retryAfter);
+      const rateLimitResponse = rateLimitException.getResponse() as EnhancedErrorResponse;
+      expect(rateLimitResponse.error.message).toBe("Rate limit exceeded");
+      expect(rateLimitResponse.requestId).toBe(rateLimitRequestId);
+      expect(rateLimitResponse.retryable).toBe(true);
+      expect(rateLimitResponse.retryAfter).toBe(retryAfter);
     });
 
-    it("should execute operations with standardized error handling", async () => {
+    it("should execute operations and track statistics", async () => {
       const successOperation = jest.fn().mockResolvedValue("success");
       const failureOperation = jest.fn().mockRejectedValue(new Error("operation failed"));
 
@@ -127,10 +122,8 @@ describe("Standardized Error Handling Integration", () => {
       ).rejects.toThrow(HttpException);
 
       expect(failureOperation).toHaveBeenCalled();
-    });
 
-    it("should track error statistics", async () => {
-      // Generate some errors through executeWithStandardizedHandling to trigger statistics
+      // Test error statistics tracking
       const errors = [new Error("timeout error"), new Error("connection error"), new Error("validation error")];
 
       for (let i = 0; i < errors.length; i++) {
@@ -152,7 +145,8 @@ describe("Standardized Error Handling Integration", () => {
   });
 
   describe("UniversalRetryService", () => {
-    it("should execute operations with retry logic", async () => {
+    it("should handle all retry scenarios", async () => {
+      // Test retry logic with failures
       let attemptCount = 0;
       const operation = jest.fn().mockImplementation(() => {
         attemptCount++;
@@ -167,70 +161,61 @@ describe("Standardized Error Handling Integration", () => {
         operationName: "testOperation",
         retryConfig: {
           maxRetries: 3,
-          initialDelayMs: 10,
-          maxDelayMs: 100,
+          initialDelayMs: 1, // Reduced from 10ms
+          maxDelayMs: 10, // Reduced from 100ms
         },
       });
 
       expect(result).toBe("success");
       expect(operation).toHaveBeenCalledTimes(3);
-    });
 
-    it("should handle HTTP operations with specific retry logic", async () => {
+      // Test HTTP operations
       const httpOperation = jest.fn().mockResolvedValue("http success");
-
-      const result = await universalRetryService.executeHttpWithRetry(httpOperation, {
+      const httpResult = await universalRetryService.executeHttpWithRetry(httpOperation, {
         serviceId: "HttpService",
         endpoint: "/api/test",
         method: "GET",
       });
-
-      expect(result).toBe("http success");
+      expect(httpResult).toBe("http success");
       expect(httpOperation).toHaveBeenCalledTimes(1);
-    });
 
-    it("should handle database operations with specific retry logic", async () => {
+      // Test database operations
       const dbOperation = jest.fn().mockResolvedValue("db success");
-
-      const result = await universalRetryService.executeDatabaseWithRetry(dbOperation, {
+      const dbResult = await universalRetryService.executeDatabaseWithRetry(dbOperation, {
         serviceId: "DatabaseService",
         operation: "query",
       });
-
-      expect(result).toBe("db success");
+      expect(dbResult).toBe("db success");
       expect(dbOperation).toHaveBeenCalledTimes(1);
-    });
 
-    it("should handle cache operations with minimal retry logic", async () => {
+      // Test cache operations
       const cacheOperation = jest.fn().mockResolvedValue("cache success");
-
-      const result = await universalRetryService.executeCacheWithRetry(cacheOperation, {
+      const cacheResult = await universalRetryService.executeCacheWithRetry(cacheOperation, {
         serviceId: "CacheService",
         operation: "get",
       });
-
-      expect(result).toBe("cache success");
+      expect(cacheResult).toBe("cache success");
       expect(cacheOperation).toHaveBeenCalledTimes(1);
     });
 
-    it("should configure retry settings for services", () => {
+    it("should configure retry settings and track statistics", async () => {
+      // Test retry configuration
       const serviceId = "CustomService";
       const config: Partial<RetryConfig> = {
         maxRetries: 5,
-        initialDelayMs: 2000,
-        maxDelayMs: 60000,
+        initialDelayMs: 100, // Reduced from 2000ms
+        maxDelayMs: 1000, // Reduced from 60000ms
       };
 
       universalRetryService.configureRetrySettings(serviceId, config);
 
       const retrievedConfig = universalRetryService.getRetryConfiguration(serviceId);
       expect(retrievedConfig?.maxRetries).toBe(5);
-      expect(retrievedConfig?.initialDelayMs).toBe(2000);
-      expect(retrievedConfig?.maxDelayMs).toBe(60000);
-    });
+      expect(retrievedConfig?.initialDelayMs).toBe(100);
+      expect(retrievedConfig?.maxDelayMs).toBe(1000);
 
-    it("should track retry statistics", async () => {
-      const serviceId = "StatsTestService";
+      // Test retry statistics
+      const statsServiceId = "StatsTestService";
       let attemptCount = 0;
 
       const operation = jest.fn().mockImplementation(() => {
@@ -242,15 +227,15 @@ describe("Standardized Error Handling Integration", () => {
       });
 
       await universalRetryService.executeWithRetry(operation, {
-        serviceId,
+        serviceId: statsServiceId,
         operationName: "testOperation",
-        retryConfig: { maxRetries: 2, initialDelayMs: 10 },
+        retryConfig: { maxRetries: 2, initialDelayMs: 1 }, // Reduced from 10ms
       });
 
       const stats = universalRetryService.getRetryStatistics();
-      expect(stats[serviceId]).toBeDefined();
-      expect(stats[serviceId].totalAttempts).toBe(2);
-      expect(stats[serviceId].successfulRetries).toBe(1);
+      expect(stats[statsServiceId]).toBeDefined();
+      expect(stats[statsServiceId].totalAttempts).toBe(2);
+      expect(stats[statsServiceId].successfulRetries).toBe(1);
     });
   });
 
@@ -258,13 +243,13 @@ describe("Standardized Error Handling Integration", () => {
     it("should integrate with retry service for circuit breaker protection", async () => {
       const serviceId = "CircuitTestService";
 
-      // Register circuit breaker
+      // Register circuit breaker with reduced timeouts
       circuitBreakerService.registerCircuit(serviceId, {
         failureThreshold: 2,
-        recoveryTimeout: 1000,
+        recoveryTimeout: 100, // Reduced from 1000ms
         successThreshold: 1,
-        timeout: 500,
-        monitoringWindow: 10000,
+        timeout: 50, // Reduced from 500ms
+        monitoringWindow: 1000, // Reduced from 10000ms
       });
 
       let callCount = 0;
@@ -279,7 +264,7 @@ describe("Standardized Error Handling Integration", () => {
           await universalRetryService.executeWithRetry(failingOperation, {
             serviceId,
             operationName: "failingOperation",
-            retryConfig: { maxRetries: 1, initialDelayMs: 10 },
+            retryConfig: { maxRetries: 1, initialDelayMs: 1 }, // Reduced from 10ms
           });
         } catch {
           // Expected to fail
@@ -405,8 +390,8 @@ describe("Standardized Error Handling Integration", () => {
               operationName: "complexOperation",
               retryConfig: {
                 maxRetries: 3,
-                initialDelayMs: 10,
-                maxDelayMs: 100,
+                initialDelayMs: 1, // Reduced from 10ms
+                maxDelayMs: 10, // Reduced from 100ms
               },
             }),
           {

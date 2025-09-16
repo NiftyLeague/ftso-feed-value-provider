@@ -1,4 +1,5 @@
 import { FeedCategory } from "@/common/types/core";
+import { withLogging } from "../utils/test-logging.helpers";
 
 // Mock HTTP server for latency testing
 class MockLatencyServer {
@@ -55,33 +56,37 @@ describe("Latency Testing", () => {
 
   beforeAll(() => {
     mockServer = new MockLatencyServer();
-    console.log("🚀 Starting optimized latency testing suite...");
+    withLogging(() => {
+      console.log("🚀 Starting optimized latency testing suite...");
+    });
   });
 
   afterAll(() => {
     // Print test execution summary
-    console.log("\n📊 Latency Test Execution Summary:");
-    console.log("=".repeat(50));
+    withLogging(() => {
+      console.log("\n📊 Latency Test Execution Summary:");
+      console.log("=".repeat(50));
 
-    const totalDuration = testResults.reduce((sum, result) => sum + result.duration, 0);
-    const passedTests = testResults.filter(r => r.status === "PASS").length;
+      const totalDuration = testResults.reduce((sum, result) => sum + result.duration, 0);
+      const passedTests = testResults.filter(r => r.status === "PASS").length;
 
-    testResults.forEach(result => {
-      const status = result.status === "PASS" ? "✅" : "❌";
-      console.log(`${status} ${result.testName}: ${result.duration}ms`);
+      testResults.forEach(result => {
+        const status = result.status === "PASS" ? "✅" : "❌";
+        console.log(`${status} ${result.testName}: ${result.duration}ms`);
+      });
+
+      console.log("=".repeat(50));
+      console.log(`Total Tests: ${testResults.length}`);
+      console.log(`Passed: ${passedTests}`);
+      console.log(`Total Duration: ${totalDuration}ms`);
+      console.log(`Average per Test: ${(totalDuration / testResults.length).toFixed(0)}ms`);
+
+      if (totalDuration < 20000) {
+        console.log("🎉 Performance target achieved: < 20 seconds");
+      } else {
+        console.log("⚠️  Performance target missed: > 20 seconds");
+      }
     });
-
-    console.log("=".repeat(50));
-    console.log(`Total Tests: ${testResults.length}`);
-    console.log(`Passed: ${passedTests}`);
-    console.log(`Total Duration: ${totalDuration}ms`);
-    console.log(`Average per Test: ${(totalDuration / testResults.length).toFixed(0)}ms`);
-
-    if (totalDuration < 20000) {
-      console.log("🎉 Performance target achieved: < 20 seconds");
-    } else {
-      console.log("⚠️  Performance target missed: > 20 seconds");
-    }
   });
 
   beforeEach(() => {

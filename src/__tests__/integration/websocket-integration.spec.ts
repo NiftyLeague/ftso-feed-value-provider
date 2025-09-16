@@ -1,7 +1,7 @@
 import type { PriceUpdate } from "@/common/types/core";
 import { TestHelpers } from "@/__tests__/utils/test.helpers";
 
-// Enhanced Mock WebSocket for integration testing
+// Mock WebSocket for integration testing
 class MockWebSocket {
   static CONNECTING = 0;
   static OPEN = 1;
@@ -94,7 +94,7 @@ class MockWebSocket {
   }
 }
 
-// Enhanced Mock exchange adapter with better error handling
+// Mock exchange adapter with error handling
 class MockExchangeAdapter {
   private connected = false;
   private subscriptions = new Set<string>();

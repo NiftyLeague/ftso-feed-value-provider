@@ -11,27 +11,40 @@ module.exports = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
-  setupFilesAfterEnv: ["<rootDir>/__tests__/test-setup.ts"],
+  setupFilesAfterEnv: [
+    "<rootDir>/__tests__/test-setup.ts",
+    // Conditionally include endurance setup for endurance tests
+    ...(process.env.npm_lifecycle_event === "test:endurance" || process.argv.includes("endurance")
+      ? ["<rootDir>/__tests__/endurance/endurance-test-setup.ts"]
+      : []),
+  ],
   globalTeardown: "<rootDir>/__tests__/global-teardown.ts",
-  // Ensure tests exit cleanly
+  // Test ordering will be handled by file naming conventions
+  // Test execution settings
   detectOpenHandles: true,
-  forceExit: false, // Let Jest exit naturally after cleanup
-  // Timeout configuration - increased for endurance tests
-  testTimeout: 30000,
-  // Memory and performance settings for endurance tests
-  maxWorkers: 1, // Run tests sequentially to avoid resource conflicts
+  forceExit: false,
+  // Timeout configuration - optimized per test type
+  testTimeout: process.env.npm_lifecycle_event?.includes("endurance") ? 60000 : 30000,
+  // Parallel execution for faster tests, sequential for complex ones
+  maxWorkers:
+    process.env.npm_lifecycle_event?.includes("endurance") ||
+    process.env.npm_lifecycle_event?.includes("integration") ||
+    process.env.npm_lifecycle_event?.includes("performance")
+      ? 1
+      : "50%",
   // Cleanup configuration
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,
-  // Endurance test specific settings
+  // Test environment settings
   testEnvironmentOptions: {
-    // Enable garbage collection for memory tests
     node: {
       options: ["--expose-gc", "--max-old-space-size=2048"],
     },
   },
-  // Improved error handling for long-running tests
-  verbose: false, // Reduce verbose output
-  silent: false, // Keep false to allow our custom log filtering
+  // Optimized output settings
+  verbose: false,
+  silent: false,
+  // Use default reporter for stability
+  reporters: ["default"],
 };

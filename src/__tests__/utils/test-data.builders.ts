@@ -8,7 +8,7 @@ import { FeedId } from "@/common/types/http";
  */
 export class TestDataBuilder {
   /**
-   * Create a valid EnhancedFeedId for testing
+   * Create a valid CoreFeedId for testing
    */
   static createCoreFeedId(overrides: Partial<CoreFeedId> = {}): CoreFeedId {
     return {

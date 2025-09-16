@@ -1,9 +1,11 @@
 /**
  * Endurance Test Setup
  *
- * Additional setup specifically for endurance tests to optimize resource usage
+ * Additional setup for endurance tests to optimize resource usage
  * and prevent memory leaks during long-running tests.
  */
+
+import type { GlobalTestLogging } from "../utils/test-logging.types";
 
 // Enable garbage collection for endurance tests
 if (typeof global.gc === "undefined") {
@@ -72,11 +74,19 @@ process.setMaxListeners(50); // Increase max listeners for endurance tests
 // Handle unhandled rejections gracefully in endurance tests
 process.on("unhandledRejection", (reason, _promise) => {
   // Log but don't crash during endurance tests
+  // Enable logging for endurance test error handling
+  if (typeof (global as unknown as GlobalTestLogging).enableTestLogging === "function") {
+    (global as unknown as GlobalTestLogging).enableTestLogging();
+  }
   console.warn("Unhandled Rejection in endurance test:", reason);
 });
 
 // Handle uncaught exceptions gracefully in endurance tests
 process.on("uncaughtException", error => {
   // Log but don't crash during endurance tests
+  // Enable logging for endurance test error handling
+  if (typeof (global as unknown as GlobalTestLogging).enableTestLogging === "function") {
+    (global as unknown as GlobalTestLogging).enableTestLogging();
+  }
   console.warn("Uncaught Exception in endurance test:", error.message);
 });

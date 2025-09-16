@@ -492,7 +492,7 @@ jest.mock("@/adapters/base/base-exchange-adapter", () => {
         setTimeout(() => {
           (ws as any).readyState = MockWebSocketImpl.OPEN;
           ws.onopen?.({} as Event);
-        }, 10);
+        }, 1);
       });
 
       protected disconnectWebSocket = jest.fn().mockImplementation(async () => {

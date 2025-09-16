@@ -45,7 +45,7 @@ describe("CircuitBreakerService", () => {
     beforeEach(() => {
       service.registerCircuit("test-service", {
         failureThreshold: 3,
-        recoveryTimeout: 1000,
+        recoveryTimeout: 100,
         successThreshold: 2,
       });
     });
@@ -95,7 +95,7 @@ describe("CircuitBreakerService", () => {
       expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
 
       // Wait for recovery timeout
-      await new Promise(resolve => setTimeout(resolve, 1100));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       // Next request should transition to HALF_OPEN
       try {

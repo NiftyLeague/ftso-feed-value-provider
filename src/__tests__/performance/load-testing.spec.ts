@@ -1,5 +1,6 @@
 import { FeedCategory } from "@/common/types/core";
 import type { MockRequestBody, MockResponse } from "@/common/types/utils";
+import { withLogging } from "../utils/test-logging.helpers";
 
 // Mock HTTP server for load testing
 class MockHttpServer {
@@ -80,7 +81,9 @@ describe("Load Testing", () => {
 
   beforeAll(() => {
     mockServer = new MockHttpServer();
-    console.log("🚀 Starting optimized load testing suite...");
+    withLogging(() => {
+      console.log("🚀 Starting optimized load testing suite...");
+    });
   });
 
   beforeEach(() => {
@@ -91,7 +94,9 @@ describe("Load Testing", () => {
 
   afterEach(() => {
     const testDuration = Date.now() - testStartTime;
-    console.log(`⏱️  Test completed in ${testDuration}ms`);
+    withLogging(() => {
+      console.log(`⏱️  Test completed in ${testDuration}ms`);
+    });
 
     // Force garbage collection if available to prevent memory buildup
     if (global.gc) {
@@ -100,7 +105,9 @@ describe("Load Testing", () => {
   });
 
   afterAll(() => {
-    console.log("✅ Load testing suite completed successfully");
+    withLogging(() => {
+      console.log("✅ Load testing suite completed successfully");
+    });
   });
 
   describe("High Request Volume Tests", () => {
@@ -141,15 +148,17 @@ describe("Load Testing", () => {
         r => r.status === "rejected" || (r as PromiseFulfilledResult<MockResponse>).value?.statusCode !== 200
       );
 
-      console.log(`Load Test Results:
-        - Total Requests: ${concurrentRequests}
-        - Successful: ${successful.length}
-        - Failed: ${failed.length}
-        - Total Time: ${totalTime}ms
-        - Requests/Second: ${(concurrentRequests / totalTime) * 1000}
-        - Average Response Time: ${totalTime / concurrentRequests}ms
-        - Batches Processed: ${batches}
-      `);
+      withLogging(() => {
+        console.log(`Load Test Results:
+          - Total Requests: ${concurrentRequests}
+          - Successful: ${successful.length}
+          - Failed: ${failed.length}
+          - Total Time: ${totalTime}ms
+          - Requests/Second: ${(concurrentRequests / totalTime) * 1000}
+          - Average Response Time: ${totalTime / concurrentRequests}ms
+          - Batches Processed: ${batches}
+        `);
+      });
 
       expect(successful.length).toBeGreaterThan(concurrentRequests * 0.95);
       expect(totalTime).toBeLessThan(15000); // Reduced from 30s to 15s
@@ -512,14 +521,14 @@ describe("Load Testing", () => {
           "Added feed data caching for improved performance",
           "Reduced test durations and request counts for faster execution",
           "Added garbage collection between tests",
-          "Optimized timeout values and expectations",
+          "Improved timeout values and expectations",
         ],
         improvements: [
           "~50% reduction in total test execution time",
           "Better memory management with controlled batching",
           "More realistic load patterns with burst handling",
           "Improved resource cleanup and leak detection",
-          "Enhanced error handling under mixed load conditions",
+          "Improved error handling under mixed load conditions",
         ],
         metrics: {
           maxConcurrentRequests: 1000,
@@ -530,20 +539,22 @@ describe("Load Testing", () => {
         },
       };
 
-      console.log("\n📊 Load Testing Performance Summary:");
-      console.log("=====================================");
-      console.log("\n🔧 Optimizations Applied:");
-      summary.optimizations.forEach((opt, i) => console.log(`  ${i + 1}. ${opt}`));
+      withLogging(() => {
+        console.log("\n📊 Load Testing Performance Summary:");
+        console.log("=====================================");
+        console.log("\n🔧 Optimizations Applied:");
+        summary.optimizations.forEach((opt, i) => console.log(`  ${i + 1}. ${opt}`));
 
-      console.log("\n📈 Performance Improvements:");
-      summary.improvements.forEach((imp, i) => console.log(`  ${i + 1}. ${imp}`));
+        console.log("\n📈 Performance Improvements:");
+        summary.improvements.forEach((imp, i) => console.log(`  ${i + 1}. ${imp}`));
 
-      console.log("\n🎯 Key Performance Metrics:");
-      Object.entries(summary.metrics).forEach(([key, value]) => {
-        console.log(`  ${key}: ${value}`);
+        console.log("\n🎯 Key Performance Metrics:");
+        Object.entries(summary.metrics).forEach(([key, value]) => {
+          console.log(`  ${key}: ${value}`);
+        });
+
+        console.log("\n✅ All load testing requirements met successfully!");
       });
-
-      console.log("\n✅ All load testing requirements met successfully!");
 
       expect(summary.optimizations.length).toBeGreaterThan(0);
       expect(summary.improvements.length).toBeGreaterThan(0);

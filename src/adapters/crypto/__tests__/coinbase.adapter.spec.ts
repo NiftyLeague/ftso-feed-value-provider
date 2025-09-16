@@ -18,7 +18,7 @@ class MockWebSocket {
     setTimeout(() => {
       this.readyState = MockWebSocket.OPEN;
       this.onopen?.();
-    }, 10);
+    }, 1);
   }
 
   send(_data: string) {
@@ -154,11 +154,9 @@ describe("CoinbaseAdapter", () => {
   });
 
   describe("WebSocket connection", () => {
-    let mockConnectionManager: any;
-
-    beforeEach(() => {
-      // Create a mock connection manager for each test
-      mockConnectionManager = {
+    it("should handle all connection scenarios", async () => {
+      // Test successful connection
+      const mockConnectionManager = {
         createConnection: jest.fn().mockResolvedValue("test-connection-id"),
         closeConnection: jest.fn().mockResolvedValue(undefined),
         isConnected: jest.fn().mockReturnValue(true),
@@ -168,99 +166,72 @@ describe("CoinbaseAdapter", () => {
         getLatency: jest.fn().mockReturnValue(10),
       };
 
-      // Replace the connection manager in the adapter
       (adapter as any).wsManager = mockConnectionManager;
       (adapter as any).wsConnectionId = "test-connection";
-    });
 
-    it("should connect successfully", async () => {
       await expect(adapter.connect()).resolves.toBeUndefined();
       expect(adapter.isConnected()).toBe(true);
       expect(mockConnectionManager.createConnection).toHaveBeenCalled();
-    });
 
-    it("should disconnect successfully", async () => {
-      // First connect
-      await adapter.connect();
-      expect(adapter.isConnected()).toBe(true);
-
-      // Then disconnect
+      // Test disconnect
       await adapter.disconnect(1000, "Normal closure");
       expect(adapter.isConnected()).toBe(false);
       expect(mockConnectionManager.closeConnection).toHaveBeenCalledWith("test-connection", 1000, "Normal closure");
-    });
 
-    it("should handle disconnection when not connected", async () => {
+      // Test disconnection when not connected
       await adapter.disconnect();
-      expect(mockConnectionManager.closeConnection).not.toHaveBeenCalled();
+      expect(mockConnectionManager.closeConnection).toHaveBeenCalledTimes(1); // Only called once above
+
+      // Test connection error scenarios
+      const errorScenarios = [
+        { error: "Connection failed", expectedMessage: "Connection failed" },
+        { error: "WebSocket constructor failed", expectedMessage: "WebSocket constructor failed" },
+        { error: "Connection timeout", expectedMessage: "Connection timeout" },
+      ];
+
+      for (const scenario of errorScenarios) {
+        const errorMockManager = {
+          createConnection: jest.fn().mockRejectedValue(new Error(scenario.error)),
+          closeConnection: jest.fn().mockResolvedValue(undefined),
+          isConnected: jest.fn().mockReturnValue(false),
+          on: jest.fn(),
+          sendMessage: jest.fn().mockReturnValue(false),
+          getConnectionStats: jest.fn().mockReturnValue(null),
+          getLatency: jest.fn().mockReturnValue(0),
+        };
+
+        (adapter as any).wsManager = errorMockManager;
+        (adapter as any).wsConnectionId = "test-connection";
+
+        await expect(adapter.connect()).rejects.toThrow(scenario.expectedMessage);
+        expect(adapter.isConnected()).toBe(false);
+        expect(errorMockManager.createConnection).toHaveBeenCalled();
+      }
     });
 
     it("should handle disconnection errors gracefully", async () => {
-      // Setup a mock that will reject on closeConnection
-      mockConnectionManager.closeConnection = jest.fn().mockRejectedValue(new Error("Failed to close"));
+      const mockConnectionManager = {
+        createConnection: jest.fn().mockResolvedValue("test-connection-id"),
+        closeConnection: jest.fn().mockRejectedValue(new Error("Failed to close")),
+        isConnected: jest.fn().mockReturnValue(true),
+        on: jest.fn(),
+        sendMessage: jest.fn().mockReturnValue(true),
+        getConnectionStats: jest.fn().mockReturnValue({ latency: 10, uptime: 1000 }),
+        getLatency: jest.fn().mockReturnValue(10),
+      };
 
-      // First connect
+      (adapter as any).wsManager = mockConnectionManager;
+      (adapter as any).wsConnectionId = "test-connection";
+
       await adapter.connect();
-
-      // Then disconnect - should not throw
       await expect(adapter.disconnect()).resolves.toBeUndefined();
       expect(mockConnectionManager.closeConnection).toHaveBeenCalled();
     });
 
-    it("should handle connection errors gracefully", async () => {
-      // Setup a mock that will reject on createConnection
-      mockConnectionManager.createConnection = jest.fn().mockRejectedValue(new Error("Connection failed"));
-      mockConnectionManager.isConnected.mockReturnValue(false);
-
-      // Test that connection errors are handled gracefully
-      await expect(adapter.connect()).rejects.toThrow("Connection failed");
-      expect(adapter.isConnected()).toBe(false);
-      expect(mockConnectionManager.createConnection).toHaveBeenCalled();
-    });
-
-    it("should handle WebSocket constructor errors", async () => {
-      // Setup a mock that will reject with constructor error
-      mockConnectionManager.createConnection = jest.fn().mockRejectedValue(new Error("WebSocket constructor failed"));
-      mockConnectionManager.isConnected.mockReturnValue(false);
-
-      await expect(adapter.connect()).rejects.toThrow("WebSocket constructor failed");
-      expect(adapter.isConnected()).toBe(false);
-    });
-
-    it("should handle connection timeout errors", async () => {
-      // Mock the WebSocket connection manager to simulate timeout
-      const mockConnectionManager = {
-        createConnection: jest.fn().mockRejectedValue(new Error("Connection timeout")),
-        closeConnection: jest.fn().mockResolvedValue(undefined),
-        isConnected: jest.fn().mockReturnValue(false),
-        on: jest.fn(),
-        sendMessage: jest.fn().mockReturnValue(false),
-        getConnectionStats: jest.fn().mockReturnValue(null),
-        getLatency: jest.fn().mockReturnValue(0),
-      };
-
-      // Replace the connection manager in the adapter
-      (adapter as any).wsManager = mockConnectionManager;
-      (adapter as any).wsConnectionId = "test-connection";
-
-      await expect(adapter.connect()).rejects.toThrow("Connection timeout");
-      expect(adapter.isConnected()).toBe(false);
-    });
-
-    it("should disconnect properly", async () => {
-      await adapter.connect();
-      expect(adapter.isConnected()).toBe(true);
-
-      await adapter.disconnect();
-      expect(adapter.isConnected()).toBe(false);
-    });
-
-    it("should verify error behavior in connection tests", async () => {
-      // Test that connection errors are properly caught and handled
+    it("should handle error callbacks properly", async () => {
       const errorSpy = jest.fn();
       adapter.onError(errorSpy);
 
-      // Mock the WebSocket connection manager to simulate connection error
       const connectionError = new Error("WebSocket connection failed");
       const mockConnectionManager = {
         createConnection: jest.fn().mockRejectedValue(connectionError),
@@ -272,14 +243,12 @@ describe("CoinbaseAdapter", () => {
         getLatency: jest.fn().mockReturnValue(0),
       };
 
-      // Replace the connection manager in the adapter
       (adapter as any).wsManager = mockConnectionManager;
       (adapter as any).wsConnectionId = "test-connection";
 
       try {
         await adapter.connect();
       } catch (error) {
-        // Verify that error callback was called and error is handled properly
         expect(error).toBeDefined();
         expect(adapter.isConnected()).toBe(false);
       }

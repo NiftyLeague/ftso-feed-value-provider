@@ -1,6 +1,7 @@
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { ConsensusAggregator } from "@/aggregators/consensus-aggregator.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
+import { withLogging } from "../utils/test-logging.helpers";
 
 describe("Simple Performance Validation", () => {
   let cacheService: RealTimeCacheService;
@@ -42,7 +43,9 @@ describe("Simple Performance Validation", () => {
       const totalTime = performance.now() - startTime;
       const avgTimePerOperation = totalTime / (iterations * 2);
 
-      console.log(`Cache Performance: ${avgTimePerOperation.toFixed(4)}ms per operation`);
+      withLogging(() => {
+        console.log(`Cache Performance: ${avgTimePerOperation.toFixed(4)}ms per operation`);
+      });
 
       // Should be very fast (under 0.1ms per operation)
       expect(avgTimePerOperation).toBeLessThan(0.5);
@@ -76,7 +79,9 @@ describe("Simple Performance Validation", () => {
 
       const totalTime = performance.now() - startTime;
 
-      console.log(`Batch Operations: ${totalTime.toFixed(2)}ms for ${batchSize * 2} operations`);
+      withLogging(() => {
+        console.log(`Batch Operations: ${totalTime.toFixed(2)}ms for ${batchSize * 2} operations`);
+      });
 
       // Should complete batch operations quickly
       expect(totalTime).toBeLessThan(100);
@@ -133,7 +138,11 @@ describe("Simple Performance Validation", () => {
       const avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
       const maxResponseTime = Math.max(...responseTimes);
 
-      console.log(`Aggregation Performance: avg=${avgResponseTime.toFixed(2)}ms, max=${maxResponseTime.toFixed(2)}ms`);
+      withLogging(() => {
+        console.log(
+          `Aggregation Performance: avg=${avgResponseTime.toFixed(2)}ms, max=${maxResponseTime.toFixed(2)}ms`
+        );
+      });
 
       // Should meet performance targets
       expect(avgResponseTime).toBeLessThan(80); // Average under 80ms target

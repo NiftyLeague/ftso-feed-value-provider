@@ -1,245 +1,226 @@
 # Test Logging Control
 
-This document describes the test logging control system that helps keep test
-output clean and focused on actual failures.
-
 ## Overview
 
-The test suite includes an intelligent log suppression system that filters out
-expected error messages, debug output, and framework noise while preserving
-actual test failures and unexpected errors.
+The test suite now includes a comprehensive logging control system that
+suppresses all console output by default, providing clean test output while
+allowing specific tests to enable logging when needed.
 
-## Features
+## Default Behavior
 
-### Automatic Log Suppression
+By default, **all logs are suppressed** during test execution:
 
-The system automatically suppresses:
+- `console.log()`, `console.error()`, `console.warn()`, `console.debug()`
+- NestJS logger output
+- Process stdout/stderr writes
 
-- **Expected Error Messages**: Connection failures, validation errors, and other
-  expected test errors
-- **NestJS Framework Messages**: Debug, info, and routine framework logs
-- **WebSocket Noise**: Connection status messages, timeouts, and protocol
-  messages
-- **HTTP Error Responses**: Expected 4xx/5xx responses from test endpoints
-- **Stack Traces**: Stack traces from expected test errors
-- **Performance Messages**: Monitoring and performance degradation messages
+This ensures clean, readable test output without noise from expected error
+messages, debug logs, or framework output.
 
-### Configurable Behavior
+## Enabling Logs for Specific Tests
 
-Control logging behavior with environment variables:
-
-```bash
-# Default behavior - suppress expected logs
-npm test
-
-# Show all logs (verbose mode)
-VERBOSE_TEST_LOGS=true npm test
-
-# Disable log suppression entirely
-SUPPRESS_TEST_LOGS=false npm test
-```
-
-## NPM Scripts
-
-Convenient npm scripts are available for different logging modes:
-
-```bash
-# Standard test run with clean output
-npm test
-
-# Verbose logging (shows all logs)
-npm run test:verbose
-
-# No log suppression (shows expected errors)
-npm run test:no-suppress
-
-# Extra quiet mode (suppresses Jest output too)
-npm run test:quiet
-```
-
-## Shell Script
-
-Use the provided shell script for more control:
-
-```bash
-# Clean output (default)
-./scripts/test-with-logs.sh
-
-# Verbose logging
-./scripts/test-with-logs.sh --verbose
-
-# No suppression
-./scripts/test-with-logs.sh --no-suppress
-
-# Run specific tests with verbose logging
-./scripts/test-with-logs.sh --verbose src/adapters/**/*.spec.ts
-
-# Show help
-./scripts/test-with-logs.sh --help
-```
-
-## Suppressed Log Patterns
-
-The system recognizes and suppresses these types of messages:
-
-### Error Messages
-
-- `Cannot read properties of undefined`
-- `Connection failed`
-- `Validation failed`
-- `Network error`
-- `ECONNREFUSED`, `ETIMEDOUT`, `ENOTFOUND`
-
-### Framework Messages
-
-- NestJS logger output: `[Nest] ... ERROR/WARN/DEBUG/LOG [Component]`
-- WebSocket connection messages
-- HTTP status and error responses
-
-### Test-Specific Messages
-
-- `TEST: Starting ... test`
-- `... endpoint error:`
-- Performance and monitoring alerts
-- Stack trace lines from expected errors
-
-### Object Output
-
-- JSON objects with common test properties
-- Empty lines and whitespace-only lines
-- Numeric-only lines
-
-## Customization
-
-### Adding New Patterns
-
-To suppress additional log patterns, edit `src/__tests__/test-setup.ts` and add
-patterns to the `SUPPRESSED_LOG_PATTERNS` array:
+### Method 1: Direct Control
 
 ```typescript
-const SUPPRESSED_LOG_PATTERNS = [
-  // Add your pattern here
-  /Your custom pattern/,
-  // ... existing patterns
-];
+import { enableLoggingForTest, disableLoggingForTest } from "@/__tests__/utils";
+
+describe("My Test", () => {
+  it("should show logs when needed", () => {
+    enableLoggingForTest();
+
+    // These will now be visible
+    console.log("Debug information");
+    console.error("Error details");
+
+    // Your test logic here
+    expect(something).toBe(true);
+
+    disableLoggingForTest(); // Clean up
+  });
+});
 ```
 
-### Temporary Debugging
+### Method 2: Wrapper Functions
 
-For temporary debugging of a specific test, you can:
+```typescript
+import { withLogging, withLoggingAsync } from "@/__tests__/utils";
 
-1. **Use verbose mode**: `VERBOSE_TEST_LOGS=true npm test -- your-test.spec.ts`
-2. **Disable suppression**:
-   `SUPPRESS_TEST_LOGS=false npm test -- your-test.spec.ts`
-3. **Add console.log with a unique prefix** that won't be suppressed
+describe("My Test", () => {
+  it("should show logs with wrapper", () => {
+    withLogging(() => {
+      // These will be visible
+      console.log("Debug information");
+      console.error("Error details");
 
-### Environment Variables
+      // Your test logic here
+      expect(something).toBe(true);
+    });
+    // Logging automatically disabled after wrapper
+  });
 
-| Variable             | Default | Description                           |
-| -------------------- | ------- | ------------------------------------- |
-| `SUPPRESS_TEST_LOGS` | `true`  | Enable/disable log suppression        |
-| `VERBOSE_TEST_LOGS`  | `false` | Show all logs (overrides suppression) |
-| `NODE_ENV`           | `test`  | Set to test mode automatically        |
+  it("should work with async tests", async () => {
+    await withLoggingAsync(async () => {
+      // These will be visible
+      console.log("Debug information");
+
+      // Your async test logic here
+      await someAsyncOperation();
+      expect(something).toBe(true);
+    });
+    // Logging automatically disabled after wrapper
+  });
+});
+```
+
+### Method 3: Global Functions
+
+```typescript
+describe("My Test", () => {
+  it("should show logs with global functions", () => {
+    // Enable logging globally
+    (global as any).enableTestLogging();
+
+    console.log("This will be visible");
+
+    // Disable logging globally
+    (global as any).disableTestLogging();
+
+    console.log("This will be suppressed");
+  });
+});
+```
 
 ## Best Practices
 
-### When to Use Each Mode
+### 1. Use Wrapper Functions
 
-- **Default mode**: Regular development and CI/CD
-- **Verbose mode**: Debugging specific test failures
-- **No suppression**: Investigating framework or infrastructure issues
-- **Quiet mode**: Focus on test results only
+Prefer `withLogging()` and `withLoggingAsync()` as they automatically handle
+cleanup:
 
-### Writing Test-Friendly Code
+```typescript
+// ✅ Good
+it("should test something", () => {
+  withLogging(() => {
+    console.log("Debug info");
+    // test logic
+  });
+});
 
-When writing tests, consider:
-
-1. **Use descriptive error messages** that won't be suppressed
-2. **Avoid generic error messages** that might be filtered
-3. **Use unique prefixes** for debug output you want to see
-4. **Test error conditions explicitly** rather than relying on console output
-
-### CI/CD Integration
-
-For continuous integration, the default mode provides clean output while still
-showing actual failures:
-
-```yaml
-# GitHub Actions example
-- name: Run tests
-  run: npm test
-  env:
-    NODE_ENV: test
-    # SUPPRESS_TEST_LOGS: true (default)
+// ❌ Avoid (manual cleanup required)
+it("should test something", () => {
+  enableLoggingForTest();
+  console.log("Debug info");
+  // test logic
+  disableLoggingForTest(); // Easy to forget
+});
 ```
 
-For debugging CI failures, temporarily enable verbose mode:
+### 2. Enable Logs Only When Needed
 
-```yaml
-- name: Debug test failures
-  run: npm run test:verbose
+Only enable logging for tests that actually need to debug output:
+
+```typescript
+// ✅ Good - only when debugging
+it("should handle complex error scenarios", () => {
+  withLogging(() => {
+    // This test needs to see error logs
+    expect(() => {
+      someOperationThatLogsErrors();
+    }).toThrow();
+  });
+});
+
+// ❌ Avoid - unnecessary logging
+it("should return correct value", () => {
+  withLogging(() => {
+    // This test doesn't need logs
+    expect(calculateValue()).toBe(42);
+  });
+});
 ```
 
-## Troubleshooting
+### 3. Clean Up in afterEach
 
-### Logs Still Appearing
+If you use direct control, ensure cleanup in `afterEach`:
 
-If expected logs are still appearing:
+```typescript
+describe("My Test Suite", () => {
+  afterEach(() => {
+    disableLoggingForTest(); // Ensure clean state
+  });
 
-1. Check if the pattern is in `SUPPRESSED_LOG_PATTERNS`
-2. Verify the pattern matches the exact log format
-3. Test the pattern with a simple regex tester
-4. Consider if the log is coming from a different source
-
-### Important Logs Being Suppressed
-
-If important logs are being suppressed:
-
-1. Use verbose mode: `npm run test:verbose`
-2. Check if the log matches an overly broad pattern
-3. Refine the suppression patterns to be more specific
-4. Use a unique prefix for important debug messages
-
-### Performance Impact
-
-The log suppression system has minimal performance impact:
-
-- Pattern matching is optimized for common cases
-- String operations are cached where possible
-- Suppression can be disabled entirely if needed
+  it("should test something", () => {
+    enableLoggingForTest();
+    // test logic
+  });
+});
+```
 
 ## Examples
 
-### Running Tests with Different Log Levels
-
-```bash
-# Clean output for regular development
-npm test
-
-# Debug a failing test
-VERBOSE_TEST_LOGS=true npm test -- src/controllers/feed.controller.spec.ts
-
-# Check for infrastructure issues
-npm run test:no-suppress -- src/__tests__/integration/
-
-# Focus on test results only
-npm run test:quiet
-```
-
-### Customizing for Your Project
+### Debugging Connection Issues
 
 ```typescript
-// In test-setup.ts, add project-specific patterns
-const PROJECT_SPECIFIC_PATTERNS = [
-  /Your application error pattern/,
-  /Custom framework messages/,
-];
+it("should handle WebSocket connection failures", () => {
+  withLogging(() => {
+    const adapter = new WebSocketAdapter();
 
-const SUPPRESSED_LOG_PATTERNS = [
-  ...PROJECT_SPECIFIC_PATTERNS,
-  // ... existing patterns
-];
+    // This will show connection error logs
+    expect(() => {
+      adapter.connect("invalid-url");
+    }).toThrow();
+  });
+});
 ```
 
-This system helps maintain clean, readable test output while preserving the
-ability to debug when needed.
+### Testing Error Handling
+
+```typescript
+it("should log appropriate error messages", () => {
+  withLogging(() => {
+    const service = new MyService();
+
+    // This will show the error logs we want to verify
+    expect(() => {
+      service.performOperation();
+    }).toThrow();
+  });
+});
+```
+
+### Performance Testing
+
+```typescript
+it("should complete within time limit", async () => {
+  await withLoggingAsync(async () => {
+    const start = Date.now();
+
+    // This will show performance-related logs
+    await performHeavyOperation();
+
+    const duration = Date.now() - start;
+    expect(duration).toBeLessThan(1000);
+  });
+});
+```
+
+## Migration Guide
+
+If you have existing tests that need logging:
+
+1. **Identify tests that need logging** - Look for tests that currently show
+   important output
+2. **Wrap with logging control** - Use `withLogging()` or `withLoggingAsync()`
+3. **Remove manual log suppression** - No need for complex log filtering
+   patterns
+4. **Test the changes** - Ensure logs appear when expected and are suppressed
+   otherwise
+
+## Benefits
+
+- **Clean test output** by default
+- **Selective logging** when debugging
+- **No performance impact** when logging is disabled
+- **Easy to use** with simple wrapper functions
+- **Automatic cleanup** prevents test pollution
+- **Consistent behavior** across all test types
