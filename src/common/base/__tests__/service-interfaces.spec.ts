@@ -1,9 +1,14 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { FtsoProviderService } from "../../app.service";
-import { RealTimeAggregationService } from "../../aggregators/real-time-aggregation.service";
-import { ConfigService } from "../../config/config.service";
-import { ValidationService } from "../../data-manager/validation/validation.service";
-import type { IFtsoProviderService, IAggregationService, IConfigurationService, IDataValidatorService } from "../types";
+import { FtsoProviderService } from "@/app.service";
+import { ConfigService } from "@/config/config.service";
+import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
+import { ValidationService } from "@/data-manager/validation/validation.service";
+import type {
+  IFtsoProviderService,
+  IAggregationService,
+  IConfigurationService,
+  IDataValidatorService,
+} from "../../types";
 
 describe("Service Interface Implementation", () => {
   let ftsoProviderService: IFtsoProviderService;

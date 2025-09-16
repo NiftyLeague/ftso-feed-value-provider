@@ -1,5 +1,5 @@
-import { BaseService } from "../base/base.service";
-import type { BaseServiceConfig } from "../types/services/base.types";
+import type { BaseServiceConfig } from "../../types/services/base.types";
+import { BaseService } from "../base.service";
 
 // Test service that passes config to super()
 class TestServiceWithConfig extends BaseService {

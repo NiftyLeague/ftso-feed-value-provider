@@ -8,7 +8,7 @@ export class MockFactory {
    * Create a mock WebSocket
    */
   static createWebSocket() {
-    return {
+    const mockWs = {
       CONNECTING: 0,
       OPEN: 1,
       CLOSING: 2,
@@ -29,6 +29,13 @@ export class MockFactory {
       removeEventListener: jest.fn(),
       dispatchEvent: jest.fn(),
     };
+
+    // Immediately trigger open event for faster tests
+    setImmediate(() => {
+      mockWs.onopen?.();
+    });
+
+    return mockWs;
   }
 
   /**

@@ -1,7 +1,7 @@
-import { BaseService } from "../base/base.service";
 import { Logger } from "@nestjs/common";
-import { EnhancedLoggerService } from "../logging/enhanced-logger.service";
-import { TestHelpers } from "../../__tests__/utils/test.helpers";
+import { TestHelpers } from "@/__tests__/utils/test.helpers";
+import { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
+import { BaseService } from "../base.service";
 
 // Test implementation of BaseService
 class TestService extends BaseService {

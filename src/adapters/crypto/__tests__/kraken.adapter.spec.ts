@@ -15,10 +15,11 @@ class MockWebSocket {
   onmessage?: (event: { data: string }) => void;
 
   constructor(public url: string) {
-    setTimeout(() => {
-      this.readyState = MockWebSocket.OPEN;
+    // Immediate connection for faster tests
+    this.readyState = MockWebSocket.OPEN;
+    setImmediate(() => {
       this.onopen?.();
-    }, 1);
+    });
   }
 
   send(_data: string) {

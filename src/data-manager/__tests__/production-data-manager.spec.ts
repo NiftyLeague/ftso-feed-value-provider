@@ -289,4 +289,40 @@ describe("ProductionDataManagerService", () => {
       expect(result).toEqual([]); // Should return empty array when no data is available
     });
   });
+
+  describe("Source Failover", () => {
+    it("should trigger source failover for unknown source", async () => {
+      const result = await dataManager.triggerSourceFailover("unknown-source", "test reason");
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("Data Processing", () => {
+    it("should get price updates for feed", async () => {
+      const mockAdapter = new MockExchangeAdapter();
+      await mockAdapter.connect();
+      await dataManager.addDataSource(mockAdapter);
+
+      const updates = await dataManager.getPriceUpdatesForFeed(mockFeedId);
+      expect(Array.isArray(updates)).toBe(true);
+    });
+  });
+
+  describe("Connection Management", () => {
+    it("should get connection health", async () => {
+      const health = await dataManager.getConnectionHealth();
+      expect(health).toBeDefined();
+      expect(typeof health.connectedSources).toBe("number");
+      expect(typeof health.totalSources).toBe("number");
+      expect(typeof health.healthScore).toBe("number");
+    });
+  });
+
+  describe("Data Freshness", () => {
+    it("should get data freshness for feed", async () => {
+      const freshness = await dataManager.getDataFreshness(mockFeedId);
+      expect(typeof freshness).toBe("number");
+      expect(freshness).toBeGreaterThanOrEqual(0);
+    });
+  });
 });

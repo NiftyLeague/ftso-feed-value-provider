@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { ValidationUtils } from "../utils/validation.utils";
+import { ValidationUtils } from "../validation.utils";
 
 describe("ValidationUtils", () => {
   describe("validateFeedId", () => {
@@ -343,6 +343,49 @@ describe("ValidationUtils", () => {
       }));
 
       expect(() => ValidationUtils.validateFeedIds(tooManyFeeds)).toThrow(/cannot contain more than 100.*FTSO limit/);
+    });
+  });
+
+  describe("validateFeedExists", () => {
+    const availableFeeds = [
+      { category: 1, name: "BTC/USD" },
+      { category: 1, name: "ETH/USD" },
+      { category: 2, name: "EUR/USD" },
+    ];
+
+    it("should pass for existing feeds", () => {
+      expect(() => ValidationUtils.validateFeedExists({ category: 1, name: "BTC/USD" }, availableFeeds)).not.toThrow();
+    });
+
+    it("should throw for non-existing feeds", () => {
+      expect(() =>
+        ValidationUtils.validateFeedExists({ category: 1, name: "NONEXISTENT/USD" }, availableFeeds)
+      ).toThrow(/Feed not found/);
+    });
+  });
+
+  describe("validateFeedsExist", () => {
+    const availableFeeds = [
+      { category: 1, name: "BTC/USD" },
+      { category: 1, name: "ETH/USD" },
+    ];
+
+    it("should pass for all existing feeds", () => {
+      const feedsToCheck = [
+        { category: 1, name: "BTC/USD" },
+        { category: 1, name: "ETH/USD" },
+      ];
+
+      expect(() => ValidationUtils.validateFeedsExist(feedsToCheck, availableFeeds)).not.toThrow();
+    });
+
+    it("should throw if any feed doesn't exist", () => {
+      const feedsToCheck = [
+        { category: 1, name: "BTC/USD" },
+        { category: 1, name: "NONEXISTENT/USD" },
+      ];
+
+      expect(() => ValidationUtils.validateFeedsExist(feedsToCheck, availableFeeds)).toThrow(/Feed not found/);
     });
   });
 

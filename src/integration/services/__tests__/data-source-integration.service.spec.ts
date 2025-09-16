@@ -7,8 +7,8 @@ import { UniversalRetryService } from "@/error-handling/universal-retry.service"
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
-import { DataSourceIntegrationService } from "../../services/data-source-integration.service";
-import { DataSourceFactory } from "../../services/data-source.factory";
+import { DataSourceIntegrationService } from "../data-source-integration.service";
+import { DataSourceFactory } from "../data-source.factory";
 
 describe("DataSourceIntegrationService", () => {
   let service: DataSourceIntegrationService;

@@ -1,4 +1,4 @@
-import { BaseService } from "../base/base.service";
+import { BaseService } from "../base.service";
 
 // Test service to verify config functionality
 class TestConfigService extends BaseService {
