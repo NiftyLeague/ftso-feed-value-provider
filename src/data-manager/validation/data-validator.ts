@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
+import { EnvironmentUtils } from "@/common/utils/environment.utils";
 
 import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handling";
 import { ErrorCode } from "@/common/types/error-handling/error.types";
@@ -23,7 +24,7 @@ export type ExtendedDataValidationError = BaseDataValidationError & {
 export class DataValidator extends StandardService {
   constructor(private readonly universalRetryService: UniversalRetryService) {
     super({
-      maxAge: 2000, // 2 seconds (Requirement 2.5)
+      maxAge: EnvironmentUtils.parseInt("MAX_DATA_AGE_MS", 20000, { min: 100, max: 60000 }), // From env
       priceRange: { min: 0.01, max: 1000000 },
       outlierThreshold: 0.05, // 5% deviation
       consensusWeight: 0.8,

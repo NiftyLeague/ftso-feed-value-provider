@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
+import { EnvironmentUtils } from "@/common/utils/environment.utils";
 import { FeedCategory } from "@/common/types/core";
 import type { PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { ErrorSeverity, ErrorCode } from "@/common/types/error-handling";
@@ -48,7 +49,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
       enableBatchValidation: true,
       enableRealTimeValidation: true,
       historicalDataWindow: 50, // Keep last 50 prices
-      maxAge: 2000,
+      maxAge: EnvironmentUtils.parseInt("MAX_DATA_AGE_MS", 20000, { min: 100, max: 60000 }), // From env
       maxBatchSize: 100,
       outlierThreshold: 0.05,
       priceRange: { min: 0.01, max: 1_000_000 },

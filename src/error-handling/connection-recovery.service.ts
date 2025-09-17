@@ -83,8 +83,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
 
     // Register with circuit breaker
     this.circuitBreaker.registerCircuit(source.id, {
-      failureThreshold: 3,
-      recoveryTimeout: 30000,
+      failureThreshold: 8, // More lenient for connection recovery
+      recoveryTimeout: 15000, // Faster recovery
       successThreshold: 2,
       timeout: 5000,
     });
@@ -399,12 +399,19 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private async handleConnectionLost(sourceId: string): Promise<void> {
-    this.logger.warn(`Connection lost for source: ${sourceId}`);
-
     const health = this.connectionHealth.get(sourceId);
     if (health) {
       health.lastDisconnected = Date.now();
       health.consecutiveFailures++;
+
+      // Only warn on first failure or after significant time
+      const timeSinceLastDisconnect = health.lastDisconnected - (health.lastDisconnected || 0);
+      if (health.consecutiveFailures === 1 || timeSinceLastDisconnect > 60000) {
+        // 1 minute
+        this.logger.warn(`Connection lost for source: ${sourceId} (attempt ${health.consecutiveFailures})`);
+      } else {
+        this.logger.debug(`Connection lost for source: ${sourceId} (attempt ${health.consecutiveFailures})`);
+      }
     }
 
     // Trigger failover
@@ -592,7 +599,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
    */
   async handleDisconnection(sourceId: string): Promise<void> {
     try {
-      this.logger.warn(`Handling disconnection for source: ${sourceId}`);
+      this.logger.debug(`Handling disconnection for source: ${sourceId}`);
 
       const health = this.connectionHealth.get(sourceId);
       if (health) {
@@ -617,6 +624,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
     // Clear health check timer
     if (this.healthCheckTimer) {
       clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = undefined;
     }
 
     // Clear all reconnection timers
@@ -628,5 +636,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
     this.connectionHealth.clear();
     this.dataSources.clear();
     this.feedSourceMapping.clear();
+
+    // Remove all event listeners to prevent memory leaks
+    this.removeAllListeners();
   }
 }

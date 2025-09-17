@@ -68,8 +68,8 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
     // Register circuit breaker if not exists
     if (!this.circuitBreaker.getState(serviceId)) {
       this.circuitBreaker.registerCircuit(serviceId, {
-        failureThreshold: 5,
-        recoveryTimeout: 60000,
+        failureThreshold: serviceId === "DataSourceIntegrationService" ? 20 : 5, // More lenient for data source integration
+        recoveryTimeout: serviceId === "DataSourceIntegrationService" ? 30000 : 60000, // Faster recovery
         successThreshold: 3,
         timeout: config.maxDelayMs,
         monitoringWindow: 300000,
@@ -499,7 +499,7 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
       [ErrorClass.NOT_FOUND_ERROR]: ErrorCode.DATA_NOT_FOUND,
       [ErrorClass.RATE_LIMIT_ERROR]: ErrorCode.RATE_LIMIT_EXCEEDED,
       [ErrorClass.TIMEOUT_ERROR]: ErrorCode.TIMEOUT_ERROR,
-      [ErrorClass.CONNECTION_ERROR]: ErrorCode.NETWORK_ERROR,
+      [ErrorClass.CONNECTION_ERROR]: ErrorCode.CONNECTION_ERROR,
       [ErrorClass.SERVICE_UNAVAILABLE_ERROR]: ErrorCode.SERVICE_UNAVAILABLE,
       [ErrorClass.DATA_ERROR]: ErrorCode.DATA_VALIDATION_FAILED,
       [ErrorClass.PROCESSING_ERROR]: ErrorCode.DATA_PROCESSING_ERROR,

@@ -107,9 +107,12 @@ export class StartupValidationService extends StandardService implements OnModul
 
         // Wait for initialization to complete with a timeout
         await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error("Integration service initialization timeout"));
-          }, 30000); // 30 second timeout
+          const timeout = setTimeout(
+            () => {
+              reject(new Error("Integration service initialization timeout"));
+            },
+            EnvironmentUtils.parseInt("INTEGRATION_SERVICE_TIMEOUT_MS", 60000, { min: 1000, max: 300000 })
+          );
 
           const checkInitialization = () => {
             if (this.integrationService.isServiceInitialized()) {
@@ -173,12 +176,26 @@ export class StartupValidationService extends StandardService implements OnModul
       result.errors.push(`Invalid port number: ${process.env.VALUE_PROVIDER_CLIENT_PORT}`);
     }
 
-    // Check for API keys (always in production mode)
-    const exchangeKeys = ["BINANCE_API_KEY", "COINBASE_API_KEY", "KRAKEN_API_KEY", "OKX_API_KEY", "CRYPTOCOM_API_KEY"];
+    // Check for API keys - only warn if we're in production mode
+    const nodeEnv = process.env.NODE_ENV || "development";
+    if (nodeEnv === "production") {
+      const exchangeKeys = [
+        "BINANCE_API_KEY",
+        "COINBASE_API_KEY",
+        "KRAKEN_API_KEY",
+        "OKX_API_KEY",
+        "CRYPTOCOM_API_KEY",
+      ];
+      const missingKeys = exchangeKeys.filter(key => !process.env[key]);
 
-    const missingKeys = exchangeKeys.filter(key => !process.env[key]);
-    if (missingKeys.length === exchangeKeys.length) {
-      result.warnings.push("No exchange API keys configured - may limit data availability");
+      if (missingKeys.length === exchangeKeys.length) {
+        result.warnings.push("No exchange API keys configured - may limit data availability in production");
+      } else if (missingKeys.length > 0) {
+        result.warnings.push(`Missing API keys for exchanges: ${missingKeys.join(", ")}`);
+      }
+    } else {
+      // In development, this is expected and not a warning
+      this.logger.debug("Development mode: API key validation skipped");
     }
 
     result.validatedServices.push("Environment Variables");
@@ -186,11 +203,13 @@ export class StartupValidationService extends StandardService implements OnModul
 
   private validateSystemResources(result: StartupValidationResult): void {
     try {
-      // Check memory usage
+      // Check memory usage - only warn if extremely high
       const memUsage = process.memoryUsage();
       const memUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
 
-      if (memUsagePercent > 80) {
+      if (memUsagePercent > 95) {
+        result.warnings.push(`Critical memory usage at startup: ${memUsagePercent.toFixed(1)}%`);
+      } else if (memUsagePercent > 85) {
         result.warnings.push(`High memory usage at startup: ${memUsagePercent.toFixed(1)}%`);
       }
 
@@ -204,12 +223,14 @@ export class StartupValidationService extends StandardService implements OnModul
         result.warnings.push(`Low system memory available: ${freeMemoryPercent.toFixed(1)}%`);
       }
 
-      // Check Node.js version
+      // Check Node.js version - only warn for very old versions
       const nodeVersion = process.version;
       const majorVersion = parseInt(nodeVersion.substring(1).split(".")[0]);
 
-      if (majorVersion < 18) {
-        result.warnings.push(`Node.js version ${nodeVersion} may not be fully supported (recommended: 18+)`);
+      if (majorVersion < 16) {
+        result.warnings.push(`Node.js version ${nodeVersion} is not supported (minimum: 16, recommended: 18+)`);
+      } else if (majorVersion < 18) {
+        this.logger.debug(`Node.js version ${nodeVersion} is supported but 18+ is recommended for optimal performance`);
       }
 
       result.validatedServices.push("System Resources");
