@@ -1,3 +1,5 @@
+import type { ExchangeApiKeyConfig } from "../types/services/configuration.types";
+
 /**
  * Configuration utilities to eliminate environment parsing duplication
  * Extracts common configuration parsing patterns from ConfigService and other modules
@@ -283,40 +285,20 @@ export class ConfigUtils {
   /**
    * Load exchange API keys from environment variables
    */
-  static loadExchangeApiKeys(exchanges: string[]): Record<
-    string,
-    {
-      apiKey?: string;
-      secret?: string;
-      passphrase?: string;
-      sandbox?: boolean;
-    }
-  > {
-    const apiKeys: Record<
-      string,
-      {
-        apiKey?: string;
-        secret?: string;
-        passphrase?: string;
-        sandbox?: boolean;
-      }
-    > = {};
+  static loadExchangeApiKeys(exchanges: string[]): Record<string, ExchangeApiKeyConfig> {
+    const apiKeys: Record<string, ExchangeApiKeyConfig> = {};
 
     for (const exchange of exchanges) {
       const upperExchange = exchange.toUpperCase();
       const apiKey = process.env[`${upperExchange}_API_KEY`];
       const secret = process.env[`${upperExchange}_SECRET`];
       const passphrase = process.env[`${upperExchange}_PASSPHRASE`];
-      const sandbox = this.parseBooleanWithDefault(process.env[`${upperExchange}_SANDBOX`], false, {
-        fieldName: `${upperExchange}_SANDBOX`,
-      });
 
       if (apiKey || secret || passphrase) {
         apiKeys[exchange] = {
           apiKey,
           secret,
           passphrase,
-          sandbox,
         };
       }
     }

@@ -77,7 +77,8 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.getConfig()?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
+    const config = this.getConfig();
+    const wsUrl = config?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
 
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
@@ -245,25 +246,34 @@ export class BinanceAdapter extends BaseExchangeAdapter {
 
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
-    this.safeProcessData(
-      data,
-      rawData => {
-        const parsed = JSON.parse(rawData as string);
-        // Handle array of tickers (from !ticker@arr stream)
-        if (Array.isArray(parsed)) {
-          parsed.forEach(ticker => {
-            if (this.validateResponse(ticker)) {
-              const priceUpdate = this.normalizePriceData(ticker);
-              this.onPriceUpdateCallback?.(priceUpdate);
-            }
-          });
-        } else if (this.validateResponse(parsed)) {
-          const priceUpdate = this.normalizePriceData(parsed);
-          this.onPriceUpdateCallback?.(priceUpdate);
-        }
-      },
-      "Binance message processing"
-    );
+    try {
+      let parsed: unknown;
+
+      if (typeof data === "string") {
+        parsed = JSON.parse(data);
+      } else if (typeof data === "object" && data !== null) {
+        parsed = data;
+      } else {
+        this.logger.debug("Received non-parseable WebSocket data:", typeof data);
+        return;
+      }
+
+      // Handle array of tickers (from !ticker@arr stream)
+      if (Array.isArray(parsed)) {
+        parsed.forEach(ticker => {
+          if (this.validateResponse(ticker)) {
+            const priceUpdate = this.normalizePriceData(ticker);
+            this.onPriceUpdateCallback?.(priceUpdate);
+          }
+        });
+      } else if (this.validateResponse(parsed)) {
+        const priceUpdate = this.normalizePriceData(parsed as BinanceTickerData);
+        this.onPriceUpdateCallback?.(priceUpdate);
+      }
+    } catch (error) {
+      this.logger.error("Error processing Binance WebSocket data:", error);
+      this.onErrorCallback?.(error as Error);
+    }
   }
 
   protected override handleWebSocketClose(): void {

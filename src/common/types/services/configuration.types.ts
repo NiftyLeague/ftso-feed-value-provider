@@ -111,7 +111,6 @@ export interface ExchangeApiKeyConfig {
   apiKey?: string;
   secret?: string;
   passphrase?: string;
-  sandbox?: boolean;
 }
 
 /**

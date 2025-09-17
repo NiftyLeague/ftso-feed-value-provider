@@ -561,10 +561,6 @@
       {
         "exchange": "bitfinex",
         "symbol": "USDT/USD"
-      },
-      {
-        "exchange": "kraken",
-        "symbol": "USDT/USD"
       }
     ]
   },

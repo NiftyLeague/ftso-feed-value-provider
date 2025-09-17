@@ -144,17 +144,6 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
       this.recordFailedRequest();
       this.onErrorCallback?.(error as Error);
     }
-    this.safeProcessData(
-      data,
-      rawData => {
-        const parsed = JSON.parse(rawData as string);
-        if (parsed.type === "ticker" && this.validateResponse(parsed)) {
-          const priceUpdate = this.normalizePriceData(parsed);
-          this.onPriceUpdateCallback?.(priceUpdate);
-        }
-      },
-      "Coinbase message processing"
-    );
   }
 
   normalizePriceData(rawData: CoinbaseTickerData): PriceUpdate {

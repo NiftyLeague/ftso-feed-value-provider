@@ -11,7 +11,7 @@ export interface ExchangeConnectionConfig {
   restApiUrl?: string;
   apiKey?: string;
   apiSecret?: string;
-  sandbox?: boolean;
+  passphrase?: string;
   rateLimit?: number; // requests per second
 }
 

@@ -36,11 +36,10 @@ export class ConfigController {
             hasApiKey: !!config.exchangeApiKeys[exchange].apiKey,
             hasSecret: !!config.exchangeApiKeys[exchange].secret,
             hasPassphrase: !!config.exchangeApiKeys[exchange].passphrase,
-            sandbox: !!config.exchangeApiKeys[exchange].sandbox,
           };
           return acc;
         },
-        {} as Record<string, { hasApiKey: boolean; hasSecret: boolean; hasPassphrase: boolean; sandbox: boolean }>
+        {} as Record<string, { hasApiKey: boolean; hasSecret: boolean; hasPassphrase: boolean }>
       ),
       alerting: {
         ...config.alerting,

@@ -411,15 +411,6 @@ etc.
 - `MEXC_API_KEY`, `MEXC_SECRET`
 - `HTX_API_KEY`, `HTX_SECRET`
 
-### Sandbox Mode
-
-- **Pattern**: `{EXCHANGE}_SANDBOX`
-- **Description**: Enable sandbox/testnet mode for the exchange
-- **Type**: Boolean
-- **Default**: `false`
-- **Example**: `BINANCE_SANDBOX=true`
-- **Required**: No
-
 ## Cache Configuration
 
 ### CACHE_TTL_MS

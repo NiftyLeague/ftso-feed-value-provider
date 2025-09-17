@@ -56,7 +56,8 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.getConfig()?.websocketUrl || "wss://ws.kraken.com";
+    const config = this.getConfig();
+    const wsUrl = config?.websocketUrl || "wss://ws.kraken.com";
 
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({

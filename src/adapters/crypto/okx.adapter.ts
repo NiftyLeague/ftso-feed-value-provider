@@ -73,7 +73,8 @@ export class OkxAdapter extends BaseExchangeAdapter {
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.getConfig()?.websocketUrl || "wss://ws.okx.com:8443/ws/v5/public";
+    const config = this.getConfig();
+    const wsUrl = config?.websocketUrl || "wss://ws.okx.com:8443/ws/v5/public";
 
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
@@ -101,33 +102,34 @@ export class OkxAdapter extends BaseExchangeAdapter {
 
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
-    this.safeProcessData(
-      data,
-      rawData => {
-        const message = JSON.parse(rawData as string);
+    try {
+      const message = typeof data === "string" ? JSON.parse(data) : data;
 
-        // Handle ping/pong
-        if (message.event === "pong") {
-          return;
-        }
+      // Handle ping/pong
+      if (message?.event === "pong") {
+        return;
+      }
 
-        // Handle subscription confirmation
-        if (message.event === "subscribe") {
-          return;
-        }
+      // Handle subscription confirmation
+      if (message?.event === "subscribe") {
+        return;
+      }
 
-        // Handle ticker data
-        if (message.arg?.channel === "tickers" && message.data) {
-          message.data.forEach((ticker: OkxTickerData) => {
-            if (this.validateResponse(ticker)) {
-              const priceUpdate = this.normalizePriceData(ticker);
-              this.onPriceUpdateCallback?.(priceUpdate);
-            }
-          });
-        }
-      },
-      "OKX message processing"
-    );
+      // Handle ticker data
+      if (message?.arg?.channel === "tickers" && message?.data) {
+        message.data.forEach((ticker: OkxTickerData) => {
+          if (this.validateResponse(ticker)) {
+            const priceUpdate = this.normalizePriceData(ticker);
+            this.onPriceUpdateCallback?.(priceUpdate);
+          } else {
+            this.logger.debug("Invalid ticker data received from OKX:", ticker);
+          }
+        });
+      }
+    } catch (error) {
+      this.logger.error("Error processing OKX WebSocket message:", error);
+      this.onErrorCallback?.(error as Error);
+    }
   }
 
   protected override handleWebSocketClose(): void {
@@ -184,7 +186,8 @@ export class OkxAdapter extends BaseExchangeAdapter {
       return !!(
         tickerData.instId && // Symbol
         tickerData.last && // Last price
-        tickerData.ts && // Timestamp
+        tickerData.ts && // Timestamp (string)
+        typeof tickerData.ts === "string" && // Ensure ts is a string
         !isNaN(this.parseNumber(tickerData.last))
       );
     } catch {

@@ -459,7 +459,6 @@ describe("ConfigUtils - Comprehensive Tests", () => {
       process.env.BINANCE_API_KEY = "binance-key";
       process.env.BINANCE_SECRET = "binance-secret";
       process.env.BINANCE_PASSPHRASE = "binance-passphrase";
-      process.env.BINANCE_SANDBOX = "true";
 
       const result = ConfigUtils.loadExchangeApiKeys(["binance"]);
 
@@ -468,7 +467,6 @@ describe("ConfigUtils - Comprehensive Tests", () => {
           apiKey: "binance-key",
           secret: "binance-secret",
           passphrase: "binance-passphrase",
-          sandbox: true,
         },
       });
     });
@@ -480,7 +478,6 @@ describe("ConfigUtils - Comprehensive Tests", () => {
 
     it("should handle partial API keys", () => {
       process.env.BINANCE_API_KEY = "binance-key";
-      process.env.BINANCE_SANDBOX = "false";
 
       const result = ConfigUtils.loadExchangeApiKeys(["binance"]);
 
@@ -489,7 +486,6 @@ describe("ConfigUtils - Comprehensive Tests", () => {
           apiKey: "binance-key",
           secret: undefined,
           passphrase: undefined,
-          sandbox: false,
         },
       });
     });
@@ -506,13 +502,11 @@ describe("ConfigUtils - Comprehensive Tests", () => {
           apiKey: "binance-key",
           secret: undefined,
           passphrase: undefined,
-          sandbox: false,
         },
         coinbase: {
           apiKey: "coinbase-key",
           secret: "coinbase-secret",
           passphrase: undefined,
-          sandbox: false,
         },
       });
     });

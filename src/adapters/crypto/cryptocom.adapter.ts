@@ -105,33 +105,34 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
 
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
-    this.safeProcessData(
-      data,
-      rawData => {
-        const message = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+    try {
+      const message = typeof data === "string" ? JSON.parse(data) : data;
 
-        // Handle pong response
-        if (message?.method === "public/heartbeat") {
-          return;
-        }
+      // Handle pong response
+      if (message?.method === "public/heartbeat") {
+        return;
+      }
 
-        // Handle subscription confirmation
-        if (message?.method === "subscribe" && message?.result) {
-          this.logger.debug(`Subscribed to ${message.result.channel}`);
-          return;
-        }
+      // Handle subscription confirmation
+      if (message?.method === "subscribe" && message?.result) {
+        this.logger.debug(`Subscribed to ${message.result.channel}`);
+        return;
+      }
 
-        // Handle ticker data
-        if (message?.method === "ticker" && message?.result?.data) {
-          const tickerData = message.result.data[0];
-          if (this.validateResponse(tickerData)) {
-            const priceUpdate = this.normalizePriceData(tickerData);
-            this.onPriceUpdateCallback?.(priceUpdate);
-          }
+      // Handle ticker data
+      if (message?.method === "ticker" && message?.result?.data) {
+        const tickerData = message.result.data[0];
+        if (this.validateResponse(tickerData)) {
+          const priceUpdate = this.normalizePriceData(tickerData);
+          this.onPriceUpdateCallback?.(priceUpdate);
+        } else {
+          this.logger.debug("Invalid ticker data received from Crypto.com:", tickerData);
         }
-      },
-      "Crypto.com message processing"
-    );
+      }
+    } catch (error) {
+      this.logger.error("Error processing Crypto.com WebSocket message:", error);
+      this.onErrorCallback?.(error as Error);
+    }
   }
 
   protected override handleWebSocketClose(): void {

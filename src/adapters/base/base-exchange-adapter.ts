@@ -281,23 +281,6 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
-   * Utility method for safe data processing
-   */
-  protected safeProcessData<T>(data: unknown, processor: (data: unknown) => T, context: string): T | null {
-    try {
-      if (!this.validateResponse(data)) {
-        this.logger.warn(`Invalid data received in ${context}:`, data);
-        return null;
-      }
-      return processor(data);
-    } catch (error) {
-      this.logger.error(`Error processing data in ${context}:`, error);
-      this.onErrorCallback?.(error as Error);
-      return null;
-    }
-  }
-
-  /**
    * Symbol mapping - override if exchange needs symbol transformation
    */
   getSymbolMapping(feedSymbol: string): string {
