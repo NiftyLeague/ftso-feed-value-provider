@@ -265,27 +265,66 @@ async function setupSwaggerDocumentation(app: INestApplication, basePath: string
 }
 
 function setupGracefulShutdown(): void {
+  let isShuttingDown = false;
+
   // Handle process termination signals
   const signals = ["SIGTERM", "SIGINT", "SIGUSR2"];
 
   signals.forEach(signal => {
     process.on(signal, async () => {
+      if (isShuttingDown) {
+        logger.log(`Received ${signal} during shutdown, ignoring...`);
+        return;
+      }
+
+      isShuttingDown = true;
       logger.log(`Received ${signal}, starting graceful shutdown...`);
-      await gracefulShutdown();
+
+      try {
+        await gracefulShutdown();
+        process.exit(0);
+      } catch (error) {
+        logger.error(`Error during ${signal} shutdown:`, error);
+        process.exit(1);
+      }
     });
   });
 
   // Handle uncaught exceptions
   process.on("uncaughtException", async error => {
+    if (isShuttingDown) {
+      logger.log("Uncaught exception during shutdown, ignoring...");
+      return;
+    }
+
+    isShuttingDown = true;
     logger.error("Uncaught Exception:", error);
-    await gracefulShutdown();
+
+    try {
+      await gracefulShutdown();
+    } catch (shutdownError) {
+      logger.error("Error during exception shutdown:", shutdownError);
+    }
+
     process.exit(1);
   });
 
   // Handle unhandled promise rejections
   process.on("unhandledRejection", async (reason, promise) => {
+    if (isShuttingDown) {
+      logger.log("Unhandled rejection during shutdown, ignoring...");
+      return;
+    }
+
+    isShuttingDown = true;
     logger.error("Unhandled Rejection at:", promise, "reason:", reason);
-    await gracefulShutdown();
+
+    try {
+      await gracefulShutdown();
+    } catch (shutdownError) {
+      logger.error("Error during rejection shutdown:", shutdownError);
+    }
+
     process.exit(1);
   });
 
@@ -294,6 +333,7 @@ function setupGracefulShutdown(): void {
 
 async function gracefulShutdown(): Promise<void> {
   if (!app) {
+    logger.log("No application instance to shutdown");
     return;
   }
 
@@ -307,14 +347,31 @@ async function gracefulShutdown(): Promise<void> {
       process.exit(1);
     }, timeoutMs);
 
+    // Log shutdown start time
+    const shutdownStartTime = Date.now();
+
     // Close the NestJS application (this will trigger OnModuleDestroy hooks)
+    logger.log("Closing NestJS application...");
     await app.close();
 
+    // Clear the app reference
+    app = null;
+
+    const shutdownDuration = Date.now() - shutdownStartTime;
     clearTimeout(shutdownTimeout);
-    logger.log("✅ Graceful shutdown completed");
+
+    logger.log(`✅ Graceful shutdown completed in ${shutdownDuration}ms`);
+
+    // Give a moment for any final cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
   } catch (error) {
-    logger.error("❌ Error during graceful shutdown:", error);
-    process.exit(1);
+    const errObj = error instanceof Error ? error : new Error(String(error));
+    logger.error("❌ Error during graceful shutdown:", errObj);
+
+    // Force exit after a short delay to allow error logging
+    setTimeout(() => {
+      process.exit(1);
+    }, 1000);
   }
 }
 

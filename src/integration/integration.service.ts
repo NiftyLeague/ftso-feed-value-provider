@@ -54,8 +54,6 @@ export class IntegrationService
 
         const duration = this.endTimer("initialize");
         this.logger.log(`Module initialization completed in ${duration.toFixed(2)}ms`);
-
-        this.emitWithLogging("initialized");
       },
       "module_initialization",
       {
@@ -100,7 +98,7 @@ export class IntegrationService
 
   // Public API methods
   async getCurrentPrice(feedId: CoreFeedId): Promise<AggregatedPrice> {
-    if (!this.isInitialized) {
+    if (!this.isServiceInitialized()) {
       throw new Error("Integration orchestrator not initialized");
     }
 
@@ -108,7 +106,7 @@ export class IntegrationService
   }
 
   async getCurrentPrices(feedIds: CoreFeedId[]): Promise<AggregatedPrice[]> {
-    if (!this.isInitialized) {
+    if (!this.isServiceInitialized()) {
       throw new Error("Integration orchestrator not initialized");
     }
 
@@ -116,11 +114,26 @@ export class IntegrationService
   }
 
   async getSystemHealth(): Promise<ReturnType<SystemHealthService["getOverallHealth"]>> {
-    if (!this.isInitialized) {
+    if (!this.isServiceInitialized()) {
       throw new Error("Integration orchestrator not initialized");
     }
 
     return this.systemHealth.getOverallHealth();
+  }
+
+  // Lifecycle methods
+  override async onModuleInit(): Promise<void> {
+    await this.performInitialization();
+  }
+
+  override async onModuleDestroy(): Promise<void> {
+    await this.performCleanup();
+  }
+
+  // Override performInitialization to emit initialized event
+  public override async performInitialization(): Promise<void> {
+    await super.performInitialization();
+    this.emitWithLogging("initialized");
   }
 
   // Private methods

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, OnModuleDestroy } from "@nestjs/common";
 import { FtsoProviderService } from "@/app.service";
 
 // App controllers
@@ -111,4 +111,11 @@ import { EnvironmentUtils } from "@/common/utils/environment.utils";
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements OnModuleDestroy {
+  async onModuleDestroy(): Promise<void> {
+    // This method will be called when the application is shutting down
+    // Individual services that implement OnModuleDestroy will be called automatically
+    // by NestJS, but we can add any module-level cleanup here if needed
+    console.log("AppModule: Shutting down...");
+  }
+}

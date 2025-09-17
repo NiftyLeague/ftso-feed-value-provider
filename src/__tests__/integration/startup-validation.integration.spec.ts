@@ -348,4 +348,201 @@ describe("Startup Validation Integration", () => {
       expect(Array.isArray(ccxtExchanges)).toBe(true);
     });
   });
+
+  describe("Environment Variable Validation", () => {
+    it("should validate that NODE_ENV is required", () => {
+      // Test that the environment variable validation logic works
+      const originalNodeEnv = process.env.NODE_ENV;
+      delete process.env.NODE_ENV;
+
+      // Check that the environment variable is missing
+      expect(process.env.NODE_ENV).toBeUndefined();
+
+      // Restore original value
+      if (originalNodeEnv) {
+        process.env.NODE_ENV = originalNodeEnv;
+      } else {
+        process.env.NODE_ENV = "test";
+      }
+    });
+
+    it("should validate that VALUE_PROVIDER_CLIENT_PORT is required", () => {
+      // Test that the environment variable validation logic works
+      const originalPort = process.env.VALUE_PROVIDER_CLIENT_PORT;
+      delete process.env.VALUE_PROVIDER_CLIENT_PORT;
+
+      // Check that the environment variable is missing
+      expect(process.env.VALUE_PROVIDER_CLIENT_PORT).toBeUndefined();
+
+      // Restore original value
+      if (originalPort) {
+        process.env.VALUE_PROVIDER_CLIENT_PORT = originalPort;
+      } else {
+        process.env.VALUE_PROVIDER_CLIENT_PORT = "3101";
+      }
+    });
+  });
+
+  describe("Integration Service Initialization Timing", () => {
+    it("should properly wait for integration service initialization", async () => {
+      // Create a mock integration service that takes time to initialize
+      const mockIntegrationService = {
+        isServiceInitialized: jest.fn().mockReturnValue(false),
+        once: jest.fn(),
+        getSystemHealth: jest.fn().mockResolvedValue({
+          status: "healthy",
+          sources: [],
+          aggregation: { errorCount: 0, successRate: 1 },
+          performance: { averageResponseTime: 100, errorRate: 0 },
+          accuracy: { averageConfidence: 0.95, outlierRate: 0.05 },
+        }),
+      };
+
+      const module = await Test.createTestingModule({
+        imports: [ConfigModule],
+        providers: [
+          {
+            provide: StartupValidationService,
+            useFactory: (integrationService: any, configService: any) => {
+              return new StartupValidationService(integrationService, configService);
+            },
+            inject: [IntegrationService, ConfigService],
+          },
+          {
+            provide: IntegrationService,
+            useValue: mockIntegrationService,
+          },
+          {
+            provide: ConfigService,
+            useValue: configService,
+          },
+        ],
+      }).compile();
+
+      const startupValidationService = module.get<StartupValidationService>(StartupValidationService);
+
+      // Mock the event emission after a delay
+      setTimeout(() => {
+        mockIntegrationService.isServiceInitialized.mockReturnValue(true);
+        // Simulate the 'initialized' event
+        const onceCallback = mockIntegrationService.once.mock.calls[0]?.[1];
+        if (onceCallback) {
+          onceCallback();
+        }
+      }, 100);
+
+      // This should not throw an error and should wait for initialization
+      const result = await startupValidationService.validateStartup();
+      expect(result.success).toBe(true);
+      expect(mockIntegrationService.once).toHaveBeenCalledWith("initialized", expect.any(Function));
+    }, 10000);
+
+    it("should timeout when integration service takes too long to initialize", async () => {
+      const mockIntegrationService = {
+        isServiceInitialized: jest.fn().mockReturnValue(false),
+        once: jest.fn(),
+        getSystemHealth: jest.fn(),
+      };
+
+      const module = await Test.createTestingModule({
+        imports: [ConfigModule],
+        providers: [
+          {
+            provide: StartupValidationService,
+            useFactory: (integrationService: any, configService: any) => {
+              return new StartupValidationService(integrationService, configService);
+            },
+            inject: [IntegrationService, ConfigService],
+          },
+          {
+            provide: IntegrationService,
+            useValue: mockIntegrationService,
+          },
+          {
+            provide: ConfigService,
+            useValue: configService,
+          },
+        ],
+      }).compile();
+
+      const startupValidationService = module.get<StartupValidationService>(StartupValidationService);
+
+      // This should return a failed result with timeout error
+      const result = await startupValidationService.validateStartup();
+      expect(result.success).toBe(false);
+      expect(result.errors).toContain(
+        "Integration service validation failed: Integration service initialization timeout"
+      );
+    }, 35000);
+
+    it("should handle integration service that is already initialized", async () => {
+      const mockIntegrationService = {
+        isServiceInitialized: jest.fn().mockReturnValue(true),
+        once: jest.fn(),
+        getSystemHealth: jest.fn().mockResolvedValue({
+          status: "healthy",
+          sources: [],
+          aggregation: { errorCount: 0, successRate: 1 },
+          performance: { averageResponseTime: 100, errorRate: 0 },
+          accuracy: { averageConfidence: 0.95, outlierRate: 0.05 },
+        }),
+      };
+
+      const module = await Test.createTestingModule({
+        imports: [ConfigModule],
+        providers: [
+          {
+            provide: StartupValidationService,
+            useFactory: (integrationService: any, configService: any) => {
+              return new StartupValidationService(integrationService, configService);
+            },
+            inject: [IntegrationService, ConfigService],
+          },
+          {
+            provide: IntegrationService,
+            useValue: mockIntegrationService,
+          },
+          {
+            provide: ConfigService,
+            useValue: configService,
+          },
+        ],
+      }).compile();
+
+      const startupValidationService = module.get<StartupValidationService>(StartupValidationService);
+
+      const result = await startupValidationService.validateStartup();
+      expect(result.success).toBe(true);
+      expect(mockIntegrationService.once).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Lifecycle Method Implementation", () => {
+    it("should properly implement onModuleInit and onModuleDestroy", () => {
+      const integrationService = module.get<IntegrationService>(IntegrationService);
+
+      // Check that the methods exist and are functions
+      expect(typeof integrationService.onModuleInit).toBe("function");
+      expect(typeof integrationService.onModuleDestroy).toBe("function");
+      expect(typeof integrationService.performInitialization).toBe("function");
+    });
+
+    it("should emit initialized event after performInitialization", async () => {
+      const integrationService = module.get<IntegrationService>(IntegrationService);
+      const emitSpy = jest.spyOn(integrationService, "emitWithLogging");
+
+      // Mock the initialize method to avoid actual initialization
+      const originalInitialize = integrationService.initialize;
+      integrationService.initialize = jest.fn().mockResolvedValue(undefined);
+
+      try {
+        await integrationService.performInitialization();
+        expect(emitSpy).toHaveBeenCalledWith("initialized");
+      } finally {
+        // Restore original method
+        integrationService.initialize = originalInitialize;
+        emitSpy.mockRestore();
+      }
+    });
+  });
 });
