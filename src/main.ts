@@ -15,7 +15,7 @@ import { ConfigService } from "@/config/config.service";
 // Global application instance for graceful shutdown
 let app: INestApplication | null = null;
 const logger = new Logger("Bootstrap");
-let enhancedLogger: EnhancedLoggerService;
+let enhancedLogger: EnhancedLoggerService | null = null;
 
 async function bootstrap() {
   const operationId = `bootstrap_${Date.now()}`;
@@ -159,33 +159,46 @@ async function bootstrap() {
     });
   } catch (error) {
     const errObj = error instanceof Error ? error : new Error(String(error));
-    enhancedLogger.error(errObj, {
-      component: "Bootstrap",
-      operation: "application_startup",
-      severity: "critical",
-      metadata: {
-        phase: "bootstrap",
-        environment: process.env.NODE_ENV || "development",
-      },
-    });
 
-    enhancedLogger.endPerformanceTimer(operationId, false, { error: errObj.message });
+    // Use enhanced logger if available, otherwise fall back to standard logger
+    if (enhancedLogger) {
+      enhancedLogger.error(errObj, {
+        component: "Bootstrap",
+        operation: "application_startup",
+        severity: "critical",
+        metadata: {
+          phase: "bootstrap",
+          environment: process.env.NODE_ENV || "development",
+        },
+      });
+      enhancedLogger.endPerformanceTimer(operationId, false, { error: errObj.message });
+    } else {
+      logger.error("Application startup failed:", errObj);
+    }
 
     // Attempt graceful cleanup
     if (app) {
       try {
         await app.close();
-        enhancedLogger.log("Application cleanup completed during startup failure", {
-          component: "Bootstrap",
-          operation: "cleanup_on_failure",
-        });
+        if (enhancedLogger) {
+          enhancedLogger.log("Application cleanup completed during startup failure", {
+            component: "Bootstrap",
+            operation: "cleanup_on_failure",
+          });
+        } else {
+          logger.log("Application cleanup completed during startup failure");
+        }
       } catch (closeError) {
         const closeErrObj = closeError instanceof Error ? closeError : new Error(String(closeError));
-        enhancedLogger.error(closeErrObj, {
-          component: "Bootstrap",
-          operation: "cleanup_on_failure",
-          severity: "high",
-        });
+        if (enhancedLogger) {
+          enhancedLogger.error(closeErrObj, {
+            component: "Bootstrap",
+            operation: "cleanup_on_failure",
+            severity: "high",
+          });
+        } else {
+          logger.error("Application cleanup failed:", closeErrObj);
+        }
       }
     }
 

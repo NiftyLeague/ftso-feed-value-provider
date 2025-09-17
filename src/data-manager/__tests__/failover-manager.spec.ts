@@ -31,6 +31,20 @@ class MockDataSource implements DataSource {
     return this.latency;
   }
 
+  async connect(): Promise<void> {
+    this.connected = true;
+    if (this.connectionChangeCallback) {
+      this.connectionChangeCallback(true);
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    this.connected = false;
+    if (this.connectionChangeCallback) {
+      this.connectionChangeCallback(false);
+    }
+  }
+
   async subscribe(_symbols: string[]): Promise<void> {
     // Mock implementation
   }

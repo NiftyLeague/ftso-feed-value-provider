@@ -101,6 +101,28 @@ export class StartupValidationService extends StandardService implements OnModul
 
   private async validateIntegrationService(result: StartupValidationResult): Promise<void> {
     try {
+      // Wait for integration service to be initialized
+      if (!this.integrationService.isInitialized) {
+        this.logger.log("Waiting for integration service to initialize...");
+
+        // Wait for initialization to complete with a timeout
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error("Integration service initialization timeout"));
+          }, 30000); // 30 second timeout
+
+          if (this.integrationService.isInitialized) {
+            clearTimeout(timeout);
+            resolve();
+          } else {
+            this.integrationService.once("initialized", () => {
+              clearTimeout(timeout);
+              resolve();
+            });
+          }
+        });
+      }
+
       // Test integration service health
       const health = await this.integrationService.getSystemHealth();
 

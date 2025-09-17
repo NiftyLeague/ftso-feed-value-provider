@@ -10,6 +10,7 @@ import { SystemHealthService } from "./services/system-health.service";
 import { CacheModule } from "@/cache/cache.module";
 import { AggregatorsModule } from "@/aggregators/aggregators.module";
 import { MonitoringModule } from "@/monitoring/monitoring.module";
+import { ConfigModule } from "@/config/config.module";
 
 // Core services
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
@@ -18,12 +19,6 @@ import { ConfigService } from "@/config/config.service";
 // Error handling services
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
-import {
-  createServiceFactory,
-  createMultiDependencyServiceFactory,
-  createAsyncProvider,
-  createSingletonServiceFactory,
-} from "@/common/factories/service.factory";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
@@ -37,8 +32,7 @@ import { DataValidator } from "@/data-manager/validation/data-validator";
 // WebSocket connection management
 import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
 
-// Failover management
-import { FailoverManager } from "@/data-manager/failover-manager.service";
+// Failover management is now handled by ErrorHandlingModule
 
 // Data source factory
 import { DataSourceFactory } from "./services/data-source.factory";
@@ -47,7 +41,7 @@ import { DataSourceFactory } from "./services/data-source.factory";
 import { StartupValidationService } from "./services/startup-validation.service";
 
 @Module({
-  imports: [CacheModule, AggregatorsModule, MonitoringModule, AdaptersModule],
+  imports: [CacheModule, AggregatorsModule, MonitoringModule, AdaptersModule, ConfigModule],
   controllers: [],
   providers: [
     // Decomposed integration services
@@ -61,8 +55,13 @@ import { StartupValidationService } from "./services/startup-validation.service"
 
     // Data management
     ProductionDataManagerService,
-    createSingletonServiceFactory(WebSocketConnectionManager, [ConfigService.name]),
-    FailoverManager,
+    {
+      provide: WebSocketConnectionManager,
+      useFactory: () => {
+        return new WebSocketConnectionManager();
+      },
+      inject: [],
+    },
 
     // Data source factory
     DataSourceFactory,
@@ -77,13 +76,25 @@ import { StartupValidationService } from "./services/startup-validation.service"
     ConnectionRecoveryService,
 
     // Validation
-    createServiceFactory(DataValidator, [UniversalRetryService.name]),
-    createMultiDependencyServiceFactory(ValidationService, [DataValidator.name, UniversalRetryService.name]),
+    {
+      provide: DataValidator,
+      useFactory: (universalRetryService: UniversalRetryService) => {
+        return new DataValidator(universalRetryService);
+      },
+      inject: [UniversalRetryService],
+    },
+    {
+      provide: ValidationService,
+      useFactory: (dataValidator: DataValidator, universalRetryService: UniversalRetryService) => {
+        return new ValidationService(dataValidator, universalRetryService);
+      },
+      inject: [DataValidator, UniversalRetryService],
+    },
 
     // Factory for creating the integrated FTSO provider service
-    createAsyncProvider(
-      "INTEGRATED_FTSO_PROVIDER",
-      async (integrationService: IntegrationService) => {
+    {
+      provide: "INTEGRATED_FTSO_PROVIDER",
+      useFactory: async (integrationService: IntegrationService) => {
         // Wait for initialization to complete
         await new Promise<void>(resolve => {
           if (integrationService.listenerCount("initialized") > 0) {
@@ -96,8 +107,8 @@ import { StartupValidationService } from "./services/startup-validation.service"
 
         return integrationService;
       },
-      [IntegrationService.name]
-    ),
+      inject: [IntegrationService],
+    },
   ],
   exports: [
     // Decomposed services

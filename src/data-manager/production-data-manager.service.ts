@@ -332,10 +332,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       // Store the source
       this.dataSources.set(source.id, source);
 
-      // Attempt initial connection if it's a WebSocket source
-      if (source.type === "websocket") {
-        await this.connectWithRetry(source);
-      }
+      // Attempt initial connection for all sources
+      await this.connectWithRetry(source);
 
       this.logger.log(`Data source ${source.id} added successfully`);
       this.emit("sourceAdded", source.id);
@@ -848,9 +846,10 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
     await this.executeWithErrorHandling(
       async () => {
-        // Attempt connection (this would be implemented in the actual DataSource)
-        // For now, we'll simulate the connection attempt
+        // Attempt connection through the data source
         this.logger.log(`Attempting to connect to ${sourceId}`);
+
+        await source.connect();
 
         // Update metrics on successful connection
         metrics.isHealthy = true;

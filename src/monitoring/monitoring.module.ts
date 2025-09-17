@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import type { AlertSeverity, AlertAction, MonitoringConfig } from "@/common/types/monitoring";
 import { EnvironmentUtils } from "@/common/utils/environment.utils";
-import { createConfigurableServiceFactory } from "@/common/factories/service.factory";
 
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -17,21 +16,27 @@ import { ConfigService } from "@/config/config.service";
 @Module({
   imports: [CacheModule, AggregatorsModule, ConfigModule],
   providers: [
-    createConfigurableServiceFactory(
-      AccuracyMonitorService,
-      "MonitoringConfig",
-      (config: unknown) => (config as MonitoringConfig).thresholds
-    ),
-    createConfigurableServiceFactory(
-      PerformanceMonitorService,
-      "MonitoringConfig",
-      (config: unknown) => (config as MonitoringConfig).thresholds
-    ),
-    createConfigurableServiceFactory(
-      AlertingService,
-      "MonitoringConfig",
-      (config: unknown) => (config as MonitoringConfig).alerting
-    ),
+    {
+      provide: AccuracyMonitorService,
+      useFactory: (config: MonitoringConfig) => {
+        return new AccuracyMonitorService(config.thresholds);
+      },
+      inject: ["MonitoringConfig"],
+    },
+    {
+      provide: PerformanceMonitorService,
+      useFactory: (config: MonitoringConfig) => {
+        return new PerformanceMonitorService(config.thresholds);
+      },
+      inject: ["MonitoringConfig"],
+    },
+    {
+      provide: AlertingService,
+      useFactory: (config: MonitoringConfig) => {
+        return new AlertingService(config.alerting);
+      },
+      inject: ["MonitoringConfig"],
+    },
     PerformanceOptimizationCoordinatorService,
     {
       provide: "MonitoringConfig",

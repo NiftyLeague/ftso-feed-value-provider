@@ -28,6 +28,8 @@ export interface DataSource {
   category: FeedCategory;
   isConnected(): boolean;
   getLatency(): number;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
   subscribe(symbols: string[]): Promise<void>;
   unsubscribe(symbols: string[]): Promise<void>;
   onPriceUpdate(callback: (update: PriceUpdate) => void): void;

@@ -55,7 +55,8 @@ export class ConfigService extends StandardService implements IConfigurationServ
     private readonly fileWatcherService: FileWatcherService
   ) {
     super({ useEnhancedLogging: true });
-    this.feedsFilePath = join(__dirname, "feeds.json");
+    // Use process.cwd() to get the project root, then navigate to the source config directory
+    this.feedsFilePath = join(process.cwd(), "src", "config", "feeds.json");
     this.adapterMappings = this.initializeAdapterMappings();
     this.environmentConfig = this.configValidationService.loadAndValidateEnvironmentConfig();
     this.loadFeedConfigurations();

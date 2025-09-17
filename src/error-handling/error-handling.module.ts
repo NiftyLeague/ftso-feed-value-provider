@@ -3,6 +3,7 @@ import { StandardizedErrorHandlerService } from "./standardized-error-handler.se
 import { UniversalRetryService } from "./universal-retry.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
+import { FailoverManager } from "@/data-manager/failover-manager.service";
 import type { StandardErrorMetadata, EnhancedErrorResponse } from "@/common/types/error-handling";
 
 // Event type definitions for error handling services
@@ -34,6 +35,8 @@ interface RetryFailureEvent {
     UniversalRetryService,
     CircuitBreakerService,
     ConnectionRecoveryService,
+    // Data management services needed by error handling
+    FailoverManager,
   ],
   exports: [
     // Core services
@@ -41,6 +44,8 @@ interface RetryFailureEvent {
     UniversalRetryService,
     CircuitBreakerService,
     ConnectionRecoveryService,
+    // Data management services
+    FailoverManager,
   ],
 })
 export class ErrorHandlingModule {

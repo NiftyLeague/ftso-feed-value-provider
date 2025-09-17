@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ExchangeAdapterRegistry } from "./base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
-import { createServiceFactory } from "@/common/factories/service.factory";
+import { ConfigModule } from "@/config/config.module";
 
 // Import all crypto adapters
 import { BinanceAdapter } from "./crypto/binance.adapter";
@@ -12,6 +12,7 @@ import { CryptocomAdapter } from "./crypto/cryptocom.adapter";
 import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
 
 @Module({
+  imports: [ConfigModule],
   providers: [
     // Crypto adapters
     BinanceAdapter,
@@ -19,7 +20,17 @@ import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
     KrakenAdapter,
     OkxAdapter,
     CryptocomAdapter,
-    createServiceFactory(CcxtMultiExchangeAdapter, [ConfigService.name]),
+    {
+      provide: CcxtMultiExchangeAdapter,
+      useFactory: (configService: ConfigService) => {
+        return new CcxtMultiExchangeAdapter(undefined, {
+          hasCustomAdapter: (exchange: string) => configService.hasCustomAdapter(exchange),
+          getCcxtExchangesFromFeeds: () => configService.getCcxtExchangesFromFeeds(),
+          getFeedConfigurations: () => configService.getFeedConfigurations(),
+        });
+      },
+      inject: [ConfigService],
+    },
 
     // Adapter initialization - this factory ensures all adapters are registered
     {
