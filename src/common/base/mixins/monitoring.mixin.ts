@@ -36,7 +36,7 @@ export function WithMonitoring<TBase extends Constructor | AbstractConstructor>(
 
     recordMetric(name: string, value: number): void {
       this.serviceMetrics.set(name, value);
-      (this as unknown as IBaseService).logDebug(`Metric recorded: ${name} = ${value}`);
+      (this as unknown as IBaseService).logDebug(`Metric recorded: ${name} = ${value}`, "monitoring");
     }
 
     incrementCounter(name: string, increment = 1): void {

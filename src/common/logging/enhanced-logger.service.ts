@@ -7,6 +7,7 @@ import type {
   StructuredLogEntry,
   LogLevel,
 } from "../types/logging";
+import { shouldLog } from "../types/logging";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
 import type { EnvironmentConfiguration } from "../types/services/configuration.types";
@@ -28,6 +29,7 @@ export class EnhancedLoggerService implements ILogger {
   private readonly enableFileLogging: boolean;
   private readonly enablePerformanceLogging: boolean;
   private readonly enableDebugLogging: boolean;
+  private readonly currentLogLevel: LogLevel;
 
   constructor(context: string = "EnhancedLogger", config?: EnvironmentConfiguration) {
     this.logger = new Logger(context);
@@ -38,12 +40,17 @@ export class EnhancedLoggerService implements ILogger {
       this.enablePerformanceLogging = config.logging.enablePerformanceLogging;
       this.enableDebugLogging = config.logging.enableDebugLogging;
       this.logDirectory = path.resolve(config.logging.logDirectory);
+
+      // Determine log level: component-specific overrides global
+      const componentLogLevel = config.logging.componentLogLevels[context.replace(/Service$/, "")];
+      this.currentLogLevel = (componentLogLevel as LogLevel) || (config.logLevel as LogLevel) || "log";
     } else {
       // Fallback to environment variables for backward compatibility
       this.enableFileLogging = process.env.ENABLE_FILE_LOGGING === "true";
       this.enablePerformanceLogging = process.env.ENABLE_PERFORMANCE_LOGGING !== "false"; // Default true
       this.enableDebugLogging = process.env.ENABLE_DEBUG_LOGGING === "true";
       this.logDirectory = path.join(process.cwd(), process.env.LOG_DIRECTORY || "logs");
+      this.currentLogLevel = (process.env.LOG_LEVEL as LogLevel) || "log";
     }
 
     // Setup log files
@@ -67,11 +74,15 @@ export class EnhancedLoggerService implements ILogger {
    * Requirement 6.1: Detailed logging for critical operations
    */
   log(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
+    if (!shouldLog("log", this.currentLogLevel)) {
+      return;
+    }
+
     const logEntry = this.createLogEntry("LOG", message, context, optionalParams);
     this.logger.log(logEntry.message, logEntry.context);
 
     if (this.enableFileLogging) {
-      this.writeToFile("info", logEntry);
+      this.writeToFile("log", logEntry);
     }
   }
 
@@ -80,6 +91,10 @@ export class EnhancedLoggerService implements ILogger {
    * Requirement 6.1: Error logging with sufficient detail for root cause analysis
    */
   error(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
+    if (!shouldLog("error", this.currentLogLevel)) {
+      return;
+    }
+
     const logEntry = this.createLogEntry("ERROR", message, context, optionalParams);
 
     // Extract error details if message is an Error object
@@ -98,6 +113,10 @@ export class EnhancedLoggerService implements ILogger {
    * Enhanced warning logging with context
    */
   warn(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
+    if (!shouldLog("warn", this.currentLogLevel)) {
+      return;
+    }
+
     const logEntry = this.createLogEntry("WARN", message, context, optionalParams);
     this.logger.warn(logEntry.message, logEntry.context);
 
@@ -111,7 +130,7 @@ export class EnhancedLoggerService implements ILogger {
    * Requirement 6.5: Debug logging for troubleshooting
    */
   debug(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
-    if (!this.enableDebugLogging) {
+    if (!shouldLog("debug", this.currentLogLevel) || !this.enableDebugLogging) {
       return;
     }
 
@@ -127,6 +146,10 @@ export class EnhancedLoggerService implements ILogger {
    * Verbose logging for detailed system behavior
    */
   verbose(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
+    if (!shouldLog("verbose", this.currentLogLevel)) {
+      return;
+    }
+
     const logEntry = this.createLogEntry("VERBOSE", message, context, optionalParams);
     this.logger.verbose(logEntry.message, logEntry.context);
 
@@ -139,6 +162,10 @@ export class EnhancedLoggerService implements ILogger {
    * Fatal error logging for critical system failures
    */
   fatal(message: LogMessage, context?: EnhancedLogContext, ...optionalParams: LogParameters): void {
+    if (!shouldLog("fatal", this.currentLogLevel)) {
+      return;
+    }
+
     const logEntry = this.createLogEntry("FATAL", message, context, optionalParams);
     this.logger.error(`[FATAL] ${logEntry.message}`, logEntry.context);
 

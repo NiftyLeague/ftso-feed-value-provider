@@ -1,17 +1,35 @@
+import type { LogLevel as NestLogLevel } from "@nestjs/common";
+
 /**
- * Defines the available log levels.
+ * Use NestJS LogLevel type for consistency with framework
+ * Valid values: "error" | "warn" | "log" | "debug" | "verbose" | "fatal"
  */
-export type LogLevel =
-  | "error"
-  | "warn"
-  | "info"
-  | "debug"
-  | "verbose"
-  | "low"
-  | "medium"
-  | "high"
-  | "critical"
-  | "fatal";
+export type LogLevel = NestLogLevel;
+
+/**
+ * Log level hierarchy for filtering
+ * Only includes NestJS-supported log levels
+ */
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  fatal: 0,
+  error: 1,
+  warn: 2,
+  log: 3,
+  debug: 4,
+  verbose: 5,
+};
+
+/**
+ * Check if a message should be logged based on current log level
+ */
+export function shouldLog(messageLevel: LogLevel, currentLevel: LogLevel): boolean {
+  return LOG_LEVEL_PRIORITY[messageLevel] <= LOG_LEVEL_PRIORITY[currentLevel];
+}
+
+/**
+ * Defines severity levels for error classification and alerting
+ */
+export type SeverityLevel = "low" | "medium" | "high" | "critical" | "fatal";
 
 /**
  * Base interface for common contextual information.
@@ -63,7 +81,7 @@ export interface EnhancedErrorLogEntry {
   context: LogContext;
   stackTrace: string;
   timestamp: number;
-  severity: LogLevel;
+  severity: SeverityLevel;
   recoverable: boolean;
   errorCode?: string;
   errorType?: string;
@@ -86,7 +104,7 @@ export interface PerformanceLogEntry {
 export type LogMessage = string | Error;
 
 export interface EnhancedLogContext extends IContext {
-  severity?: LogLevel;
+  severity?: SeverityLevel;
   metadata?: Record<string, unknown>;
   additionalParams?: unknown[];
   [key: string]: unknown;

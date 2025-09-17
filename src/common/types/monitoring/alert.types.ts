@@ -7,7 +7,7 @@ import type { AlertDeliveryConfig } from "./delivery.types";
  * Defines the severity levels for alerts.
  */
 export enum AlertSeverity {
-  INFO = "info",
+  INFO = "log",
   LOW = "low",
   MEDIUM = "medium",
   HIGH = "high",

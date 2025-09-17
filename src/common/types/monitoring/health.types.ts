@@ -111,7 +111,7 @@ export interface HealthAlert {
   sourceId?: string;
   reason?: string;
   timestamp: number;
-  severity: "info" | "warning" | "error" | "critical";
+  severity: "log" | "warning" | "error" | "critical";
   message: string;
 }
 

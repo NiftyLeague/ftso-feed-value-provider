@@ -1,4 +1,4 @@
-import { Logger } from "@nestjs/common";
+import { FilteredLogger } from "../../logging/filtered-logger";
 import { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
 import type { Constructor, AbstractConstructor } from "../../types/services/mixins";
 import type { EnvironmentConfiguration } from "../../types/services/configuration.types";
@@ -13,6 +13,7 @@ export interface LoggingCapabilities {
   logError(error: Error, context?: string, additionalData?: Record<string, unknown>): void;
   logWarning(message: string, context?: string, additionalData?: Record<string, unknown>): void;
   logDebug(message: string, context?: string, additionalData?: unknown): void;
+  logFatal(message: string, context?: string, additionalData?: Record<string, unknown>): void;
   logCriticalOperation(operation: string, details: Record<string, unknown>, success?: boolean): void;
   startPerformanceTimer(operationId: string, operation: string, metadata?: Record<string, unknown>): void;
   endPerformanceTimer(operationId: string, success?: boolean, additionalMetadata?: Record<string, unknown>): void;
@@ -23,18 +24,32 @@ export interface LoggingCapabilities {
  */
 export function WithLogging<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
   return class LoggingMixin extends Base implements LoggingCapabilities {
-    public readonly logger: Logger;
+    public readonly logger: FilteredLogger;
     public enhancedLogger?: EnhancedLoggerService;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(...args: any[]) {
       super(...args);
-      this.logger = new Logger(this.constructor.name);
+      this.logger = new FilteredLogger(this.constructor.name);
     }
 
     initializeEnhancedLogging(useEnhancedLogging: boolean, config?: EnvironmentConfiguration): void {
       if (useEnhancedLogging) {
         this.enhancedLogger = new EnhancedLoggerService(this.constructor.name, config);
+
+        // Apply component-specific log level if available
+        if (config?.logging?.componentLogLevels) {
+          const componentName = this.constructor.name.replace(/Service$/, ""); // Remove 'Service' suffix for lookup
+          const specificLogLevel = config.logging.componentLogLevels[componentName];
+
+          if (specificLogLevel) {
+            // Log that component-specific level is being applied
+            this.logger.log(`Applying component-specific log level: ${specificLogLevel}`, {
+              component: componentName,
+              logLevel: specificLogLevel,
+            });
+          }
+        }
       } else {
         this.enhancedLogger = undefined;
       }
@@ -71,6 +86,11 @@ export function WithLogging<TBase extends Constructor | AbstractConstructor>(Bas
     logDebug(message: string, context?: string, additionalData?: unknown): void {
       const contextMessage = context ? `[${context}] ` : "";
       this.logger.debug(`${contextMessage}${message}`, additionalData);
+    }
+
+    logFatal(message: string, context?: string, additionalData?: Record<string, unknown>): void {
+      const contextMessage = context ? `[${context}] ` : "";
+      this.logger.fatal(`${contextMessage}${message}`, additionalData);
     }
 
     logCriticalOperation(operation: string, details: Record<string, unknown>, success = true): void {

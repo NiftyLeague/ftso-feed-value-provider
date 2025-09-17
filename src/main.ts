@@ -5,7 +5,8 @@ import helmet from "helmet";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
-import { LogLevel, Logger, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, LogLevel } from "@nestjs/common";
+import { FilteredLogger } from "@/common/logging/filtered-logger";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
@@ -14,13 +15,16 @@ import { ConfigService } from "@/config/config.service";
 
 // Global application instance for graceful shutdown
 let app: INestApplication | null = null;
-const logger = new Logger("Bootstrap");
+let logger: FilteredLogger | null = null;
 let enhancedLogger: EnhancedLoggerService | null = null;
 
 async function bootstrap() {
   const operationId = `bootstrap_${Date.now()}`;
 
   try {
+    // Initialize filtered logger that handles log level filtering internally
+    logger = new FilteredLogger("Bootstrap");
+
     // Validate critical environment variables first
     await validateEnvironment();
 
@@ -45,6 +49,9 @@ async function bootstrap() {
       environment: config.nodeEnv,
       timestamp: Date.now(),
     });
+
+    // Start memory monitoring
+    startMemoryMonitoring(enhancedLogger);
 
     // Configure logging levels
     enhancedLogger.log(`Log level configured: ${config.logLevel}`, {
@@ -172,8 +179,8 @@ async function bootstrap() {
         },
       });
       enhancedLogger.endPerformanceTimer(operationId, false, { error: errObj.message });
-    } else {
-      logger.error("Application startup failed:", errObj);
+    } else if (logger) {
+      logger.error("Application startup failed:", errObj.stack, errObj.message);
     }
 
     // Attempt graceful cleanup
@@ -185,7 +192,7 @@ async function bootstrap() {
             component: "Bootstrap",
             operation: "cleanup_on_failure",
           });
-        } else {
+        } else if (logger) {
           logger.log("Application cleanup completed during startup failure");
         }
       } catch (closeError) {
@@ -196,8 +203,8 @@ async function bootstrap() {
             operation: "cleanup_on_failure",
             severity: "high",
           });
-        } else {
-          logger.error("Application cleanup failed:", closeErrObj);
+        } else if (logger) {
+          logger.error("Application cleanup failed:", closeErrObj.stack, closeErrObj.message);
         }
       }
     }
@@ -218,23 +225,30 @@ async function validateEnvironment(): Promise<void> {
   // Validate port number
   EnvironmentUtils.parseInt("VALUE_PROVIDER_CLIENT_PORT", 3101, { min: 1, max: 65535 });
 
-  logger.log("✅ Environment validation passed");
+  // Logger now handles filtering internally
+  if (logger) {
+    logger.log("✅ Environment validation passed");
+  }
 }
 
 function getLogLevels(): LogLevel[] {
   const logLevel = process.env.LOG_LEVEL?.toLowerCase();
 
   switch (logLevel) {
+    case "fatal":
+      return ["fatal"];
     case "error":
-      return ["error"];
+      return ["fatal", "error"];
     case "warn":
-      return ["error", "warn"];
+      return ["fatal", "error", "warn"];
+    case "log":
+      return ["fatal", "error", "warn", "log"];
     case "debug":
-      return ["error", "warn", "log", "debug", "verbose"];
+      return ["fatal", "error", "warn", "log", "debug"];
     case "verbose":
-      return ["error", "warn", "log", "debug", "verbose"];
+      return ["fatal", "error", "warn", "log", "debug", "verbose"];
     default:
-      return ["error", "warn", "log"];
+      return ["fatal", "error", "warn", "log"];
   }
 }
 
@@ -257,9 +271,13 @@ async function setupSwaggerDocumentation(app: INestApplication, basePath: string
     const document = SwaggerModule.createDocument(app, config, options);
     SwaggerModule.setup(`${basePath}/api-doc`, app, document);
 
-    logger.log("✅ API documentation configured");
+    if (logger) {
+      logger.log("✅ API documentation configured");
+    }
   } catch (error) {
-    logger.error("Failed to setup Swagger documentation:", error);
+    if (logger) {
+      logger.error("Failed to setup Swagger documentation:", String(error));
+    }
     throw error;
   }
 }
@@ -273,18 +291,24 @@ function setupGracefulShutdown(): void {
   signals.forEach(signal => {
     process.on(signal, async () => {
       if (isShuttingDown) {
-        logger.log(`Received ${signal} during shutdown, ignoring...`);
+        if (logger) {
+          logger.log(`Received ${signal} during shutdown, ignoring...`);
+        }
         return;
       }
 
       isShuttingDown = true;
-      logger.log(`Received ${signal}, starting graceful shutdown...`);
+      if (logger) {
+        logger.log(`Received ${signal}, starting graceful shutdown...`);
+      }
 
       try {
         await gracefulShutdown();
         process.exit(0);
       } catch (error) {
-        logger.error(`Error during ${signal} shutdown:`, error);
+        if (logger) {
+          logger.error(`Error during ${signal} shutdown:`, String(error));
+        }
         process.exit(1);
       }
     });
@@ -293,17 +317,23 @@ function setupGracefulShutdown(): void {
   // Handle uncaught exceptions
   process.on("uncaughtException", async error => {
     if (isShuttingDown) {
-      logger.log("Uncaught exception during shutdown, ignoring...");
+      if (logger) {
+        logger.log("Uncaught exception during shutdown, ignoring...");
+      }
       return;
     }
 
     isShuttingDown = true;
-    logger.error("Uncaught Exception:", error);
+    if (logger) {
+      logger.error("Uncaught Exception:", error.stack, error.message);
+    }
 
     try {
       await gracefulShutdown();
     } catch (shutdownError) {
-      logger.error("Error during exception shutdown:", shutdownError);
+      if (logger) {
+        logger.error("Error during exception shutdown:", String(shutdownError));
+      }
     }
 
     process.exit(1);
@@ -312,38 +342,52 @@ function setupGracefulShutdown(): void {
   // Handle unhandled promise rejections
   process.on("unhandledRejection", async (reason, promise) => {
     if (isShuttingDown) {
-      logger.log("Unhandled rejection during shutdown, ignoring...");
+      if (logger) {
+        logger.log("Unhandled rejection during shutdown, ignoring...");
+      }
       return;
     }
 
     isShuttingDown = true;
-    logger.error("Unhandled Rejection at:", promise, "reason:", reason);
+    if (logger) {
+      logger.error(`Unhandled Rejection at: ${promise} reason: ${reason}`);
+    }
 
     try {
       await gracefulShutdown();
     } catch (shutdownError) {
-      logger.error("Error during rejection shutdown:", shutdownError);
+      if (logger) {
+        logger.error("Error during rejection shutdown:", String(shutdownError));
+      }
     }
 
     process.exit(1);
   });
 
-  logger.log("✅ Graceful shutdown handlers configured");
+  if (logger) {
+    logger.log("✅ Graceful shutdown handlers configured");
+  }
 }
 
 async function gracefulShutdown(): Promise<void> {
   if (!app) {
-    logger.log("No application instance to shutdown");
+    if (logger) {
+      logger.log("No application instance to shutdown");
+    }
     return;
   }
 
   try {
-    logger.log("🛑 Initiating graceful shutdown...");
+    if (logger) {
+      logger.log("🛑 Initiating graceful shutdown...");
+    }
 
     // Set a timeout for shutdown process
     const timeoutMs = EnvironmentUtils.parseInt("GRACEFUL_SHUTDOWN_TIMEOUT_MS", 30000, { min: 1000, max: 300000 });
     const shutdownTimeout = setTimeout(() => {
-      logger.error(`⏰ Shutdown timeout reached after ${timeoutMs}ms, forcing exit`);
+      if (logger) {
+        logger.error(`⏰ Shutdown timeout reached after ${timeoutMs}ms, forcing exit`);
+      }
       process.exit(1);
     }, timeoutMs);
 
@@ -351,7 +395,9 @@ async function gracefulShutdown(): Promise<void> {
     const shutdownStartTime = Date.now();
 
     // Close the NestJS application (this will trigger OnModuleDestroy hooks)
-    logger.log("Closing NestJS application...");
+    if (logger) {
+      logger.log("Closing NestJS application...");
+    }
     await app.close();
 
     // Clear the app reference
@@ -360,13 +406,17 @@ async function gracefulShutdown(): Promise<void> {
     const shutdownDuration = Date.now() - shutdownStartTime;
     clearTimeout(shutdownTimeout);
 
-    logger.log(`✅ Graceful shutdown completed in ${shutdownDuration}ms`);
+    if (logger) {
+      logger.log(`✅ Graceful shutdown completed in ${shutdownDuration}ms`);
+    }
 
     // Give a moment for any final cleanup
     await new Promise(resolve => setTimeout(resolve, 100));
   } catch (error) {
     const errObj = error instanceof Error ? error : new Error(String(error));
-    logger.error("❌ Error during graceful shutdown:", errObj);
+    if (logger) {
+      logger.error("❌ Error during graceful shutdown:", errObj.stack, errObj.message);
+    }
 
     // Force exit after a short delay to allow error logging
     setTimeout(() => {
@@ -380,7 +430,9 @@ async function waitForApplicationReady(): Promise<void> {
   const checkInterval = 1000; // 1 second
   const startTime = Date.now();
 
-  logger.log("Waiting for application to be ready...");
+  if (logger) {
+    logger.log("Waiting for application to be ready...");
+  }
 
   while (Date.now() - startTime < maxWaitTime) {
     try {
@@ -399,20 +451,67 @@ async function waitForApplicationReady(): Promise<void> {
       if (response.ok) {
         const data = await response.json();
         if (data.ready) {
-          logger.log(`✅ Application ready after ${Date.now() - startTime}ms`);
+          if (logger) {
+            logger.log(`✅ Application ready after ${Date.now() - startTime}ms`);
+          }
           return; // Application is ready
         }
       }
     } catch (error) {
       // Health check not ready yet, continue waiting
       const msg = error instanceof Error ? error.message : String(error);
-      logger.debug(`Readiness check failed: ${msg}`);
+      if (logger) {
+        logger.debug(`Readiness check failed: ${msg}`);
+      }
     }
 
     await new Promise(resolve => setTimeout(resolve, checkInterval));
   }
 
-  logger.warn(`⚠️ Application readiness check timed out after ${maxWaitTime}ms, but continuing startup`);
+  if (logger) {
+    logger.warn(`⚠️ Application readiness check timed out after ${maxWaitTime}ms, but continuing startup`);
+  }
+}
+
+function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
+  const memoryCheckInterval = 30000; // Check every 30 seconds
+  const memoryWarningThreshold = 0.8; // 80% of heap used
+  const memoryCriticalThreshold = 0.9; // 90% of heap used
+
+  setInterval(() => {
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+    const heapUsedPercent = memUsage.heapUsed / memUsage.heapTotal;
+
+    const memoryInfo = {
+      heapUsed: `${heapUsedMB}MB`,
+      heapTotal: `${heapTotalMB}MB`,
+      heapUsedPercent: `${(heapUsedPercent * 100).toFixed(1)}%`,
+      external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
+      rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+    };
+
+    if (heapUsedPercent >= memoryCriticalThreshold) {
+      if (logger) {
+        logger.error(`CRITICAL: Memory usage is dangerously high - ${JSON.stringify(memoryInfo)}`);
+      }
+    } else if (heapUsedPercent >= memoryWarningThreshold) {
+      if (logger) {
+        logger.warn(`WARNING: Memory usage is high - ${JSON.stringify(memoryInfo)}`);
+      }
+    } else {
+      if (logger) {
+        logger.debug(`Memory usage normal - ${JSON.stringify(memoryInfo)}`);
+      }
+    }
+  }, memoryCheckInterval);
+
+  if (logger) {
+    logger.log(
+      `Memory monitoring started - checkInterval: ${memoryCheckInterval}ms, warningThreshold: ${memoryWarningThreshold * 100}%, criticalThreshold: ${memoryCriticalThreshold * 100}%`
+    );
+  }
 }
 
 // Start the application

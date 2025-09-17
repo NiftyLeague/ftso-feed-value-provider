@@ -49,7 +49,7 @@ describe("ConfigService", () => {
                 circuitBreakerThreshold: 5,
                 circuitBreakerTimeout: 30000,
               },
-              logging: { level: "info", format: "json" },
+              logging: { level: "log", format: "json" },
               exchangeApiKeys: {},
             }),
             validateEnvironmentConfig: jest

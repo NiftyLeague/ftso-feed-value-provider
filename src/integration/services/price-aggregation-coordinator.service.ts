@@ -66,7 +66,11 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
       this.endTimer(operationId);
-      this.logError(errObj, "price_aggregation_initialization", { severity: "critical" });
+      this.logFatal(`Price aggregation initialization failed: ${errObj.message}`, "price_aggregation_initialization", {
+        severity: "critical",
+        error: errObj.message,
+        stack: errObj.stack,
+      });
       throw error;
     }
   }
@@ -180,7 +184,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
       // Track feed access for cache warming
       const feedId = this.getFeedIdFromSymbol(update.symbol);
       if (!feedId) {
-        this.logger.warn(`Unknown feed symbol: ${update.symbol}`);
+        // Silently ignore unknown symbols - no logging needed
         return;
       }
       this.cacheWarmerService.trackFeedAccess(feedId);
@@ -294,7 +298,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
       // Cache the aggregated price
       const feedId = this.getFeedIdFromSymbol(aggregatedPrice.symbol);
       if (!feedId) {
-        this.logger.warn(`Unknown feed symbol: ${aggregatedPrice.symbol}`);
+        // Silently ignore unknown symbols - no logging needed
         return;
       }
 

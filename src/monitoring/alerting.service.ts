@@ -113,16 +113,17 @@ export class AlertingService extends StandardService implements OnModuleDestroy 
   private getLogLevel(severity: AlertSeverity): LogLevel {
     switch (severity) {
       case AlertSeverity.CRITICAL:
+        return "fatal";
+      case AlertSeverity.HIGH:
       case AlertSeverity.ERROR:
         return "error";
-      case AlertSeverity.WARNING:
-      case AlertSeverity.HIGH:
-        return "warn";
       case AlertSeverity.MEDIUM:
+      case AlertSeverity.WARNING:
+        return "warn";
       case AlertSeverity.LOW:
       case AlertSeverity.INFO:
       default:
-        return "info";
+        return "log";
     }
   }
 

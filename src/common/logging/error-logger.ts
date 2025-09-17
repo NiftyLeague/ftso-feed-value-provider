@@ -4,7 +4,7 @@
  */
 
 import { Logger } from "@nestjs/common";
-import type { EnhancedErrorLogEntry, LogContext, LogLevel } from "../types/logging";
+import type { EnhancedErrorLogEntry, LogContext, LogLevel, SeverityLevel } from "../types/logging";
 import { ErrorSeverity, ErrorCode } from "../types/error-handling/error.types";
 
 /**
@@ -13,15 +13,33 @@ import { ErrorSeverity, ErrorCode } from "../types/error-handling/error.types";
 function mapSeverityToLogLevel(severity: ErrorSeverity): LogLevel {
   switch (severity) {
     case ErrorSeverity.CRITICAL:
-      return "error";
+      return "fatal";
     case ErrorSeverity.HIGH:
       return "error";
     case ErrorSeverity.MEDIUM:
       return "warn";
     case ErrorSeverity.LOW:
-      return "info";
+      return "log";
     default:
       return "error";
+  }
+}
+
+/**
+ * Maps ErrorSeverity to SeverityLevel for error tracking
+ */
+function mapErrorSeverityToSeverityLevel(severity: ErrorSeverity): SeverityLevel {
+  switch (severity) {
+    case ErrorSeverity.CRITICAL:
+      return "critical";
+    case ErrorSeverity.HIGH:
+      return "high";
+    case ErrorSeverity.MEDIUM:
+      return "medium";
+    case ErrorSeverity.LOW:
+      return "low";
+    default:
+      return "critical";
   }
 }
 import * as fs from "fs";
@@ -52,7 +70,7 @@ export class ErrorLogger {
       context: context || {},
       stackTrace: error.stack || "No stack trace available",
       timestamp: Date.now(),
-      severity: mapSeverityToLogLevel(errorSeverity),
+      severity: mapErrorSeverityToSeverityLevel(errorSeverity),
       recoverable: this.isRecoverableError(error),
       errorCode: (() => {
         const code = typedError.code || context?.errorCode;
@@ -70,7 +88,28 @@ export class ErrorLogger {
 
     // Enhanced error message with context
     const enhancedMessage = this.formatErrorMessage(errorEntry);
-    this.logger.error(enhancedMessage);
+    const logLevel = mapSeverityToLogLevel(errorSeverity);
+
+    // Log at appropriate level based on severity
+    switch (logLevel) {
+      case "error":
+        this.logger.error(enhancedMessage);
+        break;
+      case "warn":
+        this.logger.warn(enhancedMessage);
+        break;
+      case "log":
+        this.logger.log(enhancedMessage);
+        break;
+      case "debug":
+        this.logger.debug(enhancedMessage);
+        break;
+      case "verbose":
+        this.logger.verbose(enhancedMessage);
+        break;
+      default:
+        this.logger.error(enhancedMessage);
+    }
 
     if (this.enableFileLogging) {
       this.writeToFile(errorEntry);

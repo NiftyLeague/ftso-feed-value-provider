@@ -212,7 +212,7 @@ describe("ErrorLogger", () => {
         { message: "validation error", expectedSeverity: "warn" },
         { message: "parsing failed", expectedSeverity: "warn" },
         { message: "rate limit exceeded", expectedSeverity: "warn" },
-        { message: "general error", expectedSeverity: "info" },
+        { message: "general error", expectedSeverity: "log" },
       ];
 
       testCases.forEach(({ message, expectedSeverity }) => {

@@ -83,7 +83,11 @@ export class SystemHealthService extends EventDrivenService {
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
       this.endTimer(operationId);
-      this.logError(errObj, "system_health_initialization", { severity: "critical" });
+      this.logFatal(`System health initialization failed: ${errObj.message}`, "system_health_initialization", {
+        severity: "critical",
+        error: errObj.message,
+        stack: errObj.stack,
+      });
       throw error;
     }
   }
@@ -321,14 +325,14 @@ export class SystemHealthService extends EventDrivenService {
 
   private checkAndSendHealthAlert(sourceId: string, status: string): void {
     try {
-      let alertSeverity: "info" | "warning" | "error" | "critical" = "info";
+      let alertSeverity: "log" | "warning" | "error" | "critical" = "log";
       let alertMessage = `Data source ${sourceId} status changed to ${status}`;
 
       if (status === "unhealthy") {
         alertSeverity = "warning";
         alertMessage = `Data source ${sourceId} is unhealthy`;
       } else if (status === "recovered") {
-        alertSeverity = "info";
+        alertSeverity = "log";
         alertMessage = `Data source ${sourceId} has recovered`;
       }
 
