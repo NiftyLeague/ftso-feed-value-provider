@@ -57,7 +57,6 @@ describe("Service Interface Implementation", () => {
             getFeedConfigurationsByCategory: jest.fn(),
             getEnvironmentConfig: jest.fn(),
             validateConfiguration: jest.fn(),
-            reloadConfiguration: jest.fn(),
             hasCustomAdapter: jest.fn(),
             getAdapterClass: jest.fn(),
             getCcxtId: jest.fn(),
@@ -122,7 +121,6 @@ describe("Service Interface Implementation", () => {
       expect(configService.getFeedConfigurationsByCategory).toBeDefined();
       expect(configService.getEnvironmentConfig).toBeDefined();
       expect(configService.validateConfiguration).toBeDefined();
-      expect(configService.reloadConfiguration).toBeDefined();
       expect(configService.hasCustomAdapter).toBeDefined();
       expect(configService.getAdapterClass).toBeDefined();
       expect(configService.getCcxtId).toBeDefined();

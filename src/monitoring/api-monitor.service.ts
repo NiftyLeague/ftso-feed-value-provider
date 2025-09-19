@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { EndpointStats, SlowResponseData, ServerErrorData, HighErrorRateData } from "@/common/types/monitoring";
 import type { ApiMetrics, ApiHealthMetrics } from "@/common/types/monitoring";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 @Injectable()
 export class ApiMonitorService extends EventDrivenService {

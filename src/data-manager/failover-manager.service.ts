@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
 import type { FailoverConfig, SourceHealth, FailoverGroup } from "@/common/types/data-manager";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 @Injectable()
 export class FailoverManager extends EventDrivenService {

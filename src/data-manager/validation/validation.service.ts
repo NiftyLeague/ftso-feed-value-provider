@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 import { FeedCategory } from "@/common/types/core";
 import type { PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { ErrorSeverity, ErrorCode } from "@/common/types/error-handling";

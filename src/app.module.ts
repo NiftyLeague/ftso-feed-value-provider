@@ -26,7 +26,7 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { DebugService } from "@/common/debug/debug.service";
-import { ENV, ENV_HELPERS } from "@/common/constants";
+import { ENV, ENV_HELPERS } from "@/config";
 
 @Module({
   imports: [

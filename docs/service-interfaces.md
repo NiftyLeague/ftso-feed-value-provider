@@ -76,7 +76,6 @@ Interface for configuration management and validation.
   Get configs by category
 - `getEnvironmentConfig(): EnvironmentConfig` - Get environment configuration
 - `validateConfiguration(): ValidationResult` - Validate current configuration
-- `reloadConfiguration(): void` - Reload configuration from files
 - `hasCustomAdapter(exchange: string): boolean` - Check if exchange has custom
   adapter
 - `getExchangeApiKey(exchange: string): ApiKeyConfig | undefined` - Get API key

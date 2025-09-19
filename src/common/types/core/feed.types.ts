@@ -14,6 +14,14 @@ export interface CoreFeedId {
   name: string;
 }
 
+export interface FeedConfiguration {
+  feed: CoreFeedId;
+  sources: {
+    exchange: string;
+    symbol: string;
+  }[];
+}
+
 export function isValidFeedCategory(category: number): category is FeedCategory {
   return Object.values(FeedCategory).includes(category);
 }

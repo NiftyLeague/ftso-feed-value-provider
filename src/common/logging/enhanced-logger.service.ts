@@ -10,8 +10,8 @@ import type {
 import { shouldLog } from "../types/logging";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
-import type { EnvironmentConfiguration } from "../types/services/configuration.types";
-import { ENV } from "../constants";
+
+import { ENV } from "@/config";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -32,27 +32,15 @@ export class EnhancedLoggerService implements ILogger {
   private readonly enableDebugLogging: boolean;
   private readonly currentLogLevel: LogLevel;
 
-  constructor(context: string = "EnhancedLogger", config?: EnvironmentConfiguration) {
+  constructor(context: string = "EnhancedLogger") {
     this.logger = new Logger(context);
 
-    // Configure logging based on provided config or fallback to environment variables
-    if (config?.logging) {
-      this.enableFileLogging = config.logging.enableFileLogging;
-      this.enablePerformanceLogging = config.logging.enablePerformanceLogging;
-      this.enableDebugLogging = config.logging.enableDebugLogging;
-      this.logDirectory = path.resolve(config.logging.logDirectory);
-
-      // Determine log level: component-specific overrides global
-      const componentLogLevel = config.logging.componentLogLevels[context.replace(/Service$/, "")];
-      this.currentLogLevel = (componentLogLevel as LogLevel) || (config.logLevel as LogLevel) || "log";
-    } else {
-      // Fallback to environment variables for backward compatibility
-      this.enableFileLogging = ENV.LOGGING.ENABLE_FILE_LOGGING;
-      this.enablePerformanceLogging = ENV.LOGGING.ENABLE_PERFORMANCE_LOGGING;
-      this.enableDebugLogging = ENV.LOGGING.ENABLE_DEBUG_LOGGING;
-      this.logDirectory = path.join(process.cwd(), ENV.LOGGING.LOG_DIRECTORY);
-      this.currentLogLevel = ENV.LOGGING.LOG_LEVEL;
-    }
+    // Use ENV constants directly - simpler and more reliable
+    this.enableFileLogging = ENV.LOGGING.ENABLE_FILE_LOGGING;
+    this.enablePerformanceLogging = ENV.LOGGING.ENABLE_PERFORMANCE_LOGGING;
+    this.enableDebugLogging = ENV.LOGGING.ENABLE_DEBUG_LOGGING;
+    this.logDirectory = path.join(process.cwd(), ENV.LOGGING.LOG_DIRECTORY);
+    this.currentLogLevel = ENV.LOGGING.LOG_LEVEL;
 
     // Setup log files
     this.debugLogFile = path.join(this.logDirectory, "debug.log");

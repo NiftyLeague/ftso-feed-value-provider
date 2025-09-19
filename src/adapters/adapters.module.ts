@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ExchangeAdapterRegistry } from "./base/exchange-adapter.registry";
-import { ConfigService } from "@/config/config.service";
-import { ConfigModule } from "@/config/config.module";
+import { hasCustomAdapter, getAllFeedConfigurations } from "@/common/utils";
 
 // Import all crypto adapters
 import { BinanceAdapter } from "./crypto/binance.adapter";
@@ -12,7 +11,7 @@ import { CryptocomAdapter } from "./crypto/cryptocom.adapter";
 import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
 
 @Module({
-  imports: [ConfigModule],
+  imports: [],
   providers: [
     // Crypto adapters
     BinanceAdapter,
@@ -22,14 +21,24 @@ import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
     CryptocomAdapter,
     {
       provide: CcxtMultiExchangeAdapter,
-      useFactory: (configService: ConfigService) => {
+      useFactory: () => {
         return new CcxtMultiExchangeAdapter(undefined, {
-          hasCustomAdapter: (exchange: string) => configService.hasCustomAdapter(exchange),
-          getCcxtExchangesFromFeeds: () => configService.getCcxtExchangesFromFeeds(),
-          getFeedConfigurations: () => configService.getFeedConfigurations(),
+          hasCustomAdapter: (exchange: string) => hasCustomAdapter(exchange),
+          getCcxtExchangesFromFeeds: () => {
+            const allFeeds = getAllFeedConfigurations();
+            const exchanges = new Set<string>();
+            allFeeds.forEach(feed => {
+              feed.sources.forEach(source => {
+                exchanges.add(source.exchange);
+              });
+            });
+            const allExchanges = Array.from(exchanges);
+            const customAdapterExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
+            return allExchanges.filter(exchange => !customAdapterExchanges.includes(exchange));
+          },
+          getFeedConfigurations: () => getAllFeedConfigurations(),
         });
       },
-      inject: [ConfigService],
     },
 
     // Adapter initialization - this factory ensures all adapters are registered

@@ -1,7 +1,6 @@
 import { FilteredLogger } from "../../logging/filtered-logger";
 import { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
 import type { Constructor, AbstractConstructor } from "../../types/services/mixins";
-import type { EnvironmentConfiguration } from "../../types/services/configuration.types";
 
 /**
  * Logging capabilities interface
@@ -33,23 +32,11 @@ export function WithLogging<TBase extends Constructor | AbstractConstructor>(Bas
       this.logger = new FilteredLogger(this.constructor.name);
     }
 
-    initializeEnhancedLogging(useEnhancedLogging: boolean, config?: EnvironmentConfiguration): void {
+    initializeEnhancedLogging(useEnhancedLogging: boolean): void {
       if (useEnhancedLogging) {
-        this.enhancedLogger = new EnhancedLoggerService(this.constructor.name, config);
+        this.enhancedLogger = new EnhancedLoggerService(this.constructor.name);
 
-        // Apply component-specific log level if available
-        if (config?.logging?.componentLogLevels) {
-          const componentName = this.constructor.name.replace(/Service$/, ""); // Remove 'Service' suffix for lookup
-          const specificLogLevel = config.logging.componentLogLevels[componentName];
-
-          if (specificLogLevel) {
-            // Log that component-specific level is being applied
-            this.logger.log(`Applying component-specific log level: ${specificLogLevel}`, {
-              component: componentName,
-              logLevel: specificLogLevel,
-            });
-          }
-        }
+        // Component-specific log levels could be implemented here if needed
       } else {
         this.enhancedLogger = undefined;
       }

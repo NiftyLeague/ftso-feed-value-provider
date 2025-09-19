@@ -17,7 +17,7 @@ import {
   getRetryConfig,
   StandardErrorClassification as ErrorClass,
 } from "@/common/types/error-handling";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 /**
  * Standardized error handler service that provides:

@@ -1,654 +1,127 @@
-import { join } from "path";
-import { readFileSync } from "fs";
+/**
+ * Config Service
+ * Simple configuration service that provides feed management and adapter utilities
+ */
+
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
-
-import type { IConfigurationService } from "@/common/types/services";
+import { ENV, ENV_HELPERS } from "./environment.constants";
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
+import { type IConfigurationService } from "@/common/types";
+import { type FeedConfiguration } from "@/common/types/core";
+import {
+  getAllFeedConfigurations,
+  getFeedConfiguration as getFeedConfigUtil,
+  hasCustomAdapter as hasCustomAdapterUtil,
+  reloadFeedConfigurations as reloadFeedConfigsUtil,
+} from "@/common/utils";
 
-import { ConfigValidationService } from "./config-validation.service";
-import type { EnvironmentConfiguration, ConfigValidationResult } from "@/common/types";
-
-import { FileWatcherService } from "./file-watcher.service";
-
-export interface AdapterMapping {
-  [exchange: string]: {
-    hasCustomAdapter: boolean;
-    adapterClass?: string;
-    ccxtId?: string;
-  };
-}
-
-export interface FeedConfiguration {
-  feed: CoreFeedId;
-  sources: {
-    exchange: string;
-    symbol: string;
-  }[];
-}
-
-export interface ProductionFeedConfig {
-  feeds: FeedConfiguration[];
-}
-
-// Raw JSON structure from feeds.json - matches the actual file format
-export interface RawFeedData {
-  feed: {
-    category: number;
-    name: string;
-  };
-  sources: {
-    exchange: string;
-    symbol: string;
-  }[];
-}
-
+/**
+ * Simple configuration service - most code should use ENV constants directly
+ * This service reuses the utilities from @/common/utils for consistency
+ */
 @Injectable()
 export class ConfigService extends StandardService implements IConfigurationService {
-  private readonly adapterMappings: AdapterMapping;
-  private feedConfigurations: FeedConfiguration[] = [];
-  private environmentConfig: EnvironmentConfiguration;
-  private feedsFilePath: string;
-
-  constructor(
-    private readonly configValidationService: ConfigValidationService,
-    private readonly fileWatcherService: FileWatcherService
-  ) {
+  constructor() {
     super({ useEnhancedLogging: true });
-    // Use process.cwd() to get the project root, then navigate to the source config directory
-    this.feedsFilePath = join(process.cwd(), "src", "config", "feeds.json");
-    this.adapterMappings = this.initializeAdapterMappings();
-    this.environmentConfig = this.configValidationService.loadAndValidateEnvironmentConfig();
-    this.loadFeedConfigurations();
   }
 
-  /**
-   * Get environment configuration
-   * Requirements: 5.1, 5.2
-   */
-  getEnvironmentConfig(): EnvironmentConfiguration {
-    return { ...this.environmentConfig };
-  }
-
-  /**
-   * Get specific environment configuration section
-   * Requirements: 5.1
-   */
-  getAlertingConfig() {
-    return { ...this.environmentConfig.alerting };
-  }
-
-  getCacheConfig() {
-    return { ...this.environmentConfig.cache };
-  }
-
-  getMonitoringConfig() {
-    return { ...this.environmentConfig.monitoring };
-  }
-
-  getErrorHandlingConfig() {
-    return { ...this.environmentConfig.errorHandling };
-  }
-
-  getExchangeApiKeys() {
-    return { ...this.environmentConfig.exchangeApiKeys };
-  }
-
-  /**
-   * Get API key for specific exchange
-   * Requirements: 5.1
-   */
-  getExchangeApiKey(exchange: string) {
-    return this.environmentConfig.exchangeApiKeys[exchange.toLowerCase()];
-  }
-
-  /**
-   * Initialize adapter mappings - simple detection of which exchanges have custom adapters
-   * Requirements: 1.1, 1.4
-   */
-  private initializeAdapterMappings(): AdapterMapping {
-    return {
-      // Crypto Exchanges with custom adapters (Tier 1)
-      binance: { hasCustomAdapter: true, adapterClass: "BinanceAdapter" },
-      coinbase: { hasCustomAdapter: true, adapterClass: "CoinbaseAdapter" },
-      cryptocom: { hasCustomAdapter: true, adapterClass: "CryptocomAdapter" },
-      kraken: { hasCustomAdapter: true, adapterClass: "KrakenAdapter" },
-      okx: { hasCustomAdapter: true, adapterClass: "OkxAdapter" },
-
-      // All other Crypto Exchanges use CCXT (Tier 2)
-      binanceus: { hasCustomAdapter: false, ccxtId: "binanceus" },
-      bingx: { hasCustomAdapter: false, ccxtId: "bingx" },
-      bitfinex: { hasCustomAdapter: false, ccxtId: "bitfinex" },
-      bitget: { hasCustomAdapter: false, ccxtId: "bitget" },
-      bitmart: { hasCustomAdapter: false, ccxtId: "bitmart" },
-      bitrue: { hasCustomAdapter: false, ccxtId: "bitrue" },
-      bitstamp: { hasCustomAdapter: false, ccxtId: "bitstamp" },
-      bybit: { hasCustomAdapter: false, ccxtId: "bybit" },
-      gate: { hasCustomAdapter: false, ccxtId: "gate" },
-      htx: { hasCustomAdapter: false, ccxtId: "htx" },
-      kucoin: { hasCustomAdapter: false, ccxtId: "kucoin" },
-      mexc: { hasCustomAdapter: false, ccxtId: "mexc" },
-      probit: { hasCustomAdapter: false, ccxtId: "probit" },
-      // Add more exchanges as needed - they'll automatically use CCXT
-    };
-  }
-
-  /**
-   * Check if exchange has a custom adapter
-   * Requirements: 1.1
-   */
-  hasCustomAdapter(exchange: string): boolean {
-    return this.adapterMappings[exchange]?.hasCustomAdapter ?? false;
-  }
-
-  /**
-   * Get adapter class name for custom adapter exchanges
-   * Requirements: 1.1
-   */
-  getAdapterClass(exchange: string): string | undefined {
-    const mapping = this.adapterMappings[exchange];
-    return mapping?.hasCustomAdapter ? mapping.adapterClass : undefined;
-  }
-
-  /**
-   * Get CCXT ID for CCXT exchanges
-   * Requirements: 1.4
-   */
-  getCcxtId(exchange: string): string | undefined {
-    const mapping = this.adapterMappings[exchange];
-    return !mapping?.hasCustomAdapter ? mapping?.ccxtId || exchange : undefined;
-  }
-
-  /**
-   * Get all exchanges with custom adapters
-   * Requirements: 1.1
-   */
-  getCustomAdapterExchanges(): string[] {
-    return Object.entries(this.adapterMappings)
-      .filter(([_, mapping]) => mapping.hasCustomAdapter)
-      .map(([exchange, _]) => exchange);
-  }
-
-  /**
-   * Get all exchanges using CCXT
-   * Requirements: 1.4
-   */
-  getCcxtExchanges(): string[] {
-    return Object.entries(this.adapterMappings)
-      .filter(([_, mapping]) => !mapping.hasCustomAdapter)
-      .map(([exchange, _]) => exchange);
-  }
-
-  /**
-   * Get all unique exchanges from feeds.json configuration
-   * Requirements: 1.4
-   */
-  getAllExchangesFromFeeds(): string[] {
-    const feeds = this.getFeedConfigurations();
-    const exchanges = new Set<string>();
-
-    feeds.forEach(feed => {
-      feed.sources.forEach(source => {
-        exchanges.add(source.exchange);
-      });
-    });
-
-    return Array.from(exchanges);
-  }
-
-  /**
-   * Get CCXT-only exchanges from feeds.json (exchanges that don't have custom adapters)
-   * Requirements: 1.4
-   */
-  getCcxtExchangesFromFeeds(): string[] {
-    const allExchanges = this.getAllExchangesFromFeeds();
-    return allExchanges.filter(exchange => !this.hasCustomAdapter(exchange));
-  }
-
-  /**
-   * Add new exchange mapping (for dynamic configuration)
-   * Requirements: 1.1, 1.4
-   */
-  addExchange(exchange: string, hasCustomAdapter: boolean, adapterClass?: string, ccxtId?: string): void {
-    this.adapterMappings[exchange] = {
-      hasCustomAdapter,
-      adapterClass: hasCustomAdapter ? adapterClass : undefined,
-      ccxtId: !hasCustomAdapter ? ccxtId || exchange : undefined,
-    };
-
-    this.logger.log(`Added exchange ${exchange} with ${hasCustomAdapter ? "custom adapter" : "CCXT"}`);
-  }
-
-  /**
-   * Get hybrid configuration summary for a feed
-   * Requirements: 1.1, 1.4
-   */
-  getHybridSummary(sources: { exchange: string; symbol: string }[]): {
-    customAdapterSources: string[];
-    ccxtSources: string[];
-    totalSources: number;
-    hybridMode: boolean;
-  } {
-    const customAdapterSources = sources
-      .filter(source => this.hasCustomAdapter(source.exchange))
-      .map(source => source.exchange);
-
-    const ccxtSources = sources
-      .filter(source => !this.hasCustomAdapter(source.exchange))
-      .map(source => source.exchange);
-
-    return {
-      customAdapterSources,
-      ccxtSources,
-      totalSources: sources.length,
-      hybridMode: customAdapterSources.length > 0 && ccxtSources.length > 0,
-    };
-  }
-
-  /**
-   * Get configuration for hybrid data provider
-   * Requirements: 1.1, 1.4
-   */
-  getHybridProviderConfig(): {
-    customAdapterExchanges: string[];
-    ccxtExchanges: string[];
-    ccxtParameters: {
-      lambda: number;
-      tradesLimit: number;
-      retryBackoffMs: number;
-    };
-  } {
-    return {
-      customAdapterExchanges: this.getCustomAdapterExchanges(),
-      ccxtExchanges: this.getCcxtExchanges(),
-      ccxtParameters: {
-        lambda: 0.00005, // Same as existing CCXT implementation
-        tradesLimit: 1000, // Same as existing CCXT implementation
-        retryBackoffMs: 10000, // Same as existing CCXT implementation
-      },
-    };
-  }
-
-  /**
-   * Load feed configurations from feeds.json with comprehensive error handling
-   * Requirements: 5.1, 5.2, 5.4
-   */
-  private loadFeedConfigurations(): void {
-    try {
-      this.logger.log(`Loading feed configurations from ${this.feedsFilePath}`);
-
-      const feedsData = readFileSync(this.feedsFilePath, "utf8");
-      const feedsJson = JSON.parse(feedsData) as RawFeedData[];
-
-      // Validate the JSON structure
-      const validation = this.configValidationService.validateFeedConfigurationStructure(feedsJson);
-      if (!validation.isValid) {
-        this.logger.error("Feed configuration validation failed:");
-        validation.errors.forEach(error => this.logger.error(`  - ${error}`));
-
-        if (validation.errors.length > 0) {
-          throw new Error("Critical feed configuration errors detected");
-        }
-      }
-
-      if (validation.warnings.length > 0) {
-        this.logger.warn("Feed configuration warnings:");
-        validation.warnings.forEach(warning => this.logger.warn(`  - ${warning}`));
-      }
-
-      this.feedConfigurations = this.parseFeedConfigurations(feedsJson);
-      this.logger.log(`Successfully loaded ${this.feedConfigurations.length} feed configurations`);
-
-      // Validate all sources in the configurations
-      this.validateAllFeedSources();
-    } catch (error) {
-      this.logger.error("Failed to load feed configurations:", error);
-
-      if (error instanceof SyntaxError) {
-        this.logger.error("feeds.json contains invalid JSON syntax");
-      } else if (typeof error === "object" && error !== null && "code" in error) {
-        const code = (error as { code?: unknown }).code;
-        if (code === "ENOENT") {
-          this.logger.error(`feeds.json file not found at ${this.feedsFilePath}`);
-        }
-      }
-
-      this.logger.error("No feed configurations available - feeds.json is required");
-      this.feedConfigurations = [];
-    }
-  }
-
-  /**
-   * Validate all sources in feed configurations
-   * Requirements: 5.1, 5.2
-   */
-  private validateAllFeedSources(): void {
-    let totalSources = 0;
-    let validatedSources = 0;
-    let warningCount = 0;
-
-    for (const feedConfig of this.feedConfigurations) {
-      const sources = feedConfig.sources.map(s => ({ exchange: s.exchange, symbol: s.symbol }));
-      totalSources += sources.length;
-
-      const validation = this.configValidationService.validateSources(sources, this.adapterMappings);
-      if (validation.isValid) {
-        validatedSources += sources.length;
-      }
-      warningCount += validation.warnings.length;
-
-      if (validation.warnings.length > 0) {
-        this.logger.debug(`Feed ${feedConfig.feed.name} validation warnings:`, validation.warnings);
-      }
-    }
-
-    this.logger.log(`Feed source validation complete: ${validatedSources}/${totalSources} sources validated`);
-    if (warningCount > 0) {
-      this.logger.warn(`Total validation warnings: ${warningCount}`);
-    }
-  }
-
-  /**
-   * Parse feed configurations from feeds.json format
-   * Requirements: 5.1, 5.2
-   */
-  private parseFeedConfigurations(feedsJson: RawFeedData[]): FeedConfiguration[] {
-    const configurations: FeedConfiguration[] = [];
-
-    for (const feedData of feedsJson) {
-      try {
-        const config: FeedConfiguration = {
-          feed: {
-            category: feedData.feed.category,
-            name: feedData.feed.name,
-          },
-          sources: feedData.sources,
-        };
-
-        configurations.push(config);
-      } catch (error) {
-        this.logger.error(`Failed to parse feed configuration for ${feedData.feed.name}:`, error);
-      }
-    }
-
-    return configurations;
-  }
-
-  /**
-   * Get all feed configurations
-   * Requirements: 5.1, 5.2
-   */
+  // Core feed methods (actually used) - delegate to utilities
   getFeedConfigurations(): FeedConfiguration[] {
-    return this.feedConfigurations;
+    return getAllFeedConfigurations();
   }
 
-  /**
-   * Get feed configuration by feed ID
-   * Requirements: 5.1, 5.2
-   */
   getFeedConfiguration(feedId: CoreFeedId): FeedConfiguration | undefined {
-    return this.feedConfigurations.find(
-      config => config.feed.category === feedId.category && config.feed.name === feedId.name
-    );
+    return getFeedConfigUtil(feedId);
   }
 
-  /**
-   * Get feed configurations by category
-   * Requirements: 5.1
-   */
+  // Core adapter method (actually used) - delegate to utility
+  hasCustomAdapter(exchange: string): boolean {
+    return hasCustomAdapterUtil(exchange);
+  }
+
+  // Environment config - return ENV constants directly
+  getEnvironmentConfig() {
+    return ENV;
+  }
+
+  // Interface compatibility methods (rarely used)
   getFeedConfigurationsByCategory(category: FeedCategory): FeedConfiguration[] {
-    return this.feedConfigurations.filter(config => config.feed.category === category);
+    return getAllFeedConfigurations().filter(config => config.feed.category === category);
   }
 
-  /**
-   * Enable hot-reload functionality for feed configurations
-   * Requirements: 5.4
-   */
-  enableFeedConfigurationHotReload(): void {
-    if (this.fileWatcherService.isWatching(this.feedsFilePath)) {
-      this.logger.warn("Feed configuration hot-reload is already enabled");
-      return;
+  validateConfiguration() {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Basic validation - delegate to ENV_HELPERS for complex logic
+    if (ENV.APPLICATION.PORT < 1 || ENV.APPLICATION.PORT > 65535) {
+      errors.push(`Invalid port: ${ENV.APPLICATION.PORT}`);
     }
 
-    try {
-      this.fileWatcherService.watchFile(
-        this.feedsFilePath,
-        () => {
-          this.logger.log("Feed configuration file changed, reloading...");
-          this.reloadFeedConfigurations();
-        },
-        { interval: 1000 }
-      );
-
-      this.logger.log("Feed configuration hot-reload enabled");
-    } catch (error) {
-      this.logger.error("Failed to enable feed configuration hot-reload:", error);
+    if (ENV.ALERTING.EMAIL.ENABLED && !ENV.ALERTING.EMAIL.SMTP_HOST) {
+      errors.push("Email alerting enabled but SMTP host not configured");
     }
+
+    if (ENV.ALERTING.WEBHOOK.ENABLED && !ENV.ALERTING.WEBHOOK.URL) {
+      errors.push("Webhook alerting enabled but URL not configured");
+    }
+
+    const missingKeys = ENV_HELPERS.getMissingExchangeKeys();
+    if (missingKeys.length > 0) {
+      warnings.push(`Missing exchange API keys: ${missingKeys.join(", ")}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      missingRequired: [],
+      invalidValues: [],
+    };
   }
 
-  /**
-   * Disable hot-reload functionality for feed configurations
-   * Requirements: 5.4
-   */
-  disableFeedConfigurationHotReload(): void {
-    if (!this.fileWatcherService.isWatching(this.feedsFilePath)) {
-      return;
-    }
-
-    try {
-      this.fileWatcherService.unwatchFile(this.feedsFilePath);
-      this.logger.log("Feed configuration hot-reload disabled");
-    } catch (error) {
-      this.logger.error("Failed to disable feed configuration hot-reload:", error);
-    }
+  // Interface compatibility methods (simple implementations)
+  getAdapterClass(exchange: string): string | undefined {
+    const adapters: Record<string, string> = {
+      binance: "BinanceAdapter",
+      coinbase: "CoinbaseAdapter",
+      cryptocom: "CryptocomAdapter",
+      kraken: "KrakenAdapter",
+      okx: "OkxAdapter",
+    };
+    return adapters[exchange];
   }
 
-  /**
-   * Reload feed configurations (for hot-reload capability)
-   * Requirements: 5.4
-   */
+  getCcxtId(exchange: string): string | undefined {
+    const customExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
+    return customExchanges.includes(exchange) ? undefined : exchange;
+  }
+
+  getExchangeApiKey(exchange: string) {
+    const key = `${exchange.toUpperCase()}_API_KEY` as keyof typeof ENV.EXCHANGE.KEYS;
+    const secret = `${exchange.toUpperCase()}_SECRET` as keyof typeof ENV.EXCHANGE.KEYS;
+    const passphrase = `${exchange.toUpperCase()}_PASSPHRASE` as keyof typeof ENV.EXCHANGE.KEYS;
+
+    return {
+      apiKey: ENV.EXCHANGE.KEYS[key] || undefined,
+      secret: ENV.EXCHANGE.KEYS[secret] || undefined,
+      passphrase: ENV.EXCHANGE.KEYS[passphrase] || undefined,
+    };
+  }
+
   reloadFeedConfigurations(): void {
-    this.logger.log("Reloading feed configurations...");
-
-    const previousCount = this.feedConfigurations.length;
-
-    try {
-      this.loadFeedConfigurations();
-      const newCount = this.feedConfigurations.length;
-
-      if (newCount !== previousCount) {
-        this.logger.log(`Feed configuration count changed: ${previousCount} -> ${newCount}`);
-      }
-
-      this.logger.log("Feed configurations reloaded successfully");
-    } catch (error) {
-      this.logger.error("Failed to reload feed configurations:", error);
-      this.logger.warn("Keeping previous feed configurations");
-    }
+    reloadFeedConfigsUtil();
+    this.logger.log("Feed configurations reloaded from feeds.json");
   }
 
-  /**
-   * Reload environment configuration (for hot-reload capability)
-   * Requirements: 5.4
-   */
-  reloadEnvironmentConfiguration(): void {
-    this.logger.log("Reloading environment configuration...");
-
-    try {
-      const newConfig = this.configValidationService.loadAndValidateEnvironmentConfig();
-      this.environmentConfig = newConfig;
-      this.logger.log("Environment configuration reloaded successfully");
-    } catch (error) {
-      this.logger.error("Failed to reload environment configuration:", error);
-      this.logger.warn("Keeping previous environment configuration");
-    }
-  }
-
-  /**
-   * Get configuration status and health information
-   * Requirements: 5.1, 5.2
-   */
-  getConfigurationStatus(): {
-    environment: {
-      isValid: boolean;
-      loadedAt: Date;
-      validationResult: ConfigValidationResult;
-    };
-    feeds: {
-      count: number;
-      loadedAt: Date;
-      hotReloadEnabled: boolean;
-      filePath: string;
-    };
-    adapters: {
-      customAdapterCount: number;
-      ccxtAdapterCount: number;
-      totalExchanges: number;
-    };
-  } {
-    const envValidation = this.configValidationService.validateEnvironmentConfig(this.environmentConfig);
-
-    return {
-      environment: {
-        isValid: envValidation.isValid,
-        loadedAt: new Date(), // In a real implementation, you'd track this
-        validationResult: envValidation,
-      },
-      feeds: {
-        count: this.feedConfigurations.length,
-        loadedAt: new Date(), // In a real implementation, you'd track this
-        hotReloadEnabled: this.fileWatcherService.isWatching(this.feedsFilePath),
-        filePath: this.feedsFilePath,
-      },
-      adapters: {
-        customAdapterCount: this.getCustomAdapterExchanges().length,
-        ccxtAdapterCount: this.getCcxtExchanges().length,
-        totalExchanges: Object.keys(this.adapterMappings).length,
-      },
-    };
-  }
-
-  /**
-   * Validate current configuration and return detailed report
-   * Requirements: 5.1, 5.2
-   */
-  validateCurrentConfiguration(): {
-    overall: {
-      isValid: boolean;
-      criticalErrors: number;
-      warnings: number;
-    };
-    environment: ConfigValidationResult;
-    feeds: {
-      totalFeeds: number;
-      totalSources: number;
-      validationResults: Array<{
-        feedName: string;
-        isValid: boolean;
-        errors: string[];
-        warnings: string[];
-      }>;
-    };
-  } {
-    const envValidation = this.configValidationService.validateEnvironmentConfig(this.environmentConfig);
-
-    const feedValidations = this.feedConfigurations.map(feedConfig => {
-      const sources = feedConfig.sources.map(s => ({ exchange: s.exchange, symbol: s.symbol }));
-      const validation = this.configValidationService.validateSources(sources, this.adapterMappings);
-
-      return {
-        feedName: feedConfig.feed.name,
-        isValid: validation.isValid,
-        errors: validation.errors,
-        warnings: validation.warnings,
-      };
-    });
-
-    const totalSources = this.feedConfigurations.reduce((sum, feed) => sum + feed.sources.length, 0);
-    const criticalErrors =
-      envValidation.errors.length +
-      envValidation.missingRequired.length +
-      feedValidations.reduce((sum, feed) => sum + feed.errors.length, 0);
-    const warnings =
-      envValidation.warnings.length +
-      envValidation.invalidValues.length +
-      feedValidations.reduce((sum, feed) => sum + feed.warnings.length, 0);
-
-    return {
-      overall: {
-        isValid: envValidation.isValid && feedValidations.every(f => f.isValid),
-        criticalErrors,
-        warnings,
-      },
-      environment: envValidation,
-      feeds: {
-        totalFeeds: this.feedConfigurations.length,
-        totalSources,
-        validationResults: feedValidations,
-      },
-    };
-  }
-
-  /**
-   * Validate current configuration (alias for validateCurrentConfiguration)
-   * Requirements: 5.1, 5.2
-   */
-  validateConfiguration(): {
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-    missingRequired: string[];
-    invalidValues: string[];
-  } {
-    const validation = this.validateCurrentConfiguration();
-
-    return {
-      isValid: validation.overall.isValid,
-      errors: validation.environment.errors,
-      warnings: validation.environment.warnings,
-      missingRequired: validation.environment.missingRequired,
-      invalidValues: validation.environment.invalidValues,
-    };
-  }
-
-  /**
-   * Reload configuration (alias for reloadFeedConfigurations)
-   * Requirements: 5.4
-   */
   reloadConfiguration(): void {
+    // Same as reloadFeedConfigurations since we only have feed configs to reload
     this.reloadFeedConfigurations();
-    this.reloadEnvironmentConfiguration();
   }
 
+  // Required by interface
   getServiceName(): string {
     return "ConfigService";
-  }
-
-  // IBaseService interface methods
-  async getPerformanceMetrics(): Promise<{
-    uptime: number;
-    responseTime: { average: number; p95: number; max: number };
-    requestsPerSecond: number;
-    errorRate: number;
-  }> {
-    const uptime = process.uptime();
-
-    return {
-      uptime,
-      responseTime: {
-        average: 5, // Mock values - config service is typically very fast
-        p95: 10,
-        max: 20,
-      },
-      requestsPerSecond: 1000, // Mock value
-      errorRate: 0, // Mock value
-    };
-  }
-
-  /**
-   * Validate sources configuration
-   */
-  validateSources(sources: { exchange: string; symbol: string }[]) {
-    return this.configValidationService.validateSources(sources, this.adapterMappings);
   }
 }

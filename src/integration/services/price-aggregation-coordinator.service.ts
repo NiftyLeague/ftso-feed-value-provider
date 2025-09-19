@@ -10,8 +10,8 @@ import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 
 // Configuration
-import { ConfigService } from "@/config/config.service";
-import { FeedConfiguration } from "@/config/config.service";
+import { getFeedIdFromSymbol } from "@/common/utils";
+import { type FeedConfiguration } from "@/common/types/core";
 
 // Types and interfaces
 import type { AggregatedPrice } from "@/common/types/services";
@@ -25,8 +25,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
     private readonly aggregationService: RealTimeAggregationService,
     private readonly cacheService: RealTimeCacheService,
     private readonly cacheWarmerService: CacheWarmerService,
-    private readonly cachePerformanceMonitor: CachePerformanceMonitorService,
-    private readonly configService: ConfigService
+    private readonly cachePerformanceMonitor: CachePerformanceMonitorService
   ) {
     super({ useEnhancedLogging: true });
   }
@@ -182,7 +181,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
 
     try {
       // Track feed access for cache warming
-      const feedId = this.getFeedIdFromSymbol(update.symbol);
+      const feedId = getFeedIdFromSymbol(update.symbol);
       if (!feedId) {
         // Silently ignore unknown symbols - no logging needed
         return;
@@ -296,7 +295,7 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
   private handleAggregatedPrice(aggregatedPrice: AggregatedPrice): void {
     try {
       // Cache the aggregated price
-      const feedId = this.getFeedIdFromSymbol(aggregatedPrice.symbol);
+      const feedId = getFeedIdFromSymbol(aggregatedPrice.symbol);
       if (!feedId) {
         // Silently ignore unknown symbols - no logging needed
         return;
@@ -321,13 +320,6 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
       this.logger.error(`Error handling aggregated price for ${aggregatedPrice.symbol}:`, error);
       this.emit("aggregationError", error);
     }
-  }
-
-  // Helper methods
-  private getFeedIdFromSymbol(symbol: string): CoreFeedId | null {
-    const feedConfigs = this.configService.getFeedConfigurations();
-    const config = feedConfigs.find(config => config.feed.name === symbol);
-    return config ? config.feed : null;
   }
 
   private isFreshData(timestamp: number): boolean {

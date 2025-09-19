@@ -2,7 +2,7 @@ import WebSocket from "ws";
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { WSConnectionConfig, WSConnectionStats } from "@/common/types/data-manager";
-import { ENV, ENV_HELPERS } from "@/common/constants";
+import { ENV, ENV_HELPERS } from "@/config";
 
 @Injectable()
 export class WebSocketConnectionManager extends EventDrivenService {

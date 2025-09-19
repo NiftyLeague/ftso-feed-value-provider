@@ -216,7 +216,6 @@ export class MockFactory {
       getFeedConfigurations: jest.fn().mockReturnValue([]),
       getEnvironmentConfig: jest.fn().mockReturnValue({}),
       validateConfiguration: jest.fn().mockReturnValue({ isValid: true }),
-      reloadConfiguration: jest.fn(),
     };
   }
 

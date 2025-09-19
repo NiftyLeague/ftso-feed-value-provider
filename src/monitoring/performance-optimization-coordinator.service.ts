@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { BaseServiceConfig } from "@/common/types/services/base.types";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 // Performance monitoring services
 import { PerformanceMonitorService } from "./performance-monitor.service";

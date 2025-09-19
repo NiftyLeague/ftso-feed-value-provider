@@ -7,7 +7,7 @@ import { IBaseService } from "./base.types";
 
 /**
  * Shared environment configuration type that mirrors the validated configuration
- * produced by the ConfigValidationService. Kept in common types to avoid
+ * produced by the ConfigService. Kept in common types to avoid
  * cross-layer imports from service implementation files.
  */
 export interface EnvironmentConfiguration {
@@ -169,9 +169,9 @@ export interface IConfigurationService extends IBaseService {
 
   /**
    * Get environment configuration
-   * Matches the validated environment configuration produced by ConfigValidationService
+   * Returns the ENV constants object directly
    */
-  getEnvironmentConfig(): EnvironmentConfiguration;
+  getEnvironmentConfig(): typeof import("@/config").ENV;
 
   /**
    * Validate current configuration
@@ -184,11 +184,6 @@ export interface IConfigurationService extends IBaseService {
     missingRequired: string[];
     invalidValues: string[];
   };
-
-  /**
-   * Reload configuration from files
-   */
-  reloadConfiguration(): void;
 
   /**
    * Check if exchange has a custom adapter
@@ -217,4 +212,9 @@ export interface IConfigurationService extends IBaseService {
    * @returns API key configuration or undefined
    */
   getExchangeApiKey(exchange: string): ExchangeApiKeyConfig | undefined;
+
+  /**
+   * Reload configuration from source
+   */
+  reloadConfiguration(): void;
 }

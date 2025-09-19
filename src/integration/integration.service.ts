@@ -7,7 +7,7 @@ import { PriceAggregationCoordinatorService } from "./services/price-aggregation
 import { SystemHealthService } from "./services/system-health.service";
 
 // Configuration
-import { ConfigService } from "@/config/config.service";
+import { getAllFeedConfigurations } from "@/common/utils";
 
 // Types and interfaces
 import type { AggregatedPrice } from "@/common/types/services";
@@ -24,8 +24,7 @@ export class IntegrationService
   constructor(
     private readonly dataSourceIntegration: DataSourceIntegrationService,
     private readonly priceAggregationCoordinator: PriceAggregationCoordinatorService,
-    private readonly systemHealth: SystemHealthService,
-    private readonly configService: ConfigService
+    private readonly systemHealth: SystemHealthService
   ) {
     super({ useEnhancedLogging: true });
   }
@@ -179,7 +178,7 @@ export class IntegrationService
   private async subscribeToFeeds(): Promise<void> {
     this.logDebug("Subscribing to configured feeds...", "subscribeToFeeds");
 
-    const feedConfigs = this.configService.getFeedConfigurations();
+    const feedConfigs = getAllFeedConfigurations();
 
     for (const config of feedConfigs) {
       await this.executeWithErrorHandling(

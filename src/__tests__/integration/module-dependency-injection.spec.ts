@@ -7,8 +7,7 @@ import { AdaptersModule } from "@/adapters/adapters.module";
 import { AggregatorsModule } from "@/aggregators/aggregators.module";
 import { AppModule } from "@/app.module";
 import { ConfigService } from "@/config/config.service";
-import { ConfigValidationService } from "@/config/config-validation.service";
-import { FileWatcherService } from "@/config/file-watcher.service";
+
 import { FailoverManager } from "@/data-manager/failover-manager.service";
 import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
 import { DataValidator } from "@/data-manager/validation/data-validator";
@@ -48,23 +47,15 @@ describe("Module Dependency Injection Integration", () => {
       expect(configService).toBeDefined();
     });
 
-    it("should resolve ConfigValidationService", () => {
-      const configValidationService = module.get<ConfigValidationService>(ConfigValidationService);
-      expect(configValidationService).toBeDefined();
-    });
-
-    it("should resolve FileWatcherService", () => {
-      const fileWatcherService = module.get<FileWatcherService>(FileWatcherService);
-      expect(fileWatcherService).toBeDefined();
-    });
+    // ConfigValidationService and FileWatcherService were removed during simplification
 
     it("should handle missing dependencies gracefully", async () => {
       const invalidModule = Test.createTestingModule({
         providers: [
           {
             provide: ConfigService,
-            useFactory: (missingService: any) => {
-              return new ConfigService(missingService, missingService);
+            useFactory: () => {
+              return new ConfigService();
             },
             inject: ["MISSING_SERVICE"],
           },

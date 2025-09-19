@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { ErrorCode } from "@/common/types/error-handling";
-import { ConfigService } from "@/config/config.service";
-import { ENV } from "@/common/constants";
+import { getFeedConfiguration, hasCustomAdapter } from "@/common/utils";
+import { ENV } from "@/config";
 
 import type { AggregatedPrice } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
@@ -55,7 +55,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private readonly STALE_WARNING_COOLDOWN_MS = ENV.MONITORING.STALE_WARNING_COOLDOWN_MS; // 2 minutes - increased to reduce spam
   private readonly QUALITY_WARNING_COOLDOWN_MS = ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS; // 5 minutes - much less frequent for quality warnings
 
-  constructor(private readonly configService: ConfigService) {
+  constructor() {
     super({
       initialDelay: ENV.AGGREGATION.INITIAL_DELAY_MS,
       maxDelay: ENV.AGGREGATION.MAX_DELAY_MS,
@@ -266,7 +266,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
    * Get the specific exchanges configured for a feed from feeds.json
    */
   private getConfiguredExchangesForFeed(feedId: CoreFeedId): string[] {
-    const feedConfig = this.configService.getFeedConfiguration(feedId);
+    const feedConfig = getFeedConfiguration(feedId);
     if (!feedConfig) {
       this.logger.warn(`No configuration found for feed: ${feedId.name}`);
       return [];
@@ -286,7 +286,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
 
     // Check if this is a custom adapter exchange
-    if (this.configService.hasCustomAdapter(exchange)) {
+    if (hasCustomAdapter(exchange)) {
       // Try to find by adapter name pattern
       for (const [sourceId, dataSource] of this.dataSources.entries()) {
         if (
@@ -343,7 +343,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         }
 
         // Check if this is a CCXT exchange
-        if (!this.configService.hasCustomAdapter(exchange)) {
+        if (!hasCustomAdapter(exchange)) {
           // This is a CCXT exchange - get price from specific exchange
           const adapterDataSource = source as {
             getAdapter?: () => {
@@ -363,7 +363,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
           // This is a custom adapter - use REST fallback
           if (hasRestFallbackCapability(source)) {
             // Get the exchange-specific symbol from feed configuration
-            const feedConfig = this.configService.getFeedConfiguration(feedId);
+            const feedConfig = getFeedConfiguration(feedId);
             const sourceConfig = feedConfig?.sources.find(s => s.exchange === exchange);
             const exchangeSymbol = sourceConfig?.symbol || feedId.name;
 
@@ -392,7 +392,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
 
     // Get feed configuration to get exchange-specific symbols
-    const feedConfig = this.configService.getFeedConfiguration(feedId);
+    const feedConfig = getFeedConfiguration(feedId);
     if (!feedConfig) {
       throw new Error(`No configuration found for feed: ${feedId.name}`);
     }
@@ -438,7 +438,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     this.logger.log(`Unsubscribing from feed: ${feedId.name}`);
 
     // Get feed configuration to get exchange-specific symbols
-    const feedConfig = this.configService.getFeedConfiguration(feedId);
+    const feedConfig = getFeedConfiguration(feedId);
     if (!feedConfig) {
       this.logger.warn(`No configuration found for feed: ${feedId.name}`);
       return;

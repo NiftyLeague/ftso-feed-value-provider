@@ -1,10 +1,10 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { ConfigService } from "@/config/config.service";
+import { getFeedIdFromSymbol } from "@/common/utils";
 import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
@@ -85,7 +85,7 @@ export class RealTimeAggregationService
 
   constructor(
     private readonly consensusAggregator: ConsensusAggregator,
-    private readonly configService: ConfigService,
+
     private readonly dataManager: ProductionDataManagerService
   ) {
     super({
@@ -488,7 +488,7 @@ export class RealTimeAggregationService
 
     try {
       // Get feed ID from configuration
-      const feedId = this.getFeedIdFromSymbol(update.symbol);
+      const feedId = getFeedIdFromSymbol(update.symbol);
       if (!feedId) {
         // Silently ignore unknown symbols - no logging needed
         return;
@@ -791,15 +791,6 @@ export class RealTimeAggregationService
     if (cleanedFeeds > 0) {
       this.logger.debug(`Cleaned up stale updates for ${cleanedFeeds} feeds`);
     }
-  }
-
-  /**
-   * Get feed ID from symbol using configuration
-   */
-  private getFeedIdFromSymbol(symbol: string): CoreFeedId | null {
-    const feedConfigs = this.configService.getFeedConfigurations();
-    const config = feedConfigs.find(config => config.feed.name === symbol);
-    return config ? config.feed : null;
   }
 
   /**

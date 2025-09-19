@@ -12,9 +12,9 @@ easier.
 
 ## Files
 
-- **`src/common/constants/environment.constants.ts`** - Main constants file with
-  all environment variables
-- **`src/common/constants/index.ts`** - Exports all constants
+- **`src/config/environment.constants.ts`** - Main constants file with all
+  environment variables
+- **`src/config/index.ts`** - Exports all constants
 
 ## Usage
 

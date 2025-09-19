@@ -14,7 +14,6 @@ import { ConfigModule } from "@/config/config.module";
 
 // Core services
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
-import { ConfigService } from "@/config/config.service";
 
 // Error handling services
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
@@ -65,9 +64,6 @@ import { StartupValidationService } from "./services/startup-validation.service"
 
     // Data source factory
     DataSourceFactory,
-
-    // Configuration
-    ConfigService,
 
     // Error handling
     StandardizedErrorHandlerService,

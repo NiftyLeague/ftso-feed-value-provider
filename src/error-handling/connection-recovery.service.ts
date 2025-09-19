@@ -5,7 +5,7 @@ import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 export interface ConnectionRecoveryConfig extends BaseServiceConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2

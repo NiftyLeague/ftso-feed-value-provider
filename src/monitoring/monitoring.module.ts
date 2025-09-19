@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import type { AlertSeverity, AlertAction, MonitoringConfig } from "@/common/types/monitoring";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -10,11 +10,9 @@ import { PerformanceOptimizationCoordinatorService } from "./performance-optimiz
 // Import cache and aggregation modules for optimization coordinator
 import { CacheModule } from "@/cache/cache.module";
 import { AggregatorsModule } from "@/aggregators/aggregators.module";
-import { ConfigModule } from "@/config/config.module";
-import { ConfigService } from "@/config/config.service";
 
 @Module({
-  imports: [CacheModule, AggregatorsModule, ConfigModule],
+  imports: [CacheModule, AggregatorsModule],
   providers: [
     {
       provide: AccuracyMonitorService,
@@ -48,7 +46,7 @@ import { ConfigService } from "@/config/config.service";
     PerformanceOptimizationCoordinatorService,
     {
       provide: "MonitoringConfig",
-      useFactory: (_configService: ConfigService) => {
+      useFactory: () => {
         return {
           enabled: true,
           interval: ENV.INTERVALS.MONITORING_MS,
@@ -204,7 +202,7 @@ import { ConfigService } from "@/config/config.service";
           },
         };
       },
-      inject: [ConfigService],
+      inject: [],
     },
   ],
   exports: [

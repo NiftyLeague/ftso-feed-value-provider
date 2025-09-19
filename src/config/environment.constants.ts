@@ -2,8 +2,8 @@
  * Environment Constants - Centralized Environment Variable Management
  */
 
-import { EnvironmentUtils } from "../utils/environment.utils";
-import type { LogLevel } from "../types/logging";
+import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import type { LogLevel } from "@/common/types/logging";
 
 // Environment Helpers
 export const ENV_HELPERS = {

@@ -2,7 +2,7 @@ import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { RealTimeCache, CacheEntry, CacheStats, CacheConfig, CacheItem } from "@/common/types/cache";
 import type { CoreFeedId } from "@/common/types/core";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 @Injectable()
 export class RealTimeCacheService extends StandardService implements RealTimeCache, OnModuleDestroy {

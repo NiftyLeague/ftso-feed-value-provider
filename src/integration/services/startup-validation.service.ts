@@ -1,7 +1,8 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { ConfigService } from "@/config/config.service";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { StandardService } from "@/common/base/composed.service";
-import { ENV, ENV_HELPERS } from "@/common/constants";
+import { ENV, ENV_HELPERS } from "@/config";
 import type { StartupValidationResult } from "@/common/types/services";
 
 import { IntegrationService } from "../integration.service";
@@ -10,10 +11,7 @@ import { IntegrationService } from "../integration.service";
 export class StartupValidationService extends StandardService implements OnModuleInit {
   private validationResult: StartupValidationResult | null = null;
 
-  constructor(
-    private readonly integrationService: IntegrationService,
-    private readonly configService: ConfigService
-  ) {
+  constructor(private readonly integrationService: IntegrationService) {
     super();
   }
 
@@ -83,19 +81,21 @@ export class StartupValidationService extends StandardService implements OnModul
 
   private async validateConfiguration(result: StartupValidationResult): Promise<void> {
     try {
-      // Test configuration service
-      const feedConfigs = this.configService.getFeedConfigurations();
+      // Test that feeds.json can be loaded
+      const feedsFilePath = join(process.cwd(), "src", "config", "feeds.json");
+      const feedsData = readFileSync(feedsFilePath, "utf8");
+      const feedsJson = JSON.parse(feedsData);
 
-      if (!feedConfigs || feedConfigs.length === 0) {
+      if (!feedsJson || !Array.isArray(feedsJson) || feedsJson.length === 0) {
         result.warnings.push("No feed configurations found - system may not provide data");
       } else {
-        this.logger.debug(`Found ${feedConfigs.length} feed configurations`);
+        this.logger.debug(`Found ${feedsJson.length} feed configurations`);
       }
 
-      result.validatedServices.push("ConfigService");
+      result.validatedServices.push("FeedConfiguration");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      result.errors.push(`Configuration validation failed: ${message}`);
+      result.errors.push(`Feed configuration validation failed: ${message}`);
     }
   }
 

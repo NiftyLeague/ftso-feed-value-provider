@@ -10,8 +10,7 @@ import { FilteredLogger } from "@/common/logging/filtered-logger";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
-import { ENV, ENV_HELPERS } from "@/common/constants";
-import { ConfigService } from "@/config/config.service";
+import { ENV, ENV_HELPERS } from "@/config";
 
 // Global application instance for graceful shutdown
 let app: INestApplication | null = null;
@@ -35,10 +34,8 @@ async function bootstrap() {
       abortOnError: false, // Allow graceful error handling during startup
     });
 
-    // Get configuration service and initialize enhanced logger
-    const configService = app.get(ConfigService);
-    const config = configService.getEnvironmentConfig();
-    enhancedLogger = new EnhancedLoggerService("Bootstrap", config);
+    // Initialize enhanced logger (uses ENV constants directly)
+    enhancedLogger = new EnhancedLoggerService("Bootstrap");
 
     enhancedLogger.startPerformanceTimer(operationId, "application_bootstrap", "Bootstrap");
 
@@ -46,7 +43,7 @@ async function bootstrap() {
       nodeVersion: process.version,
       platform: process.platform,
       pid: process.pid,
-      environment: config.nodeEnv,
+      environment: ENV.APPLICATION.NODE_ENV,
       timestamp: Date.now(),
     });
 
@@ -54,14 +51,14 @@ async function bootstrap() {
     startMemoryMonitoring(enhancedLogger);
 
     // Configure logging levels
-    enhancedLogger.log(`Log level configured: ${config.logLevel}`, {
+    enhancedLogger.log(`Log level configured: ${ENV.LOGGING.LOG_LEVEL}`, {
       component: "Bootstrap",
       operation: "configure_logging",
       metadata: {
-        logLevel: config.logLevel,
-        enableFileLogging: config.logging.enableFileLogging,
-        enablePerformanceLogging: config.logging.enablePerformanceLogging,
-        enableDebugLogging: config.logging.enableDebugLogging,
+        logLevel: ENV.LOGGING.LOG_LEVEL,
+        enableFileLogging: ENV.LOGGING.ENABLE_FILE_LOGGING,
+        enablePerformanceLogging: ENV.LOGGING.ENABLE_PERFORMANCE_LOGGING,
+        enableDebugLogging: ENV.LOGGING.ENABLE_DEBUG_LOGGING,
       },
     });
 

@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 interface IPricePoint {
   price: number;

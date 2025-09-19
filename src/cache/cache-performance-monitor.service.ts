@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { CachePerformanceMetrics, ResponseTimeMetric, MemoryUsageMetric } from "@/common/types/cache";
-import { ENV } from "@/common/constants";
+import { ENV } from "@/config";
 
 import { RealTimeCacheService } from "./real-time-cache.service";
 
