@@ -105,7 +105,7 @@ describe("ConsensusAggregator", () => {
         {
           symbol: "BTC/USD",
           price: 60000, // Outlier price
-          timestamp: now - 3000, // Stale data (3 seconds old)
+          timestamp: now - 35000, // Stale data (35 seconds old, beyond 30s threshold)
           source: "coinbase",
           confidence: 0.9,
         },
@@ -143,7 +143,7 @@ describe("ConsensusAggregator", () => {
         {
           symbol: "BTC/USD",
           price: 50000,
-          timestamp: now - 5000, // Too stale
+          timestamp: now - 65000, // Too stale (beyond 60s lenient threshold)
           source: "coinbase",
           confidence: 0.9,
         },
@@ -261,7 +261,7 @@ describe("ConsensusAggregator", () => {
       const staleUpdate: PriceUpdate = {
         symbol: "BTC/USD",
         price: 50000,
-        timestamp: Date.now() - 3000, // 3 seconds old
+        timestamp: Date.now() - 35000, // 35 seconds old (beyond 30s threshold)
         source: "binance",
         confidence: 0.9,
       };

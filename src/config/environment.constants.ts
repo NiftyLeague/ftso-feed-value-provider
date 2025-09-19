@@ -326,8 +326,8 @@ export const ENV = {
   // Cache System - Unified Configuration
   CACHE: {
     // Core cache settings
-    TTL_MS: EnvironmentUtils.parseInt("CACHE_TTL_MS", 500, { min: 100, max: 2000 }),
-    MAX_ENTRIES: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 10000, { min: 100, max: 1000000 }),
+    TTL_MS: EnvironmentUtils.parseInt("CACHE_TTL_MS", 600, { min: 100, max: 2000 }),
+    MAX_ENTRIES: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 25000, { min: 100, max: 1000000 }),
     ACCESS_UPDATE_THRESHOLD_MS: EnvironmentUtils.parseInt("CACHE_ACCESS_UPDATE_THRESHOLD_MS", 100, {
       min: 50,
       max: 1000,

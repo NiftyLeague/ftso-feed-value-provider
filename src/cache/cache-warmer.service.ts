@@ -5,7 +5,7 @@ import type { CoreFeedId } from "@/common/types/core";
 import type { CacheEntry } from "@/common/types/cache";
 import type { AggregatedPrice } from "@/common/types/services";
 import { RealTimeCacheService } from "./real-time-cache.service";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 interface FeedAccessPattern {
   feedId: CoreFeedId;

@@ -6,13 +6,23 @@ const defaultConfig: BaseServiceConfig = {
   useEnhancedLogging: false,
 };
 
-abstract class ConfigurableBaseService extends WithConfiguration<BaseServiceConfig>(defaultConfig)(class {}) {}
+// Create a simple base class
+class SimpleBase {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(..._args: any[]) {
+    // Empty constructor
+  }
+}
+
+// Apply mixins step by step
+const ConfigurableBase = WithConfiguration<BaseServiceConfig>(defaultConfig)(SimpleBase);
+const LoggingBase = WithLogging(ConfigurableBase);
 
 /**
  * Base service class that provides common logging functionality with configurable enhanced logging
  * All logging methods are inherited from WithLogging mixin
  */
-export abstract class BaseService extends WithLogging(ConfigurableBaseService) implements IBaseService {
+export abstract class BaseService extends LoggingBase implements IBaseService {
   constructor(config?: Partial<BaseServiceConfig>) {
     super();
     // Update config with any provided overrides

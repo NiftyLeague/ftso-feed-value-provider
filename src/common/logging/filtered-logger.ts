@@ -1,6 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { shouldLog, type LogLevel } from "../types/logging";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 /**
  * A NestJS Logger that automatically filters messages based on LOG_LEVEL

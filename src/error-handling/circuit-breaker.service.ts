@@ -4,7 +4,7 @@ import { createTimer } from "@/common/utils/performance.utils";
 import { handleAsyncOperation } from "@/common/utils/http-response.utils";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import type { CircuitBreakerConfig, CircuitBreakerStats, CircuitBreakerMetrics } from "@/common/types/error-handling";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 @Injectable()
 export class CircuitBreakerService extends EventDrivenService {

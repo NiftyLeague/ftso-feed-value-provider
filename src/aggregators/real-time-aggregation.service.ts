@@ -4,7 +4,7 @@ import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";

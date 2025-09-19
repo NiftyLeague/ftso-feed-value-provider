@@ -10,6 +10,3 @@ export { ConfigService } from "./config.service";
 
 // Module
 export { ConfigModule } from "./config.module";
-
-// Environment
-export { ENV, ENV_HELPERS } from "./environment.constants";

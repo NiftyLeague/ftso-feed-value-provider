@@ -6,7 +6,7 @@ import { StandardService } from "@/common/base/composed.service";
 import { AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import type { Alert, AlertRule, AlertingConfig } from "@/common/types/monitoring";
 import type { LogLevel } from "@/common/types/logging";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 @Injectable()
 export class AlertingService extends StandardService implements OnModuleDestroy {

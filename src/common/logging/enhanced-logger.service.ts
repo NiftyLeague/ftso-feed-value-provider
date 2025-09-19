@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as path from "path";
 import { Injectable, Logger } from "@nestjs/common";
 import type {
   ILogger,
@@ -11,9 +13,7 @@ import { shouldLog } from "../types/logging";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
 
-import { ENV } from "@/config";
-import * as fs from "fs";
-import * as path from "path";
+import { ENV } from "@/config/environment.constants";
 
 @Injectable()
 export class EnhancedLoggerService implements ILogger {
@@ -35,7 +35,7 @@ export class EnhancedLoggerService implements ILogger {
   constructor(context: string = "EnhancedLogger") {
     this.logger = new Logger(context);
 
-    // Use ENV constants directly - simpler and more reliable
+    // Use ENV constants directly - no circular dependency when importing from environment.constants
     this.enableFileLogging = ENV.LOGGING.ENABLE_FILE_LOGGING;
     this.enablePerformanceLogging = ENV.LOGGING.ENABLE_PERFORMANCE_LOGGING;
     this.enableDebugLogging = ENV.LOGGING.ENABLE_DEBUG_LOGGING;

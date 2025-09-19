@@ -52,6 +52,7 @@ describe("DataValidator", () => {
     crossSourcePrices: [
       { symbol: "BTC/USD", price: 50050, timestamp: Date.now() - 500, source: "coinbase", confidence: 0.9 },
       { symbol: "BTC/USD", price: 49950, timestamp: Date.now() - 300, source: "kraken", confidence: 0.92 },
+      { symbol: "BTC/USD", price: 50000, timestamp: Date.now() - 200, source: "okx", confidence: 0.88 },
     ],
   });
 

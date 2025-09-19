@@ -10,7 +10,7 @@ import { FilteredLogger } from "@/common/logging/filtered-logger";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
-import { ENV, ENV_HELPERS } from "@/config";
+import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 
 // Global application instance for graceful shutdown
 let app: INestApplication | null = null;

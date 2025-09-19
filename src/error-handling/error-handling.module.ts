@@ -4,7 +4,7 @@ import { UniversalRetryService } from "./universal-retry.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 import type { StandardErrorMetadata, EnhancedErrorResponse } from "@/common/types/error-handling";
 
 // Event type definitions for error handling services

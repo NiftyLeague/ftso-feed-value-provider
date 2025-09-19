@@ -36,7 +36,22 @@ describe("Service Wiring Integration", () => {
     const mockConfigService = {
       get: jest.fn(),
       getConfig: jest.fn(),
-      getFeedConfigurations: jest.fn().mockReturnValue([]),
+      getFeedConfigurations: jest.fn().mockReturnValue([
+        {
+          feed: { category: 1, name: "BTC/USD" },
+          sources: [
+            { exchange: "binance", symbol: "BTC/USDT" },
+            { exchange: "coinbase", symbol: "BTC/USD" },
+          ],
+        },
+        {
+          feed: { category: 1, name: "ETH/USD" },
+          sources: [
+            { exchange: "binance", symbol: "ETH/USDT" },
+            { exchange: "coinbase", symbol: "ETH/USD" },
+          ],
+        },
+      ]),
       getEnvironmentConfig: jest.fn().mockReturnValue({}),
     };
 
@@ -457,10 +472,16 @@ describe("Service Wiring Integration", () => {
     });
 
     it("should subscribe to configured feeds during initialization", async () => {
-      // Since we mocked getFeedConfigurations to return empty array,
-      // verify that subscribeToFeed was not called
-      expect(dataSourceIntegration.subscribeToFeed).not.toHaveBeenCalled();
-      expect(priceAggregationCoordinator.configureFeed).not.toHaveBeenCalled();
+      // The integration service should subscribe to all configured feeds
+      // (The service initializes during module creation and uses real feed configurations)
+      expect(dataSourceIntegration.subscribeToFeed).toHaveBeenCalled();
+      expect(priceAggregationCoordinator.configureFeed).toHaveBeenCalled();
+
+      // Verify it was called for each feed
+      const feedCallCount = (dataSourceIntegration.subscribeToFeed as jest.Mock).mock.calls.length;
+      const configCallCount = (priceAggregationCoordinator.configureFeed as jest.Mock).mock.calls.length;
+      expect(feedCallCount).toBeGreaterThan(0);
+      expect(configCallCount).toBeGreaterThan(0);
     });
   });
 });

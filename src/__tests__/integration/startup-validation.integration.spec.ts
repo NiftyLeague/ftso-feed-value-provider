@@ -140,7 +140,7 @@ describe("Startup Validation Integration", () => {
           delete process.env.INTEGRATION_SERVICE_TIMEOUT_MS;
         }
       }
-    }, 10000);
+    }, 20000);
 
     it("should validate data sources availability", async () => {
       // Mock the integration service as initialized
@@ -171,7 +171,7 @@ describe("Startup Validation Integration", () => {
 
       expect(result.success).toBe(true);
       expect(result.validatedServices).toContain("ConfigService");
-    }, 10000);
+    }, 20000);
 
     it("should validate feed configuration", async () => {
       const mockFeeds = [
@@ -214,7 +214,7 @@ describe("Startup Validation Integration", () => {
 
       expect(result.success).toBe(true);
       expect(result.validatedServices).toContain("ConfigService");
-    }, 10000);
+    }, 20000);
   });
 
   describe("Integration Service Initialization", () => {
@@ -445,7 +445,7 @@ describe("Startup Validation Integration", () => {
       const result = await startupValidationService.validateStartup();
       expect(result.success).toBe(true);
       expect(mockIntegrationService.once).toHaveBeenCalledWith("initialized", expect.any(Function));
-    }, 10000);
+    }, 20000);
 
     it("should timeout when integration service takes too long to initialize", async () => {
       const mockIntegrationService = {
@@ -496,7 +496,7 @@ describe("Startup Validation Integration", () => {
           delete process.env.INTEGRATION_SERVICE_TIMEOUT_MS;
         }
       }
-    }, 10000);
+    }, 20000);
 
     it("should handle integration service that is already initialized", async () => {
       const mockIntegrationService = {

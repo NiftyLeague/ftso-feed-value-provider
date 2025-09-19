@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { ErrorCode } from "@/common/types/error-handling";
 import { getFeedConfiguration, hasCustomAdapter } from "@/common/utils";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 import type { AggregatedPrice } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";

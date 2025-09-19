@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { PerformanceMetrics, ThresholdsConfig } from "@/common/types/monitoring";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 interface IPerformanceMetrics extends PerformanceMetrics {
   cacheEfficiency: number;

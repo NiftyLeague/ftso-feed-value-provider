@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { StandardService } from "@/common/base/composed.service";
-import { ENV, ENV_HELPERS } from "@/config";
+import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 import type { StartupValidationResult } from "@/common/types/services";
 
 import { IntegrationService } from "../integration.service";
@@ -56,6 +56,9 @@ export class StartupValidationService extends StandardService implements OnModul
       // Validate configuration
       await this.validateConfiguration(result);
 
+      // Validate config service
+      await this.validateConfigService(result);
+
       // Validate integration service
       await this.validateIntegrationService(result);
 
@@ -99,6 +102,49 @@ export class StartupValidationService extends StandardService implements OnModul
     }
   }
 
+  private async validateConfigService(result: StartupValidationResult): Promise<void> {
+    try {
+      // Import ConfigService dynamically to avoid circular dependencies
+      const { ConfigService } = await import("@/config/config.service");
+
+      // Create a temporary instance to test basic functionality
+      const configService = new ConfigService();
+
+      // Test basic config service functionality
+      const envConfig = configService.getEnvironmentConfig();
+      if (!envConfig || !envConfig.APPLICATION) {
+        result.errors.push("ConfigService: Environment configuration not available");
+        return;
+      }
+
+      // Test feed configuration access
+      const feedConfigs = configService.getFeedConfigurations();
+      if (!Array.isArray(feedConfigs)) {
+        result.errors.push("ConfigService: Feed configurations not accessible");
+        return;
+      }
+
+      // Test configuration validation
+      const validation = configService.validateConfiguration();
+      if (!validation.isValid) {
+        result.errors.push(`ConfigService: Configuration validation failed - ${validation.errors.join(", ")}`);
+        return;
+      }
+
+      if (validation.warnings.length > 0) {
+        validation.warnings.forEach(warning => {
+          result.warnings.push(`ConfigService: ${warning}`);
+        });
+      }
+
+      result.validatedServices.push("ConfigService");
+      this.logger.debug("ConfigService validation completed successfully");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(`ConfigService validation failed: ${message}`);
+    }
+  }
+
   private async validateIntegrationService(result: StartupValidationResult): Promise<void> {
     try {
       // Wait for integration service to be initialized
@@ -107,9 +153,10 @@ export class StartupValidationService extends StandardService implements OnModul
 
         // Wait for initialization to complete with a timeout
         await new Promise<void>((resolve, reject) => {
+          const timeoutMs = parseInt(process.env.INTEGRATION_SERVICE_TIMEOUT_MS || "60000", 10);
           const timeout = setTimeout(() => {
             reject(new Error("Integration service initialization timeout"));
-          }, ENV.TIMEOUTS.INTEGRATION_MS);
+          }, timeoutMs);
 
           const checkInitialization = () => {
             if (this.integrationService.isServiceInitialized()) {

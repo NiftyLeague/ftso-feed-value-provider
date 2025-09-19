@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handling";
 import { ErrorCode } from "@/common/types/error-handling/error.types";

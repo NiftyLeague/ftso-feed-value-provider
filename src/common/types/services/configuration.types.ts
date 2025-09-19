@@ -171,7 +171,7 @@ export interface IConfigurationService extends IBaseService {
    * Get environment configuration
    * Returns the ENV constants object directly
    */
-  getEnvironmentConfig(): typeof import("@/config").ENV;
+  getEnvironmentConfig(): typeof import("@/config/environment.constants").ENV;
 
   /**
    * Validate current configuration

@@ -8,7 +8,7 @@ import type {
 } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 import * as ccxt from "ccxt";
 
 export interface CcxtMultiExchangeConnectionConfig extends ExchangeConnectionConfig {

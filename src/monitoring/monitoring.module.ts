@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import type { AlertSeverity, AlertAction, MonitoringConfig } from "@/common/types/monitoring";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";

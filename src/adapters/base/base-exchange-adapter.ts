@@ -5,7 +5,7 @@ import type { BaseServiceConfig } from "@/common/types/services";
 import type { ExchangeCapabilities, ExchangeConnectionConfig, IExchangeAdapter } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import type { WSConnectionConfig } from "@/common/types/data-manager";
-import { ENV, ENV_HELPERS } from "@/config";
+import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 
 /**
  * Extended configuration for exchange adapters

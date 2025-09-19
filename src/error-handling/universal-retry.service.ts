@@ -4,7 +4,7 @@ import { CircuitBreakerService } from "./circuit-breaker.service";
 import { isRetryableError } from "@/common/utils/error.utils";
 import type { RetryConfig } from "@/common/types/error-handling";
 import { DEFAULT_RETRY_CONFIG, getRetryConfig } from "@/common/types/error-handling";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 type RetryStatistics = {
   totalAttempts: number;

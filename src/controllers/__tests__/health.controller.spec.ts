@@ -88,9 +88,9 @@ describe("HealthController - Health Check Endpoints", () => {
         requestsPerSecond: 10,
         errorRate: 0.01,
         cacheStats: {
-          hits: 800,
-          misses: 200,
-          hitRate: 0.8,
+          hits: 950,
+          misses: 50,
+          hitRate: 0.96,
           size: 100,
           evictions: 0,
           averageGetTime: 1,
@@ -98,7 +98,7 @@ describe("HealthController - Health Check Endpoints", () => {
           averageResponseTime: 1,
           memoryUsage: 1024,
           totalRequests: 1000,
-          missRate: 0.2,
+          missRate: 0.05,
           totalEntries: 100,
         },
         aggregationStats: {
@@ -111,9 +111,9 @@ describe("HealthController - Health Check Endpoints", () => {
         activeFeedCount: 10,
       });
       cacheService.getStats.mockReturnValue({
-        hits: 800,
-        misses: 200,
-        hitRate: 0.8,
+        hits: 950,
+        misses: 50,
+        hitRate: 0.96,
         size: 100,
         evictions: 0,
         averageGetTime: 1,

@@ -21,7 +21,7 @@ easier.
 ### Basic Usage
 
 ```typescript
-import { ENV, ENV_HELPERS } from "@/common/constants";
+import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 
 // Access environment variables
 const port = ENV.PORT;

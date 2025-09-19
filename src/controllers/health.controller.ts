@@ -2,7 +2,7 @@ import { Controller, Get, Post, HttpException, HttpStatus, Inject, UseGuards } f
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 
 import { BaseController } from "@/common/base/base.controller";
-import { ENV, ENV_HELPERS } from "@/config";
+import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 import { FtsoProviderService } from "@/app.service";
 import { IntegrationService } from "@/integration/integration.service";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";

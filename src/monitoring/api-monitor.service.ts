@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { EndpointStats, SlowResponseData, ServerErrorData, HighErrorRateData } from "@/common/types/monitoring";
 import type { ApiMetrics, ApiHealthMetrics } from "@/common/types/monitoring";
-import { ENV } from "@/config";
+import { ENV } from "@/config/environment.constants";
 
 @Injectable()
 export class ApiMonitorService extends EventDrivenService {
@@ -378,14 +378,17 @@ export class ApiMonitorService extends EventDrivenService {
 
   private startPeriodicCleanup(): void {
     // Clean up old metrics every 5 minutes
-    this.createInterval(() => {
-      this.cleanupOldMetrics();
-    }, ENV.MONITORING.BUCKET_SIZE_MS);
+    this.createInterval(
+      () => {
+        this.cleanupOldMetrics();
+      },
+      parseInt(process.env.MONITORING_BUCKET_SIZE_MS || "300000", 10)
+    );
   }
 
   private cleanupOldMetrics(): void {
     const now = Date.now();
-    const maxAge = ENV.MONITORING.DATA_RETENTION_MS;
+    const maxAge = parseInt(process.env.MONITORING_DATA_RETENTION_MS || "3600000", 10);
     const cutoff = now - maxAge;
 
     // Remove old metrics
