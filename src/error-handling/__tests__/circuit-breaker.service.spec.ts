@@ -13,8 +13,8 @@ describe("CircuitBreakerService", () => {
     service = module.get<CircuitBreakerService>(CircuitBreakerService);
   });
 
-  afterEach(() => {
-    service.destroy();
+  afterEach(async () => {
+    await service.cleanup();
   });
 
   describe("Circuit Registration", () => {
@@ -613,13 +613,13 @@ describe("CircuitBreakerService", () => {
       expect(service.getState(serviceId)).toBeUndefined();
     });
 
-    it("should clean up resources on destroy", () => {
+    it("should clean up resources on destroy", async () => {
       service.registerCircuit("service1");
       service.registerCircuit("service2");
 
       expect(service.getAllStates().size).toBe(2);
 
-      service.destroy();
+      await service.cleanup();
 
       expect(service.getAllStates().size).toBe(0);
     });
@@ -641,18 +641,18 @@ describe("CircuitBreakerService", () => {
       expect(service.getState(serviceId)).toBeUndefined();
     });
 
-    it("should handle multiple destroy calls gracefully", () => {
+    it("should handle multiple cleanup calls gracefully", async () => {
       service.registerCircuit("service1");
       service.registerCircuit("service2");
 
       expect(service.getAllStates().size).toBe(2);
 
-      // First destroy
-      service.destroy();
+      // First cleanup
+      await service.cleanup();
       expect(service.getAllStates().size).toBe(0);
 
-      // Second destroy should not throw
-      expect(() => service.destroy()).not.toThrow();
+      // Second cleanup should not throw
+      await expect(service.cleanup()).resolves.not.toThrow();
     });
   });
 });

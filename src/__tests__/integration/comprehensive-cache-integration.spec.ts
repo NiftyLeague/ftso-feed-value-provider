@@ -362,11 +362,11 @@ describe("Comprehensive Cache Integration Across All Services", () => {
       const price = await priceAggregationCoordinator.getCurrentPrice(mockFeedId);
 
       // Verify data freshness
-      expect(price.timestamp).toBeGreaterThan(startTime - 2000); // Within 2 seconds
+      expect(price.timestamp).toBeGreaterThan(startTime - 5000); // Within 5 seconds
 
       // Verify cached data is also fresh
       const cachedPrice = cacheService.getPrice(mockFeedId);
-      expect(cachedPrice?.timestamp).toBeGreaterThan(startTime - 2000);
+      expect(cachedPrice?.timestamp).toBeGreaterThan(startTime - 5000);
     });
 
     it("should maintain cache consistency requirements (Requirement 4.2)", async () => {

@@ -100,4 +100,6 @@ export interface WSConnectionStats extends ConnectionStats {
   wsState: "connecting" | "open" | "closing" | "closed";
   lastMessageAt?: number;
   pingLatency?: number;
+  lastError?: Error;
+  lastErrorAt?: number; // Timestamp of last error
 }

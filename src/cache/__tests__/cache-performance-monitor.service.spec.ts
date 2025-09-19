@@ -145,9 +145,18 @@ describe("CachePerformanceMonitorService", () => {
     });
 
     it("should detect slow response times", () => {
-      // Create slow response time scenario
+      // Create slow response time scenario with actual cache requests
       for (let i = 0; i < 10; i++) {
-        performanceMonitor.recordResponseTime(50); // Slow response times
+        // Make actual cache requests to ensure totalRequests > 5
+        const cacheEntry = {
+          value: i,
+          timestamp: Date.now(),
+          sources: [`source${i}`],
+          confidence: 0.9,
+        };
+        cacheService.set(`key${i}`, cacheEntry, 1000);
+        cacheService.get(`key${i}`);
+        performanceMonitor.recordResponseTime(600); // Slow response times (above 500ms threshold)
       }
 
       const health = performanceMonitor.checkPerformanceThresholds();

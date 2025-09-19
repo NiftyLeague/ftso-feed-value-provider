@@ -1,3 +1,29 @@
+// Mock WebSocket module
+jest.mock("ws", () => {
+  const { MockFactory } = require("@/__tests__/utils");
+  const MockWebSocket = jest.fn().mockImplementation(() => MockFactory.createWebSocket());
+  return MockWebSocket;
+});
+
+// Mock WebSocketConnectionManager
+jest.mock("@/data-manager/websocket-connection-manager.service", () => {
+  const mockInstance = {
+    createConnection: jest.fn().mockResolvedValue(undefined),
+    closeConnection: jest.fn().mockResolvedValue(undefined),
+    sendMessage: jest.fn().mockResolvedValue(true),
+    getConnectionStats: jest.fn().mockReturnValue({}),
+    getLatency: jest.fn().mockReturnValue(50),
+    isConnected: jest.fn().mockReturnValue(true),
+    on: jest.fn(),
+    off: jest.fn(),
+    emit: jest.fn(),
+  };
+
+  return {
+    WebSocketConnectionManager: jest.fn().mockImplementation(() => mockInstance),
+  };
+});
+
 import { OkxAdapter, OkxTickerData } from "../okx.adapter";
 import { FeedCategory } from "@/common/types/core";
 
@@ -44,6 +70,23 @@ describe("OkxAdapter", () => {
 
   beforeEach(() => {
     adapter = new OkxAdapter();
+
+    // Manually set up the mock WebSocketConnectionManager
+    const mockWsManager = {
+      createConnection: jest.fn().mockResolvedValue(undefined),
+      closeConnection: jest.fn().mockResolvedValue(undefined),
+      sendMessage: jest.fn().mockResolvedValue(true),
+      getConnectionStats: jest.fn().mockReturnValue({}),
+      getLatency: jest.fn().mockReturnValue(50),
+      isConnected: jest.fn().mockReturnValue(true),
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    };
+
+    (adapter as any).wsManager = mockWsManager;
+    (adapter as any).wsConnectionId = "test-connection";
+
     jest.clearAllMocks();
   });
 

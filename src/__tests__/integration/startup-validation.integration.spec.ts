@@ -123,13 +123,26 @@ describe("Startup Validation Integration", () => {
         return integrationService;
       });
 
-      const result = await startupValidationService.validateStartup();
+      // Mock the environment variable to use a shorter timeout for testing
+      const originalTimeout = process.env.INTEGRATION_SERVICE_TIMEOUT_MS;
+      process.env.INTEGRATION_SERVICE_TIMEOUT_MS = "1000"; // 1 second timeout
 
-      expect(result.success).toBe(false);
-      expect(result.errors).toContain(
-        "Integration service validation failed: Integration service initialization timeout"
-      );
-    }, 35000);
+      try {
+        const result = await startupValidationService.validateStartup();
+
+        expect(result.success).toBe(false);
+        expect(result.errors).toContain(
+          "Integration service validation failed: Integration service initialization timeout"
+        );
+      } finally {
+        // Restore original timeout
+        if (originalTimeout) {
+          process.env.INTEGRATION_SERVICE_TIMEOUT_MS = originalTimeout;
+        } else {
+          delete process.env.INTEGRATION_SERVICE_TIMEOUT_MS;
+        }
+      }
+    }, 10000);
 
     it("should validate data sources availability", async () => {
       // Mock the integration service as initialized
@@ -467,13 +480,26 @@ describe("Startup Validation Integration", () => {
 
       const startupValidationService = module.get<StartupValidationService>(StartupValidationService);
 
-      // This should return a failed result with timeout error
-      const result = await startupValidationService.validateStartup();
-      expect(result.success).toBe(false);
-      expect(result.errors).toContain(
-        "Integration service validation failed: Integration service initialization timeout"
-      );
-    }, 35000);
+      // Mock the environment variable to use a shorter timeout for testing
+      const originalTimeout = process.env.INTEGRATION_SERVICE_TIMEOUT_MS;
+      process.env.INTEGRATION_SERVICE_TIMEOUT_MS = "1000"; // 1 second timeout
+
+      try {
+        // This should return a failed result with timeout error
+        const result = await startupValidationService.validateStartup();
+        expect(result.success).toBe(false);
+        expect(result.errors).toContain(
+          "Integration service validation failed: Integration service initialization timeout"
+        );
+      } finally {
+        // Restore original timeout
+        if (originalTimeout) {
+          process.env.INTEGRATION_SERVICE_TIMEOUT_MS = originalTimeout;
+        } else {
+          delete process.env.INTEGRATION_SERVICE_TIMEOUT_MS;
+        }
+      }
+    }, 10000);
 
     it("should handle integration service that is already initialized", async () => {
       const mockIntegrationService = {

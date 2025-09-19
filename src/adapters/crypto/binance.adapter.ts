@@ -83,10 +83,10 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
-      reconnectInterval: 5000,
-      maxReconnectAttempts: 5,
+      reconnectInterval: 10000, // Increased from 5000
+      maxReconnectAttempts: 3, // Reduced from 5 to prevent spam
       pingInterval: 30000, // Binance requires periodic ping
-      pongTimeout: 10000, // Default pong timeout
+      pongTimeout: 15000, // Increased from 10000
     });
 
     this.startPingInterval();

@@ -1,63 +1,34 @@
+// Mock ws module before any imports
+jest.mock("ws", () => {
+  const { MockFactory } = require("@/__tests__/utils");
+  const MockWebSocket = jest.fn().mockImplementation(() => MockFactory.createWebSocket());
+  return MockWebSocket;
+});
+
+// Mock WebSocketConnectionManager before any imports
+jest.mock("@/data-manager/websocket-connection-manager.service", () => {
+  const mockInstance = {
+    createConnection: jest.fn().mockResolvedValue(undefined),
+    closeConnection: jest.fn().mockResolvedValue(undefined),
+    sendMessage: jest.fn().mockResolvedValue(true),
+    getConnectionStats: jest.fn().mockReturnValue({}),
+    getLatency: jest.fn().mockReturnValue(50),
+    isConnected: jest.fn().mockReturnValue(true),
+    on: jest.fn(),
+    off: jest.fn(),
+    emit: jest.fn(),
+  };
+
+  return {
+    WebSocketConnectionManager: jest.fn().mockImplementation(() => mockInstance),
+  };
+});
+
 import { KrakenAdapter, KrakenTickerData } from "../kraken.adapter";
 import { FeedCategory } from "@/common/types/core";
 
-// Mock WebSocket
-class MockWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-
-  readyState = MockWebSocket.CONNECTING;
-  onopen?: () => void;
-  onclose?: (event?: { code: number; reason: string }) => void;
-  onerror?: (error: Error | Event) => void;
-  onmessage?: (event: { data: string }) => void;
-
-  constructor(public url: string) {
-    // Immediate connection for faster tests
-    this.readyState = MockWebSocket.OPEN;
-    setImmediate(() => {
-      this.onopen?.();
-    });
-  }
-
-  send(_data: string) {
-    // Mock send implementation
-  }
-
-  close(code = 1000, reason = "Normal closure") {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.({ code, reason });
-  }
-
-  terminate() {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.({ code: 1006, reason: "Connection terminated" });
-  }
-
-  ping() {
-    // Mock ping implementation
-  }
-
-  on(event: string, handler: (...args: any[]) => void) {
-    if (event === "open") {
-      this.onopen = handler;
-    } else if (event === "close") {
-      this.onclose = handler;
-    } else if (event === "error") {
-      this.onerror = handler;
-    } else if (event === "message") {
-      this.onmessage = handler;
-    } else if (event === "pong") {
-      // Mock pong handler
-    }
-  }
-}
-
 // Mock fetch
 global.fetch = jest.fn();
-global.WebSocket = MockWebSocket as any;
 
 describe("KrakenAdapter", () => {
   let adapter: KrakenAdapter;
@@ -75,6 +46,22 @@ describe("KrakenAdapter", () => {
     // Create adapter with mocked logger
     adapter = new KrakenAdapter();
     (adapter as any).logger = mockLogger;
+
+    // Manually set up the mock WebSocketConnectionManager
+    const mockWsManager = {
+      createConnection: jest.fn().mockResolvedValue(undefined),
+      closeConnection: jest.fn().mockResolvedValue(undefined),
+      sendMessage: jest.fn().mockResolvedValue(true),
+      getConnectionStats: jest.fn().mockReturnValue({}),
+      getLatency: jest.fn().mockReturnValue(50),
+      isConnected: jest.fn().mockReturnValue(true),
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    };
+
+    (adapter as any).wsManager = mockWsManager;
+    (adapter as any).wsConnectionId = "test-connection";
 
     jest.clearAllMocks();
   });

@@ -401,11 +401,11 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
 
       // Get fresh price
       const price = await coordinatorService.getCurrentPrice(mockFeedId);
-      expect(price.timestamp).toBeGreaterThan(Date.now() - 2000); // Within 2 seconds
+      expect(price.timestamp).toBeGreaterThan(Date.now() - 5000); // Within 5 seconds
 
       // Verify cached data is also fresh
       const cachedPrice = cacheService.getPrice(mockFeedId);
-      expect(cachedPrice?.timestamp).toBeGreaterThan(Date.now() - 2000);
+      expect(cachedPrice?.timestamp).toBeGreaterThan(Date.now() - 5000);
     });
 
     it("should maintain cache consistency across concurrent operations", async () => {

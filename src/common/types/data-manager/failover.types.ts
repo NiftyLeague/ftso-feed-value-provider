@@ -10,6 +10,7 @@ export interface FailoverConfig extends BaseServiceConfig {
   healthCheckInterval: number; // How often to check source health (ms)
   failureThreshold: number; // Number of failures before triggering failover
   recoveryThreshold: number; // Number of successful checks before considering recovered
+  minFailureInterval: number; // Minimum time between failover attempts (ms)
 }
 
 export interface SourceHealth {
@@ -28,4 +29,5 @@ export interface FailoverGroup {
   backupSources: string[];
   activeSources: string[];
   failedSources: string[];
+  lastFailoverTime?: number; // Timestamp of last failover to prevent loops
 }

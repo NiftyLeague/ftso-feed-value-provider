@@ -1,5 +1,18 @@
 // Jest globals are available without import in standard Jest setup
 
+interface MockWebSocketEventHandler {
+  (...args: unknown[]): void;
+}
+
+interface MockWebSocket extends Partial<WebSocket> {
+  on: (event: string, handler: MockWebSocketEventHandler) => MockWebSocket;
+  off: (event: string, handler?: MockWebSocketEventHandler) => MockWebSocket;
+  emit: (event: string, ...args: unknown[]) => boolean;
+  ping: () => void;
+  pong: () => void;
+  terminate: () => void;
+}
+
 /**
  * Factory for creating commonly used mocks
  */
@@ -7,8 +20,8 @@ export class MockFactory {
   /**
    * Create a mock WebSocket
    */
-  static createWebSocket() {
-    const mockWs = {
+  static createWebSocket(): MockWebSocket {
+    const mockWs: MockWebSocket = {
       CONNECTING: 0,
       OPEN: 1,
       CLOSING: 2,
@@ -28,11 +41,35 @@ export class MockFactory {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
       dispatchEvent: jest.fn(),
+      on: jest.fn((event: string, handler: MockWebSocketEventHandler): MockWebSocket => {
+        if (event === "open") {
+          mockWs.onopen = handler;
+        } else if (event === "close") {
+          mockWs.onclose = handler;
+        } else if (event === "error") {
+          mockWs.onerror = handler;
+        } else if (event === "message") {
+          mockWs.onmessage = handler;
+        }
+        return mockWs;
+      }),
+      ping: jest.fn(),
+      pong: jest.fn(),
+      terminate: jest.fn(),
+      off: jest.fn((_event: string, _handler?: MockWebSocketEventHandler): MockWebSocket => {
+        return mockWs;
+      }),
+      emit: jest.fn((_event: string, ..._args: unknown[]): boolean => {
+        return true;
+      }),
     };
 
     // Immediately trigger open event for faster tests
     setImmediate(() => {
-      mockWs.onopen?.();
+      if (mockWs.onopen) {
+        const event = new Event("open");
+        (mockWs.onopen as EventListener).call(mockWs as unknown as WebSocket, event);
+      }
     });
 
     return mockWs;
@@ -317,6 +354,13 @@ export class MockSetup {
     (global as unknown as { WebSocket: unknown }).WebSocket = jest
       .fn()
       .mockImplementation(() => MockFactory.createWebSocket());
+
+    // Mock the ws module
+    jest.mock("ws", () => {
+      return {
+        WebSocket: jest.fn().mockImplementation(() => MockFactory.createWebSocket()),
+      };
+    });
   }
 
   /**

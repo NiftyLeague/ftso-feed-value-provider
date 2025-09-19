@@ -129,15 +129,15 @@ describe("ConnectionRecoveryService", () => {
     failoverManager = module.get<FailoverManager>(FailoverManager);
   });
 
-  afterEach(() => {
-    if (service) {
-      service.destroy();
+  afterEach(async () => {
+    if (service && service.cleanup) {
+      await service.cleanup();
     }
-    if (circuitBreaker && circuitBreaker.destroy) {
-      circuitBreaker.destroy();
+    if (circuitBreaker && circuitBreaker.cleanup) {
+      await circuitBreaker.cleanup();
     }
-    if (failoverManager && failoverManager.destroy) {
-      failoverManager.destroy();
+    if (failoverManager && failoverManager.cleanup) {
+      await failoverManager.cleanup();
     }
     // Restore console methods after each test
     jest.restoreAllMocks();
@@ -483,7 +483,9 @@ describe("ConnectionRecoveryService", () => {
 
       expect(service.getConnectionHealth().size).toBe(2);
 
-      service.destroy();
+      if (service && service.destroy) {
+        service.destroy();
+      }
 
       expect(service.getConnectionHealth().size).toBe(0);
     });

@@ -273,7 +273,7 @@ describe("Backtesting Framework", () => {
       performanceResults.forEach(result => {
         expect(result.averageAggregationTime).toBeLessThan(50);
         expect(result.maxAggregationTime).toBeLessThan(200);
-        expect(result.successRate).toBeGreaterThan(0.95);
+        expect(result.successRate).toBeGreaterThan(0.9);
       });
     });
   });

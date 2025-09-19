@@ -35,10 +35,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
   }
 
   override async initialize(): Promise<void> {
-    this.startTimer("initialize");
-
     await this.executeWithErrorHandling(
       async () => {
+        this.startTimer("initialize");
         this.logger.log("Starting data source integration initialization");
 
         // Step 1: Register exchange adapters
@@ -189,7 +188,11 @@ export class DataSourceIntegrationService extends EventDrivenService {
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
       this.endTimer(operationId);
-      this.logError(errObj, "verify_exchange_adapters", { severity: "critical" });
+      this.logFatal(`Exchange adapters verification failed: ${errObj.message}`, "verify_exchange_adapters", {
+        severity: "critical",
+        error: errObj.message,
+        stack: errObj.stack,
+      });
       throw error;
     }
   }
@@ -295,9 +298,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
           // Register circuit breaker for the data source
           this.circuitBreaker.registerCircuit(dataSource.id, {
-            failureThreshold: 5,
-            recoveryTimeout: 30000,
-            successThreshold: 3,
+            failureThreshold: 10, // More lenient for individual data sources
+            recoveryTimeout: 15000, // Faster recovery
+            successThreshold: 2, // Lower success threshold
             timeout: 10000,
           });
 

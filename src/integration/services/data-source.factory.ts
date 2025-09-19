@@ -212,6 +212,17 @@ class AdapterDataSource extends EventEmitter implements DataSource {
   // REST API fallback for WebSocket failures
   async fetchPriceViaREST(symbol: string): Promise<PriceUpdate | null> {
     try {
+      // Ensure we're connected before attempting REST fetch
+      if (!this.connected) {
+        this.logger.debug(`Attempting to reconnect for REST price fetch: ${symbol}`);
+        try {
+          await this.connect();
+        } catch (connectError) {
+          this.logger.warn(`Failed to reconnect for REST price fetch: ${connectError}`);
+          return null;
+        }
+      }
+
       // Use adapter's REST fallback if available
       type WithFetchTickerREST = { fetchTickerREST: (symbol: string) => Promise<PriceUpdate> };
       if (
@@ -221,10 +232,10 @@ class AdapterDataSource extends EventEmitter implements DataSource {
         return await (this.adapter as WithFetchTickerREST).fetchTickerREST(symbol);
       }
 
-      this.logger.warn(`No REST fallback available for ${this.adapter.exchangeName}`);
+      this.logger.debug(`No REST fallback available for ${this.adapter.exchangeName}`);
       return null;
     } catch (error) {
-      this.logger.error(`REST fallback failed for ${this.adapter.exchangeName} symbol ${symbol}:`, error);
+      this.logger.debug(`REST fallback failed for ${this.adapter.exchangeName} symbol ${symbol}:`, error);
       return null;
     }
   }

@@ -83,6 +83,7 @@ describe("FailoverManager", () => {
     healthCheckInterval: 1000,
     failureThreshold: 2,
     recoveryThreshold: 3,
+    minFailureInterval: 100, // 100ms for testing
   };
 
   beforeEach(async () => {
@@ -292,8 +293,9 @@ describe("FailoverManager", () => {
         });
       });
 
-      // Fail both primary sources
+      // Fail both primary sources with delay to avoid cooldown
       await manager.triggerFailover("binance", "Connection lost");
+      await new Promise(resolve => setTimeout(resolve, 6000)); // Wait for cooldown to expire
       await manager.triggerFailover("coinbase", "Connection lost");
 
       await failoverPromise;
@@ -315,8 +317,9 @@ describe("FailoverManager", () => {
         });
       });
 
-      // Fail all primary sources
+      // Fail all primary sources with delay to avoid cooldown
       await manager.triggerFailover("binance", "Connection lost");
+      await new Promise(resolve => setTimeout(resolve, 6000)); // Wait for cooldown to expire
       await manager.triggerFailover("coinbase", "Connection lost");
 
       await failoverFailedPromise;
@@ -356,7 +359,8 @@ describe("FailoverManager", () => {
       // First trigger failover
       await manager.triggerFailover("binance", "Connection lost");
 
-      // Activate backup source
+      // Wait for cooldown to expire, then activate backup source
+      await new Promise(resolve => setTimeout(resolve, 6000));
       await manager.triggerFailover("coinbase", "Connection lost");
 
       // Verify backup is active
@@ -418,11 +422,15 @@ describe("FailoverManager", () => {
       expect(binanceHealth?.consecutiveFailures).toBeGreaterThan(0);
     });
 
-    it("should mark source as unhealthy after threshold failures", () => {
-      // Simulate multiple connection failures
+    it("should mark source as unhealthy after threshold failures", async () => {
+      // Simulate multiple connection failures with delays
       for (let i = 0; i < testConfig.failureThreshold! + 1; i++) {
         mockSources[0].simulateConnection(false);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to allow processing
       }
+
+      // Wait a bit more for health monitoring to process
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const healthStatus = manager.getSourceHealthStatus();
       expect(healthStatus.get("binance")?.isHealthy).toBe(false);
