@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { WSConnectionConfig, WSConnectionStats } from "@/common/types/data-manager";
+import { ENV, ENV_HELPERS } from "@/common/constants";
 
 @Injectable()
 export class WebSocketConnectionManager extends EventDrivenService {
@@ -11,12 +12,16 @@ export class WebSocketConnectionManager extends EventDrivenService {
   private pingTimers = new Map<string, NodeJS.Timeout>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
 
+  // Rate limiting for error logging
+  private errorLastLogged = new Map<string, number>();
+  private readonly ERROR_COOLDOWN_MS = ENV.WEBSOCKET.ERROR_COOLDOWN_MS;
+
   constructor() {
     super({
-      pingInterval: 30000, // 30 seconds
-      pongTimeout: 10000, // 10 seconds
-      reconnectDelay: 5000, // 5 seconds
-      maxReconnectAttempts: 10,
+      pingInterval: ENV.WEBSOCKET.PING_INTERVAL_MS,
+      pongTimeout: ENV.WEBSOCKET.PONG_TIMEOUT_MS,
+      reconnectDelay: ENV.WEBSOCKET.RECONNECT_DELAY_MS,
+      maxReconnectAttempts: ENV.WEBSOCKET.MAX_RECONNECT_ATTEMPTS,
     });
   }
 
@@ -48,11 +53,25 @@ export class WebSocketConnectionManager extends EventDrivenService {
         wsState: "connecting",
       });
 
-      await this.executeWithErrorHandling(() => this.connect(connectionId), `websocket_connect_${connectionId}`, {
-        retries: 2,
-        retryDelay: 1000,
-        shouldThrow: true,
-      });
+      // Check for existing 429 errors and apply backoff (skip in test mode)
+      if (!ENV_HELPERS.isTest()) {
+        const existingStats = this.connectionStats.get(connectionId);
+        if (existingStats?.lastError?.message.includes("429")) {
+          const timeSinceLastError = Date.now() - (existingStats.lastErrorAt || 0);
+          const backoffDelay = Math.min(
+            ENV.WEBSOCKET.MAX_BACKOFF_MS,
+            5000 * Math.pow(3, existingStats.reconnectAttempts)
+          );
+
+          if (timeSinceLastError < backoffDelay) {
+            const remainingDelay = backoffDelay - timeSinceLastError;
+            this.logger.warn(`Rate limited (429) for ${connectionId}, waiting ${remainingDelay}ms before connection`);
+            await new Promise(resolve => setTimeout(resolve, remainingDelay));
+          }
+        }
+      }
+
+      await this.connect(connectionId);
     } catch (error) {
       // Re-throw after mixin handling for caller awareness
       throw error;
@@ -136,6 +155,18 @@ export class WebSocketConnectionManager extends EventDrivenService {
       throw new Error(`Configuration not found for connection ${connectionId}`);
     }
 
+    // Check if we should delay connection due to 429 rate limiting (skip in test mode)
+    if (!ENV_HELPERS.isTest() && stats.lastError && stats.lastError.message.includes("429")) {
+      const timeSinceLastError = Date.now() - (stats.lastErrorAt || 0);
+      const backoffDelay = Math.min(300000, 5000 * Math.pow(3, stats.reconnectAttempts)); // Max 5 minutes
+
+      if (timeSinceLastError < backoffDelay) {
+        const remainingDelay = backoffDelay - timeSinceLastError;
+        this.logger.warn(`Rate limited (429) for ${connectionId}, waiting ${remainingDelay}ms before retry`);
+        await new Promise(resolve => setTimeout(resolve, remainingDelay));
+      }
+    }
+
     return new Promise((resolve, reject) => {
       try {
         const ws = new WebSocket(config.url, config.protocols, {
@@ -166,9 +197,23 @@ export class WebSocketConnectionManager extends EventDrivenService {
         });
 
         ws.on("error", (error: Error) => {
-          this.logger.error(`WebSocket error on ${connectionId}:`, error);
+          // Rate limit error logging to prevent spam
+          const now = Date.now();
+          const errorKey = `${connectionId}_error`;
+          const lastLogged = this.errorLastLogged.get(errorKey) || 0;
+
+          if (now - lastLogged > this.ERROR_COOLDOWN_MS) {
+            this.logger.error(`WebSocket error on ${connectionId}:`, error);
+            this.errorLastLogged.set(errorKey, now);
+          }
+
           stats.totalErrors++;
           this.emit("connectionError", connectionId, error);
+
+          // Store the error and timestamp for potential reconnection
+          stats.lastError = error;
+          stats.lastErrorAt = now;
+
           reject(error);
         });
 
@@ -176,13 +221,13 @@ export class WebSocketConnectionManager extends EventDrivenService {
           this.handlePong(connectionId);
         });
 
-        // Set connection timeout
+        // Set connection timeout - increased to 30 seconds for better reliability
         const timeout = setTimeout(() => {
           if (ws.readyState === WebSocket.CONNECTING) {
             ws.terminate();
             reject(new Error(`Connection timeout for ${connectionId}`));
           }
-        }, 10000); // 10 second timeout
+        }, ENV.WEBSOCKET.CONNECTION_TIMEOUT_MS);
 
         ws.on("open", () => clearTimeout(timeout));
         ws.on("error", () => clearTimeout(timeout));
@@ -212,7 +257,15 @@ export class WebSocketConnectionManager extends EventDrivenService {
   }
 
   private handleClose(connectionId: string, code: number, reason: string): void {
-    this.logger.warn(`WebSocket connection closed: ${connectionId}, code: ${code}, reason: ${reason}`);
+    // Rate limit close warnings to prevent spam
+    const now = Date.now();
+    const closeKey = `${connectionId}_close`;
+    const lastLogged = this.errorLastLogged.get(closeKey) || 0;
+
+    if (now - lastLogged > this.ERROR_COOLDOWN_MS) {
+      this.logger.warn(`WebSocket connection closed: ${connectionId}, code: ${code}, reason: ${reason}`);
+      this.errorLastLogged.set(closeKey, now);
+    }
 
     this.clearTimers(connectionId);
     this.connections.delete(connectionId);
@@ -225,7 +278,14 @@ export class WebSocketConnectionManager extends EventDrivenService {
 
     // Attempt reconnection if not a clean close
     if (code !== 1000) {
-      this.scheduleReconnection(connectionId);
+      // Create error object with rate limiting info if applicable
+      const error = new Error(`Connection closed with code ${code}: ${reason}`);
+      const stats = this.connectionStats.get(connectionId);
+      if (stats) {
+        stats.lastError = error;
+        stats.lastErrorAt = Date.now();
+      }
+      this.scheduleReconnection(connectionId, error);
     }
   }
 
@@ -269,7 +329,7 @@ export class WebSocketConnectionManager extends EventDrivenService {
     this.pingTimers.set(connectionId, pingTimer);
   }
 
-  private scheduleReconnection(connectionId: string): void {
+  private scheduleReconnection(connectionId: string, lastError?: Error): void {
     const config = this.connectionConfigs.get(connectionId);
     const stats = this.connectionStats.get(connectionId);
 
@@ -281,16 +341,31 @@ export class WebSocketConnectionManager extends EventDrivenService {
       return;
     }
 
-    const delay = (config.reconnectDelay || 5000) * Math.pow(2, stats.reconnectAttempts);
+    // Use stored error if no error provided
+    const error = lastError || stats.lastError;
+
+    // Special handling for 429 (rate limiting) errors
+    let delay = config.reconnectDelay || 5000;
+    if (error && error.message.includes("429")) {
+      // For 429 errors, use exponential backoff with longer delays
+      delay = Math.min(300000, delay * Math.pow(3, stats.reconnectAttempts)); // Max 5 minutes
+      this.logger.warn(`Rate limited (429) for ${connectionId}, using extended backoff: ${delay}ms`);
+    } else {
+      // Standard exponential backoff for other errors
+      delay = delay * Math.pow(2, stats.reconnectAttempts);
+    }
+
     stats.reconnectAttempts++;
 
     this.logger.log(`Scheduling reconnection for ${connectionId} in ${delay}ms (attempt ${stats.reconnectAttempts})`);
 
     const reconnectTimer = setTimeout(async () => {
-      await this.executeWithErrorHandling(() => this.connect(connectionId), `websocket_reconnect_${connectionId}`, {
-        retries: 1,
-        shouldThrow: false, // Don't throw on reconnection failure
-      });
+      try {
+        await this.connect(connectionId);
+      } catch {
+        // Don't log errors here as they'll be handled by the connect method
+        // This prevents duplicate error logging
+      }
       // Will trigger another reconnection attempt via the close handler if needed
     }, delay);
 
@@ -309,5 +384,39 @@ export class WebSocketConnectionManager extends EventDrivenService {
       clearTimeout(reconnectTimer);
       this.reconnectTimers.delete(connectionId);
     }
+  }
+
+  /**
+   * Cleanup method to prevent memory leaks
+   */
+  destroy(): void {
+    // Clear all timers
+    for (const timer of this.pingTimers.values()) {
+      clearInterval(timer);
+    }
+    this.pingTimers.clear();
+
+    for (const timer of this.reconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.reconnectTimers.clear();
+
+    // Close all connections
+    for (const [, ws] of this.connections.entries()) {
+      try {
+        ws.close(1000, "Service shutdown");
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    this.connections.clear();
+
+    // Clear all maps
+    this.connectionConfigs.clear();
+    this.connectionStats.clear();
+    this.errorLastLogged.clear();
+
+    // Remove all event listeners
+    this.removeAllListeners();
   }
 }

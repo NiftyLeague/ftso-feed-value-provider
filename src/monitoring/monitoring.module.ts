@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import type { AlertSeverity, AlertAction, MonitoringConfig } from "@/common/types/monitoring";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV } from "@/common/constants";
 
 import { AccuracyMonitorService } from "./accuracy-monitor.service";
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -19,14 +19,22 @@ import { ConfigService } from "@/config/config.service";
     {
       provide: AccuracyMonitorService,
       useFactory: (config: MonitoringConfig) => {
-        return new AccuracyMonitorService(config.thresholds);
+        return new AccuracyMonitorService({
+          accuracy: config.thresholds.accuracy,
+          performance: config.thresholds.performance,
+          health: config.thresholds.health,
+        });
       },
       inject: ["MonitoringConfig"],
     },
     {
       provide: PerformanceMonitorService,
       useFactory: (config: MonitoringConfig) => {
-        return new PerformanceMonitorService(config.thresholds);
+        return new PerformanceMonitorService({
+          accuracy: config.thresholds.accuracy,
+          performance: config.thresholds.performance,
+          health: config.thresholds.health,
+        });
       },
       inject: ["MonitoringConfig"],
     },
@@ -42,24 +50,31 @@ import { ConfigService } from "@/config/config.service";
       provide: "MonitoringConfig",
       useFactory: (_configService: ConfigService) => {
         return {
-          accuracyThresholds: {
-            maxConsensusDeviation: EnvironmentUtils.parseFloat("MAX_CONSENSUS_DEVIATION", 0.5, { min: 0, max: 10 }),
-            minAccuracyRate: EnvironmentUtils.parseInt("MIN_ACCURACY_RATE", 80, { min: 0, max: 100 }),
-            minQualityScore: EnvironmentUtils.parseInt("MIN_QUALITY_SCORE", 70, { min: 0, max: 100 }),
+          enabled: true,
+          interval: ENV.INTERVALS.MONITORING_MS,
+          thresholds: {
+            accuracy: {
+              maxConsensusDeviation: ENV.MONITORING.MAX_CONSENSUS_DEVIATION,
+              minAccuracyRate: ENV.MONITORING.MIN_ACCURACY_RATE,
+              minQualityScore: ENV.MONITORING.MIN_QUALITY_SCORE,
+              warning: ENV.MONITORING.WARNING_THRESHOLD,
+              critical: ENV.MONITORING.CRITICAL_THRESHOLD,
+              maxDeviation: ENV.MONITORING.MAX_DEVIATION,
+              minParticipants: ENV.MONITORING.MIN_PARTICIPANTS,
+            },
+            performance: {
+              maxResponseLatency: ENV.MONITORING.MAX_RESPONSE_LATENCY_MS,
+              maxDataAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+              minThroughput: ENV.MONITORING.MIN_THROUGHPUT,
+              minCacheHitRate: ENV.MONITORING.MIN_CACHE_HIT_RATE,
+            },
+            health: {
+              maxErrorRate: ENV.MONITORING.MAX_ERROR_RATE,
+              maxCpuUsage: ENV.MONITORING.MAX_CPU_USAGE,
+              maxMemoryUsage: ENV.MONITORING.MAX_MEMORY_USAGE,
+              minConnectionRate: ENV.MONITORING.MIN_CONNECTION_RATE,
+            },
           },
-          performanceThresholds: {
-            maxResponseLatency: EnvironmentUtils.parseInt("MAX_RESPONSE_LATENCY", 80, { min: 1, max: 10000 }),
-            maxDataAge: EnvironmentUtils.parseInt("MAX_DATA_AGE", 2000, { min: 100, max: 60000 }),
-            minThroughput: EnvironmentUtils.parseInt("MIN_THROUGHPUT", 150, { min: 1, max: 10000 }),
-            minCacheHitRate: EnvironmentUtils.parseInt("MIN_CACHE_HIT_RATE", 90, { min: 0, max: 100 }),
-          },
-          healthThresholds: {
-            maxErrorRate: EnvironmentUtils.parseInt("MAX_ERROR_RATE", 3, { min: 0, max: 1000 }),
-            maxCpuUsage: EnvironmentUtils.parseInt("MAX_CPU_USAGE", 70, { min: 0, max: 100 }),
-            maxMemoryUsage: EnvironmentUtils.parseInt("MAX_MEMORY_USAGE", 70, { min: 0, max: 100 }),
-            minConnectionRate: EnvironmentUtils.parseInt("MIN_CONNECTION_RATE", 95, { min: 0, max: 100 }),
-          },
-          monitoringInterval: EnvironmentUtils.parseInt("MONITORING_INTERVAL", 5000, { min: 1000, max: 60000 }),
           alerting: {
             rules: [
               {
@@ -67,125 +82,125 @@ import { ConfigService } from "@/config/config.service";
                 name: "Critical Consensus Deviation",
                 description: "Consensus deviation exceeds 1% (critical threshold)",
                 metric: "consensus_deviation",
-                threshold: 1.0,
+                threshold: ENV.ALERTS.CONSENSUS_DEVIATION_CRITICAL,
                 operator: "gt",
                 severity: "critical" as AlertSeverity,
                 duration: 0,
                 actions: ["log", "email", "webhook"] as AlertAction[],
                 enabled: true,
-                cooldown: 300000, // 5 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "consensus_deviation_error",
                 name: "Consensus Deviation Error",
                 description: "Consensus deviation exceeds 0.5% (FTSO requirement)",
                 metric: "consensus_deviation",
-                threshold: 0.5,
+                threshold: ENV.ALERTS.CONSENSUS_DEVIATION_ERROR,
                 operator: "gt",
                 severity: "error" as AlertSeverity,
                 duration: 0,
                 actions: ["log", "email"] as AlertAction[],
                 enabled: true,
-                cooldown: 300000, // 5 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "accuracy_rate_low",
                 name: "Low Accuracy Rate",
                 description: "Accuracy rate below 80% target",
                 metric: "accuracy_rate",
-                threshold: 80,
+                threshold: ENV.ALERTS.ACCURACY_RATE_LOW,
                 operator: "lt",
                 severity: "warning" as AlertSeverity,
-                duration: 60000, // 1 minute
+                duration: ENV.MONITORING.ALERT_DURATION_MS,
                 actions: ["log", "email"] as AlertAction[],
                 enabled: true,
-                cooldown: 600000, // 10 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "response_latency_high",
                 name: "High Response Latency",
                 description: "API response latency exceeds 100ms target",
                 metric: "response_latency",
-                threshold: 100,
+                threshold: ENV.MONITORING.MAX_RESPONSE_LATENCY_MS,
                 operator: "gt",
                 severity: "warning" as AlertSeverity,
-                duration: 30000, // 30 seconds
+                duration: ENV.MONITORING.ALERT_DURATION_MS,
                 actions: ["log"] as AlertAction[],
                 enabled: true,
-                cooldown: 300000, // 5 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "data_freshness_stale",
                 name: "Stale Data Alert",
                 description: "Data age exceeds 2 second freshness requirement",
                 metric: "data_freshness",
-                threshold: 2000,
+                threshold: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
                 operator: "gt",
                 severity: "error" as AlertSeverity,
                 duration: 0,
                 actions: ["log", "webhook"] as AlertAction[],
                 enabled: true,
-                cooldown: 60000, // 1 minute
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "connection_rate_low",
                 name: "Low Exchange Connection Rate",
                 description: "Exchange connection rate below 90%",
                 metric: "connection_rate",
-                threshold: 90,
+                threshold: ENV.ALERTS.CONNECTION_RATE_LOW,
                 operator: "lt",
                 severity: "error" as AlertSeverity,
-                duration: 30000, // 30 seconds
+                duration: ENV.MONITORING.ALERT_DURATION_MS,
                 actions: ["log", "email", "webhook"] as AlertAction[],
                 enabled: true,
-                cooldown: 300000, // 5 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "error_rate_high",
                 name: "High Error Rate",
                 description: "System error rate exceeds 5 errors per minute",
                 metric: "error_rate",
-                threshold: 5,
+                threshold: ENV.ALERTS.ERROR_RATE_HIGH,
                 operator: "gt",
                 severity: "error" as AlertSeverity,
-                duration: 60000, // 1 minute
+                duration: ENV.MONITORING.ALERT_DURATION_MS,
                 actions: ["log", "email"] as AlertAction[],
                 enabled: true,
-                cooldown: 300000, // 5 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
               {
                 id: "quality_score_low",
                 name: "Low Quality Score",
                 description: "Overall quality score below acceptable threshold",
                 metric: "quality_score",
-                threshold: 70,
+                threshold: ENV.ALERTS.QUALITY_SCORE_LOW,
                 operator: "lt",
                 severity: "warning" as AlertSeverity,
-                duration: 120000, // 2 minutes
+                duration: ENV.MONITORING.ALERT_DURATION_MS,
                 actions: ["log"] as AlertAction[],
                 enabled: true,
-                cooldown: 600000, // 10 minutes
+                cooldown: ENV.MONITORING.ALERT_COOLDOWN_MS,
               },
             ],
             deliveryConfig: {
               email: {
-                enabled: EnvironmentUtils.parseBoolean("ALERT_EMAIL_ENABLED", false),
-                smtpHost: EnvironmentUtils.parseString("ALERT_SMTP_HOST", "localhost"),
-                smtpPort: EnvironmentUtils.parseInt("ALERT_SMTP_PORT", 587, { min: 1, max: 65535 }),
-                username: EnvironmentUtils.parseString("ALERT_SMTP_USERNAME", ""),
-                password: EnvironmentUtils.parseString("ALERT_SMTP_PASSWORD", ""),
-                from: EnvironmentUtils.parseString("ALERT_EMAIL_FROM", '"Alerting Service" <alerts@ftso-provider.com>'),
-                to: EnvironmentUtils.parseList("ALERT_EMAIL_TO", []),
+                enabled: ENV.ALERTING.EMAIL.ENABLED,
+                smtpHost: ENV.ALERTING.EMAIL.SMTP_HOST,
+                smtpPort: ENV.ALERTING.EMAIL.SMTP_PORT,
+                username: ENV.ALERTING.EMAIL.USERNAME,
+                password: ENV.ALERTING.EMAIL.PASSWORD,
+                from: ENV.ALERTING.EMAIL.FROM,
+                to: ENV.ALERTING.EMAIL.TO,
               },
               webhook: {
-                enabled: EnvironmentUtils.parseBoolean("ALERT_WEBHOOK_ENABLED", false),
-                url: EnvironmentUtils.parseString("ALERT_WEBHOOK_URL", ""),
-                headers: EnvironmentUtils.parseJSON("ALERT_WEBHOOK_HEADERS", {}),
-                timeout: EnvironmentUtils.parseInt("ALERT_WEBHOOK_TIMEOUT", 5000, { min: 1000, max: 30000 }),
+                enabled: ENV.ALERTING.WEBHOOK.ENABLED,
+                url: ENV.ALERTING.WEBHOOK.URL,
+                headers: ENV.ALERTING.WEBHOOK.HEADERS,
+                timeout: ENV.TIMEOUTS.WEBHOOK_MS,
               },
             },
-            maxAlertsPerHour: EnvironmentUtils.parseInt("ALERT_MAX_PER_HOUR", 20, { min: 1, max: 1000 }),
-            alertRetention: EnvironmentUtils.parseInt("ALERT_RETENTION_DAYS", 30, { min: 1, max: 365 }),
+            maxAlertsPerHour: ENV.MONITORING.MAX_ALERTS_PER_HOUR,
+            alertRetention: ENV.MONITORING.ALERT_RETENTION_DAYS,
           },
         };
       },

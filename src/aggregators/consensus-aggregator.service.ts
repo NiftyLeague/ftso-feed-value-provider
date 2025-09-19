@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
+import { ENV } from "@/common/constants";
 
 interface IPricePoint {
   price: number;
@@ -59,17 +60,17 @@ export class ConsensusAggregator extends StandardService {
 
   constructor() {
     super({
-      lambda: 0.00004, // Optimized time decay factor for better consensus
-      maxStalenessMs: 1500, // Reduced staleness threshold for fresher data
-      minSources: 2, // Minimum sources for aggregation
-      cacheTTL: 300, // Reduced cache TTL for more responsive updates
-      weightUpdateInterval: 45000, // More frequent weight updates for better accuracy
+      lambda: ENV.AGGREGATION.LAMBDA_DECAY, // Optimized time decay factor for better consensus
+      maxStalenessMs: ENV.AGGREGATION.MAX_STALENESS_MS,
+      minSources: ENV.AGGREGATION.MIN_SOURCES, // Minimum sources for aggregation
+      cacheTTL: ENV.AGGREGATION.CACHE_TTL_MS,
+      weightUpdateInterval: ENV.AGGREGATION.WEIGHT_UPDATE_INTERVAL_MS,
       tierWeights: {
-        1: 1.4, // Increased tier 1 bonus for better reliability
-        2: 1.0, // Standard tier 2 weighting
+        1: ENV.AGGREGATION.TIER_1_WEIGHT, // Increased tier 1 bonus for better reliability
+        2: ENV.AGGREGATION.TIER_2_WEIGHT, // Standard tier 2 weighting
       },
-      outlierThreshold: 0.12, // Tighter outlier detection for better quality
-      batchSize: 50, // Batch processing size for optimization
+      outlierThreshold: ENV.AGGREGATION.OUTLIER_THRESHOLD, // Tighter outlier detection for better quality
+      batchSize: ENV.AGGREGATION.BATCH_SIZE, // Batch processing size for optimization
       parallelProcessing: true, // Enable parallel processing
       adaptiveWeighting: true, // Enable adaptive weight adjustment
       useEnhancedLogging: true,
@@ -93,16 +94,24 @@ export class ConsensusAggregator extends StandardService {
    *
    * @param feedId - The feed identifier (category and name)
    * @param updates - Array of price updates from different exchanges
+   * @param manageTimer - Whether this method should manage its own timer (default: true)
    * @returns Promise resolving to aggregated price with confidence and consensus scores
    */
-  async aggregate(feedId: CoreFeedId, updates: PriceUpdate[]): Promise<AggregatedPrice> {
-    this.startTimer(`aggregate_${feedId.name}`);
+  async aggregate(feedId: CoreFeedId, updates: PriceUpdate[], manageTimer = true): Promise<AggregatedPrice> {
+    const timerId = `aggregate_${feedId.name}`;
+    if (manageTimer) {
+      this.startTimer(timerId);
+    }
     const feedKey = `${feedId.category}:${feedId.name}`;
 
     try {
       // Check cache first
       const cachedResult = this.tryGetCachedResult(feedKey, updates);
       if (cachedResult) {
+        if (manageTimer) {
+          const responseTime = this.endTimer(timerId);
+          this.updatePerformanceMetrics(responseTime);
+        }
         return cachedResult;
       }
 
@@ -113,11 +122,20 @@ export class ConsensusAggregator extends StandardService {
       const result = this.performAggregation(feedId, validUpdates);
 
       // Cache and log result
-      this.cacheAndLogResult(feedKey, result, updates, validUpdates.length);
+      if (manageTimer) {
+        this.cacheAndLogResult(timerId, feedKey, result, updates, validUpdates.length);
+      } else {
+        this.cacheAggregationResult(feedKey, result, updates);
+        this.performanceMetrics.totalAggregations++;
+      }
 
       return result;
     } catch (error) {
-      this.handleAggregationError(feedId.name, error);
+      if (manageTimer) {
+        this.handleAggregationError(timerId, feedId.name, error);
+      } else {
+        this.logger.error(`Optimized aggregation failed for ${feedId.name}:`, error);
+      }
       throw error;
     }
   }
@@ -129,8 +147,7 @@ export class ConsensusAggregator extends StandardService {
     const cachedResult = this.checkAggregationCache(feedKey, updates);
     if (cachedResult) {
       this.performanceMetrics.cacheHits++;
-      const responseTime = this.endTimer(`aggregate_${feedKey.split(":")[1]}`);
-      this.updatePerformanceMetrics(responseTime);
+      // Don't end timer here - it will be ended in the calling method
       return cachedResult;
     }
 
@@ -149,10 +166,28 @@ export class ConsensusAggregator extends StandardService {
     const validUpdates = this.fastValidateUpdates(updates);
 
     if (validUpdates.length === 0) {
-      throw new Error(`No valid price data available for feed ${feedName}`);
+      // If no updates pass strict validation, try more lenient validation
+      const lenientUpdates = this.lenientValidateUpdates(updates);
+      if (lenientUpdates.length === 0) {
+        throw new Error(`No valid price data available for feed ${feedName}`);
+      }
+
+      this.logger.warn(
+        `Using lenient validation for ${feedName}: ${lenientUpdates.length} sources (${updates.length} total)`
+      );
+      return lenientUpdates;
     }
 
     if (validUpdates.length < this.consensusConfig.minSources) {
+      // If we don't have enough sources with strict validation, try lenient validation
+      const lenientUpdates = this.lenientValidateUpdates(updates);
+      if (lenientUpdates.length >= this.consensusConfig.minSources) {
+        this.logger.warn(
+          `Using lenient validation for ${feedName}: ${lenientUpdates.length} sources (${updates.length} total)`
+        );
+        return lenientUpdates;
+      }
+
       throw new Error(`Insufficient valid sources: ${validUpdates.length} < ${this.consensusConfig.minSources}`);
     }
 
@@ -182,6 +217,7 @@ export class ConsensusAggregator extends StandardService {
    * Cache result and log performance metrics
    */
   private cacheAndLogResult(
+    timerId: string,
     feedKey: string,
     result: AggregatedPrice,
     updates: PriceUpdate[],
@@ -189,7 +225,7 @@ export class ConsensusAggregator extends StandardService {
   ): void {
     this.cacheAggregationResult(feedKey, result, updates);
 
-    const responseTime = this.endTimer(`aggregate_${result.symbol}`);
+    const responseTime = this.endTimer(timerId);
     this.updatePerformanceMetrics(responseTime);
     this.performanceMetrics.totalAggregations++;
 
@@ -202,8 +238,8 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Handle aggregation errors
    */
-  private handleAggregationError(feedName: string, error: unknown): void {
-    const responseTime = this.endTimer(`aggregate_${feedName}`);
+  private handleAggregationError(timerId: string, feedName: string, error: unknown): void {
+    const responseTime = this.endTimer(timerId);
     this.updatePerformanceMetrics(responseTime);
     this.logger.error(`Optimized aggregation failed for ${feedName}:`, error);
   }
@@ -220,23 +256,43 @@ export class ConsensusAggregator extends StandardService {
   private initializePrecomputedWeights(): void {
     const exchangeWeights = {
       // Tier 1: Premium WebSocket adapters with optimized weights
-      binance: { baseWeight: 0.28, tierMultiplier: 1.4, reliabilityScore: 0.97 },
-      coinbase: { baseWeight: 0.26, tierMultiplier: 1.4, reliabilityScore: 0.96 },
-      kraken: { baseWeight: 0.22, tierMultiplier: 1.4, reliabilityScore: 0.95 },
-      okx: { baseWeight: 0.18, tierMultiplier: 1.4, reliabilityScore: 0.94 },
-      cryptocom: { baseWeight: 0.16, tierMultiplier: 1.4, reliabilityScore: 0.92 },
+      binance: {
+        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.BINANCE_BASE_WEIGHT,
+        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.BINANCE_TIER_MULTIPLIER,
+        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.BINANCE_RELIABILITY_SCORE,
+      },
+      coinbase: {
+        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.COINBASE_BASE_WEIGHT,
+        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.COINBASE_TIER_MULTIPLIER,
+        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.COINBASE_RELIABILITY_SCORE,
+      },
+      kraken: {
+        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.KRAKEN_BASE_WEIGHT,
+        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.KRAKEN_TIER_MULTIPLIER,
+        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.KRAKEN_RELIABILITY_SCORE,
+      },
+      okx: {
+        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.OKX_BASE_WEIGHT,
+        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.OKX_TIER_MULTIPLIER,
+        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.OKX_RELIABILITY_SCORE,
+      },
+      cryptocom: {
+        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.CRYPTOCOM_BASE_WEIGHT,
+        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.CRYPTOCOM_TIER_MULTIPLIER,
+        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.CRYPTOCOM_RELIABILITY_SCORE,
+      },
 
-      // Tier 2: Enhanced CCXT-based exchanges with improved weights
-      bybit: { baseWeight: 0.14, tierMultiplier: 1.1, reliabilityScore: 0.9 },
-      gate: { baseWeight: 0.12, tierMultiplier: 1.1, reliabilityScore: 0.87 },
-      kucoin: { baseWeight: 0.12, tierMultiplier: 1.1, reliabilityScore: 0.87 },
-      bitget: { baseWeight: 0.1, tierMultiplier: 1.0, reliabilityScore: 0.84 },
-      mexc: { baseWeight: 0.09, tierMultiplier: 1.0, reliabilityScore: 0.82 },
-      bitmart: { baseWeight: 0.07, tierMultiplier: 1.0, reliabilityScore: 0.8 },
-      probit: { baseWeight: 0.06, tierMultiplier: 1.0, reliabilityScore: 0.77 },
-      huobi: { baseWeight: 0.08, tierMultiplier: 1.0, reliabilityScore: 0.81 },
-      bithumb: { baseWeight: 0.07, tierMultiplier: 1.0, reliabilityScore: 0.79 },
-      upbit: { baseWeight: 0.06, tierMultiplier: 1.0, reliabilityScore: 0.78 },
+      // Tier 2: Enhanced CCXT-based exchanges with default weights
+      bybit: { baseWeight: 0.14, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.9 },
+      gate: { baseWeight: 0.12, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.87 },
+      kucoin: { baseWeight: 0.12, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.87 },
+      bitget: { baseWeight: 0.1, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.84 },
+      mexc: { baseWeight: 0.09, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.82 },
+      bitmart: { baseWeight: 0.07, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.8 },
+      probit: { baseWeight: 0.06, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.77 },
+      huobi: { baseWeight: 0.08, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.81 },
+      bithumb: { baseWeight: 0.07, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.79 },
+      upbit: { baseWeight: 0.06, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.78 },
     };
 
     const now = Date.now();
@@ -266,6 +322,27 @@ export class ConsensusAggregator extends StandardService {
 
       // Fast confidence check
       if (update.confidence < 0.1 || update.confidence > 1) return false;
+
+      return true;
+    });
+  }
+
+  /**
+   * More lenient validation for cases where strict validation fails
+   */
+  private lenientValidateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
+    const now = Date.now();
+    const maxAge = this.consensusConfig.maxStalenessMs * 2; // Double the staleness threshold
+
+    return updates.filter(update => {
+      // Lenient staleness check - allow data up to 2x the normal staleness threshold
+      if (now - update.timestamp > maxAge) return false;
+
+      // Price validity check (same as strict)
+      if (!update.price || update.price <= 0 || !isFinite(update.price)) return false;
+
+      // Lenient confidence check - allow lower confidence values
+      if (update.confidence < 0.05 || update.confidence > 1) return false;
 
       return true;
     });

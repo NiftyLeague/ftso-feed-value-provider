@@ -4,6 +4,7 @@ import { createTimer } from "@/common/utils/performance.utils";
 import { handleAsyncOperation } from "@/common/utils/http-response.utils";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import type { CircuitBreakerConfig, CircuitBreakerStats, CircuitBreakerMetrics } from "@/common/types/error-handling";
+import { ENV } from "@/common/constants";
 
 @Injectable()
 export class CircuitBreakerService extends EventDrivenService {
@@ -13,13 +14,17 @@ export class CircuitBreakerService extends EventDrivenService {
   private circuitTimers = new Map<string, NodeJS.Timeout>();
   private requestHistory = new Map<string, Array<{ timestamp: number; success: boolean; responseTime: number }>>();
 
+  // Rate limiting for warnings
+  private warningLastLogged = new Map<string, number>();
+  private readonly WARNING_COOLDOWN_MS = 30000; // 30 seconds
+
   constructor() {
     super({
-      failureThreshold: 5, // Open after 5 failures
-      recoveryTimeout: 60000, // Wait 60 seconds before trying again
-      successThreshold: 3, // Need 3 successes to close circuit
-      timeout: 5000, // 5 second timeout
-      monitoringWindow: 300000, // 5 minute monitoring window
+      failureThreshold: ENV.CIRCUIT_BREAKER.SUCCESS_THRESHOLD,
+      recoveryTimeout: ENV.TIMEOUTS.CIRCUIT_BREAKER_MS,
+      successThreshold: ENV.CIRCUIT_BREAKER.SUCCESS_THRESHOLD,
+      timeout: ENV.TIMEOUTS.CIRCUIT_BREAKER_MS,
+      monitoringWindow: ENV.CIRCUIT_BREAKER.MONITORING_WINDOW_MS,
     });
   }
 
@@ -374,7 +379,15 @@ export class CircuitBreakerService extends EventDrivenService {
       this.circuitTimers.set(serviceId, timer);
     }
 
-    this.logger.warn(`Circuit breaker OPENED for service: ${serviceId}`);
+    // Rate limit the warning to prevent spam
+    const now = Date.now();
+    const lastLogged = this.warningLastLogged.get(serviceId) || 0;
+
+    if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
+      this.logger.warn(`Circuit breaker OPENED for service: ${serviceId}`);
+      this.warningLastLogged.set(serviceId, now);
+    }
+
     this.emit("circuitOpened", serviceId);
   }
 
@@ -412,7 +425,7 @@ export class CircuitBreakerService extends EventDrivenService {
   /**
    * Cleanup method
    */
-  destroy(): void {
+  override async cleanup(): Promise<void> {
     // Clear all timers
     for (const timer of this.circuitTimers.values()) {
       clearTimeout(timer);
@@ -423,5 +436,7 @@ export class CircuitBreakerService extends EventDrivenService {
     this.stats.clear();
     this.circuitTimers.clear();
     this.requestHistory.clear();
+
+    this.logger.debug("CircuitBreakerService cleanup completed");
   }
 }

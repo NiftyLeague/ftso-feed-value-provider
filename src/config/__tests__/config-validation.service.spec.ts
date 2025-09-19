@@ -47,13 +47,6 @@ describe("ConfigValidationService", () => {
         MAX_LOG_FILE_SIZE: "10MB",
         DEBUG_LOG_LEVEL: "debug",
         LOG_FORMAT: "json",
-        LOG_LEVEL_PRODUCTION_INTEGRATION: "log",
-        LOG_LEVEL_DATA_MANAGER: "log",
-        LOG_LEVEL_AGGREGATION: "log",
-        LOG_LEVEL_ERROR_HANDLER: "log",
-        LOG_LEVEL_PERFORMANCE_MONITOR: "log",
-        LOG_LEVEL_ALERTING: "log",
-        LOG_LEVEL_BOOTSTRAP: "log",
       };
       return mockValues[key] || defaultValue;
     });
@@ -61,10 +54,7 @@ describe("ConfigValidationService", () => {
     (EnvironmentUtils.parseInt as jest.Mock).mockImplementation((key: string, defaultValue: number) => {
       const mockValues: Record<string, number> = {
         VALUE_PROVIDER_CLIENT_PORT: 3101,
-        MEDIAN_DECAY: 0.00005,
-        TRADES_HISTORY_SIZE: 1000,
         ALERT_SMTP_PORT: 587,
-        ALERT_WEBHOOK_TIMEOUT: 5000,
         ALERT_MAX_PER_HOUR: 20,
         ALERT_RETENTION_DAYS: 30,
         CACHE_TTL_MS: 1000,
@@ -85,9 +75,7 @@ describe("ConfigValidationService", () => {
     });
 
     (EnvironmentUtils.parseFloat as jest.Mock).mockImplementation((key: string, defaultValue: number) => {
-      const mockValues: Record<string, number> = {
-        MEDIAN_DECAY: 0.00005,
-      };
+      const mockValues: Record<string, number> = {};
       return mockValues[key] || defaultValue;
     });
 

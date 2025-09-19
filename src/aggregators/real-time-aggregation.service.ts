@@ -4,6 +4,7 @@ import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
+import { ENV } from "@/common/constants";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
@@ -69,13 +70,18 @@ export class RealTimeAggregationService
 
   // Enhanced performance tracking
   private readonly performanceMetrics = new Map<string, number[]>();
-  private readonly operationTimers = new Map<string, number>();
+  private readonly processingUpdates = new Set<string>(); // Track updates being processed
+  private readonly activeAggregations = new Set<string>(); // Track active aggregations
 
   // Performance optimization features
   private readonly batchProcessor = new Map<string, PriceUpdate[]>();
   private batchProcessingInterval?: NodeJS.Timeout;
   private readonly performanceBuffer: number[] = [];
   private adaptiveProcessing = true;
+
+  // Rate limiting for aggregation failure warnings
+  private aggregationFailureLastLogged = new Map<string, number>();
+  private readonly AGGREGATION_FAILURE_COOLDOWN_MS = ENV.AGGREGATION.FAILURE_COOLDOWN_MS;
 
   constructor(
     private readonly consensusAggregator: ConsensusAggregator,
@@ -84,11 +90,11 @@ export class RealTimeAggregationService
   ) {
     super({
       useEnhancedLogging: true,
-      cacheTTLMs: 500, // 0.5-second TTL for maximum performance
-      maxCacheSize: 1000, // Store up to 1000 feed prices
-      aggregationIntervalMs: 50, // Faster recalculation for better responsiveness
+      cacheTTLMs: ENV.AGGREGATION.CACHE_TTL_MS,
+      maxCacheSize: ENV.AGGREGATION.MAX_CACHE_SIZE,
+      aggregationIntervalMs: ENV.INTERVALS.AGGREGATION_MS,
       qualityMetricsEnabled: true,
-      performanceTargetMs: 80, // Aggressive response time target
+      performanceTargetMs: ENV.AGGREGATION.PERFORMANCE_TARGET_MS, // Aggressive response time target
     });
   }
 
@@ -118,9 +124,16 @@ export class RealTimeAggregationService
    * Implements 1-second TTL caching for maximum freshness
    */
   async getAggregatedPrice(feedId: CoreFeedId): Promise<AggregatedPrice | null> {
-    const operationId = `aggregate_${feedId.name}_${Date.now()}`;
     const feedKey = this.getFeedKey(feedId);
 
+    // Prevent concurrent aggregations for the same feed
+    if (this.activeAggregations.has(feedKey)) {
+      this.logger.debug(`Aggregation already in progress for ${feedId.name}, skipping`);
+      return null;
+    }
+
+    const operationId = `aggregate_${feedId.name}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.activeAggregations.add(feedKey);
     this.startTimer(operationId);
 
     try {
@@ -136,6 +149,7 @@ export class RealTimeAggregationService
         });
 
         this.endTimer(operationId);
+        this.activeAggregations.delete(feedKey);
 
         return cachedEntry.value;
       }
@@ -169,12 +183,13 @@ export class RealTimeAggregationService
         });
 
         this.endTimer(operationId);
+        this.activeAggregations.delete(feedKey);
         return null;
       }
 
       // Use optimized aggregator if available, otherwise fall back to standard aggregator
-      // Aggregate prices using consensus aggregator
-      const aggregatedPrice = await this.consensusAggregator.aggregate(feedId, updates);
+      // Aggregate prices using consensus aggregator (let RealTimeAggregationService manage the timer)
+      const aggregatedPrice = await this.consensusAggregator.aggregate(feedId, updates, false);
 
       // Cache the result with 1-second TTL
       this.setCachedPrice(feedKey, aggregatedPrice);
@@ -188,8 +203,7 @@ export class RealTimeAggregationService
         aggregatedPrice.consensusScore || 0
       );
 
-      const startTime = this.operationTimers.get(operationId);
-      const responseTime = startTime ? performance.now() - startTime : 0;
+      const responseTime = this.endTimer(operationId);
 
       // Log performance warning if exceeding target
       if (responseTime > this.aggregationConfig.performanceTargetMs) {
@@ -207,10 +221,9 @@ export class RealTimeAggregationService
       }
 
       // Record performance metrics (ensure minimum time for testing)
-      const recordedTime = Math.max(responseTime, 0.01); // Minimum 0.01ms
+      const recordedTime = Math.max(responseTime, 1); // Minimum 1ms for performance tracking
       this.recordPerformance(feedKey, recordedTime);
-
-      this.endTimer(operationId);
+      this.activeAggregations.delete(feedKey);
 
       return aggregatedPrice;
     } catch (error) {
@@ -230,6 +243,7 @@ export class RealTimeAggregationService
       this.emit("error", err);
 
       this.endTimer(operationId);
+      this.activeAggregations.delete(feedKey);
       return null;
     }
   }
@@ -277,7 +291,7 @@ export class RealTimeAggregationService
 
     // Process immediately if price change is significant (>5%)
     const latestPrice = existing[existing.length - 1]?.price;
-    if (latestPrice && Math.abs(update.price - latestPrice) / latestPrice > 0.05) {
+    if (latestPrice && Math.abs(update.price - latestPrice) / latestPrice > ENV.PERFORMANCE.PRICE_CHANGE_THRESHOLD) {
       return true;
     }
 
@@ -298,7 +312,7 @@ export class RealTimeAggregationService
 
       // Keep only recent updates
       const now = Date.now();
-      const freshUpdates = updatedList.filter(u => now - u.timestamp <= 2000);
+      const freshUpdates = updatedList.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
 
       this.activePriceUpdates.set(feedKey, freshUpdates);
 
@@ -353,7 +367,7 @@ export class RealTimeAggregationService
 
     // Calculate real-time quality metrics
     const now = Date.now();
-    const freshUpdates = updates.filter(u => now - u.timestamp <= 2000);
+    const freshUpdates = updates.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
 
     const coverage = freshUpdates.length > 0 ? Math.min(1.0, freshUpdates.length / 5) : 0; // Assume 5 is ideal
     const avgLatency =
@@ -459,14 +473,24 @@ export class RealTimeAggregationService
    * This method is called by the DataSourceIntegrationService
    */
   async processPriceUpdate(update: PriceUpdate): Promise<void> {
-    const operationId = `process_update_${update.symbol}_${Date.now()}`;
+    // Create a more unique key that includes price and confidence to prevent processing identical updates
+    const updateKey = `${update.symbol}_${update.source}_${update.timestamp}_${update.price}_${update.confidence || 0}`;
+
+    // Check if this exact update is already being processed to prevent duplicates
+    if (this.processingUpdates.has(updateKey)) {
+      this.logger.debug(`Price update already being processed: ${updateKey}`);
+      return;
+    }
+
+    const operationId = `process_update_${update.symbol}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    this.processingUpdates.add(updateKey);
     this.startTimer(operationId);
 
     try {
       // Get feed ID from configuration
       const feedId = this.getFeedIdFromSymbol(update.symbol);
       if (!feedId) {
-        this.logger.warn(`Unknown feed symbol: ${update.symbol}`);
+        // Silently ignore unknown symbols - no logging needed
         return;
       }
 
@@ -513,16 +537,28 @@ export class RealTimeAggregationService
 
         this.endTimer(operationId);
       } else {
-        this.enhancedLogger?.warn(`Failed to generate aggregated price for ${update.symbol}`, {
-          component: "RealTimeAggregation",
-          operation: "process_price_update",
-          symbol: update.symbol,
-          sourceId: update.source,
-          metadata: {
-            originalPrice: update.price,
-            confidence: update.confidence,
-          },
-        });
+        // Rate limit aggregation failure warnings
+        const warningKey = `${update.symbol}_aggregation_failure`;
+        const now = Date.now();
+        const lastLogged = this.aggregationFailureLastLogged.get(warningKey) || 0;
+
+        if (now - lastLogged > this.AGGREGATION_FAILURE_COOLDOWN_MS) {
+          this.enhancedLogger?.debug(
+            `Failed to generate aggregated price for ${update.symbol} - insufficient quality data`,
+            {
+              component: "RealTimeAggregation",
+              operation: "process_price_update",
+              symbol: update.symbol,
+              sourceId: update.source,
+              metadata: {
+                originalPrice: update.price,
+                confidence: update.confidence,
+                activeSourcesCount: this.activePriceUpdates.get(update.symbol)?.length || 0,
+              },
+            }
+          );
+          this.aggregationFailureLastLogged.set(warningKey, now);
+        }
 
         this.endTimer(operationId);
       }
@@ -546,6 +582,9 @@ export class RealTimeAggregationService
 
       this.endTimer(operationId);
       throw err;
+    } finally {
+      // Always remove the update from processing set
+      this.processingUpdates.delete(updateKey);
     }
   }
 
@@ -706,7 +745,7 @@ export class RealTimeAggregationService
     // Clean up expired cache entries every 5 seconds using managed interval
     this.createInterval(() => {
       this.cleanupExpiredCache();
-    }, 5000);
+    }, ENV.INTERVALS.CACHE_CLEANUP_MS);
   }
 
   private stopCacheCleanup(): void {
@@ -737,7 +776,7 @@ export class RealTimeAggregationService
     let cleanedFeeds = 0;
 
     for (const [feedKey, updates] of this.activePriceUpdates) {
-      const freshUpdates = updates.filter(u => now - u.timestamp <= 2000);
+      const freshUpdates = updates.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
 
       if (freshUpdates.length !== updates.length) {
         if (freshUpdates.length === 0) {
@@ -769,7 +808,7 @@ export class RealTimeAggregationService
   private startBatchProcessing(): void {
     this.batchProcessingInterval = this.createInterval(() => {
       void this.processBatchedUpdates();
-    }, 100); // Process batches every 100ms
+    }, ENV.AGGREGATION.BATCH_PROCESSING_INTERVAL_MS);
   }
 
   /**
@@ -860,7 +899,7 @@ export class RealTimeAggregationService
   private recordBatchPerformance(processingTime: number, feedCount: number): void {
     this.performanceBuffer.push(processingTime);
 
-    if (this.performanceBuffer.length > 100) {
+    if (this.performanceBuffer.length > ENV.AGGREGATION.PERFORMANCE_BUFFER_SIZE) {
       this.performanceBuffer.shift();
     }
 
@@ -878,21 +917,27 @@ export class RealTimeAggregationService
       this.performanceBuffer.reduce((sum, time) => sum + time, 0) / this.performanceBuffer.length;
 
     // If processing is taking too long, increase interval
-    if (avgProcessingTime > 50 && feedCount > 10) {
+    if (
+      avgProcessingTime > ENV.AGGREGATION.HEAVY_LOAD_PROCESSING_TIME_THRESHOLD_MS &&
+      feedCount > ENV.AGGREGATION.HEAVY_LOAD_FEED_COUNT_THRESHOLD
+    ) {
       // Increase interval slightly - clear managed interval and create new one
       if (this.batchProcessingInterval) {
         this.clearInterval(this.batchProcessingInterval);
         this.batchProcessingInterval = this.createInterval(() => {
           void this.processBatchedUpdates();
-        }, 150); // Slower processing for heavy loads
+        }, ENV.AGGREGATION.HEAVY_LOAD_INTERVAL_MS); // Slower processing for heavy loads
       }
-    } else if (avgProcessingTime < 20 && feedCount < 5) {
+    } else if (
+      avgProcessingTime < ENV.AGGREGATION.LIGHT_LOAD_PROCESSING_TIME_THRESHOLD_MS &&
+      feedCount < ENV.AGGREGATION.LIGHT_LOAD_FEED_COUNT_THRESHOLD
+    ) {
       // Decrease interval for faster processing - clear managed interval and create new one
       if (this.batchProcessingInterval) {
         this.clearInterval(this.batchProcessingInterval);
         this.batchProcessingInterval = this.createInterval(() => {
           void this.processBatchedUpdates();
-        }, 75); // Faster processing for light loads
+        }, ENV.AGGREGATION.LIGHT_LOAD_INTERVAL_MS); // Faster processing for light loads
       }
     }
   }

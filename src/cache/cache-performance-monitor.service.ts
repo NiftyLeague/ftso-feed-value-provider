@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { CachePerformanceMetrics, ResponseTimeMetric, MemoryUsageMetric } from "@/common/types/cache";
+import { ENV } from "@/common/constants";
 
 import { RealTimeCacheService } from "./real-time-cache.service";
 
@@ -103,9 +104,12 @@ export class CachePerformanceMonitorService extends StandardService implements O
     const percentiles = this.getResponseTimePercentiles();
 
     // Very lenient thresholds for startup and no-activity scenarios
-    const hitRateOk = metrics.hitRate >= 0.01 || metrics.totalRequests < 10; // 1% hit rate target or allow up to 10 requests
-    const responseTimeOk = percentiles.p95 <= 500 || metrics.totalRequests < 5; // 95th percentile under 500ms or allow up to 5 requests
-    const memoryUsageOk = metrics.memoryUsage < 500 * 1024 * 1024; // Under 500MB (very lenient)
+    const hitRateOk =
+      metrics.hitRate >= ENV.CACHE.HIT_RATE_TARGET || metrics.totalRequests < ENV.CACHE.MIN_REQUESTS_FOR_HIT_RATE;
+    const responseTimeOk =
+      percentiles.p95 <= ENV.CACHE.RESPONSE_TIME_P95_TARGET_MS ||
+      metrics.totalRequests < ENV.CACHE.MIN_REQUESTS_FOR_RESPONSE_TIME;
+    const memoryUsageOk = metrics.memoryUsage < ENV.CACHE.MEMORY_LIMIT_MB * 1024 * 1024;
 
     return {
       hitRateOk,

@@ -25,8 +25,6 @@ describe("ConfigService", () => {
               basePath: "",
               nodeEnv: "development",
               useProductionIntegration: true,
-              medianDecay: 0.00005,
-              tradesHistorySize: 1000,
               alerting: {
                 email: {
                   enabled: false,
@@ -270,8 +268,6 @@ describe("ConfigService", () => {
 
       expect(envConfig.port).toBe(3101);
       expect(envConfig.logLevel).toBe("log");
-      expect(envConfig.medianDecay).toBe(0.00005);
-      expect(envConfig.tradesHistorySize).toBe(1000);
       expect(envConfig.useProductionIntegration).toBe(true);
     });
 

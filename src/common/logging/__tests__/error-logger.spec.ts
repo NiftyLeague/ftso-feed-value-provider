@@ -141,9 +141,9 @@ describe("ErrorLogger", () => {
 
       expect(stats.totalErrors).toBe(3);
       expect(stats.errorsBySeverity).toEqual({
-        error: 1, // HIGH maps to error
-        warn: 1, // MEDIUM maps to warn
-        info: 1, // LOW maps to info
+        high: 1, // HIGH maps to high
+        medium: 1, // MEDIUM maps to medium
+        low: 1, // LOW maps to low
       });
       expect(stats.errorsByType).toEqual({
         Error: 3,
@@ -200,19 +200,19 @@ describe("ErrorLogger", () => {
       errorLogger.logError(error, context);
 
       const stats = errorLogger.getStatistics();
-      expect(stats.errorsBySeverity.error).toBe(1); // CRITICAL maps to error
+      expect(stats.errorsBySeverity.critical).toBe(1); // CRITICAL maps to critical
     });
 
     it("should determine severity from error message", () => {
       const testCases = [
-        { message: "fatal system failure", expectedSeverity: "error" },
-        { message: "critical error occurred", expectedSeverity: "error" },
-        { message: "connection timeout", expectedSeverity: "error" },
-        { message: "authentication failed", expectedSeverity: "error" },
-        { message: "validation error", expectedSeverity: "warn" },
-        { message: "parsing failed", expectedSeverity: "warn" },
-        { message: "rate limit exceeded", expectedSeverity: "warn" },
-        { message: "general error", expectedSeverity: "log" },
+        { message: "fatal system failure", expectedSeverity: "critical" },
+        { message: "critical error occurred", expectedSeverity: "critical" },
+        { message: "connection timeout", expectedSeverity: "high" },
+        { message: "authentication failed", expectedSeverity: "high" },
+        { message: "validation error", expectedSeverity: "medium" },
+        { message: "parsing failed", expectedSeverity: "medium" },
+        { message: "rate limit exceeded", expectedSeverity: "medium" },
+        { message: "general error", expectedSeverity: "low" },
       ];
 
       testCases.forEach(({ message, expectedSeverity }) => {
@@ -231,7 +231,7 @@ describe("ErrorLogger", () => {
       errorLogger.logError(error, context);
 
       const stats = errorLogger.getStatistics();
-      expect(stats.errorsBySeverity.info).toBe(1); // Should default to LOW (info)
+      expect(stats.errorsBySeverity.low).toBe(1); // Should default to LOW (low)
     });
   });
 

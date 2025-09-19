@@ -1,8 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV } from "@/common/constants";
 import { ConfigUtils } from "@/common/utils/config.utils";
 import type { ConfigValidationResult, EnvironmentConfiguration } from "@/common/types";
+
+// Supported exchanges for API key validation
+const SUPPORTED_EXCHANGES = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
 
 @Injectable()
 export class ConfigValidationService extends StandardService {
@@ -16,215 +19,101 @@ export class ConfigValidationService extends StandardService {
   loadAndValidateEnvironmentConfig(): EnvironmentConfiguration {
     const config: EnvironmentConfiguration = {
       // Core application settings
-      logLevel: EnvironmentUtils.parseString("LOG_LEVEL", "log"),
-      port: EnvironmentUtils.parseInt("VALUE_PROVIDER_CLIENT_PORT", 3101, {
-        min: 1,
-        max: 65535,
-        fieldName: "VALUE_PROVIDER_CLIENT_PORT",
-      }),
-      basePath: EnvironmentUtils.parseString("VALUE_PROVIDER_CLIENT_BASE_PATH", ""),
-      nodeEnv: EnvironmentUtils.parseString("NODE_ENV", "development"),
+      logLevel: ENV.LOGGING.LOG_LEVEL,
+      port: ENV.APPLICATION.PORT,
+      basePath: ENV.APPLICATION.BASE_PATH,
+      nodeEnv: ENV.APPLICATION.NODE_ENV,
 
       // Provider implementation settings (production only)
       useProductionIntegration: true, // Always use production integration
 
       // Data processing settings
-      medianDecay: EnvironmentUtils.parseFloat("MEDIAN_DECAY", 0.00005, {
-        min: 0,
-        max: 1,
-        fieldName: "MEDIAN_DECAY",
-      }),
-      tradesHistorySize: EnvironmentUtils.parseInt("TRADES_HISTORY_SIZE", 1000, {
-        min: 1,
-        max: 10000,
-        fieldName: "TRADES_HISTORY_SIZE",
-      }),
 
       // Alerting configuration
       alerting: {
         email: {
-          enabled: EnvironmentUtils.parseBoolean("ALERT_EMAIL_ENABLED", false, { fieldName: "ALERT_EMAIL_ENABLED" }),
-          smtpHost: EnvironmentUtils.parseString("ALERT_SMTP_HOST", "localhost"),
-          smtpPort: EnvironmentUtils.parseInt("ALERT_SMTP_PORT", 587, {
-            min: 1,
-            max: 65535,
-            fieldName: "ALERT_SMTP_PORT",
-          }),
-          username: EnvironmentUtils.parseString("ALERT_SMTP_USERNAME", ""),
-          password: EnvironmentUtils.parseString("ALERT_SMTP_PASSWORD", ""),
-          from: EnvironmentUtils.parseString("ALERT_EMAIL_FROM", "alerts@ftso-provider.com"),
-          to: EnvironmentUtils.parseList("ALERT_EMAIL_TO", []),
+          enabled: ENV.ALERTING.EMAIL.ENABLED,
+          smtpHost: ENV.ALERTING.EMAIL.SMTP_HOST,
+          smtpPort: ENV.ALERTING.EMAIL.SMTP_PORT,
+          username: ENV.ALERTING.EMAIL.USERNAME,
+          password: ENV.ALERTING.EMAIL.PASSWORD,
+          from: ENV.ALERTING.EMAIL.FROM,
+          to: ENV.ALERTING.EMAIL.TO,
         },
         webhook: {
-          enabled: EnvironmentUtils.parseBoolean("ALERT_WEBHOOK_ENABLED", false, {
-            fieldName: "ALERT_WEBHOOK_ENABLED",
-          }),
-          url: EnvironmentUtils.parseString("ALERT_WEBHOOK_URL", ""),
-          headers: EnvironmentUtils.parseJSON("ALERT_WEBHOOK_HEADERS", {}),
-          timeout: EnvironmentUtils.parseInt("ALERT_WEBHOOK_TIMEOUT", 5000, {
-            min: 1000,
-            max: 30000,
-            fieldName: "ALERT_WEBHOOK_TIMEOUT",
-          }),
+          enabled: ENV.ALERTING.WEBHOOK.ENABLED,
+          url: ENV.ALERTING.WEBHOOK.URL,
+          headers: ENV.ALERTING.WEBHOOK.HEADERS,
+          timeout: ENV.TIMEOUTS.WEBHOOK_MS,
         },
-        maxAlertsPerHour: EnvironmentUtils.parseInt("ALERT_MAX_PER_HOUR", 20, {
-          min: 1,
-          max: 1000,
-          fieldName: "ALERT_MAX_PER_HOUR",
-        }),
-        alertRetentionDays: EnvironmentUtils.parseInt("ALERT_RETENTION_DAYS", 30, {
-          min: 1,
-          max: 365,
-          fieldName: "ALERT_RETENTION_DAYS",
-        }),
+        maxAlertsPerHour: ENV.MONITORING.MAX_ALERTS_PER_HOUR,
+        alertRetentionDays: ENV.MONITORING.ALERT_RETENTION_DAYS,
       },
 
       // Exchange API configuration
-      exchangeApiKeys: ConfigUtils.loadExchangeApiKeys(["binance", "coinbase", "cryptocom", "kraken", "okx"]),
+      exchangeApiKeys: ConfigUtils.loadExchangeApiKeys(SUPPORTED_EXCHANGES),
 
       // Cache configuration
       cache: {
-        ttlMs: EnvironmentUtils.parseInt("CACHE_TTL_MS", 1000, {
-          min: 100,
-          max: 10000,
-          fieldName: "CACHE_TTL_MS",
-        }),
-        maxEntries: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 10000, {
-          min: 100,
-          max: 1000000,
-          fieldName: "CACHE_MAX_ENTRIES",
-        }),
-        warmupInterval: EnvironmentUtils.parseInt("CACHE_WARMUP_INTERVAL_MS", 30000, {
-          min: 1000,
-          max: 300000,
-          fieldName: "CACHE_WARMUP_INTERVAL_MS",
-        }),
+        ttlMs: ENV.CACHE.TTL_MS,
+        maxEntries: ENV.CACHE.MAX_ENTRIES,
+        warmupInterval: ENV.CACHE.WARMUP_INTERVAL_MS,
       },
 
       // Monitoring configuration
       monitoring: {
-        enabled: EnvironmentUtils.parseBoolean("MONITORING_ENABLED", true, { fieldName: "MONITORING_ENABLED" }),
-        metricsPort: EnvironmentUtils.parseInt("MONITORING_METRICS_PORT", 9090, {
-          min: 1,
-          max: 65535,
-          fieldName: "MONITORING_METRICS_PORT",
-        }),
-        healthCheckInterval: EnvironmentUtils.parseInt("MONITORING_HEALTH_CHECK_INTERVAL_MS", 5000, {
-          min: 1000,
-          max: 60000,
-          fieldName: "MONITORING_HEALTH_CHECK_INTERVAL_MS",
-        }),
+        enabled: ENV.MONITORING.ENABLED,
+        metricsPort: ENV.MONITORING.METRICS_PORT,
+        healthCheckInterval: ENV.HEALTH_CHECKS.MONITORING_INTERVAL_MS,
       },
 
       // Error handling configuration
       errorHandling: {
-        maxRetries: EnvironmentUtils.parseInt("ERROR_HANDLING_MAX_RETRIES", 3, {
-          min: 0,
-          max: 10,
-          fieldName: "ERROR_HANDLING_MAX_RETRIES",
-        }),
-        retryDelayMs: EnvironmentUtils.parseInt("ERROR_HANDLING_RETRY_DELAY_MS", 1000, {
-          min: 100,
-          max: 30000,
-          fieldName: "ERROR_HANDLING_RETRY_DELAY_MS",
-        }),
-        circuitBreakerThreshold: EnvironmentUtils.parseInt("ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD", 5, {
-          min: 1,
-          max: 100,
-          fieldName: "ERROR_HANDLING_CIRCUIT_BREAKER_THRESHOLD",
-        }),
-        circuitBreakerTimeout: EnvironmentUtils.parseInt("ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS", 60000, {
-          min: 1000,
-          max: 300000,
-          fieldName: "ERROR_HANDLING_CIRCUIT_BREAKER_TIMEOUT_MS",
-        }),
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        retryDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+        circuitBreakerThreshold: ENV.CIRCUIT_BREAKER.SUCCESS_THRESHOLD,
+        circuitBreakerTimeout: ENV.TIMEOUTS.CIRCUIT_BREAKER_MS,
       },
 
       // Logging configuration
       logging: {
         // File logging configuration
-        enableFileLogging: EnvironmentUtils.parseBoolean("ENABLE_FILE_LOGGING", false, {
-          fieldName: "ENABLE_FILE_LOGGING",
-        }),
-        logDirectory: EnvironmentUtils.parseString("LOG_DIRECTORY", "./logs", { fieldName: "LOG_DIRECTORY" }),
-        maxLogFileSize: EnvironmentUtils.parseString("MAX_LOG_FILE_SIZE", "10MB", { fieldName: "MAX_LOG_FILE_SIZE" }),
-        maxLogFiles: EnvironmentUtils.parseInt("MAX_LOG_FILES", 5, {
-          min: 1,
-          max: 100,
-          fieldName: "MAX_LOG_FILES",
-        }),
+        enableFileLogging: ENV.LOGGING.ENABLE_FILE_LOGGING,
+        logDirectory: ENV.LOGGING.LOG_DIRECTORY,
+        maxLogFileSize: ENV.LOGGING.MAX_LOG_FILE_SIZE,
+        maxLogFiles: ENV.LOGGING.MAX_LOG_FILES,
 
         // Performance logging configuration
-        enablePerformanceLogging: EnvironmentUtils.parseBoolean("ENABLE_PERFORMANCE_LOGGING", true, {
-          fieldName: "ENABLE_PERFORMANCE_LOGGING",
-        }),
-        performanceLogThreshold: EnvironmentUtils.parseInt("PERFORMANCE_LOG_THRESHOLD", 100, {
-          min: 1,
-          max: 10000,
-          fieldName: "PERFORMANCE_LOG_THRESHOLD",
-        }),
+        enablePerformanceLogging: ENV.LOGGING.ENABLE_PERFORMANCE_LOGGING,
+        performanceLogThreshold: ENV.LOGGING.PERFORMANCE_LOG_THRESHOLD,
 
         // Debug logging configuration
-        enableDebugLogging: EnvironmentUtils.parseBoolean("ENABLE_DEBUG_LOGGING", false, {
-          fieldName: "ENABLE_DEBUG_LOGGING",
-        }),
-        debugLogLevel:
-          (EnvironmentUtils.parseString("DEBUG_LOG_LEVEL", "debug", { fieldName: "DEBUG_LOG_LEVEL" }) as
-            | "verbose"
-            | "debug"
-            | "log") || "debug",
+        enableDebugLogging: ENV.LOGGING.ENABLE_DEBUG_LOGGING,
+        debugLogLevel: (ENV.LOGGING.DEBUG_LOG_LEVEL as "verbose" | "debug" | "log") || "debug",
 
         // Error logging configuration
-        errorLogRetention: EnvironmentUtils.parseInt("ERROR_LOG_RETENTION_DAYS", 30, {
-          min: 1,
-          max: 365,
-          fieldName: "ERROR_LOG_RETENTION_DAYS",
-        }),
-        maxErrorHistorySize: EnvironmentUtils.parseInt("MAX_ERROR_HISTORY_SIZE", 1000, {
-          min: 100,
-          max: 10000,
-          fieldName: "MAX_ERROR_HISTORY_SIZE",
-        }),
+        errorLogRetention: ENV.LOGGING.ERROR_LOG_RETENTION_DAYS,
+        maxErrorHistorySize: ENV.LOGGING.MAX_ERROR_HISTORY_SIZE,
 
         // Audit logging configuration
-        enableAuditLogging: EnvironmentUtils.parseBoolean("ENABLE_AUDIT_LOGGING", true, {
-          fieldName: "ENABLE_AUDIT_LOGGING",
-        }),
-        auditLogCriticalOperations: EnvironmentUtils.parseBoolean("AUDIT_LOG_CRITICAL_OPERATIONS", true, {
-          fieldName: "AUDIT_LOG_CRITICAL_OPERATIONS",
-        }),
+        enableAuditLogging: ENV.LOGGING.ENABLE_AUDIT_LOGGING,
+        auditLogCriticalOperations: ENV.LOGGING.ENABLE_AUDIT_LOGGING,
 
         // Log formatting
-        logFormat:
-          (EnvironmentUtils.parseString("LOG_FORMAT", "json", { fieldName: "LOG_FORMAT" }) as "json" | "text") ||
-          "json",
-        includeTimestamp: EnvironmentUtils.parseBoolean("INCLUDE_TIMESTAMP", true, { fieldName: "INCLUDE_TIMESTAMP" }),
-        includeContext: EnvironmentUtils.parseBoolean("INCLUDE_CONTEXT", true, { fieldName: "INCLUDE_CONTEXT" }),
-        includeStackTrace: EnvironmentUtils.parseBoolean("INCLUDE_STACK_TRACE", true, {
-          fieldName: "INCLUDE_STACK_TRACE",
-        }),
+        logFormat: (ENV.LOGGING.LOG_FORMAT as "json" | "text") || "json",
+        includeTimestamp: ENV.LOGGING.INCLUDE_TIMESTAMP,
+        includeContext: ENV.LOGGING.INCLUDE_CONTEXT,
+        includeStackTrace: ENV.LOGGING.INCLUDE_STACK_TRACE,
 
-        // Component-specific log levels
+        // Component-specific log levels (using default log level for all components)
         componentLogLevels: {
-          ProductionIntegration: EnvironmentUtils.parseString("LOG_LEVEL_PRODUCTION_INTEGRATION", "log", {
-            fieldName: "LOG_LEVEL_PRODUCTION_INTEGRATION",
-          }),
-          ProductionDataManager: EnvironmentUtils.parseString("LOG_LEVEL_DATA_MANAGER", "log", {
-            fieldName: "LOG_LEVEL_DATA_MANAGER",
-          }),
-          RealTimeAggregation: EnvironmentUtils.parseString("LOG_LEVEL_AGGREGATION", "log", {
-            fieldName: "LOG_LEVEL_AGGREGATION",
-          }),
-          HybridErrorHandler: EnvironmentUtils.parseString("LOG_LEVEL_ERROR_HANDLER", "log", {
-            fieldName: "LOG_LEVEL_ERROR_HANDLER",
-          }),
-          PerformanceMonitor: EnvironmentUtils.parseString("LOG_LEVEL_PERFORMANCE_MONITOR", "log", {
-            fieldName: "LOG_LEVEL_PERFORMANCE_MONITOR",
-          }),
-          AlertingService: EnvironmentUtils.parseString("LOG_LEVEL_ALERTING", "log", {
-            fieldName: "LOG_LEVEL_ALERTING",
-          }),
-          Bootstrap: EnvironmentUtils.parseString("LOG_LEVEL_BOOTSTRAP", "log", { fieldName: "LOG_LEVEL_BOOTSTRAP" }),
+          ProductionIntegration: "log",
+          ProductionDataManager: "log",
+          RealTimeAggregation: "log",
+          HybridErrorHandler: "log",
+          PerformanceMonitor: "log",
+          AlertingService: "log",
+          Bootstrap: "log",
         },
       },
     };

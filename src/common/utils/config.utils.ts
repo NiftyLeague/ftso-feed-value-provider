@@ -1,4 +1,5 @@
 import type { ExchangeApiKeyConfig } from "../types/services/configuration.types";
+import { ENV } from "../constants";
 
 /**
  * Configuration utilities to eliminate environment parsing duplication
@@ -284,15 +285,52 @@ export class ConfigUtils {
 
   /**
    * Load exchange API keys from environment variables
+   * Uses centralized constants for known exchanges, falls back to process.env for others
    */
   static loadExchangeApiKeys(exchanges: string[]): Record<string, ExchangeApiKeyConfig> {
     const apiKeys: Record<string, ExchangeApiKeyConfig> = {};
 
+    // Use centralized ENV constants for known exchanges
+
     for (const exchange of exchanges) {
       const upperExchange = exchange.toUpperCase();
-      const apiKey = process.env[`${upperExchange}_API_KEY`];
-      const secret = process.env[`${upperExchange}_SECRET`];
-      const passphrase = process.env[`${upperExchange}_PASSPHRASE`];
+      let apiKey: string | undefined;
+      let secret: string | undefined;
+      let passphrase: string | undefined;
+
+      // Use centralized constants for known exchanges
+      switch (upperExchange) {
+        case "BINANCE":
+          apiKey = ENV.EXCHANGE.KEYS.BINANCE_API_KEY;
+          secret = ENV.EXCHANGE.KEYS.BINANCE_SECRET;
+          passphrase = ENV.EXCHANGE.KEYS.BINANCE_PASSPHRASE;
+          break;
+        case "COINBASE":
+          apiKey = ENV.EXCHANGE.KEYS.COINBASE_API_KEY;
+          secret = ENV.EXCHANGE.KEYS.COINBASE_SECRET;
+          passphrase = ENV.EXCHANGE.KEYS.COINBASE_PASSPHRASE;
+          break;
+        case "KRAKEN":
+          apiKey = ENV.EXCHANGE.KEYS.KRAKEN_API_KEY;
+          secret = ENV.EXCHANGE.KEYS.KRAKEN_SECRET;
+          passphrase = ENV.EXCHANGE.KEYS.KRAKEN_PASSPHRASE;
+          break;
+        case "OKX":
+          apiKey = ENV.EXCHANGE.KEYS.OKX_API_KEY;
+          secret = ENV.EXCHANGE.KEYS.OKX_SECRET;
+          passphrase = ENV.EXCHANGE.KEYS.OKX_PASSPHRASE;
+          break;
+        case "CRYPTOCOM":
+          apiKey = ENV.EXCHANGE.KEYS.CRYPTOCOM_API_KEY;
+          secret = ENV.EXCHANGE.KEYS.CRYPTOCOM_SECRET;
+          passphrase = ENV.EXCHANGE.KEYS.CRYPTOCOM_PASSPHRASE;
+          break;
+        default:
+          // Fall back to process.env for unknown exchanges
+          apiKey = process.env[`${upperExchange}_API_KEY`];
+          secret = process.env[`${upperExchange}_SECRET`];
+          passphrase = process.env[`${upperExchange}_PASSPHRASE`];
+      }
 
       if (apiKey || secret || passphrase) {
         apiKeys[exchange] = {

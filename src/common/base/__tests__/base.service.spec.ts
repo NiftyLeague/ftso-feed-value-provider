@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 import { TestHelpers } from "@/__tests__/utils/test.helpers";
 import { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
+import { FilteredLogger } from "../../logging/filtered-logger";
 import { BaseService } from "../base.service";
 
 // Test implementation of BaseService
@@ -119,7 +120,7 @@ describe("BaseService", () => {
     });
 
     it("should log debug for fast operations", () => {
-      const debugSpy = jest.spyOn(Logger.prototype, "debug");
+      const debugSpy = jest.spyOn(FilteredLogger.prototype, "debug");
       service.testLogPerformance("test-operation", 500);
       expect(debugSpy).toHaveBeenCalledWith("test-operation completed in 500ms");
     });
@@ -157,7 +158,7 @@ describe("BaseService", () => {
 
   describe("logDebug", () => {
     it("should log debug with context", () => {
-      const debugSpy = jest.spyOn(Logger.prototype, "debug");
+      const debugSpy = jest.spyOn(FilteredLogger.prototype, "debug");
 
       service.testLogDebug("Test debug", "test-context");
 

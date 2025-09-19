@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@/config/config.service";
 import { StandardService } from "@/common/base/composed.service";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV, ENV_HELPERS } from "@/common/constants";
 import type { StartupValidationResult } from "@/common/types/services";
 
 import { IntegrationService } from "../integration.service";
@@ -107,12 +107,9 @@ export class StartupValidationService extends StandardService implements OnModul
 
         // Wait for initialization to complete with a timeout
         await new Promise<void>((resolve, reject) => {
-          const timeout = setTimeout(
-            () => {
-              reject(new Error("Integration service initialization timeout"));
-            },
-            EnvironmentUtils.parseInt("INTEGRATION_SERVICE_TIMEOUT_MS", 60000, { min: 1000, max: 300000 })
-          );
+          const timeout = setTimeout(() => {
+            reject(new Error("Integration service initialization timeout"));
+          }, ENV.TIMEOUTS.INTEGRATION_MS);
 
           const checkInitialization = () => {
             if (this.integrationService.isServiceInitialized()) {
@@ -161,23 +158,11 @@ export class StartupValidationService extends StandardService implements OnModul
   }
 
   private validateEnvironmentVariables(result: StartupValidationResult): void {
-    const requiredVars = ["VALUE_PROVIDER_CLIENT_PORT", "NODE_ENV"];
-
-    const missingVars = requiredVars.filter(varName => !process.env[varName]);
-
-    if (missingVars.length > 0) {
-      result.errors.push(`Missing required environment variables: ${missingVars.join(", ")}`);
-    }
-
-    // Validate port
-    try {
-      EnvironmentUtils.parseInt("VALUE_PROVIDER_CLIENT_PORT", 3101, { min: 1, max: 65535 });
-    } catch {
-      result.errors.push(`Invalid port number: ${process.env.VALUE_PROVIDER_CLIENT_PORT}`);
-    }
+    // Validate port using centralized constants (includes existence check)
+    // Port validation is handled during ENV.PORT initialization
 
     // Check for API keys - only warn if we're in production mode
-    const nodeEnv = process.env.NODE_ENV || "development";
+    const nodeEnv = ENV.APPLICATION.NODE_ENV;
     if (nodeEnv === "production") {
       const exchangeKeys = [
         "BINANCE_API_KEY",
@@ -186,7 +171,7 @@ export class StartupValidationService extends StandardService implements OnModul
         "OKX_API_KEY",
         "CRYPTOCOM_API_KEY",
       ];
-      const missingKeys = exchangeKeys.filter(key => !process.env[key]);
+      const missingKeys = ENV_HELPERS.getMissingExchangeKeys();
 
       if (missingKeys.length === exchangeKeys.length) {
         result.warnings.push("No exchange API keys configured - may limit data availability in production");
@@ -207,9 +192,9 @@ export class StartupValidationService extends StandardService implements OnModul
       const memUsage = process.memoryUsage();
       const memUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
 
-      if (memUsagePercent > 95) {
+      if (memUsagePercent > ENV.SYSTEM.MEMORY_CRITICAL_THRESHOLD * 100) {
         result.warnings.push(`Critical memory usage at startup: ${memUsagePercent.toFixed(1)}%`);
-      } else if (memUsagePercent > 85) {
+      } else if (memUsagePercent > ENV.SYSTEM.MEMORY_WARNING_THRESHOLD * 100) {
         result.warnings.push(`High memory usage at startup: ${memUsagePercent.toFixed(1)}%`);
       }
 
@@ -219,7 +204,7 @@ export class StartupValidationService extends StandardService implements OnModul
       const totalMemory = os.totalmem();
       const freeMemoryPercent = (freeMemory / totalMemory) * 100;
 
-      if (freeMemoryPercent < 10) {
+      if (freeMemoryPercent < ENV.SYSTEM.FREE_MEMORY_CRITICAL_THRESHOLD * 100) {
         result.warnings.push(`Low system memory available: ${freeMemoryPercent.toFixed(1)}%`);
       }
 
@@ -227,10 +212,14 @@ export class StartupValidationService extends StandardService implements OnModul
       const nodeVersion = process.version;
       const majorVersion = parseInt(nodeVersion.substring(1).split(".")[0]);
 
-      if (majorVersion < 16) {
-        result.warnings.push(`Node.js version ${nodeVersion} is not supported (minimum: 16, recommended: 18+)`);
-      } else if (majorVersion < 18) {
-        this.logger.debug(`Node.js version ${nodeVersion} is supported but 18+ is recommended for optimal performance`);
+      if (majorVersion < ENV.SYSTEM.MIN_NODE_VERSION) {
+        result.warnings.push(
+          `Node.js version ${nodeVersion} is not supported (minimum: ${ENV.SYSTEM.MIN_NODE_VERSION}, recommended: ${ENV.SYSTEM.RECOMMENDED_NODE_VERSION}+)`
+        );
+      } else if (majorVersion < ENV.SYSTEM.RECOMMENDED_NODE_VERSION) {
+        this.logger.debug(
+          `Node.js version ${nodeVersion} is supported but ${ENV.SYSTEM.RECOMMENDED_NODE_VERSION}+ is recommended for optimal performance`
+        );
       }
 
       result.validatedServices.push("System Resources");

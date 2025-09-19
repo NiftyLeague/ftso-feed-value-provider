@@ -5,6 +5,7 @@ import type { BaseServiceConfig } from "@/common/types/services";
 import type { ExchangeCapabilities, ExchangeConnectionConfig, IExchangeAdapter } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import type { WSConnectionConfig } from "@/common/types/data-manager";
+import { ENV, ENV_HELPERS } from "@/common/constants";
 
 /**
  * Extended configuration for exchange adapters
@@ -23,7 +24,12 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   protected connectionRetryCount = 0;
   protected maxRetries = 3;
   protected retryDelay = 1000; // ms
+  protected lastRetryTime = 0;
   protected isConnected_ = false;
+
+  // Rate limiting for warnings
+  private warningLastLogged = new Map<string, number>();
+  private readonly WARNING_COOLDOWN_MS = 30000; // 30 seconds
 
   // Event callbacks
   protected onPriceUpdateCallback?: (update: PriceUpdate) => void;
@@ -88,8 +94,34 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         this.connectionRetryCount = attempt + 1;
 
         if (attempt < this.maxRetries) {
-          const delay = this.retryDelay * Math.pow(2, attempt); // Exponential backoff
-          this.logger.warn(`Connection attempt ${attempt + 1} failed, retrying in ${delay}ms: ${error}`);
+          let delay = this.retryDelay * Math.pow(2, attempt); // Standard exponential backoff
+
+          // Special handling for 429 (rate limiting) errors
+          if (lastError.message.includes("429")) {
+            // For 429 errors, use much longer delays with exponential backoff
+            delay = Math.min(300000, this.retryDelay * Math.pow(3, attempt + 1)); // Max 5 minutes
+
+            // Rate limit the warning to prevent spam
+            const now = Date.now();
+            const warningKey = `${this.exchangeName}_429_warning`;
+            const lastLogged = this.warningLastLogged.get(warningKey) || 0;
+
+            if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
+              this.logger.warn(`Rate limited (429) for ${this.exchangeName}, using extended backoff: ${delay}ms`);
+              this.warningLastLogged.set(warningKey, now);
+            }
+          } else {
+            // Rate limit other warnings too (but not in test mode)
+            const now = Date.now();
+            const warningKey = `${this.exchangeName}_connection_warning`;
+            const lastLogged = this.warningLastLogged.get(warningKey) || 0;
+
+            if (ENV_HELPERS.isTest() || now - lastLogged > this.WARNING_COOLDOWN_MS) {
+              this.logger.warn(`Connection attempt ${attempt + 1} failed, retrying in ${delay}ms: ${error}`);
+              this.warningLastLogged.set(warningKey, now);
+            }
+          }
+
           await this.sleep(delay);
         }
       }
@@ -149,6 +181,31 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     } catch (error) {
       this.logger.error(`Error disconnecting from ${this.exchangeName}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Cleanup method to prevent memory leaks
+   */
+  override async cleanup(): Promise<void> {
+    // Disconnect if connected
+    if (this.isConnected_) {
+      await this.disconnect();
+    }
+
+    // Destroy WebSocket manager if it exists
+    if (this.wsManager) {
+      this.wsManager.destroy();
+      this.wsManager = undefined;
+    }
+
+    // Clear all maps and sets
+    this.subscriptions.clear();
+    this.warningLastLogged.clear();
+
+    // Call parent cleanup if it exists
+    if (super.cleanup) {
+      await super.cleanup();
     }
   }
 
@@ -330,7 +387,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
 
     // Adjust for latency (lower confidence for older data)
     if (additionalFactors?.latency) {
-      const latencyPenalty = Math.min(additionalFactors.latency / 1000, 0.5); // Max 50% penalty
+      const latencyPenalty = Math.min(additionalFactors.latency / 1000, ENV.PERFORMANCE.MAX_LATENCY_PENALTY);
       confidence -= latencyPenalty;
     }
 
@@ -342,7 +399,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
 
     // Adjust for spread (tighter spread = higher confidence)
     if (additionalFactors?.spread) {
-      const spreadPenalty = Math.min(additionalFactors.spread / 10, 0.3); // Max 30% penalty, more sensitive
+      const spreadPenalty = Math.min(additionalFactors.spread / 10, ENV.PERFORMANCE.MAX_SPREAD_PENALTY);
       confidence -= spreadPenalty;
     }
 

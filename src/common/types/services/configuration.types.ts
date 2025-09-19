@@ -20,8 +20,6 @@ export interface EnvironmentConfiguration {
   useProductionIntegration: boolean;
 
   // Data processing settings
-  medianDecay: number;
-  tradesHistorySize: number;
 
   // Alerting configuration
   alerting: {

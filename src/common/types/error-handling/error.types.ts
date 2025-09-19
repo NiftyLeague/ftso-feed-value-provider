@@ -26,6 +26,7 @@ export enum ErrorCode {
 
   // Network/IO errors (200-299)
   NETWORK_ERROR = "NETWORK_ERROR",
+  CONNECTION_ERROR = "CONNECTION_ERROR",
   TIMEOUT_ERROR = "TIMEOUT_ERROR",
   RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED",
 
@@ -226,8 +227,8 @@ export interface RetryConfig {
  * Default retry configuration
  */
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxRetries: 3,
-  initialDelayMs: 1000,
+  maxRetries: 3, // Will be overridden by ENV.ERROR_HANDLING_MAX_RETRIES
+  initialDelayMs: 1000, // Will be overridden by ENV.ERROR_HANDLING_RETRY_DELAY_MS
   maxDelayMs: 30000,
   backoffMultiplier: 2,
   jitter: true,
@@ -246,6 +247,16 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
     "connect timeout",
   ],
 };
+
+/**
+ * Get retry configuration with optional overrides
+ */
+export function getRetryConfig(overrides?: Partial<RetryConfig>): RetryConfig {
+  return {
+    ...DEFAULT_RETRY_CONFIG,
+    ...overrides,
+  };
+}
 
 /**
  * Enhanced error response with retry information

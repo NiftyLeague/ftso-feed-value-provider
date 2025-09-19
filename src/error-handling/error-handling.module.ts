@@ -4,6 +4,7 @@ import { UniversalRetryService } from "./universal-retry.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ConnectionRecoveryService } from "./connection-recovery.service";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
+import { ENV } from "@/common/constants";
 import type { StandardErrorMetadata, EnhancedErrorResponse } from "@/common/types/error-handling";
 
 // Event type definitions for error handling services
@@ -74,9 +75,9 @@ export class ErrorHandlingModule {
       {
         serviceId: "FeedController",
         config: {
-          maxRetries: 3,
-          initialDelayMs: 1000,
-          maxDelayMs: 15000,
+          maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.HTTP_MAX_DELAY_MS,
           retryableErrors: [
             "timeout",
             "connection",
@@ -90,42 +91,42 @@ export class ErrorHandlingModule {
       {
         serviceId: "HealthController",
         config: {
-          maxRetries: 2,
-          initialDelayMs: 500,
-          maxDelayMs: 5000,
+          maxRetries: ENV.RETRY.DATABASE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DATABASE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.DATABASE_MAX_DELAY_MS,
         },
       },
       {
         serviceId: "MetricsController",
         config: {
-          maxRetries: 1,
-          initialDelayMs: 1000,
-          maxDelayMs: 3000,
+          maxRetries: ENV.RETRY.CACHE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.CACHE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.CACHE_MAX_DELAY_MS,
         },
       },
       {
         serviceId: "ExchangeAdapter",
         config: {
-          maxRetries: 5,
-          initialDelayMs: 2000,
-          maxDelayMs: 30000,
+          maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.EXTERNAL_API_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.EXTERNAL_API_MAX_DELAY_MS,
           retryableErrors: ["timeout", "connection", "network", "rate limit", "exchange unavailable", "api error"],
         },
       },
       {
         serviceId: "AggregationService",
         config: {
-          maxRetries: 2,
-          initialDelayMs: 500,
-          maxDelayMs: 5000,
+          maxRetries: ENV.RETRY.DATABASE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DATABASE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.DATABASE_MAX_DELAY_MS,
         },
       },
       {
         serviceId: "CacheService",
         config: {
-          maxRetries: 1,
-          initialDelayMs: 100,
-          maxDelayMs: 1000,
+          maxRetries: ENV.RETRY.CACHE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.CACHE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.CACHE_MAX_DELAY_MS,
         },
       },
     ];

@@ -1,5 +1,6 @@
 import { Logger } from "@nestjs/common";
 import { shouldLog, type LogLevel } from "../types/logging";
+import { ENV } from "../constants";
 
 /**
  * A NestJS Logger that automatically filters messages based on LOG_LEVEL
@@ -10,7 +11,7 @@ export class FilteredLogger extends Logger {
 
   constructor(context: string) {
     super(context);
-    this.currentLogLevel = (process.env.LOG_LEVEL as LogLevel) || "log";
+    this.currentLogLevel = ENV.LOGGING.LOG_LEVEL;
   }
 
   /**

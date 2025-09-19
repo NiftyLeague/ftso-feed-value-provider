@@ -116,7 +116,7 @@ describe("RealTimeAggregationService", () => {
 
       expect(result).toEqual(mockAggregatedPrice);
       // Due to batch processing, we should have at least one update
-      expect(consensusAggregator.aggregate).toHaveBeenCalledWith(mockFeedId, expect.any(Array));
+      expect(consensusAggregator.aggregate).toHaveBeenCalledWith(mockFeedId, expect.any(Array), false);
     });
 
     it("should return cached result within TTL", async () => {
@@ -285,7 +285,7 @@ describe("RealTimeAggregationService", () => {
       await service.getAggregatedPrice(mockFeedId);
 
       // Should have the latest update from binance (batch processing deduplicates by source)
-      expect(consensusAggregator.aggregate).toHaveBeenCalledWith(mockFeedId, expect.any(Array));
+      expect(consensusAggregator.aggregate).toHaveBeenCalledWith(mockFeedId, expect.any(Array), false);
     });
 
     it("should filter out stale updates", async () => {
@@ -323,7 +323,7 @@ describe("RealTimeAggregationService", () => {
       await service.getAggregatedPrice(mockFeedId);
 
       // Should only aggregate with fresh update
-      expect(consensusAggregator.aggregate).toHaveBeenCalledWith(mockFeedId, [freshUpdate]);
+      expect(consensusAggregator.aggregate).toHaveBeenCalledWith(mockFeedId, [freshUpdate], false);
     });
 
     it("should invalidate cache when new update arrives", async () => {

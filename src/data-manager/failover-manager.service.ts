@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
 import type { FailoverConfig, SourceHealth, FailoverGroup } from "@/common/types/data-manager";
+import { ENV } from "@/common/constants";
 
 @Injectable()
 export class FailoverManager extends EventDrivenService {
@@ -12,10 +13,11 @@ export class FailoverManager extends EventDrivenService {
 
   constructor() {
     super({
-      maxFailoverTime: 100, // 100ms requirement for FTSO
-      healthCheckInterval: 5000, // 5 seconds
-      failureThreshold: 3,
-      recoveryThreshold: 5,
+      maxFailoverTime: ENV.FAILOVER.MAX_FAILOVER_TIME_MS,
+      healthCheckInterval: ENV.HEALTH_CHECKS.FAILOVER_INTERVAL_MS,
+      failureThreshold: ENV.FAILOVER.FAILURE_THRESHOLD,
+      recoveryThreshold: ENV.FAILOVER.RECOVERY_THRESHOLD,
+      minFailureInterval: ENV.FAILOVER.MIN_FAILURE_INTERVAL_MS,
     });
     this.startHealthMonitoring();
   }
@@ -118,7 +120,16 @@ export class FailoverManager extends EventDrivenService {
       this.logger.log(`Failover completed in ${failoverTime}ms`);
 
       if (failoverTime > this.failoverConfig.maxFailoverTime) {
-        this.logger.warn(`Failover time ${failoverTime}ms exceeded target ${this.failoverConfig.maxFailoverTime}ms`);
+        // Only warn if significantly over target (2x or more)
+        if (failoverTime > this.failoverConfig.maxFailoverTime * 2) {
+          this.logger.warn(
+            `Failover time ${failoverTime}ms significantly exceeded target ${this.failoverConfig.maxFailoverTime}ms`
+          );
+        } else {
+          this.logger.debug(
+            `Failover time ${failoverTime}ms slightly exceeded target ${this.failoverConfig.maxFailoverTime}ms`
+          );
+        }
       }
     } catch (error) {
       this.logger.error(`Failover failed for source ${sourceId}:`, error);
@@ -149,6 +160,21 @@ export class FailoverManager extends EventDrivenService {
 
   private async performGroupFailover(group: FailoverGroup, failedSourceId: string, reason: string): Promise<void> {
     this.logger.log(`Performing failover for group ${group.feedId.name}, failed source: ${failedSourceId}`);
+
+    // Prevent infinite loops by checking if this source was already failed recently
+    const now = Date.now();
+    const lastFailoverTime = group.lastFailoverTime || 0;
+    const failoverCooldown = ENV.FAILOVER.FAILOVER_COOLDOWN_MS;
+
+    if (now - lastFailoverTime < failoverCooldown) {
+      this.logger.warn(
+        `Skipping failover for group ${group.feedId.name} - too recent (${now - lastFailoverTime}ms ago)`
+      );
+      return;
+    }
+
+    // Update last failover time
+    group.lastFailoverTime = now;
 
     // Move failed source to failed list
     group.activeSources = group.activeSources.filter(id => id !== failedSourceId);
@@ -195,35 +221,66 @@ export class FailoverManager extends EventDrivenService {
       return;
     }
 
-    // Activate backup sources
+    // Activate backup sources with improved error handling
+    const successfullyActivated: string[] = [];
+    const failedToActivate: string[] = [];
+
     for (const sourceId of healthyBackupSources) {
       if (!group.activeSources.includes(sourceId)) {
-        group.activeSources.push(sourceId);
-
-        // Subscribe backup source to the feed
-        const source = this.dataSources.get(sourceId);
-        if (source) {
-          await this.executeWithErrorHandling(
-            () => source.subscribe([group.feedId.name]),
-            `activate_backup_source_${sourceId}_${group.feedId.name}`,
-            {
-              retries: 2,
-              shouldThrow: false,
-              onError: error => {
-                this.logger.error(`Failed to activate backup source ${sourceId}:`, error);
-              },
+        try {
+          // Subscribe backup source to the feed with timeout
+          const source = this.dataSources.get(sourceId);
+          if (source) {
+            // Check if already subscribed to avoid duplicate subscriptions
+            const adapterDataSource = source as { getSubscriptions?: () => string[] };
+            const isAlreadySubscribed = adapterDataSource.getSubscriptions?.().includes(group.feedId.name) || false;
+            if (isAlreadySubscribed) {
+              this.logger.debug(`Source ${sourceId} already subscribed to ${group.feedId.name}, skipping subscription`);
+              group.activeSources.push(sourceId);
+              successfullyActivated.push(sourceId);
+              continue;
             }
-          );
+
+            await Promise.race([
+              source.subscribe([group.feedId.name]),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Subscription timeout")), ENV.FAILOVER.SUBSCRIPTION_TIMEOUT_MS)
+              ),
+            ]);
+
+            group.activeSources.push(sourceId);
+            successfullyActivated.push(sourceId);
+            this.logger.log(`Successfully activated backup source ${sourceId} for group ${group.feedId.name}`);
+          }
+        } catch (error) {
+          failedToActivate.push(sourceId);
+          this.logger.error(`Failed to activate backup source ${sourceId} for group ${group.feedId.name}:`, error);
+
+          // Mark this source as failed to prevent repeated attempts
+          if (!group.failedSources.includes(sourceId)) {
+            group.failedSources.push(sourceId);
+          }
         }
       }
     }
 
-    this.emit("failoverCompleted", group.feedId, {
-      failedSource: failedSourceId,
-      activeSources: group.activeSources,
-      backupSourcesActivated: healthyBackupSources,
-      reason,
-    });
+    // Only emit success if we have at least one active source
+    if (successfullyActivated.length > 0) {
+      this.emit("failoverCompleted", group.feedId, {
+        failedSource: failedSourceId,
+        activeSources: group.activeSources,
+        backupSourcesActivated: successfullyActivated,
+        failedToActivate,
+        reason,
+      });
+    } else {
+      this.logger.error(`Failed to activate any backup sources for group ${group.feedId.name}`);
+      this.emit("failoverFailed", group.feedId, {
+        failedSource: failedSourceId,
+        reason: "All backup sources failed to activate",
+        failedToActivate,
+      });
+    }
   }
 
   private handleConnectionChange(sourceId: string, connected: boolean): void {
@@ -233,14 +290,23 @@ export class FailoverManager extends EventDrivenService {
     if (!connected) {
       health.consecutiveFailures++;
       health.consecutiveSuccesses = 0;
-      health.lastFailure = Date.now();
 
-      if (health.consecutiveFailures >= this.failoverConfig.failureThreshold) {
+      // Add circuit breaker logic to prevent excessive failover attempts
+      const timeSinceLastFailure = Date.now() - (health.lastFailure || 0);
+      const minFailureInterval = this.failoverConfig.minFailureInterval;
+
+      if (
+        health.consecutiveFailures >= this.failoverConfig.failureThreshold &&
+        timeSinceLastFailure > minFailureInterval
+      ) {
         health.isHealthy = false;
         this.triggerFailover(sourceId, "Connection lost").catch(error => {
           this.logger.error(`Failed to trigger failover for ${sourceId}:`, error);
         });
       }
+
+      // Update lastFailure after the calculation
+      health.lastFailure = Date.now();
     } else {
       health.consecutiveSuccesses++;
 
@@ -280,7 +346,7 @@ export class FailoverManager extends EventDrivenService {
                 () => backupSource.unsubscribe([group.feedId.name]),
                 `deactivate_backup_source_${backupId}_${group.feedId.name}`,
                 {
-                  retries: 1,
+                  retries: ENV.FAILOVER.RETRY_ATTEMPTS,
                   shouldThrow: false,
                 }
               ).catch(error => {
@@ -335,6 +401,15 @@ export class FailoverManager extends EventDrivenService {
   destroy(): void {
     if (this.healthCheckTimer) {
       clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = undefined;
     }
+
+    // Clear all data structures to prevent memory leaks
+    this.dataSources.clear();
+    this.sourceHealth.clear();
+    this.failoverGroups.clear();
+
+    // Remove all event listeners
+    this.removeAllListeners();
   }
 }

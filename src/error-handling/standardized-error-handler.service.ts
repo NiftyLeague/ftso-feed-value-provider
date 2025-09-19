@@ -14,9 +14,10 @@ import {
 import {
   ErrorCode,
   createEnhancedErrorResponse,
-  DEFAULT_RETRY_CONFIG,
+  getRetryConfig,
   StandardErrorClassification as ErrorClass,
 } from "@/common/types/error-handling";
+import { ENV } from "@/common/constants";
 
 /**
  * Standardized error handler service that provides:
@@ -332,7 +333,12 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
    * Configure retry settings for a specific service
    */
   configureRetrySettings(serviceId: string, config: Partial<RetryConfig>): void {
-    const currentConfig = this.retryConfigs.get(serviceId) || { ...DEFAULT_RETRY_CONFIG };
+    const currentConfig =
+      this.retryConfigs.get(serviceId) ||
+      getRetryConfig({
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+      });
     this.retryConfigs.set(serviceId, { ...currentConfig, ...config });
 
     this.logger.log(`Updated retry configuration for service: ${serviceId}`, {
@@ -355,12 +361,23 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
     ];
 
     commonServices.forEach(serviceId => {
-      this.retryConfigs.set(serviceId, { ...DEFAULT_RETRY_CONFIG });
+      this.retryConfigs.set(
+        serviceId,
+        getRetryConfig({
+          maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+        })
+      );
     });
   }
 
   private getRetryConfig(serviceId: string, override?: Partial<RetryConfig>): RetryConfig {
-    const baseConfig = this.retryConfigs.get(serviceId) || { ...DEFAULT_RETRY_CONFIG };
+    const baseConfig =
+      this.retryConfigs.get(serviceId) ||
+      getRetryConfig({
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+      });
     return override ? { ...baseConfig, ...override } : baseConfig;
   }
 

@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { RealTimeCache, CacheEntry, CacheStats, CacheConfig, CacheItem } from "@/common/types/cache";
 import type { CoreFeedId } from "@/common/types/core";
+import { ENV } from "@/common/constants";
 
 @Injectable()
 export class RealTimeCacheService extends StandardService implements RealTimeCache, OnModuleDestroy {
@@ -25,22 +26,22 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
 
   // Performance optimization features
   private readonly performanceBuffer: number[] = [];
-  private readonly maxBufferSize = 100;
+  private readonly maxBufferSize = ENV.CACHE.MAX_BUFFER_SIZE;
   private adaptiveTTL = true;
   private compressionEnabled = false;
 
   constructor() {
     super({
-      ttl: 600, // TTL for cache entries
-      maxSize: 25000, // Cache capacity for better hit rates
+      ttl: ENV.CACHE.TTL_MS,
+      maxSize: ENV.CACHE.MAX_ENTRIES,
       evictionPolicy: "LRU",
-      memoryLimit: 256 * 1024 * 1024, // Increased memory limit for better performance
+      memoryLimit: ENV.CACHE.MEMORY_LIMIT_MB * 1024 * 1024,
       enabled: true,
       compression: false,
     });
 
     // Cleanup interval for expired entries using managed timer
-    this.createInterval(() => this.cleanupExpiredEntries(), 1500);
+    this.createInterval(() => this.cleanupExpiredEntries(), ENV.INTERVALS.CACHE_CLEANUP_MS);
   }
 
   override getConfig(): CacheConfig {
@@ -123,8 +124,8 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
       this.trackRequest(false);
 
       // Trigger batch cleanup if we're finding many expired items
-      if (Math.random() < 0.1) {
-        // 10% chance to trigger cleanup
+      if (Math.random() < ENV.PERFORMANCE.CLEANUP_TRIGGER_PROBABILITY) {
+        // Configurable chance to trigger cleanup
         this.cleanupExpiredEntries();
       }
 
@@ -135,8 +136,8 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
     }
 
     // Access tracking - update occasionally for performance
-    if (now - item.lastAccessed > 100) {
-      // Only update if >100ms since last access
+    if (now - item.lastAccessed > ENV.CACHE.ACCESS_UPDATE_THRESHOLD_MS) {
+      // Only update if >threshold since last access
       item.accessCount++;
       item.lastAccessed = now;
     }
@@ -334,7 +335,10 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
 
     // Increase TTL for frequently accessed items
     const accessFrequency = item.accessCount / Math.max(1, (Date.now() - item.lastAccessed) / 1000);
-    const adaptiveMultiplier = Math.min(2.0, 1 + accessFrequency * 0.1);
+    const adaptiveMultiplier = Math.min(
+      ENV.PERFORMANCE.MAX_ADAPTIVE_MULTIPLIER,
+      1 + accessFrequency * ENV.PERFORMANCE.FREQUENCY_MULTIPLIER
+    );
 
     return Math.min(requestedTTL * adaptiveMultiplier, this.cacheConfig.ttl * 1.5);
   }
@@ -343,7 +347,10 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
    * Intelligent eviction using access patterns and prediction
    */
   private intelligentEviction(): void {
-    const evictionCount = Math.min(200, Math.floor(this.cache.size * 0.15)); // Evict 15% or 200 items max
+    const evictionCount = Math.min(
+      ENV.CACHE.MAX_EVICTION_COUNT,
+      Math.floor(this.cache.size * ENV.CACHE.EVICTION_PERCENTAGE)
+    ); // Evict percentage or max items
     const entries = Array.from(this.cache.entries());
 
     // Score entries based on multiple factors
@@ -384,7 +391,7 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
    * Calculate moving average for smoother metrics
    */
   private calculateMovingAverage(current: number, newValue: number): number {
-    const alpha = 0.1; // Smoothing factor
+    const alpha = ENV.PERFORMANCE.SMOOTHING_ALPHA;
     return current * (1 - alpha) + newValue * alpha;
   }
 

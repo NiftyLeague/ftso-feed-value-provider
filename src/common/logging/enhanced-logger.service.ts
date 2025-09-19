@@ -11,6 +11,7 @@ import { shouldLog } from "../types/logging";
 import { ErrorLogger } from "./error-logger";
 import { PerformanceLogger } from "./performance-logger";
 import type { EnvironmentConfiguration } from "../types/services/configuration.types";
+import { ENV } from "../constants";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -46,11 +47,11 @@ export class EnhancedLoggerService implements ILogger {
       this.currentLogLevel = (componentLogLevel as LogLevel) || (config.logLevel as LogLevel) || "log";
     } else {
       // Fallback to environment variables for backward compatibility
-      this.enableFileLogging = process.env.ENABLE_FILE_LOGGING === "true";
-      this.enablePerformanceLogging = process.env.ENABLE_PERFORMANCE_LOGGING !== "false"; // Default true
-      this.enableDebugLogging = process.env.ENABLE_DEBUG_LOGGING === "true";
-      this.logDirectory = path.join(process.cwd(), process.env.LOG_DIRECTORY || "logs");
-      this.currentLogLevel = (process.env.LOG_LEVEL as LogLevel) || "log";
+      this.enableFileLogging = ENV.LOGGING.ENABLE_FILE_LOGGING;
+      this.enablePerformanceLogging = ENV.LOGGING.ENABLE_PERFORMANCE_LOGGING;
+      this.enableDebugLogging = ENV.LOGGING.ENABLE_DEBUG_LOGGING;
+      this.logDirectory = path.join(process.cwd(), ENV.LOGGING.LOG_DIRECTORY);
+      this.currentLogLevel = ENV.LOGGING.LOG_LEVEL;
     }
 
     // Setup log files
@@ -284,7 +285,7 @@ export class EnhancedLoggerService implements ILogger {
       },
     };
 
-    if (age > 2000) {
+    if (age > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
       this.warn(`Stale price update received: ${symbol} from ${source} (age: ${age}ms)`, context);
     } else {
       this.debug(`Price update: ${symbol} = ${price} from ${source}`, context);

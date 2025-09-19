@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { BaseServiceConfig } from "@/common/types/services/base.types";
+import { ENV } from "@/common/constants";
 
 // Performance monitoring services
 import { PerformanceMonitorService } from "./performance-monitor.service";
@@ -59,14 +60,14 @@ export class PerformanceOptimizationCoordinatorService
     super({
       useEnhancedLogging: true,
       enabled: true,
-      monitoringInterval: 3000, // More frequent monitoring for better responsiveness
-      optimizationInterval: 20000, // More frequent optimization analysis
+      monitoringInterval: ENV.INTERVALS.PERFORMANCE_MONITORING_MS,
+      optimizationInterval: ENV.PERFORMANCE.OPTIMIZATION_INTERVAL_MS,
       autoOptimization: true, // Whether to automatically apply performance fixes
       performanceTargets: {
-        responseTime: 50, // More aggressive response time target (ms)
-        cacheHitRate: 0.95, // Higher cache hit rate target for optimal performance
-        memoryUsage: 60, // Lower memory usage threshold before optimization triggers
-        cpuUsage: 50, // Lower CPU usage threshold before optimization triggers
+        responseTime: ENV.PERFORMANCE.RESPONSE_TIME_TARGET_MS,
+        cacheHitRate: ENV.CACHE.HIT_RATE_TARGET,
+        memoryUsage: ENV.PERFORMANCE.MEMORY_USAGE_THRESHOLD,
+        cpuUsage: ENV.PERFORMANCE.CPU_USAGE_THRESHOLD,
       },
     });
   }
@@ -236,7 +237,7 @@ export class PerformanceOptimizationCoordinatorService
         action: "optimize_response_time",
         component: "aggregation",
         description: `Response time ${performanceMetrics.responseTime}ms exceeds target ${this.optimizationConfig.performanceTargets.responseTime}ms`,
-        priority: performanceMetrics.responseTime > 150 ? "critical" : "high",
+        priority: performanceMetrics.responseTime > ENV.PERFORMANCE.CRITICAL_RESPONSE_TIME_MS ? "critical" : "high",
         estimatedImpact: "20-40% response time improvement",
         implemented: false,
         timestamp: Date.now(),
@@ -434,7 +435,7 @@ export class PerformanceOptimizationCoordinatorService
    */
   private cleanupOptimizationActions(): void {
     const now = Date.now();
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    const maxAge = ENV.MONITORING.DATA_RETENTION_MS;
 
     const initialCount = this.optimizationActions.length;
     this.optimizationActions = this.optimizationActions.filter(action => now - action.timestamp < maxAge);
@@ -503,7 +504,7 @@ export class PerformanceOptimizationCoordinatorService
           };
 
     const recentActions = this.optimizationActions
-      .filter(action => Date.now() - action.timestamp < 3600000) // Last hour
+      .filter(action => Date.now() - action.timestamp < 3600000) // 1 hour retention
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 10);
 

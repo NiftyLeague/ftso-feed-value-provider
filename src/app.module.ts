@@ -26,8 +26,7 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { DebugService } from "@/common/debug/debug.service";
-import { ConfigService } from "@/config/config.service";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV, ENV_HELPERS } from "@/common/constants";
 
 @Module({
   imports: [
@@ -47,8 +46,8 @@ import { EnvironmentUtils } from "@/common/utils/environment.utils";
       provide: RateLimiterService,
       useFactory: () => {
         return new RateLimiterService({
-          windowMs: 60000, // 1 minute
-          maxRequests: EnvironmentUtils.parseInt("RATE_LIMIT_MAX_REQUESTS", 1000, { min: 1, max: 10000 }),
+          windowMs: ENV.RATE_LIMITING.WINDOW_MS,
+          maxRequests: ENV.RATE_LIMITING.MAX_REQUESTS,
           skipSuccessfulRequests: false,
           skipFailedRequests: false,
         });
@@ -68,14 +67,13 @@ import { EnvironmentUtils } from "@/common/utils/environment.utils";
     // Debug service - only available in development
     {
       provide: DebugService,
-      useFactory: (configService: ConfigService) => {
-        const config = configService.getEnvironmentConfig();
-        if (config.nodeEnv === "development") {
+      useFactory: () => {
+        if (ENV_HELPERS.isDevelopment()) {
           return new DebugService();
         }
         return null;
       },
-      inject: [ConfigService],
+      inject: [],
     },
 
     // Main FTSO provider service factory

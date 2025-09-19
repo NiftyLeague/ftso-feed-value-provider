@@ -10,7 +10,7 @@ import { FilteredLogger } from "@/common/logging/filtered-logger";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV, ENV_HELPERS } from "@/common/constants";
 import { ConfigService } from "@/config/config.service";
 
 // Global application instance for graceful shutdown
@@ -72,7 +72,7 @@ async function bootstrap() {
       allowedHeaders: ["Content-Type", "Authorization", "Accept"],
       exposedHeaders: ["Content-Range", "X-Total-Count"],
       credentials: true,
-      maxAge: 3600,
+      maxAge: ENV.APPLICATION.CORS_MAX_AGE,
     });
 
     const appCreationTime = performance.now() - appCreationStart;
@@ -108,7 +108,7 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
-        disableErrorMessages: process.env.NODE_ENV === "production",
+        disableErrorMessages: ENV_HELPERS.isProduction(),
       })
     );
 
@@ -116,7 +116,7 @@ async function bootstrap() {
     app.useGlobalFilters(new HttpExceptionFilter());
 
     // Configure API documentation
-    const basePath = process.env.VALUE_PROVIDER_CLIENT_BASE_PATH ?? "";
+    const basePath = ENV.APPLICATION.BASE_PATH;
     await setupSwaggerDocumentation(app, basePath);
 
     // Set global prefix for API routes
@@ -126,7 +126,7 @@ async function bootstrap() {
     setupGracefulShutdown();
 
     // Start the HTTP server
-    const PORT = EnvironmentUtils.parseInt("VALUE_PROVIDER_CLIENT_PORT", 3101, { min: 1, max: 65535 });
+    const PORT = ENV.APPLICATION.PORT;
 
     const serverStartTime = performance.now();
     await app.listen(PORT, "0.0.0.0");
@@ -162,7 +162,7 @@ async function bootstrap() {
     enhancedLogger.endPerformanceTimer(operationId, true, {
       port: PORT,
       basePath,
-      environment: process.env.NODE_ENV || "development",
+      environment: ENV.APPLICATION.NODE_ENV,
     });
   } catch (error) {
     const errObj = error instanceof Error ? error : new Error(String(error));
@@ -175,7 +175,7 @@ async function bootstrap() {
         severity: "critical",
         metadata: {
           phase: "bootstrap",
-          environment: process.env.NODE_ENV || "development",
+          environment: ENV.APPLICATION.NODE_ENV,
         },
       });
       enhancedLogger.endPerformanceTimer(operationId, false, { error: errObj.message });
@@ -214,16 +214,8 @@ async function bootstrap() {
 }
 
 async function validateEnvironment(): Promise<void> {
-  const requiredEnvVars = ["VALUE_PROVIDER_CLIENT_PORT"];
-
-  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-  if (missingVars.length > 0) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(", ")}`);
-  }
-
-  // Validate port number
-  EnvironmentUtils.parseInt("VALUE_PROVIDER_CLIENT_PORT", 3101, { min: 1, max: 65535 });
+  // Validate port number using centralized constants (includes existence check)
+  // Port validation is handled during ENV.PORT initialization
 
   // Logger now handles filtering internally
   if (logger) {
@@ -232,7 +224,7 @@ async function validateEnvironment(): Promise<void> {
 }
 
 function getLogLevels(): LogLevel[] {
-  const logLevel = process.env.LOG_LEVEL?.toLowerCase();
+  const logLevel = ENV.LOGGING.LOG_LEVEL.toLowerCase();
 
   switch (logLevel) {
     case "fatal":
@@ -383,7 +375,7 @@ async function gracefulShutdown(): Promise<void> {
     }
 
     // Set a timeout for shutdown process
-    const timeoutMs = EnvironmentUtils.parseInt("GRACEFUL_SHUTDOWN_TIMEOUT_MS", 30000, { min: 1000, max: 300000 });
+    const timeoutMs = ENV.TIMEOUTS.GRACEFUL_SHUTDOWN_MS;
     const shutdownTimeout = setTimeout(() => {
       if (logger) {
         logger.error(`⏰ Shutdown timeout reached after ${timeoutMs}ms, forcing exit`);
@@ -411,7 +403,7 @@ async function gracefulShutdown(): Promise<void> {
     }
 
     // Give a moment for any final cleanup
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, ENV.TIMEOUTS.CLEANUP_DELAY_MS));
   } catch (error) {
     const errObj = error instanceof Error ? error : new Error(String(error));
     if (logger) {
@@ -421,13 +413,13 @@ async function gracefulShutdown(): Promise<void> {
     // Force exit after a short delay to allow error logging
     setTimeout(() => {
       process.exit(1);
-    }, 1000);
+    }, ENV.TIMEOUTS.FORCE_EXIT_DELAY_MS);
   }
 }
 
 async function waitForApplicationReady(): Promise<void> {
-  const maxWaitTime = EnvironmentUtils.parseInt("APP_READINESS_TIMEOUT_MS", 30000, { min: 1000, max: 300000 });
-  const checkInterval = 1000; // 1 second
+  const maxWaitTime = ENV.TIMEOUTS.APP_READINESS_MS;
+  const checkInterval = ENV.TIMEOUTS.READINESS_CHECK_INTERVAL_MS;
   const startTime = Date.now();
 
   if (logger) {
@@ -437,13 +429,13 @@ async function waitForApplicationReady(): Promise<void> {
   while (Date.now() - startTime < maxWaitTime) {
     try {
       // Try to access the health endpoint to verify the application is ready
-      const port = process.env.VALUE_PROVIDER_CLIENT_PORT || 3101;
-      const basePath = process.env.VALUE_PROVIDER_CLIENT_BASE_PATH || "";
+      const port = ENV.APPLICATION.PORT;
+      const basePath = ENV.APPLICATION.BASE_PATH;
       const url = `http://localhost:${port}${basePath}/health/ready`;
 
       // Create a timeout promise
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Request timeout")), 5000)
+        setTimeout(() => reject(new Error("Request timeout")), ENV.TIMEOUTS.READINESS_REQUEST_TIMEOUT_MS)
       );
 
       const response = await Promise.race([fetch(url, { method: "GET" }), timeoutPromise]);
@@ -474,9 +466,9 @@ async function waitForApplicationReady(): Promise<void> {
 }
 
 function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
-  const memoryCheckInterval = 30000; // Check every 30 seconds
-  const memoryWarningThreshold = 0.8; // 80% of heap used
-  const memoryCriticalThreshold = 0.9; // 90% of heap used
+  const memoryCheckInterval = ENV.INTERVALS.SYSTEM_CHECK_MS;
+  const memoryWarningThreshold = ENV.SYSTEM.MEMORY_WARNING_THRESHOLD;
+  const memoryCriticalThreshold = ENV.SYSTEM.MEMORY_CRITICAL_THRESHOLD;
 
   setInterval(() => {
     const memUsage = process.memoryUsage();

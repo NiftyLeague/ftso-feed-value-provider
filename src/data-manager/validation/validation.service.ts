@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV } from "@/common/constants";
 import { FeedCategory } from "@/common/types/core";
 import type { PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { ErrorSeverity, ErrorCode } from "@/common/types/error-handling";
@@ -44,18 +44,18 @@ export class ValidationService extends EventDrivenService implements IDataValida
   ) {
     super({
       // Required by DataValidatorConfig
-      consensusWeight: 0.8,
-      crossSourceWindow: 10000, // 10 seconds
+      consensusWeight: ENV.DATA_QUALITY.CONSENSUS_WEIGHT,
+      crossSourceWindow: ENV.DATA_QUALITY.CROSS_SOURCE_WINDOW_MS,
       enableBatchValidation: true,
       enableRealTimeValidation: true,
-      historicalDataWindow: 50, // Keep last 50 prices
-      maxAge: EnvironmentUtils.parseInt("MAX_DATA_AGE_MS", 20000, { min: 100, max: 60000 }), // From env
-      maxBatchSize: 100,
-      outlierThreshold: 0.05,
-      priceRange: { min: 0.01, max: 1_000_000 },
-      validationCacheSize: 1000,
-      validationCacheTTL: 5000, // 5 seconds
-      validationTimeout: 5000,
+      historicalDataWindow: ENV.DATA_QUALITY.HISTORICAL_DATA_WINDOW, // Keep last 50 prices
+      maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+      maxBatchSize: ENV.DATA_QUALITY.MAX_BATCH_SIZE,
+      outlierThreshold: ENV.DATA_QUALITY.OUTLIER_THRESHOLD,
+      priceRange: { min: ENV.DATA_QUALITY.PRICE_RANGE_MIN, max: ENV.DATA_QUALITY.PRICE_RANGE_MAX },
+      validationCacheSize: ENV.DATA_QUALITY.CACHE_SIZE,
+      validationCacheTTL: ENV.DATA_QUALITY.CACHE_TTL_MS,
+      validationTimeout: ENV.TIMEOUTS.VALIDATION_MS,
       ...config,
     });
 
@@ -189,10 +189,10 @@ export class ValidationService extends EventDrivenService implements IDataValida
         // Map provided partial config to validator config with sensible defaults
         const mappedConfig = DataValidatorConfig
           ? {
-              maxAge: 2000,
-              priceRange: { min: 0.01, max: 1_000_000 },
-              outlierThreshold: 0.05,
-              consensusWeight: 0.8,
+              maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+              priceRange: { min: ENV.DATA_QUALITY.PRICE_RANGE_MIN, max: ENV.DATA_QUALITY.PRICE_RANGE_MAX },
+              outlierThreshold: ENV.DATA_QUALITY.OUTLIER_THRESHOLD,
+              consensusWeight: ENV.DATA_QUALITY.CONSENSUS_WEIGHT,
               ...DataValidatorConfig,
             }
           : undefined;
@@ -281,10 +281,10 @@ export class ValidationService extends EventDrivenService implements IDataValida
         // Convert DataValidatorConfiguration to DataValidatorConfig
         const mappedConfig = DataValidatorConfig
           ? {
-              maxAge: 2000, // Default from validator
-              priceRange: { min: 0.01, max: 1000000 }, // Default from validator
-              outlierThreshold: 0.05, // Default from validator
-              consensusWeight: 0.8, // Default from validator
+              maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS, // Default from environment
+              priceRange: { min: ENV.DATA_QUALITY.PRICE_RANGE_MIN, max: ENV.DATA_QUALITY.PRICE_RANGE_MAX }, // Default from environment
+              outlierThreshold: ENV.DATA_QUALITY.OUTLIER_THRESHOLD, // Default from environment
+              consensusWeight: ENV.DATA_QUALITY.CONSENSUS_WEIGHT, // Default from environment
             }
           : undefined;
 
@@ -514,7 +514,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
     }
 
     // Update average validation time using exponential moving average
-    const alpha = 0.1;
+    const alpha = ENV.PERFORMANCE.SMOOTHING_ALPHA;
     this.validationStats.averageValidationTime =
       alpha * validationTime + (1 - alpha) * this.validationStats.averageValidationTime;
   }

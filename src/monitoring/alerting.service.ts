@@ -6,6 +6,7 @@ import { StandardService } from "@/common/base/composed.service";
 import { AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import type { Alert, AlertRule, AlertingConfig } from "@/common/types/monitoring";
 import type { LogLevel } from "@/common/types/logging";
+import { ENV } from "@/common/constants";
 
 @Injectable()
 export class AlertingService extends StandardService implements OnModuleDestroy {
@@ -61,7 +62,7 @@ export class AlertingService extends StandardService implements OnModuleDestroy 
    * Start the alert cleanup interval
    */
   private startAlertCleanup(): void {
-    const cleanupIntervalMs = 3600000; // 1 hour
+    const cleanupIntervalMs = ENV.MONITORING.ALERT_RETENTION_DAYS * 24 * 60 * 60 * 1000; // Convert days to ms
     this.cleanupInterval = setInterval(() => {
       this.cleanupOldAlerts();
       this.resetHourlyAlertCounts();
@@ -155,7 +156,7 @@ export class AlertingService extends StandardService implements OnModuleDestroy 
   /**
    * Get all alerts, optionally limited by count
    */
-  public getAllAlerts(limit: number = 100): Alert[] {
+  public getAllAlerts(limit: number = ENV.MONITORING.MAX_ALERTS_LIMIT): Alert[] {
     return Array.from(this.alerts.values())
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, limit);
@@ -171,7 +172,7 @@ export class AlertingService extends StandardService implements OnModuleDestroy 
   /**
    * Get alerts filtered by severity
    */
-  public getAlertsBySeverity(severity: AlertSeverity, limit: number = 100): Alert[] {
+  public getAlertsBySeverity(severity: AlertSeverity, limit: number = ENV.MONITORING.MAX_ALERTS_LIMIT): Alert[] {
     return Array.from(this.alerts.values())
       .filter(alert => alert.severity === severity)
       .sort((a, b) => b.timestamp - a.timestamp)
@@ -306,7 +307,7 @@ export class AlertingService extends StandardService implements OnModuleDestroy 
           "Content-Type": "application/json",
           ...(webhookConfig.headers || {}),
         },
-        timeout: webhookConfig.timeout || 5000,
+        timeout: webhookConfig.timeout || ENV.TIMEOUTS.WEBHOOK_MS,
       });
     } catch (err) {
       // Tests expect a specific error message here

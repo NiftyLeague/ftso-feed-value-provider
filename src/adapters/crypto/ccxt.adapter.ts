@@ -8,6 +8,7 @@ import type {
 } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
+import { ENV } from "@/common/constants";
 import * as ccxt from "ccxt";
 
 export interface CcxtMultiExchangeConnectionConfig extends ExchangeConnectionConfig {
@@ -42,10 +43,10 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   };
 
   protected adapterConfig: CcxtMultiExchangeConfig = {
-    tradesLimit: 1000,
-    lambda: 0.00005,
-    retryBackoffMs: 10000,
-    enableUsdtConversion: true,
+    tradesLimit: ENV.CCXT.TRADES_LIMIT,
+    lambda: ENV.CCXT.LAMBDA_DECAY,
+    retryBackoffMs: ENV.CCXT.RETRY_BACKOFF_MS,
+    enableUsdtConversion: ENV.CCXT.ENABLE_USDT_CONVERSION,
     tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
   };
 
@@ -99,13 +100,8 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     try {
       this.logger.log("Initializing CCXT Pro multi-exchange adapter...");
 
-      // Set environment variables for CCXT configuration
-      if (this.adapterConfig.lambda) {
-        process.env.MEDIAN_DECAY = this.adapterConfig.lambda.toString();
-      }
-      if (this.adapterConfig.tradesLimit) {
-        process.env.TRADES_HISTORY_SIZE = this.adapterConfig.tradesLimit.toString();
-      }
+      // Note: CCXT configuration is handled through the adapter config
+      // The centralized ENV constants are used for application-wide settings
 
       // Initialize CCXT Pro exchanges
       await this.initializeExchanges();
@@ -585,12 +581,12 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     dataAge: number,
     exchangeName: string
   ): number {
-    let confidence = 1.0;
+    let confidence = ENV.CCXT.INITIAL_CONFIDENCE;
 
     // Reduce confidence based on data age (max 2 seconds for FTSO requirements)
-    const maxAge = 2000; // 2 seconds
+    const maxAge = ENV.CCXT.MAX_DATA_AGE_MS;
     if (dataAge > maxAge) {
-      const agePenalty = Math.min((dataAge - maxAge) / maxAge, 0.8); // Max 80% penalty
+      const agePenalty = Math.min((dataAge - maxAge) / maxAge, ENV.CCXT.MAX_AGE_PENALTY);
       confidence -= agePenalty;
     }
 
@@ -599,23 +595,23 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     confidence *= exchangeReliability;
 
     // Ensure confidence is between 0 and 1
-    return Math.max(0.0, Math.min(1.0, confidence));
+    return Math.max(ENV.CCXT.MIN_CONFIDENCE, Math.min(ENV.CCXT.MAX_CONFIDENCE, confidence));
   }
 
   // Get exchange reliability factor for Tier 2 exchanges
   private getExchangeReliability(exchangeName: string): number {
-    // Tier 2 exchange reliability factors (can be configured)
+    // Tier 2 exchange reliability factors (configured via environment)
     const reliabilityFactors: Record<string, number> = {
-      bitmart: 0.85,
-      bybit: 0.9,
-      gate: 0.85,
-      kucoin: 0.88,
-      probit: 0.8,
-      cryptocom: 0.87,
+      bitmart: ENV.CCXT.EXCHANGE_RELIABILITY.BITMART,
+      bybit: ENV.CCXT.EXCHANGE_RELIABILITY.BYBIT,
+      gate: ENV.CCXT.EXCHANGE_RELIABILITY.GATE,
+      kucoin: ENV.CCXT.EXCHANGE_RELIABILITY.KUCOIN,
+      probit: ENV.CCXT.EXCHANGE_RELIABILITY.PROBIT,
+      cryptocom: ENV.CCXT.EXCHANGE_RELIABILITY.CRYPTOCOM,
       // Add more exchanges as needed
     };
 
-    return reliabilityFactors[exchangeName] || 0.8; // Default reliability for unknown exchanges
+    return reliabilityFactors[exchangeName] || ENV.CCXT.EXCHANGE_RELIABILITY.DEFAULT;
   }
 
   protected async doSubscribe(symbols: string[]): Promise<void> {
@@ -661,41 +657,69 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
       return;
     }
 
-    this.logger.log(`Initializing CCXT Pro exchanges from feeds.json: ${ccxtOnlyExchanges.join(", ")}`);
+    this.logger.log(`Initializing CCXT exchanges from feeds.json: ${ccxtOnlyExchanges.join(", ")}`);
 
     // Initialize exchanges in parallel
     const initPromises = ccxtOnlyExchanges.map(async exchangeId => {
       try {
-        // Use CCXT Pro for WebSocket support
-        const ExchangeClass = (ccxt as { pro: Record<string, typeof ccxt.Exchange> }).pro[
-          exchangeId
-        ] as typeof ccxt.Exchange;
-        if (ExchangeClass) {
-          const exchange = new ExchangeClass({
-            newUpdates: true, // Enable real-time updates
-            enableRateLimit: true,
-            timeout: 10000,
-            // Add API credentials if available
-            apiKey: this.adapterConfig.apiKey,
-            secret: this.adapterConfig.apiSecret,
-          });
+        let exchange: ccxt.Exchange | null = null;
 
+        // Try CCXT Pro first (if available)
+        try {
+          const ExchangeClass = (ccxt as { pro?: Record<string, typeof ccxt.Exchange> }).pro?.[
+            exchangeId
+          ] as typeof ccxt.Exchange;
+          if (ExchangeClass) {
+            exchange = new ExchangeClass({
+              newUpdates: true, // Enable real-time updates
+              enableRateLimit: true,
+              timeout: ENV.TIMEOUTS.CCXT_MS,
+              // Add API credentials if available
+              apiKey: this.adapterConfig.apiKey,
+              secret: this.adapterConfig.apiSecret,
+            });
+            this.logger.debug(`Initialized ${exchangeId} exchange via CCXT Pro`);
+          }
+        } catch {
+          this.logger.debug(`CCXT Pro not available for ${exchangeId}, falling back to regular CCXT`);
+        }
+
+        // Fallback to regular CCXT if Pro failed or not available
+        if (!exchange) {
+          const ExchangeClass = ccxt[exchangeId as keyof typeof ccxt] as typeof ccxt.Exchange;
+          if (ExchangeClass) {
+            exchange = new ExchangeClass({
+              enableRateLimit: true,
+              timeout: ENV.TIMEOUTS.CCXT_MS,
+              // Add API credentials if available
+              apiKey: this.adapterConfig.apiKey,
+              secret: this.adapterConfig.apiSecret,
+            });
+            this.logger.debug(`Initialized ${exchangeId} exchange via regular CCXT`);
+          }
+        }
+
+        if (exchange) {
           // Set trades limit for volume calculations
           exchange.options["tradesLimit"] = this.adapterConfig.tradesLimit;
 
           this.exchanges.set(exchangeId, exchange);
           this.exchangeSubscriptions.set(exchangeId, new Set());
 
-          this.logger.debug(`Initialized ${exchangeId} exchange via CCXT Pro`);
+          this.logger.log(`Successfully initialized ${exchangeId} exchange`);
         } else {
-          this.logger.warn(`Exchange ${exchangeId} not supported by CCXT Pro library`);
+          this.logger.warn(`Exchange ${exchangeId} not supported by CCXT library`);
         }
       } catch (error) {
-        this.logger.warn(`Failed to initialize ${exchangeId} exchange:`, error);
+        this.logger.error(`Failed to initialize ${exchangeId} exchange:`, error);
       }
     });
 
     await Promise.all(initPromises);
+
+    // Log summary of initialized exchanges
+    const initializedCount = this.exchanges.size;
+    this.logger.log(`Successfully initialized ${initializedCount}/${ccxtOnlyExchanges.length} CCXT exchanges`);
   }
 
   private groupSymbolsByExchange(symbols: string[]): Map<string, string[]> {
@@ -792,7 +816,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         const trades = await exchange.watchTradesForSymbols(marketIds);
 
         if (trades.length === 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, ENV.CCXT.WEBSOCKET_WAIT_DELAY_MS));
           continue;
         }
 
@@ -803,7 +827,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
           .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         if (newTrades.length === 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, ENV.CCXT.WEBSOCKET_WAIT_DELAY_MS));
           continue;
         }
 
@@ -819,7 +843,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         }
       } catch (error) {
         this.logger.debug(`WebSocket error for ${exchangeId}:`, error);
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, ENV.CCXT.WEBSOCKET_ERROR_DELAY_MS));
       }
     }
   }
@@ -832,7 +856,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         const trades = await exchange.watchTrades(marketId, since);
 
         if (trades.length === 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, ENV.CCXT.WEBSOCKET_WAIT_DELAY_MS));
           continue;
         }
 
@@ -851,7 +875,12 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         }
       } catch (error) {
         this.logger.debug(`WebSocket error for ${exchangeId}/${marketId}:`, error);
-        await new Promise(resolve => setTimeout(resolve, 5000 + Math.random() * 10000));
+        await new Promise(resolve =>
+          setTimeout(
+            resolve,
+            ENV.CCXT.WEBSOCKET_SYMBOL_ERROR_DELAY_MS + Math.random() * ENV.CCXT.WEBSOCKET_ERROR_DELAY_MS
+          )
+        );
       }
     }
   }
@@ -884,7 +913,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
       } catch (error) {
         this.logger.debug(`REST polling error for ${exchangeId}:`, error);
       }
-    }, 1000); // Poll every second
+    }, ENV.CCXT.REST_POLLING_DELAY_MS);
   }
 
   private setPrice(exchangeId: string, symbol: string, price: number, timestamp: number): void {
@@ -967,7 +996,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
     // Calculate confidence based on number of sources and price consistency
     const priceVariance = this.calculatePriceVariance(prices);
-    const confidence = Math.max(0.5, 1.0 - priceVariance / avgPrice);
+    const confidence = Math.max(ENV.CCXT.MIN_CONFIDENCE_VARIANCE, ENV.CCXT.MAX_CONFIDENCE - priceVariance / avgPrice);
 
     return {
       symbol: feedId.name,
@@ -999,10 +1028,33 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     // Fall back to REST API if WebSocket data is stale or unavailable
     const exchange = this.exchanges.get(exchangeId);
     if (!exchange) {
-      this.logger.warn(`Exchange ${exchangeId} not available in CCXT adapter`);
-      return null;
+      this.logger.debug(`Exchange ${exchangeId} not available in CCXT adapter, trying to reinitialize...`);
+
+      // Try to reinitialize the exchange
+      try {
+        await this.initializeSingleExchange(exchangeId);
+        const newExchange = this.exchanges.get(exchangeId);
+        if (!newExchange) {
+          this.logger.warn(`Failed to reinitialize exchange ${exchangeId}`);
+          return null;
+        }
+        // Use the newly initialized exchange
+        return this.fetchPriceFromExchange(newExchange, exchangeId, symbol, feedId);
+      } catch (error) {
+        this.logger.warn(`Failed to reinitialize exchange ${exchangeId}:`, error);
+        return null;
+      }
     }
 
+    return this.fetchPriceFromExchange(exchange, exchangeId, symbol, feedId);
+  }
+
+  private async fetchPriceFromExchange(
+    exchange: ccxt.Exchange,
+    exchangeId: string,
+    symbol: string,
+    feedId: CoreFeedId
+  ): Promise<PriceUpdate | null> {
     try {
       const ticker = await exchange.fetchTicker(symbol);
 
@@ -1031,8 +1083,55 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
   }
 
+  private async initializeSingleExchange(exchangeId: string): Promise<void> {
+    try {
+      let exchange: ccxt.Exchange | null = null;
+
+      // Try CCXT Pro first (if available)
+      try {
+        const ExchangeClass = (ccxt as { pro?: Record<string, typeof ccxt.Exchange> }).pro?.[
+          exchangeId
+        ] as typeof ccxt.Exchange;
+        if (ExchangeClass) {
+          exchange = new ExchangeClass({
+            newUpdates: true,
+            enableRateLimit: true,
+            timeout: 10000,
+            apiKey: this.adapterConfig.apiKey,
+            secret: this.adapterConfig.apiSecret,
+          });
+        }
+      } catch {
+        // Fallback to regular CCXT
+      }
+
+      // Fallback to regular CCXT if Pro failed or not available
+      if (!exchange) {
+        const ExchangeClass = ccxt[exchangeId as keyof typeof ccxt] as typeof ccxt.Exchange;
+        if (ExchangeClass) {
+          exchange = new ExchangeClass({
+            enableRateLimit: true,
+            timeout: 10000,
+            apiKey: this.adapterConfig.apiKey,
+            secret: this.adapterConfig.apiSecret,
+          });
+        }
+      }
+
+      if (exchange) {
+        exchange.options["tradesLimit"] = this.adapterConfig.tradesLimit;
+        this.exchanges.set(exchangeId, exchange);
+        this.exchangeSubscriptions.set(exchangeId, new Set());
+        this.logger.debug(`Reinitialized ${exchangeId} exchange`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to reinitialize exchange ${exchangeId}:`, error);
+      throw error;
+    }
+  }
+
   private isFreshData(timestamp: number): boolean {
-    const maxAge = 5000; // 5 seconds
+    const maxAge = ENV.CCXT.MAX_DATA_AGE_MS;
     return Date.now() - timestamp < maxAge;
   }
 
@@ -1110,18 +1209,21 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   // Required methods for BaseExchangeAdapter
   protected override calculateConfidence(rawData: RawPriceData, _context?: unknown): number {
     // Simple confidence calculation based on data quality
-    let confidence = 0.8; // Base confidence
+    let confidence = ENV.CCXT.BASE_CONFIDENCE;
 
     if (rawData.price && typeof rawData.price === "number" && rawData.price > 0) {
-      confidence += 0.1;
+      confidence += ENV.CCXT.PRICE_CONFIDENCE_BOOST;
     }
 
-    if (rawData.timestamp && typeof rawData.timestamp === "number" && Date.now() - rawData.timestamp < 60000) {
-      // Within 1 minute
-      confidence += 0.1;
+    if (
+      rawData.timestamp &&
+      typeof rawData.timestamp === "number" &&
+      Date.now() - rawData.timestamp < ENV.CCXT.TIMESTAMP_FRESH_THRESHOLD_MS
+    ) {
+      confidence += ENV.CCXT.TIMESTAMP_CONFIDENCE_BOOST;
     }
 
-    return Math.min(confidence, 1.0);
+    return Math.min(confidence, ENV.CCXT.MAX_CONFIDENCE);
   }
 
   public override recordSuccessfulRequest(): void {

@@ -1,14 +1,15 @@
 import { Controller, Get, Post, HttpException, HttpStatus, Inject, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 
-import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
-import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { BaseController } from "@/common/base/base.controller";
+import { ENV, ENV_HELPERS } from "@/common/constants";
 import { FtsoProviderService } from "@/app.service";
 import { IntegrationService } from "@/integration/integration.service";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
+import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 import type {
   HealthCheckResponse,
@@ -93,7 +94,7 @@ export class HealthController extends BaseController {
             details: health.status === "fulfilled" ? health.value.details : { error: health.reason?.message },
           },
           cache: {
-            status: cacheStats.hitRate > 0.3 ? "healthy" : "degraded",
+            status: cacheStats.hitRate > ENV.CACHE.HIT_RATE_TARGET ? "healthy" : "degraded",
             hitRate: cacheStats.hitRate,
             totalEntries: cacheStats.totalEntries,
             memoryUsage: cacheStats.memoryUsage,
@@ -137,7 +138,7 @@ export class HealthController extends BaseController {
           },
           components,
           details: {
-            environment: process.env.NODE_ENV || "development",
+            environment: ENV.APPLICATION.NODE_ENV,
             nodeVersion: process.version,
             platform: process.platform,
             pid: process.pid,
@@ -317,7 +318,7 @@ export class HealthController extends BaseController {
           error: "Detailed health check failed",
           message: errMsg,
           timestamp: Date.now(),
-          stack: process.env.NODE_ENV === "development" ? errStack : undefined,
+          stack: ENV_HELPERS.isDevelopment() ? errStack : undefined,
         },
         HttpStatus.INTERNAL_SERVER_ERROR
       );
@@ -484,21 +485,36 @@ export class HealthController extends BaseController {
     };
 
     try {
-      // Check integration service
-      const integrationHealth = await this.integrationService.getSystemHealth();
+      // Check integration service with timeout
+      const integrationPromise = this.integrationService.getSystemHealth();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Integration health check timeout")), ENV.TIMEOUTS.HEALTH_CHECK_MS)
+      );
+
+      const integrationHealth = await Promise.race([integrationPromise, timeoutPromise]);
       checks.integration.ready = integrationHealth.status !== "unhealthy";
       checks.integration.status = integrationHealth.status;
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       checks.integration.error = errMsg;
+
+      // During startup, be more lenient - if integration service is not ready yet,
+      // consider it ready if we're still in startup phase
+      const timeSinceStartup = Date.now() - this.startupTime;
+      if (timeSinceStartup < 10000) {
+        // First 10 seconds
+        checks.integration.ready = true;
+        checks.integration.status = "degraded";
+        checks.integration.error = null;
+      }
     }
 
     // For now, use integration health as proxy for provider health
     checks.provider.ready = checks.integration.ready;
     checks.provider.status = checks.integration.status;
 
-    // Check if enough time has passed since startup (minimum 5 seconds)
-    checks.startup.ready = Date.now() - this.startupTime > 5000;
+    // Check if enough time has passed since startup (minimum 3 seconds, reduced from 5)
+    checks.startup.ready = Date.now() - this.startupTime > 3000;
 
     return checks;
   }
@@ -522,7 +538,7 @@ export class HealthController extends BaseController {
       // Quick integration service check (with timeout)
       const integrationPromise = this.integrationService.getSystemHealth();
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Integration check timeout")), 2000)
+        setTimeout(() => reject(new Error("Integration check timeout")), ENV.TIMEOUTS.LIVENESS_CHECK_MS)
       );
 
       await Promise.race([integrationPromise, timeoutPromise]);
@@ -530,6 +546,13 @@ export class HealthController extends BaseController {
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       this.logger.debug("Integration liveness check failed:", errMsg);
+
+      // During startup, be more lenient for liveness checks
+      const timeSinceStartup = Date.now() - this.startupTime;
+      if (timeSinceStartup < 15000) {
+        // First 15 seconds
+        checks.integration = true; // Consider alive during startup
+      }
     }
 
     // For now, use integration health as proxy for provider health

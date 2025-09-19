@@ -5,6 +5,7 @@ import type { CoreFeedId } from "@/common/types/core";
 import type { CacheEntry } from "@/common/types/cache";
 import type { AggregatedPrice } from "@/common/types/services";
 import { RealTimeCacheService } from "./real-time-cache.service";
+import { ENV } from "@/common/constants";
 
 interface FeedAccessPattern {
   feedId: CoreFeedId;
@@ -63,25 +64,25 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
         name: "critical_realtime",
         enabled: true,
         priority: 1,
-        targetFeeds: 20, // Increased for better coverage
-        concurrency: 16, // Higher concurrency for critical feeds
-        interval: 2000, // Faster interval for real-time requirements
+        targetFeeds: ENV.CACHE.WARMER.CRITICAL_TARGET_FEEDS,
+        concurrency: ENV.CACHE.WARMER.CRITICAL_CONCURRENCY,
+        interval: ENV.CACHE.WARMER.CRITICAL_INTERVAL_MS,
       },
       {
         name: "predictive_ml",
         enabled: true,
         priority: 2,
-        targetFeeds: 40, // Increased predictive coverage
-        concurrency: 12, // Optimized concurrency
-        interval: 5000, // Optimized interval based on access patterns
+        targetFeeds: ENV.CACHE.WARMER.PREDICTIVE_TARGET_FEEDS,
+        concurrency: ENV.CACHE.WARMER.PREDICTIVE_CONCURRENCY,
+        interval: ENV.CACHE.WARMER.PREDICTIVE_INTERVAL_MS,
       },
       {
         name: "maintenance_optimized",
         enabled: true,
         priority: 3,
-        targetFeeds: 100, // Broader coverage for better hit rates
-        concurrency: 8, // Increased for better throughput
-        interval: 15000, // Faster maintenance for better performance
+        targetFeeds: ENV.CACHE.WARMER.MAINTENANCE_TARGET_FEEDS,
+        concurrency: ENV.CACHE.WARMER.MAINTENANCE_CONCURRENCY,
+        interval: ENV.CACHE.WARMER.MAINTENANCE_INTERVAL_MS,
       },
     ];
 
@@ -116,9 +117,9 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
         feedId,
         accessCount: 1,
         lastAccessed: now,
-        averageInterval: 10000, // Default 10 seconds
+        averageInterval: ENV.CACHE.WARMER.DEFAULT_ACCESS_INTERVAL_MS,
         priority: 1,
-        predictedNextAccess: now + 10000,
+        predictedNextAccess: now + ENV.CACHE.WARMER.DEFAULT_ACCESS_INTERVAL_MS,
         warmingSuccess: 0,
         warmingFailures: 0,
       });
@@ -126,7 +127,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
 
     this.logger.debug(`Tracked intelligent access pattern for ${key}`, {
       accessCount: existing?.accessCount || 1,
-      averageInterval: existing?.averageInterval || 10000,
+      averageInterval: existing?.averageInterval || ENV.CACHE.WARMER.DEFAULT_ACCESS_INTERVAL_MS,
       priority: existing?.priority || 1,
     });
 
@@ -161,8 +162,8 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
     // 3. Recent frequent access
     return (
       pattern.accessCount === 1 || // First access
-      pattern.accessCount >= 3 || // Popular feed
-      pattern.averageInterval < 30000 // Frequent access (less than 30 seconds)
+      pattern.accessCount >= ENV.CACHE.WARMER.IMMEDIATE_THRESHOLD || // Popular feed
+      pattern.averageInterval < ENV.CACHE.WARMER.FREQUENT_ACCESS_THRESHOLD_MS // Frequent access
     );
   }
 
@@ -175,40 +176,45 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
     const hoursSinceLastAccess = timeSinceLastAccess / (1000 * 60 * 60);
 
     // Base priority with exponential scaling
-    let priority = Math.log(pattern.accessCount + 1) * 2.5;
+    let priority = Math.log(pattern.accessCount + 1) * ENV.CACHE.WARMER.PRIORITY_BASE_MULTIPLIER;
 
     // Recency boost with exponential decay
     if (hoursSinceLastAccess < 0.5) {
-      priority *= 3.0; // Triple priority for feeds accessed in last 30 minutes
+      priority *= ENV.CACHE.WARMER.RECENCY_BOOST_30MIN; // Triple priority for feeds accessed in last 30 minutes
     } else if (hoursSinceLastAccess < 2) {
-      priority *= 2.2; // Higher boost for feeds accessed in last 2 hours
+      priority *= ENV.CACHE.WARMER.RECENCY_BOOST_2HOUR; // Higher boost for feeds accessed in last 2 hours
     } else if (hoursSinceLastAccess < 8) {
-      priority *= 1.6; // Moderate boost for feeds accessed in last 8 hours
+      priority *= ENV.CACHE.WARMER.RECENCY_BOOST_8HOUR; // Moderate boost for feeds accessed in last 8 hours
     }
 
     // Predictability scoring
     if (pattern.averageInterval < 15000) {
-      priority *= 2.2; // Higher boost for very frequent access patterns
+      priority *= ENV.CACHE.WARMER.FREQUENCY_BOOST_15SEC; // Higher boost for very frequent access patterns
     } else if (pattern.averageInterval < 60000) {
-      priority *= 1.8; // Boost for frequent access patterns
+      priority *= ENV.CACHE.WARMER.FREQUENCY_BOOST_1MIN; // Boost for frequent access patterns
     }
 
     // Success rate adjustment with confidence intervals
     const totalAttempts = pattern.warmingSuccess + pattern.warmingFailures;
     const successRate = totalAttempts > 0 ? pattern.warmingSuccess / totalAttempts : 0.8; // Default confidence
-    const confidenceMultiplier = 0.3 + successRate * 1.4; // Range: 0.3x to 1.7x
+    const confidenceMultiplier =
+      ENV.CACHE.WARMER.CONFIDENCE_MULTIPLIER_MIN +
+      successRate * (ENV.CACHE.WARMER.CONFIDENCE_MULTIPLIER_MAX - ENV.CACHE.WARMER.CONFIDENCE_MULTIPLIER_MIN);
     priority *= confidenceMultiplier;
 
     // Time decay with adaptive factors
-    const adaptiveDecayRate = Math.min(48, Math.max(12, pattern.accessCount / 2)); // 12-48 hour range
+    const adaptiveDecayRate = Math.min(
+      ENV.CACHE.WARMER.DECAY_RATE_MAX_HOURS,
+      Math.max(ENV.CACHE.WARMER.DECAY_RATE_MIN_HOURS, pattern.accessCount / 2)
+    );
     const decayFactor = Math.exp(-hoursSinceLastAccess / adaptiveDecayRate);
     priority *= decayFactor;
 
     // Volume-based priority boost
-    const volumeBoost = Math.min(1.5, 1 + pattern.accessCount / 100);
+    const volumeBoost = Math.min(ENV.CACHE.WARMER.VOLUME_BOOST_MAX, 1 + pattern.accessCount / 100);
     priority *= volumeBoost;
 
-    return Math.max(0.05, Math.min(100, priority)); // Bounded between 0.05 and 100
+    return Math.max(ENV.CACHE.WARMER.PRIORITY_MIN, Math.min(ENV.CACHE.WARMER.PRIORITY_MAX, priority));
   }
 
   /**
@@ -400,7 +406,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
    */
   private isCacheFresh(cacheEntry: CacheEntry): boolean {
     const age = Date.now() - cacheEntry.timestamp;
-    return age < 200; // Very aggressive freshness check (200ms)
+    return age < ENV.CACHE.FRESHNESS_CHECK_MS; // Very aggressive freshness check
   }
 
   /**
@@ -456,7 +462,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
       } catch (error) {
         this.logger.error("Error in aggressive warming:", error);
       }
-    }, 3000); // Every 3 seconds - more frequent for better performance
+    }, ENV.CACHE.WARMER.AGGRESSIVE_INTERVAL_MS);
 
     // Predictive warming based on access patterns using managed intervals
     this.createInterval(async () => {
@@ -465,7 +471,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
       } catch (error) {
         this.logger.error("Error in predictive warming:", error);
       }
-    }, 7000); // Every 7 seconds - more frequent for better prediction
+    }, ENV.CACHE.WARMER.PREDICTIVE_INTERVAL_MS);
 
     // Maintenance warming for general cache health using managed intervals
     this.createInterval(async () => {
@@ -475,7 +481,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
       } catch (error) {
         this.logger.error("Error in maintenance warming:", error);
       }
-    }, 20000); // Every 20 seconds - more frequent maintenance
+    }, ENV.CACHE.WARMER.MAINTENANCE_INTERVAL_MS);
 
     this.logger.log("Cache warming started with multiple strategies");
   }
@@ -485,7 +491,7 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
    */
   private cleanupStalePatterns(): void {
     const now = Date.now();
-    const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
+    const staleThreshold = ENV.CACHE.STALE_PATTERN_THRESHOLD_MS;
     let cleanedCount = 0;
 
     this.accessPatterns.forEach((pattern, key) => {
@@ -518,8 +524,8 @@ export class CacheWarmerService extends StandardService implements OnModuleDestr
   } {
     const now = Date.now();
     const activePatterns = Array.from(this.accessPatterns.values()).filter(
-      pattern => now - pattern.lastAccessed < 3600000
-    ); // Active in last hour
+      pattern => now - pattern.lastAccessed < ENV.CACHE.ACTIVE_PATTERN_THRESHOLD_MS
+    ); // Active in threshold period
 
     const topFeeds = Array.from(this.accessPatterns.values())
       .sort((a, b) => b.priority - a.priority)

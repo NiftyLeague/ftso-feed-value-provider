@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import type { PerformanceMetrics, ThresholdsConfig } from "@/common/types/monitoring";
+import { ENV } from "@/common/constants";
 
 interface IPerformanceMetrics extends PerformanceMetrics {
   cacheEfficiency: number;
@@ -28,7 +29,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
   private cpuUsageBuffer!: Float32Array;
   private throughputBuffer!: Float32Array;
 
-  private readonly bufferSize = 2000;
+  private readonly bufferSize = ENV.MONITORING.BUFFER_SIZE;
   private bufferIndex = 0;
   private bufferFull = false;
 
@@ -40,8 +41,8 @@ export class PerformanceMonitorService extends StandardService implements OnModu
 
   constructor(config?: ThresholdsConfig) {
     super({
-      maxResponseLatency: 40, // More aggressive response time target
-      minCacheHitRate: 0.95, // Higher cache hit rate target
+      maxResponseLatency: ENV.MONITORING.MAX_RESPONSE_LATENCY_MS, // More aggressive response time target
+      minCacheHitRate: ENV.MONITORING.MIN_CACHE_HIT_RATE / 100, // Higher cache hit rate target
       ...config,
     });
     this.initializeOptimizedBuffers();
@@ -174,9 +175,9 @@ export class PerformanceMonitorService extends StandardService implements OnModu
 
     // Calculate statistics
     const mean = this.calculateMean(buffer, size);
-    const median = sortedValues[Math.floor(size * 0.5)];
-    const p95 = sortedValues[Math.floor(size * 0.95)];
-    const p99 = sortedValues[Math.floor(size * 0.99)];
+    const median = sortedValues[Math.floor(size * 0.5)]; // 50th percentile
+    const p95 = sortedValues[Math.floor(size * 0.95)]; // 95th percentile
+    const p99 = sortedValues[Math.floor(size * 0.99)]; // 99th percentile
     const stdDev = this.calculateStandardDeviation(buffer, size, mean);
     const trend = this.calculateTrend(buffer, size);
 
@@ -228,7 +229,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
     const recentAvg = recentSum / halfSize;
     const changePercent = Math.abs((recentAvg - olderAvg) / olderAvg);
 
-    if (changePercent < 0.05) return "stable";
+    if (changePercent < ENV.PERFORMANCE.STABILITY_THRESHOLD) return "stable";
     return recentAvg < olderAvg ? "improving" : "degrading";
   }
 
@@ -264,7 +265,7 @@ export class PerformanceMonitorService extends StandardService implements OnModu
     // Cache optimization suggestions
     if (metrics.cacheEfficiency < 0.85) {
       suggestions.push({
-        component: "cache_optimization",
+        component: "cache_performance",
         issue: "Cache efficiency below optimal level",
         suggestion: "Implement adaptive TTL, increase cache size, and enhance warming strategies",
         priority: "high",

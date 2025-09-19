@@ -119,7 +119,7 @@ describe("PerformanceMonitorService", () => {
       const recommendations = service.getOptimizationRecommendations();
 
       expect(recommendations.length).toBeGreaterThan(0);
-      expect(recommendations.some(r => r.component === "cache_optimization")).toBe(true);
+      expect(recommendations.some(r => r.component === "cache_performance")).toBe(true);
     });
 
     it("should generate aggregation optimization recommendations", () => {

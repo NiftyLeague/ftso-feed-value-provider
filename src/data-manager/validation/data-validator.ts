@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
-import { EnvironmentUtils } from "@/common/utils/environment.utils";
+import { ENV } from "@/common/constants";
 
 import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handling";
 import { ErrorCode } from "@/common/types/error-handling/error.types";
@@ -24,19 +24,19 @@ export type ExtendedDataValidationError = BaseDataValidationError & {
 export class DataValidator extends StandardService {
   constructor(private readonly universalRetryService: UniversalRetryService) {
     super({
-      maxAge: EnvironmentUtils.parseInt("MAX_DATA_AGE_MS", 20000, { min: 100, max: 60000 }), // From env
-      priceRange: { min: 0.01, max: 1000000 },
-      outlierThreshold: 0.05, // 5% deviation
-      consensusWeight: 0.8,
+      maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+      priceRange: { min: ENV.DATA_QUALITY.PRICE_RANGE_MIN, max: ENV.DATA_QUALITY.PRICE_RANGE_MAX },
+      outlierThreshold: ENV.DATA_QUALITY.OUTLIER_THRESHOLD,
+      consensusWeight: ENV.DATA_QUALITY.CONSENSUS_WEIGHT,
       enableRealTimeValidation: true,
       enableBatchValidation: true,
-      maxBatchSize: 100,
-      validationTimeout: 5000,
+      maxBatchSize: ENV.DATA_QUALITY.MAX_BATCH_SIZE,
+      validationTimeout: ENV.TIMEOUTS.DATA_VALIDATOR_MS,
       // Additional required fields for DataValidatorConfig
-      crossSourceWindow: 10_000,
-      historicalDataWindow: 50,
-      validationCacheSize: 1000,
-      validationCacheTTL: 5000,
+      crossSourceWindow: ENV.DATA_QUALITY.CROSS_SOURCE_WINDOW_MS,
+      historicalDataWindow: ENV.DATA_QUALITY.HISTORICAL_DATA_WINDOW,
+      validationCacheSize: ENV.DATA_QUALITY.CACHE_SIZE,
+      validationCacheTTL: ENV.DATA_QUALITY.CACHE_TTL_MS,
     });
   }
 
@@ -110,7 +110,7 @@ export class DataValidator extends StandardService {
         const criticalErrors = errors.filter(e => e.severity === ErrorSeverity.CRITICAL);
         const highErrors = errors.filter(e => e.severity === ErrorSeverity.HIGH);
 
-        const isValid = criticalErrors.length === 0 && highErrors.length <= 1;
+        const isValid = criticalErrors.length === 0 && highErrors.length <= ENV.DATA_QUALITY.MAX_HIGH_ERRORS;
 
         // Create adjusted update if needed
         const adjustedUpdate = this.createAdjustedUpdate(update, errors, confidence);
@@ -128,10 +128,10 @@ export class DataValidator extends StandardService {
         serviceId: "DataValidator",
         operationName: `validate_update_${update?.source || "unknown"}_${update?.symbol || "unknown"}`,
         retryConfig: {
-          maxRetries: 1,
-          initialDelayMs: 50,
-          maxDelayMs: 500,
-          backoffMultiplier: 2,
+          maxRetries: ENV.RETRY.CACHE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.CACHE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.CACHE_MAX_DELAY_MS,
+          backoffMultiplier: ENV.RETRY.DEFAULT_BACKOFF_MULTIPLIER,
         },
       }
     );
@@ -284,7 +284,7 @@ export class DataValidator extends StandardService {
     }
 
     // Warning for data approaching staleness threshold
-    if (age > config.maxAge * 0.8) {
+    if (age > config.maxAge * ENV.DATA_QUALITY.STALENESS_WARNING_THRESHOLD) {
       errors.push(
         this.makeValidationError(
           `Data approaching staleness: ${age}ms old`,
@@ -308,7 +308,7 @@ export class DataValidator extends StandardService {
     const errors: ExtendedDataValidationError[] = [];
 
     const historicalPrices = context.historicalPrices ?? [];
-    if (historicalPrices.length < 3) {
+    if (historicalPrices.length < ENV.DATA_QUALITY.MIN_HISTORICAL_DATA_POINTS) {
       // Not enough data for outlier detection
       return errors;
     }
@@ -321,7 +321,7 @@ export class DataValidator extends StandardService {
 
     // Z-score outlier detection
     const zScore = Math.abs((update.price - mean) / stdDev);
-    const zScoreThreshold = 2.5; // 2.5 standard deviations
+    const zScoreThreshold = ENV.DATA_QUALITY.Z_SCORE_THRESHOLD;
 
     if (zScore > zScoreThreshold) {
       errors.push(
@@ -340,12 +340,17 @@ export class DataValidator extends StandardService {
     }
 
     // Percentage deviation from recent average
-    const recentPrices = historicalPrices.slice(-5).map(p => (p as PriceUpdate).price);
+    const recentPrices = historicalPrices
+      .slice(-ENV.DATA_QUALITY.RECENT_PRICES_WINDOW)
+      .map(p => (p as PriceUpdate).price);
     const recentMean = recentPrices.reduce((sum, price) => sum + price, 0) / recentPrices.length;
     const percentageDeviation = Math.abs((update.price - recentMean) / recentMean);
 
     if (percentageDeviation > config.outlierThreshold) {
-      const severity = percentageDeviation > config.outlierThreshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+      const severity =
+        percentageDeviation > config.outlierThreshold * ENV.DATA_QUALITY.CROSS_SOURCE_WARNING_MULTIPLIER
+          ? ErrorSeverity.HIGH
+          : ErrorSeverity.MEDIUM;
       errors.push(
         this.makeValidationError(
           `Price deviates ${(percentageDeviation * 100).toFixed(2)}% from recent average`,
@@ -369,7 +374,7 @@ export class DataValidator extends StandardService {
     const errors: ExtendedDataValidationError[] = [];
 
     const crossSourcePrices = context.crossSourcePrices ?? [];
-    if (crossSourcePrices.length < 2) {
+    if (crossSourcePrices.length < ENV.DATA_QUALITY.MIN_HISTORICAL_DATA_POINTS) {
       // Not enough cross-source data for validation
       return errors;
     }
@@ -392,10 +397,13 @@ export class DataValidator extends StandardService {
 
     // Check deviation from cross-source median
     const deviation = Math.abs((update.price - median) / median);
-    const crossSourceThreshold = 0.02; // 2% deviation threshold
+    const crossSourceThreshold = ENV.DATA_QUALITY.CROSS_SOURCE_THRESHOLD;
 
     if (deviation > crossSourceThreshold) {
-      const severity = deviation > crossSourceThreshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+      const severity =
+        deviation > crossSourceThreshold * ENV.DATA_QUALITY.CROSS_SOURCE_WARNING_MULTIPLIER
+          ? ErrorSeverity.HIGH
+          : ErrorSeverity.MEDIUM;
       errors.push(
         this.makeValidationError(
           `Price deviates ${(deviation * 100).toFixed(2)}% from cross-source median`,
@@ -428,10 +436,13 @@ export class DataValidator extends StandardService {
     }
 
     const deviation = Math.abs((update.price - context.consensusMedian) / context.consensusMedian);
-    const consensusThreshold = 0.005; // 0.5% for FTSO requirement
+    const consensusThreshold = ENV.DATA_QUALITY.CONSENSUS_THRESHOLD;
 
     if (deviation > consensusThreshold) {
-      const severity = deviation > consensusThreshold * 2 ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM;
+      const severity =
+        deviation > consensusThreshold * ENV.DATA_QUALITY.CONSENSUS_WARNING_MULTIPLIER
+          ? ErrorSeverity.HIGH
+          : ErrorSeverity.MEDIUM;
       errors.push(
         this.makeValidationError(
           `Price deviates ${(deviation * 100).toFixed(3)}% from consensus median`,
@@ -457,16 +468,16 @@ export class DataValidator extends StandardService {
     for (const error of errors) {
       switch (error.severity) {
         case ErrorSeverity.CRITICAL:
-          adjustedConfidence *= 0.1; // Severe penalty
+          adjustedConfidence *= ENV.DATA_QUALITY.CONFIDENCE_PENALTY_CRITICAL;
           break;
         case ErrorSeverity.HIGH:
-          adjustedConfidence *= 0.5; // High penalty
+          adjustedConfidence *= ENV.DATA_QUALITY.CONFIDENCE_PENALTY_HIGH;
           break;
         case ErrorSeverity.MEDIUM:
-          adjustedConfidence *= 0.8; // Medium penalty
+          adjustedConfidence *= ENV.DATA_QUALITY.CONFIDENCE_PENALTY_MEDIUM;
           break;
         case ErrorSeverity.LOW:
-          adjustedConfidence *= 0.95; // Small penalty
+          adjustedConfidence *= ENV.DATA_QUALITY.CONFIDENCE_SMALL_PENALTY;
           break;
       }
     }

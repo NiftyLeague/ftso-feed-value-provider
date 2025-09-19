@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { ErrorCode } from "@/common/types/error-handling";
 import { ConfigService } from "@/config/config.service";
-import { DATA_AGE_THRESHOLDS } from "@/common/constants/data-age-thresholds";
+import { ENV } from "@/common/constants";
 
 import type { AggregatedPrice } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
@@ -34,13 +34,13 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private subscriptions = new Map<string, SourceSubscription[]>();
 
   // Real-time data management properties
-  readonly maxDataAge = DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS;
-  readonly maxCacheTTL = DATA_AGE_THRESHOLDS.CACHE_TTL_MS;
+  readonly maxDataAge = ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS;
+  readonly maxCacheTTL = ENV.CACHE.TTL_MS;
 
   // Data freshness policy
   private readonly dataFreshnessPolicy: DataFreshnessPolicy = {
     rejectStaleData: true,
-    staleThresholdMs: DATA_AGE_THRESHOLDS.FRESH_DATA_MS,
+    staleThresholdMs: ENV.DATA_FRESHNESS.FRESH_DATA_MS,
     realTimePriority: true,
     cacheBypassOnFreshData: true,
   };
@@ -49,22 +49,28 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthMonitorInterval?: NodeJS.Timeout;
 
+  // Rate limiting for warnings
+  private staleWarningLastLogged = new Map<string, number>();
+  private qualityWarningLastLogged = new Map<string, number>();
+  private readonly STALE_WARNING_COOLDOWN_MS = ENV.MONITORING.STALE_WARNING_COOLDOWN_MS; // 2 minutes - increased to reduce spam
+  private readonly QUALITY_WARNING_COOLDOWN_MS = ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS; // 5 minutes - much less frequent for quality warnings
+
   constructor(private readonly configService: ConfigService) {
     super({
-      initialDelay: 1000,
-      maxDelay: 30000,
-      backoffMultiplier: 2,
-      maxAttempts: 10,
+      initialDelay: ENV.AGGREGATION.INITIAL_DELAY_MS,
+      maxDelay: ENV.AGGREGATION.MAX_DELAY_MS,
+      backoffMultiplier: ENV.PERFORMANCE.COMMON_BACKOFF_MULTIPLIER,
+      maxAttempts: ENV.AGGREGATION.MAX_ATTEMPTS,
       useEnhancedLogging: true,
     });
     this.setupHealthMonitoring();
   }
 
   private setupHealthMonitoring(): void {
-    // Run health checks every 30 seconds
+    // Run health checks every 60 seconds to reduce memory pressure
     this.healthMonitorInterval = setInterval(() => {
       void this.performHealthCheck();
-    }, 30000);
+    }, ENV.HEALTH_CHECKS.AGGREGATION_INTERVAL_MS);
   }
 
   private async performHealthCheck(): Promise<void> {
@@ -80,7 +86,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       let isHealthy = metrics.isHealthy;
 
       // Check for stale data
-      if (timeSinceLastUpdate > DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS) {
+      if (timeSinceLastUpdate > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
         isHealthy = false;
       }
 
@@ -130,9 +136,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       this.setHealthStatus("degraded");
     } else {
       const healthyRatio = healthyConnections / totalConnections;
-      if (healthyRatio >= 0.8) {
+      if (healthyRatio >= ENV.PERFORMANCE.HEALTHY_CONNECTION_RATIO) {
         this.setHealthStatus("healthy");
-      } else if (healthyRatio >= 0.5) {
+      } else if (healthyRatio >= ENV.PERFORMANCE.DEGRADED_CONNECTION_RATIO) {
         this.setHealthStatus("degraded");
       } else {
         this.setHealthStatus("unhealthy");
@@ -152,6 +158,14 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       clearInterval(this.healthMonitorInterval);
       this.healthMonitorInterval = undefined;
     }
+
+    // Clear rate limiting maps to free memory
+    this.staleWarningLastLogged.clear();
+    this.qualityWarningLastLogged.clear();
+
+    // Clear connection metrics
+    this.connectionMetrics.clear();
+    this.subscriptions.clear();
   }
 
   // Test helper method to manually emit price updates
@@ -348,7 +362,12 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         } else {
           // This is a custom adapter - use REST fallback
           if (hasRestFallbackCapability(source)) {
-            const restUpdate = await source.fetchPriceViaREST(feedId.name);
+            // Get the exchange-specific symbol from feed configuration
+            const feedConfig = this.configService.getFeedConfiguration(feedId);
+            const sourceConfig = feedConfig?.sources.find(s => s.exchange === exchange);
+            const exchangeSymbol = sourceConfig?.symbol || feedId.name;
+
+            const restUpdate = await source.fetchPriceViaREST(exchangeSymbol);
             if (restUpdate) {
               priceUpdates.push(restUpdate);
             }
@@ -504,14 +523,14 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   processUpdateImmediately(update: PriceUpdate): void {
     // Validate data age first
     const age = Date.now() - update.timestamp;
-    if (age > DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS) {
+    if (age > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
       this.enhancedLogger?.warn(`Price update from ${update.source} is too stale to use`, {
         component: "ProductionDataManager",
         operation: "process_update",
         sourceId: update.source,
         metadata: {
           age,
-          maxAge: DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS,
+          maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
           symbol: update.symbol,
           price: update.price,
         },
@@ -520,14 +539,14 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
 
     // Early warning for approaching staleness
-    if (age > DATA_AGE_THRESHOLDS.STALE_WARNING_MS) {
+    if (age > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
       this.enhancedLogger?.warn(`Price update from ${update.source} is becoming stale`, {
         component: "ProductionDataManager",
         operation: "process_update",
         sourceId: update.source,
         metadata: {
           age,
-          warningThreshold: DATA_AGE_THRESHOLDS.STALE_WARNING_MS,
+          warningThreshold: ENV.DATA_FRESHNESS.STALE_WARNING_MS,
           symbol: update.symbol,
           price: update.price,
         },
@@ -577,7 +596,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         throw new Error(`No data available for feed ${feedId.name}`);
       }
 
-      if (freshness > DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS) {
+      if (freshness > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
         throw new Error(`Data too stale for feed ${feedId.name}: ${freshness}ms old`);
       }
 
@@ -594,7 +613,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       // For now, return a simple aggregated result
       // In a fully integrated system, this would call the RealTimeAggregationService
       const validUpdates = priceUpdates.filter(
-        update => update.price > 0 && update.timestamp > Date.now() - DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS
+        update => update.price > 0 && update.timestamp > Date.now() - ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS
       );
 
       if (validUpdates.length === 0) {
@@ -602,8 +621,14 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       }
 
       // Simple aggregation: weighted average by confidence
-      const totalWeight = validUpdates.reduce((sum, update) => sum + (update.confidence || 0.5), 0);
-      const weightedPrice = validUpdates.reduce((sum, update) => sum + update.price * (update.confidence || 0.5), 0);
+      const totalWeight = validUpdates.reduce(
+        (sum, update) => sum + (update.confidence || ENV.PERFORMANCE.DEFAULT_CONFIDENCE_FALLBACK),
+        0
+      );
+      const weightedPrice = validUpdates.reduce(
+        (sum, update) => sum + update.price * (update.confidence || ENV.PERFORMANCE.DEFAULT_CONFIDENCE_FALLBACK),
+        0
+      );
 
       const aggregatedPrice: AggregatedPrice = {
         symbol: feedId.name,
@@ -642,15 +667,32 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         // Update connection metrics first
         this.updateConnectionMetrics(source.id, update.timestamp);
 
-        // Validate update quality
+        // Validate update quality and process accordingly
         if (this.validatePriceUpdateQuality(update)) {
           this.processUpdateImmediately(update);
         } else {
-          this.logger.warn(
-            `Low quality price update from ${source.id} for ${update.symbol}: confidence ${update.confidence}`
-          );
-          // Still process but with lower priority
-          this.processUpdateImmediately(update);
+          // Low quality data - log once and skip processing to reduce noise
+          const warningKey = `${source.id}_rejected_${update.symbol}`;
+          const now = Date.now();
+          const lastLogged = this.qualityWarningLastLogged.get(warningKey) || 0;
+
+          if (now - lastLogged > this.QUALITY_WARNING_COOLDOWN_MS) {
+            this.enhancedLogger?.debug(
+              `Rejected low quality price update from ${source.id} for ${update.symbol}: confidence ${update.confidence}`,
+              {
+                component: "ProductionDataManager",
+                operation: "quality_check",
+                sourceId: source.id,
+                metadata: {
+                  confidence: update.confidence,
+                  symbol: update.symbol,
+                  minThreshold: 0.5,
+                },
+              }
+            );
+            this.qualityWarningLastLogged.set(warningKey, now);
+          }
+          // Skip processing low quality data instead of processing with lower priority
         }
       } catch (error) {
         this.logger.error(`Error processing price update from ${source.id}:`, error);
@@ -688,43 +730,84 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   }
 
   private validatePriceUpdateQuality(update: PriceUpdate): boolean {
-    // Check confidence level
-    const MIN_CONFIDENCE = 0.3;
+    // More reasonable confidence thresholds based on market conditions
+    const MIN_CONFIDENCE = ENV.PERFORMANCE.MIN_CONFIDENCE_THRESHOLD;
+    const WARN_CONFIDENCE = ENV.PERFORMANCE.WARN_CONFIDENCE_THRESHOLD;
+
     if (update.confidence < MIN_CONFIDENCE) {
       return false;
+    }
+
+    // Log quality warning only if confidence is between MIN and WARN thresholds (with rate limiting)
+    if (update.confidence < WARN_CONFIDENCE) {
+      const warningKey = `${update.source}_quality_warning`;
+      const now = Date.now();
+      const lastLogged = this.qualityWarningLastLogged.get(warningKey) || 0;
+
+      if (now - lastLogged > this.QUALITY_WARNING_COOLDOWN_MS) {
+        this.enhancedLogger?.debug(
+          `Moderate quality price update from ${update.source} for ${update.symbol}: confidence ${update.confidence}`,
+          {
+            component: "ProductionDataManager",
+            operation: "validate_price_quality",
+            sourceId: update.source,
+            metadata: {
+              confidence: update.confidence,
+              minThreshold: MIN_CONFIDENCE,
+              warnThreshold: WARN_CONFIDENCE,
+              symbol: update.symbol,
+            },
+          }
+        );
+        this.qualityWarningLastLogged.set(warningKey, now);
+      }
     }
 
     // Check data age
     const age = Date.now() - update.timestamp;
 
-    // Log warning if approaching staleness
-    if (age > DATA_AGE_THRESHOLDS.STALE_WARNING_MS) {
-      this.enhancedLogger?.warn(`Price update from ${update.source} is becoming stale`, {
-        component: "ProductionDataManager",
-        operation: "validate_price_quality",
-        sourceId: update.source,
-        metadata: {
-          age,
-          warningThreshold: DATA_AGE_THRESHOLDS.STALE_WARNING_MS,
-          symbol: update.symbol,
-          price: update.price,
-        },
-      });
+    // Log warning if approaching staleness (with rate limiting)
+    if (age > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
+      const warningKey = `${update.source}_stale_warning`;
+      const now = Date.now();
+      const lastLogged = this.staleWarningLastLogged.get(warningKey) || 0;
+
+      if (now - lastLogged > this.STALE_WARNING_COOLDOWN_MS) {
+        this.enhancedLogger?.warn(`Price update from ${update.source} is becoming stale`, {
+          component: "ProductionDataManager",
+          operation: "validate_price_quality",
+          sourceId: update.source,
+          metadata: {
+            age,
+            warningThreshold: ENV.DATA_FRESHNESS.STALE_WARNING_MS,
+            symbol: update.symbol,
+            price: update.price,
+          },
+        });
+        this.staleWarningLastLogged.set(warningKey, now);
+      }
     }
 
-    // Check if data is too stale
-    if (age > DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS) {
-      this.enhancedLogger?.warn(`Price update from ${update.source} is too stale to use`, {
-        component: "ProductionDataManager",
-        operation: "validate_price_quality",
-        sourceId: update.source,
-        metadata: {
-          age,
-          maxAge: DATA_AGE_THRESHOLDS.MAX_DATA_AGE_MS,
-          symbol: update.symbol,
-          price: update.price,
-        },
-      });
+    // Check if data is too stale (with rate limiting)
+    if (age > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
+      const warningKey = `${update.source}_too_stale_warning`;
+      const now = Date.now();
+      const lastLogged = this.staleWarningLastLogged.get(warningKey) || 0;
+
+      if (now - lastLogged > this.STALE_WARNING_COOLDOWN_MS) {
+        this.enhancedLogger?.warn(`Price update from ${update.source} is too stale to use`, {
+          component: "ProductionDataManager",
+          operation: "validate_price_quality",
+          sourceId: update.source,
+          metadata: {
+            age,
+            maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+            symbol: update.symbol,
+            price: update.price,
+          },
+        });
+        this.staleWarningLastLogged.set(warningKey, now);
+      }
       return false;
     }
 
@@ -839,7 +922,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     const requestsPerSecond = totalRequests / uptime;
 
     // Will be implemented with actual metrics tracking
-    const mockResponseTime = 100; // milliseconds
+    const mockResponseTime = ENV.PERFORMANCE.RESPONSE_TIME_TARGET_MS;
 
     return {
       uptime,

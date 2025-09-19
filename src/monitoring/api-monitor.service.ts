@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { EndpointStats, SlowResponseData, ServerErrorData, HighErrorRateData } from "@/common/types/monitoring";
 import type { ApiMetrics, ApiHealthMetrics } from "@/common/types/monitoring";
+import { ENV } from "@/common/constants";
 
 @Injectable()
 export class ApiMonitorService extends EventDrivenService {
@@ -194,7 +195,7 @@ export class ApiMonitorService extends EventDrivenService {
     // Calculate error trends over the last hour (5-minute buckets)
     const now = Date.now();
     const oneHourAgo = now - 3600000;
-    const bucketSize = 300000; // 5 minutes
+    const bucketSize = ENV.MONITORING.BUCKET_SIZE_MS;
     const buckets = new Map<number, number>();
 
     errors
@@ -336,11 +337,11 @@ export class ApiMonitorService extends EventDrivenService {
 
   private checkAndEmitAlerts(metrics: ApiMetrics): void {
     // Alert on very slow responses
-    if (metrics.responseTime > 5000) {
+    if (metrics.responseTime > ENV.MONITORING.SLOW_RESPONSE_THRESHOLD_MS) {
       this.emit("slowResponse", {
         endpoint: metrics.endpoint || "unknown",
         responseTime: metrics.responseTime,
-        threshold: 5000,
+        threshold: ENV.MONITORING.SLOW_RESPONSE_THRESHOLD_MS,
         timestamp: metrics.timestamp,
         requestId: `req-${Date.now()}`,
         method: metrics.method || "GET",
@@ -362,12 +363,12 @@ export class ApiMonitorService extends EventDrivenService {
 
     // Alert on high error rate for endpoint
     const stats = this.endpointStats.get(`${metrics.method} ${metrics.endpoint}`);
-    if (stats && stats.totalRequests > 10 && stats.errorRate > 50) {
+    if (stats && stats.totalRequests > 10 && stats.errorRate > ENV.MONITORING.HIGH_ERROR_RATE_THRESHOLD) {
       this.emit("highErrorRate", {
         endpoint: stats.endpoint,
         errorRate: stats.errorRate,
-        threshold: 50,
-        timeWindow: 60000, // 1 minute
+        threshold: ENV.MONITORING.HIGH_ERROR_RATE_THRESHOLD,
+        timeWindow: ENV.MONITORING.ERROR_RATE_TIME_WINDOW_MS,
         timestamp: metrics.timestamp,
         errorCount: Math.floor((stats.totalRequests * stats.errorRate) / 100),
         totalRequests: stats.totalRequests,
@@ -379,12 +380,12 @@ export class ApiMonitorService extends EventDrivenService {
     // Clean up old metrics every 5 minutes
     this.createInterval(() => {
       this.cleanupOldMetrics();
-    }, 300000);
+    }, ENV.MONITORING.BUCKET_SIZE_MS);
   }
 
   private cleanupOldMetrics(): void {
     const now = Date.now();
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    const maxAge = ENV.MONITORING.DATA_RETENTION_MS;
     const cutoff = now - maxAge;
 
     // Remove old metrics

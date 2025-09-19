@@ -5,6 +5,7 @@ import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
+import { ENV } from "@/common/constants";
 
 export interface ConnectionRecoveryConfig extends BaseServiceConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2
@@ -51,18 +52,22 @@ export class ConnectionRecoveryService extends EventDrivenService {
   private healthCheckTimer?: NodeJS.Timeout;
   private feedSourceMapping = new Map<string, string[]>(); // feedId -> sourceIds
 
+  // Rate limiting for reconnection attempts
+  private lastReconnectAttempt = new Map<string, number>();
+  private readonly RECONNECT_COOLDOWN_MS = ENV.CONNECTION_RECOVERY.RECONNECT_COOLDOWN_MS;
+
   constructor(
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly failoverManager: FailoverManager
   ) {
     super({
-      maxFailoverTime: 100, // 100ms requirement for FTSO (Requirement 7.2)
-      healthCheckInterval: 5000, // 5 seconds
-      reconnectDelay: 1000, // 1 second initial delay
-      maxReconnectDelay: 30000, // 30 seconds max delay
-      backoffMultiplier: 2,
-      maxReconnectAttempts: 10,
-      gracefulDegradationThreshold: 2, // Need at least 2 sources
+      maxFailoverTime: ENV.CONNECTION_RECOVERY.MAX_FAILOVER_TIME_MS,
+      healthCheckInterval: ENV.HEALTH_CHECKS.CONNECTION_RECOVERY_INTERVAL_MS,
+      reconnectDelay: ENV.CONNECTION_RECOVERY.RECONNECT_DELAY_MS,
+      maxReconnectDelay: ENV.CONNECTION_RECOVERY.MAX_RECONNECT_DELAY_MS,
+      backoffMultiplier: ENV.PERFORMANCE.COMMON_BACKOFF_MULTIPLIER,
+      maxReconnectAttempts: ENV.CONNECTION_RECOVERY.MAX_RECONNECT_ATTEMPTS,
+      gracefulDegradationThreshold: ENV.CONNECTION_RECOVERY.GRACEFUL_DEGRADATION_THRESHOLD,
     });
     this.startHealthMonitoring();
     this.setupEventHandlers();
@@ -456,8 +461,17 @@ export class ConnectionRecoveryService extends EventDrivenService {
       return;
     }
 
+    // Rate limiting check
+    const now = Date.now();
+    const lastAttempt = this.lastReconnectAttempt.get(sourceId) || 0;
+    if (now - lastAttempt < this.RECONNECT_COOLDOWN_MS) {
+      this.logger.debug(`Skipping reconnection for ${sourceId} - too soon since last attempt`);
+      return;
+    }
+
     const delay = this.calculateReconnectDelay(health.reconnectAttempts);
     health.reconnectAttempts++;
+    this.lastReconnectAttempt.set(sourceId, now);
 
     this.logger.log(`Scheduling reconnection for ${sourceId} in ${delay}ms (attempt ${health.reconnectAttempts})`);
 
@@ -477,10 +491,13 @@ export class ConnectionRecoveryService extends EventDrivenService {
     try {
       // Use circuit breaker for reconnection attempt
       await this.circuitBreaker.execute(sourceId, async () => {
-        // This would trigger the actual reconnection logic in the DataSource
-        // For now, we'll simulate the reconnection attempt
+        // Check if the source has a connect method (for adapters)
+        if (typeof (source as unknown as { connect?: () => Promise<void> }).connect === "function") {
+          await (source as unknown as { connect: () => Promise<void> }).connect();
+        }
+        // Check if still disconnected after reconnection attempt
         if (!source.isConnected()) {
-          throw new Error("Reconnection failed");
+          throw new Error("Reconnection failed - source still disconnected");
         }
       });
 

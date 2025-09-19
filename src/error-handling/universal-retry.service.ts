@@ -3,7 +3,8 @@ import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { isRetryableError } from "@/common/utils/error.utils";
 import type { RetryConfig } from "@/common/types/error-handling";
-import { DEFAULT_RETRY_CONFIG } from "@/common/types/error-handling";
+import { DEFAULT_RETRY_CONFIG, getRetryConfig } from "@/common/types/error-handling";
+import { ENV } from "@/common/constants";
 
 type RetryStatistics = {
   totalAttempts: number;
@@ -22,6 +23,11 @@ type RetryStatistics = {
 export class UniversalRetryService extends EventDrivenService {
   private readonly retryConfigs = new Map<string, RetryConfig>();
   private readonly retryStats = new Map<string, RetryStatistics>();
+  private isShuttingDown = false;
+
+  // Rate limiting for warnings
+  private warningLastLogged = new Map<string, number>();
+  private readonly WARNING_COOLDOWN_MS = ENV.ERROR_HANDLING.WARNING_COOLDOWN_MS;
 
   constructor(private readonly circuitBreaker: CircuitBreakerService) {
     super();
@@ -66,6 +72,11 @@ export class UniversalRetryService extends EventDrivenService {
         try {
           attemptCount = attempt;
 
+          // Check if service is shutting down
+          if (this.isShuttingDown) {
+            throw new Error(`Service is shutting down, aborting retry for ${serviceId}`);
+          }
+
           // Execute through circuit breaker
           result = await this.circuitBreaker.execute(serviceId, async () => {
             this.enhancedLogger?.debug(`Executing ${operationName} (attempt ${attempt})`, {
@@ -84,18 +95,27 @@ export class UniversalRetryService extends EventDrivenService {
         } catch (error) {
           lastError = error as Error;
 
-          if (attempt === config.maxRetries + 1) {
-            // Final attempt failed
+          if (attempt === config.maxRetries + 1 || this.isShuttingDown) {
+            // Final attempt failed or service is shutting down
             throw lastError;
           }
 
-          // Log retry attempt
-          this.logger?.warn(
-            `Attempt ${attempt}/${config.maxRetries + 1} failed: ${lastError.message}. Retrying in ${delayMs}ms...`
-          );
+          // Log retry attempt with rate limiting
+          const now = Date.now();
+          const warningKey = `${serviceId}_retry_warning`;
+          const lastLogged = this.warningLastLogged.get(warningKey) || 0;
+
+          if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
+            this.logger?.warn(
+              `Attempt ${attempt}/${config.maxRetries + 1} failed: ${lastError.message}. Retrying in ${delayMs}ms...`
+            );
+            this.warningLastLogged.set(warningKey, now);
+          }
 
           // Apply jitter if enabled
-          const actualDelay = config.jitter ? delayMs * (0.5 + Math.random() * 0.5) : delayMs;
+          const actualDelay = config.jitter
+            ? delayMs * (ENV.PERFORMANCE.JITTER_MIN_FACTOR + Math.random() * ENV.PERFORMANCE.JITTER_MAX_FACTOR)
+            : delayMs;
           await new Promise(resolve => setTimeout(resolve, actualDelay));
 
           // Calculate next delay with backoff
@@ -146,8 +166,8 @@ export class UniversalRetryService extends EventDrivenService {
       },
       circuitBreakerConfig: {
         failureThreshold: 3, // Lower threshold for HTTP calls
-        recoveryTimeout: 30000, // 30 seconds
-        timeout: 10000, // 10 second timeout
+        recoveryTimeout: ENV.TIMEOUTS.HTTP_RECOVERY_MS,
+        timeout: ENV.TIMEOUTS.HTTP_MS,
       },
     });
   }
@@ -181,8 +201,8 @@ export class UniversalRetryService extends EventDrivenService {
       },
       circuitBreakerConfig: {
         failureThreshold: 5,
-        recoveryTimeout: 60000, // 1 minute
-        timeout: 30000, // 30 second timeout
+        recoveryTimeout: ENV.TIMEOUTS.DB_RECOVERY_MS,
+        timeout: ENV.TIMEOUTS.DB_MS,
       },
     });
   }
@@ -254,7 +274,12 @@ export class UniversalRetryService extends EventDrivenService {
    * Configure retry settings for a specific service
    */
   configureRetrySettings(serviceId: string, config: Partial<RetryConfig>): void {
-    const currentConfig = this.retryConfigs.get(serviceId) || { ...DEFAULT_RETRY_CONFIG };
+    const currentConfig =
+      this.retryConfigs.get(serviceId) ||
+      getRetryConfig({
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+      });
     const newConfig = { ...currentConfig, ...config };
 
     this.retryConfigs.set(serviceId, newConfig);
@@ -329,39 +354,50 @@ export class UniversalRetryService extends EventDrivenService {
     // Initialize default configurations for common service types
     const defaultConfigs: Record<string, Partial<RetryConfig>> = {
       http: {
-        maxRetries: 3,
-        initialDelayMs: 1000,
-        maxDelayMs: 15000,
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+        maxDelayMs: ENV.RETRY.HTTP_MAX_DELAY_MS,
       },
       database: {
-        maxRetries: 2,
-        initialDelayMs: 500,
-        maxDelayMs: 5000,
+        maxRetries: ENV.RETRY.DATABASE_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.DATABASE_INITIAL_DELAY_MS,
+        maxDelayMs: ENV.RETRY.DATABASE_MAX_DELAY_MS,
       },
       cache: {
-        maxRetries: 1,
-        initialDelayMs: 100,
-        maxDelayMs: 1000,
+        maxRetries: ENV.RETRY.CACHE_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.CACHE_INITIAL_DELAY_MS,
+        maxDelayMs: ENV.RETRY.CACHE_MAX_DELAY_MS,
       },
       "external-api": {
-        maxRetries: 3,
-        initialDelayMs: 2000,
-        maxDelayMs: 30000,
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.EXTERNAL_API_INITIAL_DELAY_MS,
+        maxDelayMs: ENV.RETRY.EXTERNAL_API_MAX_DELAY_MS,
       },
       websocket: {
-        maxRetries: 5,
-        initialDelayMs: 1000,
-        maxDelayMs: 60000,
+        maxRetries: ENV.RETRY.WEBSOCKET_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.WEBSOCKET_INITIAL_DELAY_MS,
+        maxDelayMs: ENV.RETRY.WEBSOCKET_MAX_DELAY_MS,
       },
     };
 
     for (const [serviceType, config] of Object.entries(defaultConfigs)) {
-      this.retryConfigs.set(serviceType, { ...DEFAULT_RETRY_CONFIG, ...config });
+      this.retryConfigs.set(serviceType, {
+        ...getRetryConfig({
+          maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+        }),
+        ...config,
+      });
     }
   }
 
   private getRetryConfig(serviceId: string, override?: Partial<RetryConfig>): RetryConfig {
-    const baseConfig = this.retryConfigs.get(serviceId) || { ...DEFAULT_RETRY_CONFIG };
+    const baseConfig =
+      this.retryConfigs.get(serviceId) ||
+      getRetryConfig({
+        maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+        initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+      });
     return override ? { ...baseConfig, ...override } : baseConfig;
   }
 
@@ -470,5 +506,20 @@ export class UniversalRetryService extends EventDrivenService {
       error: error.message,
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Cleanup method to stop all retry operations during shutdown
+   */
+  override async cleanup(): Promise<void> {
+    // Set shutdown flag to prevent new retry operations
+    this.isShuttingDown = true;
+
+    // Clear all retry configurations and stats
+    this.retryConfigs.clear();
+    this.retryStats.clear();
+
+    // Stop all active retry operations
+    this.logger.debug("UniversalRetryService cleanup completed");
   }
 }
