@@ -485,15 +485,32 @@ export class HealthController extends BaseController {
     };
 
     try {
-      // Check integration service with timeout
-      const integrationPromise = this.integrationService.getSystemHealth();
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Integration health check timeout")), ENV.TIMEOUTS.HEALTH_CHECK_MS)
-      );
+      // Check if integration service is initialized first
+      if (!this.integrationService.isServiceInitialized()) {
+        // Integration service not initialized yet, be lenient during startup
+        const timeSinceStartup = Date.now() - this.startupTime;
+        if (timeSinceStartup < 30000) {
+          // First 30 seconds - consider integration ready
+          checks.integration.ready = true;
+          checks.integration.status = "degraded";
+          checks.integration.error = null;
+        } else {
+          // After 30 seconds, mark as not ready
+          checks.integration.ready = false;
+          checks.integration.status = "unhealthy";
+          checks.integration.error = "Integration service not initialized";
+        }
+      } else {
+        // Integration service is initialized, check its health
+        const integrationPromise = this.integrationService.getSystemHealth();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Integration health check timeout")), ENV.TIMEOUTS.HEALTH_CHECK_MS)
+        );
 
-      const integrationHealth = await Promise.race([integrationPromise, timeoutPromise]);
-      checks.integration.ready = integrationHealth.status !== "unhealthy";
-      checks.integration.status = integrationHealth.status;
+        const integrationHealth = await Promise.race([integrationPromise, timeoutPromise]);
+        checks.integration.ready = integrationHealth.status !== "unhealthy";
+        checks.integration.status = integrationHealth.status;
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       checks.integration.error = errMsg;
@@ -501,8 +518,8 @@ export class HealthController extends BaseController {
       // During startup, be more lenient - if integration service is not ready yet,
       // consider it ready if we're still in startup phase
       const timeSinceStartup = Date.now() - this.startupTime;
-      if (timeSinceStartup < 10000) {
-        // First 10 seconds
+      if (timeSinceStartup < 30000) {
+        // First 30 seconds
         checks.integration.ready = true;
         checks.integration.status = "degraded";
         checks.integration.error = null;

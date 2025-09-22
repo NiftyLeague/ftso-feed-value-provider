@@ -649,23 +649,23 @@ export const ENV = {
   // WebSocket Configuration - Consolidated
   WEBSOCKET: {
     PING_INTERVAL_MS: EnvironmentUtils.parseInt("WEBSOCKET_PING_INTERVAL_MS", 30000, { min: 5000, max: 300000 }),
-    PONG_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_PONG_TIMEOUT_MS", 10000, { min: 2000, max: 60000 }),
-    RECONNECT_DELAY_MS: EnvironmentUtils.parseInt("WEBSOCKET_RECONNECT_DELAY_MS", 5000, { min: 1000, max: 60000 }),
-    MAX_RECONNECT_ATTEMPTS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_RECONNECT_ATTEMPTS", 10, { min: 1, max: 50 }),
-    ERROR_COOLDOWN_MS: EnvironmentUtils.parseInt("WEBSOCKET_ERROR_COOLDOWN_MS", 60000, { min: 10000, max: 300000 }),
-    MAX_BACKOFF_MS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_BACKOFF_MS", 300000, { min: 30000, max: 1800000 }),
-    CONNECTION_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_CONNECTION_TIMEOUT_MS", 30000, {
+    PONG_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_PONG_TIMEOUT_MS", 15000, { min: 2000, max: 60000 }), // Increased from 10s to 15s
+    RECONNECT_DELAY_MS: EnvironmentUtils.parseInt("WEBSOCKET_RECONNECT_DELAY_MS", 10000, { min: 1000, max: 60000 }), // Increased from 5s to 10s
+    MAX_RECONNECT_ATTEMPTS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_RECONNECT_ATTEMPTS", 5, { min: 1, max: 50 }), // Reduced from 10 to 5
+    ERROR_COOLDOWN_MS: EnvironmentUtils.parseInt("WEBSOCKET_ERROR_COOLDOWN_MS", 30000, { min: 10000, max: 300000 }), // Reduced from 60s to 30s
+    MAX_BACKOFF_MS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_BACKOFF_MS", 120000, { min: 30000, max: 1800000 }), // Reduced from 5min to 2min
+    CONNECTION_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_CONNECTION_TIMEOUT_MS", 45000, {
       min: 5000,
       max: 120000,
-    }),
-    RATE_LIMIT_BACKOFF_BASE_MS: EnvironmentUtils.parseInt("WEBSOCKET_RATE_LIMIT_BACKOFF_BASE_MS", 5000, {
+    }), // Increased from 30s to 45s
+    RATE_LIMIT_BACKOFF_BASE_MS: EnvironmentUtils.parseInt("WEBSOCKET_RATE_LIMIT_BACKOFF_BASE_MS", 10000, {
       min: 1000,
       max: 30000,
-    }),
-    RATE_LIMIT_BACKOFF_MULTIPLIER: EnvironmentUtils.parseFloat("WEBSOCKET_RATE_LIMIT_BACKOFF_MULTIPLIER", 3.0, {
+    }), // Increased from 5s to 10s
+    RATE_LIMIT_BACKOFF_MULTIPLIER: EnvironmentUtils.parseFloat("WEBSOCKET_RATE_LIMIT_BACKOFF_MULTIPLIER", 2.0, {
       min: 1.5,
       max: 5.0,
-    }),
+    }), // Reduced from 3.0 to 2.0
   },
 
   // Exchange Configuration - Consolidated

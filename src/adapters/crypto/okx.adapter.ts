@@ -66,38 +66,30 @@ export class OkxAdapter extends BaseExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private pingInterval?: NodeJS.Timeout;
-
   constructor(config?: ExchangeConnectionConfig) {
     super({ connection: config });
+  }
+
+  override getSymbolMapping(normalizedSymbol: string): string {
+    // Convert "BTC/USDT" to "BTC-USDT" for OKX
+    return normalizedSymbol.replace("/", "-");
   }
 
   protected async doConnect(): Promise<void> {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://ws.okx.com:8443/ws/v5/public";
 
-    // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
-      protocols: [],
       reconnectInterval: 5000,
       maxReconnectAttempts: 5,
       pingInterval: 30000, // OKX requires periodic ping
       pongTimeout: 10000,
-      reconnectDelay: 5000,
-      headers: {},
     });
-
-    this.startPingInterval();
   }
 
   protected async doDisconnect(): Promise<void> {
-    this.stopPingInterval();
     await this.disconnectWebSocket();
-  }
-
-  override isConnected(): boolean {
-    return super.isConnected() && this.isWebSocketConnected();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
@@ -132,16 +124,6 @@ export class OkxAdapter extends BaseExchangeAdapter {
     }
   }
 
-  protected override handleWebSocketClose(): void {
-    this.stopPingInterval();
-    super.handleWebSocketClose(); // Call base implementation
-  }
-
-  protected override handleWebSocketError(error: Error): void {
-    this.stopPingInterval();
-    super.handleWebSocketError(error); // Call base implementation
-  }
-
   normalizePriceData(rawData: OkxTickerData): PriceUpdate {
     const price = this.parseNumber(rawData.last);
     const volume = this.parseNumber(rawData.vol24h);
@@ -150,8 +132,7 @@ export class OkxAdapter extends BaseExchangeAdapter {
     // Calculate spread for confidence
     const bid = this.parseNumber(rawData.bidPx);
     const ask = this.parseNumber(rawData.askPx);
-    const spread = ask - bid;
-    const spreadPercent = (spread / price) * 100;
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.instId),
@@ -234,89 +215,57 @@ export class OkxAdapter extends BaseExchangeAdapter {
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
     const okxSymbol = this.getSymbolMapping(symbol);
-    const baseUrl = this.config?.restApiUrl || "https://www.okx.com";
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://www.okx.com";
     const url = `${baseUrl}/api/v5/market/ticker?instId=${okxSymbol}`;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    const response = await this.fetchRestApi(url, `Failed to fetch OKX ticker for ${symbol}`);
+    const result: OkxRestResponse = await response.json();
 
-      const result: OkxRestResponse = await response.json();
-
-      if (result.code !== "0" || !result.data || result.data.length === 0) {
-        throw new Error(`OKX API error: ${result.msg || "No data"}`);
-      }
-
-      const data = result.data[0];
-
-      // Calculate spread for confidence
-      const price = this.parseNumber(data.last);
-      const bid = this.parseNumber(data.bidPx);
-      const ask = this.parseNumber(data.askPx);
-      const spread = ask - bid;
-      const spreadPercent = (spread / price) * 100;
-
-      return {
-        symbol: this.normalizeSymbolFromExchange(data.instId),
-        price,
-        timestamp: parseInt(data.ts),
-        source: this.exchangeName,
-        volume: this.parseNumber(data.vol24h),
-        confidence: this.calculateConfidence(data, {
-          latency: 0, // REST call, no latency penalty
-          volume: this.parseNumber(data.vol24h),
-          spread: spreadPercent,
-        }),
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch OKX ticker for ${symbol}: ${error}`);
+    if (result.code !== "0" || !result.data || result.data.length === 0) {
+      throw new Error(`OKX API error: ${result.msg || "No data"}`);
     }
+
+    const data = result.data[0];
+
+    // Calculate spread for confidence
+    const price = this.parseNumber(data.last);
+    const bid = this.parseNumber(data.bidPx);
+    const ask = this.parseNumber(data.askPx);
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
+
+    return {
+      symbol: this.normalizeSymbolFromExchange(data.instId),
+      price,
+      timestamp: parseInt(data.ts),
+      source: this.exchangeName,
+      volume: this.parseNumber(data.vol24h),
+      confidence: this.calculateConfidence(data, {
+        latency: 0, // REST call, no latency penalty
+        volume: this.parseNumber(data.vol24h),
+        spread: spreadPercent,
+      }),
+    };
   }
 
-  // Event handlers are now provided by BaseExchangeAdapter
-
-  // Helper method to convert exchange symbol back to normalized format
-  private normalizeSymbolFromExchange(exchangeSymbol: string): string {
+  // Override symbol normalization for OKX format
+  protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
     // OKX uses format like "BTC-USDT", convert to "BTC/USDT"
-    // Simple and reliable - we only support symbols from feeds.json
     return exchangeSymbol.replace("-", "/");
   }
 
-  // Override symbol mapping for OKX format
-  override getSymbolMapping(normalizedSymbol: string): string {
-    // Convert "BTC/USDT" to "BTC-USDT" for OKX
-    return normalizedSymbol.replace("/", "-");
-  }
-
-  // OKX requires periodic ping to keep connection alive
-  private startPingInterval(): void {
-    this.pingInterval = setInterval(async () => {
-      if (this.isConnected()) {
-        const pingMessage = "ping";
-        await this.sendWebSocketMessage(pingMessage);
-      }
-    }, 30000); // Ping every 30 seconds
-  }
-
-  private stopPingInterval(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = undefined;
+  // Override ping message for OKX-specific format
+  protected override sendPingMessage(): void {
+    if (this.isWebSocketConnected()) {
+      void this.sendWebSocketMessage("ping");
     }
   }
 
   protected async doHealthCheck(): Promise<boolean> {
     try {
-      // Try REST API health check
-      const baseUrl = this.config?.restApiUrl || "https://www.okx.com";
-      const response = await fetch(`${baseUrl}/api/v5/system/status`);
-
-      if (!response.ok) {
-        return false;
-      }
-
+      const config = this.getConfig();
+      const baseUrl = config?.restApiUrl || "https://www.okx.com";
+      const response = await this.fetchRestApi(`${baseUrl}/api/v5/system/status`, "OKX health check failed");
       const result: OkxRestResponse = await response.json();
       return result.code === "0";
     } catch {

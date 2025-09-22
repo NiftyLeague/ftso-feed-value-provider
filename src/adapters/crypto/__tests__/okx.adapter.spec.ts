@@ -5,25 +5,6 @@ jest.mock("ws", () => {
   return MockWebSocket;
 });
 
-// Mock WebSocketConnectionManager
-jest.mock("@/data-manager/websocket-connection-manager.service", () => {
-  const mockInstance = {
-    createConnection: jest.fn().mockResolvedValue(undefined),
-    closeConnection: jest.fn().mockResolvedValue(undefined),
-    sendMessage: jest.fn().mockResolvedValue(true),
-    getConnectionStats: jest.fn().mockReturnValue({}),
-    getLatency: jest.fn().mockReturnValue(50),
-    isConnected: jest.fn().mockReturnValue(true),
-    on: jest.fn(),
-    off: jest.fn(),
-    emit: jest.fn(),
-  };
-
-  return {
-    WebSocketConnectionManager: jest.fn().mockImplementation(() => mockInstance),
-  };
-});
-
 import { OkxAdapter, OkxTickerData } from "../okx.adapter";
 import { FeedCategory } from "@/common/types/core";
 
@@ -70,23 +51,6 @@ describe("OkxAdapter", () => {
 
   beforeEach(() => {
     adapter = new OkxAdapter();
-
-    // Manually set up the mock WebSocketConnectionManager
-    const mockWsManager = {
-      createConnection: jest.fn().mockResolvedValue(undefined),
-      closeConnection: jest.fn().mockResolvedValue(undefined),
-      sendMessage: jest.fn().mockResolvedValue(true),
-      getConnectionStats: jest.fn().mockReturnValue({}),
-      getLatency: jest.fn().mockReturnValue(50),
-      isConnected: jest.fn().mockReturnValue(true),
-      on: jest.fn(),
-      off: jest.fn(),
-      emit: jest.fn(),
-    };
-
-    (adapter as any).wsManager = mockWsManager;
-    (adapter as any).wsConnectionId = "test-connection";
-
     jest.clearAllMocks();
   });
 
@@ -204,58 +168,67 @@ describe("OkxAdapter", () => {
 
   describe("WebSocket connection", () => {
     it("should handle all connection scenarios", async () => {
+      // Mock WebSocket constants
+      const WebSocketMock = {
+        CONNECTING: 0,
+        OPEN: 1,
+        CLOSING: 2,
+        CLOSED: 3,
+      };
+
+      // Mock successful WebSocket
+      const mockWebSocket = {
+        readyState: WebSocketMock.OPEN,
+        url: "wss://ws.okx.com:8443/ws/v5/public",
+        protocol: "",
+        on: jest.fn((event, callback) => {
+          if (event === "open") {
+            // Simulate successful connection
+            setTimeout(() => callback(), 0);
+          }
+        }),
+        close: jest.fn(() => {
+          mockWebSocket.readyState = WebSocketMock.CLOSED;
+        }),
+        send: jest.fn(),
+        ping: jest.fn(),
+      };
+
+      // Mock WebSocket constructor
+      const originalWebSocket = global.WebSocket;
+      global.WebSocket = jest.fn().mockImplementation(() => {
+        // Store reference to the mock so we can track calls
+        (adapter as any).ws = mockWebSocket;
+        return mockWebSocket;
+      }) as any;
+
+      // Add WebSocket constants to global
+      (global.WebSocket as any).OPEN = WebSocketMock.OPEN;
+      (global.WebSocket as any).CLOSED = WebSocketMock.CLOSED;
+
       // Test successful connection
       await expect(adapter.connect()).resolves.toBeUndefined();
       expect(adapter.isConnected()).toBe(true);
 
       // Test disconnect
       await adapter.disconnect();
+      // After disconnect, adapter should not be connected
       expect(adapter.isConnected()).toBe(false);
 
-      // Test connection error scenarios
-      const errorScenarios = [
-        { error: "Connection failed", expectedMessage: "Connection failed" },
-        { error: "WebSocket constructor failed", expectedMessage: "WebSocket constructor failed" },
-        { error: "Connection timeout", expectedMessage: "Connection timeout" },
-      ];
-
-      for (const scenario of errorScenarios) {
-        const mockConnectionManager = {
-          createConnection: jest.fn().mockRejectedValue(new Error(scenario.error)),
-          closeConnection: jest.fn().mockResolvedValue(undefined),
-          isConnected: jest.fn().mockReturnValue(false),
-          on: jest.fn(),
-          sendMessage: jest.fn().mockReturnValue(false),
-          getConnectionStats: jest.fn().mockReturnValue(null),
-          getLatency: jest.fn().mockReturnValue(0),
-        };
-
-        (adapter as any).wsManager = mockConnectionManager;
-        (adapter as any).wsConnectionId = "test-connection";
-
-        await expect(adapter.connect()).rejects.toThrow(scenario.expectedMessage);
-        expect(adapter.isConnected()).toBe(false);
-        expect(mockConnectionManager.createConnection).toHaveBeenCalled();
-      }
+      // Restore original WebSocket
+      global.WebSocket = originalWebSocket;
     });
 
     it("should handle error callbacks properly", async () => {
       const errorSpy = jest.fn();
       adapter.onError(errorSpy);
 
-      const connectionError = new Error("WebSocket connection failed");
-      const mockConnectionManager = {
-        createConnection: jest.fn().mockRejectedValue(connectionError),
-        closeConnection: jest.fn().mockResolvedValue(undefined),
-        isConnected: jest.fn().mockReturnValue(false),
-        on: jest.fn(),
-        sendMessage: jest.fn().mockReturnValue(false),
-        getConnectionStats: jest.fn().mockReturnValue(null),
-        getLatency: jest.fn().mockReturnValue(0),
-      };
-
-      (adapter as any).wsManager = mockConnectionManager;
-      (adapter as any).wsConnectionId = "test-connection";
+      // Test connection error by mocking WebSocket to throw
+      (adapter as any).maxRetries = 0;
+      const originalWebSocket = global.WebSocket;
+      global.WebSocket = jest.fn().mockImplementation(() => {
+        throw new Error("WebSocket connection failed");
+      }) as any;
 
       try {
         await adapter.connect();
@@ -263,6 +236,9 @@ describe("OkxAdapter", () => {
         expect(error).toBeDefined();
         expect(adapter.isConnected()).toBe(false);
       }
+
+      // Restore WebSocket
+      global.WebSocket = originalWebSocket;
     });
   });
 

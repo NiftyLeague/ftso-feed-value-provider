@@ -18,7 +18,6 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { ConsensusAggregator } from "@/aggregators/consensus-aggregator.service";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
-import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
 import { DataValidator } from "@/data-manager/validation/data-validator";
 import { ValidationService } from "@/data-manager/validation/validation.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
@@ -286,7 +285,6 @@ describe("Startup Validation Integration", () => {
       expect(module.get(ExchangeAdapterRegistry)).toBeDefined();
       expect(module.get(CcxtMultiExchangeAdapter)).toBeDefined();
       expect(module.get(FailoverManager)).toBeDefined();
-      expect(module.get(WebSocketConnectionManager)).toBeDefined();
       expect(module.get(DataValidator)).toBeDefined();
       expect(module.get(ValidationService)).toBeDefined();
       expect(module.get(UniversalRetryService)).toBeDefined();

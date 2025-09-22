@@ -9,9 +9,11 @@ import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 
 import { DataSourceIntegrationService } from "../data-source-integration.service";
 import { DataSourceFactory } from "../data-source.factory";
+import { WebSocketOrchestratorService } from "../websocket-orchestrator.service";
 
 describe("DataSourceIntegrationService", () => {
   let service: DataSourceIntegrationService;
+  let module: TestingModule;
   let dataManager: jest.Mocked<ProductionDataManagerService>;
   let adapterRegistry: jest.Mocked<ExchangeAdapterRegistry>;
   let errorHandler: jest.Mocked<StandardizedErrorHandlerService>;
@@ -78,7 +80,7 @@ describe("DataSourceIntegrationService", () => {
       createFromAdapter: jest.fn(),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         DataSourceIntegrationService,
         {
@@ -108,6 +110,15 @@ describe("DataSourceIntegrationService", () => {
         {
           provide: DataSourceFactory,
           useValue: mockDataSourceFactory,
+        },
+        {
+          provide: WebSocketOrchestratorService,
+          useValue: {
+            initialize: jest.fn(),
+            subscribeToFeed: jest.fn(),
+            reconnectExchange: jest.fn(),
+            cleanup: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -249,8 +260,9 @@ describe("DataSourceIntegrationService", () => {
       // Act
       await service.subscribeToFeed(feedId);
 
-      // Assert
-      expect(dataManager.subscribeToFeed).toHaveBeenCalledWith(feedId);
+      // Assert - now calls orchestrator instead of data manager directly
+      const wsOrchestrator = module.get(WebSocketOrchestratorService);
+      expect(wsOrchestrator.subscribeToFeed).toHaveBeenCalledWith(feedId);
       expect(connectionRecovery.configureFeedSources).toHaveBeenCalledWith(
         feedId,
         expect.any(Array),
@@ -262,7 +274,8 @@ describe("DataSourceIntegrationService", () => {
       // Arrange
       const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
       const error = new Error("Subscription failed");
-      dataManager.subscribeToFeed.mockRejectedValue(error);
+      const wsOrchestrator = module.get(WebSocketOrchestratorService);
+      (wsOrchestrator.subscribeToFeed as jest.Mock).mockRejectedValue(error);
 
       // Act & Assert
       await expect(service.subscribeToFeed(feedId)).rejects.toThrow("Subscription failed");
@@ -271,6 +284,13 @@ describe("DataSourceIntegrationService", () => {
 
     it("should throw error if not initialized", async () => {
       // Arrange
+      const mockWsOrchestrator = {
+        initialize: jest.fn(),
+        subscribeToFeed: jest.fn(),
+        reconnectExchange: jest.fn(),
+        cleanup: jest.fn(),
+      } as any;
+
       const uninitializedService = new DataSourceIntegrationService(
         dataManager,
         adapterRegistry,
@@ -278,7 +298,8 @@ describe("DataSourceIntegrationService", () => {
 
         circuitBreaker,
         connectionRecovery,
-        dataSourceFactory
+        dataSourceFactory,
+        mockWsOrchestrator
       );
       const feedId: CoreFeedId = { category: 1, name: "BTC/USD" };
 

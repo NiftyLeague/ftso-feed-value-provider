@@ -274,7 +274,8 @@ describe("HealthController - Health Check Endpoints", () => {
       const result = await controller.getReadiness();
 
       expect((result as any).ready).toBe(true);
-      expect((result as any).status).toBe("healthy");
+      // Status should be healthy or degraded (both indicate readiness)
+      expect(["healthy", "degraded"]).toContain((result as any).status);
     });
   });
 

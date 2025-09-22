@@ -9,7 +9,6 @@ import { AppModule } from "@/app.module";
 import { ConfigService } from "@/config/config.service";
 
 import { FailoverManager } from "@/data-manager/failover-manager.service";
-import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
 import { DataValidator } from "@/data-manager/validation/data-validator";
 import { ValidationService } from "@/data-manager/validation/validation.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
@@ -149,11 +148,6 @@ describe("Module Dependency Injection Integration", () => {
       expect(module.get<SystemHealthService>(SystemHealthService)).toBeDefined();
       expect(module.get<DataSourceIntegrationService>(DataSourceIntegrationService)).toBeDefined();
       expect(module.get<PriceAggregationCoordinatorService>(PriceAggregationCoordinatorService)).toBeDefined();
-    });
-
-    it("should resolve WebSocketConnectionManager without ConfigService", () => {
-      const wsManager = module.get<WebSocketConnectionManager>(WebSocketConnectionManager);
-      expect(wsManager).toBeDefined();
     });
 
     it("should resolve DataValidator and ValidationService with proper dependencies", () => {

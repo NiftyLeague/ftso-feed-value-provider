@@ -11,6 +11,9 @@ import { StandardizedErrorHandlerService } from "@/error-handling/standardized-e
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
 
+// WebSocket orchestration
+import { WebSocketOrchestratorService } from "./websocket-orchestrator.service";
+
 // Types and interfaces
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { IExchangeAdapter } from "@/common/types/adapters";
@@ -29,12 +32,18 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly connectionRecovery: ConnectionRecoveryService,
-    private readonly dataSourceFactory: DataSourceFactory
+    private readonly dataSourceFactory: DataSourceFactory,
+    private readonly wsOrchestrator: WebSocketOrchestratorService
   ) {
     super({ useEnhancedLogging: true });
   }
 
   override async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      this.logger.log("Data source integration already initialized, skipping");
+      return;
+    }
+
     await this.executeWithErrorHandling(
       async () => {
         this.startTimer("initialize");
@@ -43,13 +52,16 @@ export class DataSourceIntegrationService extends EventDrivenService {
         // Step 1: Register exchange adapters
         await this.registerExchangeAdapters();
 
-        // Step 2: Initialize error handling
+        // Step 2: Initialize WebSocket orchestrator (handles connections centrally)
+        await this.wsOrchestrator.initialize();
+
+        // Step 3: Initialize error handling
         await this.initializeErrorHandling();
 
-        // Step 3: Start data sources
+        // Step 4: Start data sources (without connecting - orchestrator handles this)
         await this.startDataSources();
 
-        // Step 4: Wire data flow connections
+        // Step 5: Wire data flow connections
         await this.wireDataFlow();
 
         this.isInitialized = true;
@@ -96,7 +108,8 @@ export class DataSourceIntegrationService extends EventDrivenService {
     }
 
     try {
-      await this.dataManager.subscribeToFeed(feedId);
+      // Use WebSocket orchestrator for centralized subscription management
+      await this.wsOrchestrator.subscribeToFeed(feedId);
 
       // Configure feed sources for connection recovery
       const primarySources = this.getPrimarySourcesForFeed(feedId);
@@ -283,33 +296,33 @@ export class DataSourceIntegrationService extends EventDrivenService {
   }
 
   private async startDataSources(): Promise<void> {
-    this.logger.log("Starting data sources...");
+    this.logger.log("Registering data sources (connections handled by orchestrator)...");
 
     try {
       const adapters = this.adapterRegistry.getFiltered({ isActive: true });
 
       for (const adapter of adapters) {
         try {
-          // Create data source from adapter
+          // Create data source from adapter (but don't connect - orchestrator handles this)
           const dataSource = this.createDataSourceFromAdapter(adapter);
 
           // Register with connection recovery service for error handling
           await this.connectionRecovery.registerDataSource(dataSource);
 
-          // Register circuit breaker for the data source
+          // Register circuit breaker for the data source with more lenient settings
           this.circuitBreaker.registerCircuit(dataSource.id, {
-            failureThreshold: 10, // More lenient for individual data sources
-            recoveryTimeout: 15000, // Faster recovery
-            successThreshold: 2, // Lower success threshold
-            timeout: 10000,
+            failureThreshold: 20, // Even more lenient for individual data sources
+            recoveryTimeout: 30000, // Longer recovery time
+            successThreshold: 1, // Lower success threshold
+            timeout: 15000, // Longer timeout
           });
 
-          // Add to data manager
+          // Add to data manager (without connecting)
           await this.dataManager.addDataSource(dataSource);
 
-          this.logger.log(`Started data source: ${adapter.exchangeName}`);
+          this.logger.log(`Registered data source: ${adapter.exchangeName}`);
         } catch (error) {
-          this.logger.error(`Failed to start data source ${adapter.exchangeName}:`, error);
+          this.logger.error(`Failed to register data source ${adapter.exchangeName}:`, error);
 
           // Handle error through standardized error handler
           const errObj = error instanceof Error ? error : new Error(String(error));
@@ -331,9 +344,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
         }
       }
 
-      this.logger.log("Data sources started");
+      this.logger.log("Data sources registered (connections managed by orchestrator)");
     } catch (error) {
-      this.logger.error("Failed to start data sources:", error);
+      this.logger.error("Failed to register data sources:", error);
       throw error;
     }
   }
@@ -418,7 +431,10 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
   private handleSourceDisconnection(sourceId: string): void {
     try {
-      // Trigger connection recovery (fire and forget)
+      // Use WebSocket orchestrator for intelligent reconnection
+      void this.wsOrchestrator.reconnectExchange(sourceId);
+
+      // Also trigger connection recovery as backup
       void this.connectionRecovery.handleDisconnection(sourceId);
 
       // Emit for system health monitoring

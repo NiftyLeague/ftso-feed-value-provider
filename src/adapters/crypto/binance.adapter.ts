@@ -64,41 +64,30 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  private pingInterval?: NodeJS.Timeout;
-
-  // Simple symbol mapping - use exact pairs from feeds.json
-  override getSymbolMapping(feedSymbol: string): string {
-    // For Binance, remove the slash - use the exact symbol from feeds.json
-    return feedSymbol.replace("/", "");
-  }
-
   constructor(config?: ExchangeConnectionConfig) {
     super({ connection: config });
+  }
+
+  override getSymbolMapping(feedSymbol: string): string {
+    // For Binance, remove the slash
+    return feedSymbol.replace("/", "");
   }
 
   protected async doConnect(): Promise<void> {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
 
-    // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
-      reconnectInterval: 10000, // Increased from 5000
-      maxReconnectAttempts: 3, // Reduced from 5 to prevent spam
+      reconnectInterval: 10000,
+      maxReconnectAttempts: 3,
       pingInterval: 30000, // Binance requires periodic ping
-      pongTimeout: 15000, // Increased from 10000
+      pongTimeout: 15000,
     });
-
-    this.startPingInterval();
   }
 
   protected async doDisconnect(): Promise<void> {
-    this.stopPingInterval();
     await this.disconnectWebSocket();
-  }
-
-  override isConnected(): boolean {
-    return super.isConnected() && this.isWebSocketConnected();
   }
 
   normalizePriceData(rawData: BinanceTickerData): PriceUpdate {
@@ -109,8 +98,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     // Calculate spread for confidence
     const bid = this.parseNumber(rawData.b);
     const ask = this.parseNumber(rawData.a);
-    const spread = ask - bid;
-    const spreadPercent = (spread / price) * 100;
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.s),
@@ -189,59 +177,36 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
     const binanceSymbol = this.getSymbolMapping(symbol);
-    const baseUrl = this.config?.restApiUrl || "https://api.binance.com";
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://api.binance.com";
     const url = `${baseUrl}/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    const response = await this.fetchRestApi(url, `Failed to fetch Binance ticker for ${symbol}`);
+    const data: BinanceRestTickerData = await response.json();
 
-      const data: BinanceRestTickerData = await response.json();
+    // Calculate spread for confidence
+    const price = this.parseNumber(data.lastPrice);
+    const bid = this.parseNumber(data.bidPrice);
+    const ask = this.parseNumber(data.askPrice);
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
 
-      // Calculate spread for confidence
-      const price = this.parseNumber(data.lastPrice);
-      const bid = this.parseNumber(data.bidPrice);
-      const ask = this.parseNumber(data.askPrice);
-      const spread = ask - bid;
-      const spreadPercent = (spread / price) * 100;
-
-      return {
-        symbol: this.normalizeSymbolFromExchange(data.symbol),
-        price,
-        timestamp: data.closeTime,
-        source: this.exchangeName,
+    return {
+      symbol: this.normalizeSymbolFromExchange(data.symbol),
+      price,
+      timestamp: data.closeTime,
+      source: this.exchangeName,
+      volume: this.parseNumber(data.volume),
+      confidence: this.calculateConfidence(data, {
+        latency: 0, // REST call, no latency penalty
         volume: this.parseNumber(data.volume),
-        confidence: this.calculateConfidence(data, {
-          latency: 0, // REST call, no latency penalty
-          volume: this.parseNumber(data.volume),
-          spread: spreadPercent,
-        }),
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch Binance ticker for ${symbol}: ${error}`);
-    }
+        spread: spreadPercent,
+      }),
+    };
   }
 
-  // Simple method to convert exchange symbol back to normalized format
-  private normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Add slash if not present (WebSocket format comes without slash)
-    if (!exchangeSymbol.includes("/")) {
-      // Simple approach: find the slash position by trying common quote currencies
-      const quotes = ["USDT", "USDC", "USD", "EUR"];
-
-      for (const quote of quotes) {
-        if (exchangeSymbol.endsWith(quote)) {
-          const base = exchangeSymbol.slice(0, -quote.length);
-          if (base.length > 0) {
-            return `${base}/${quote}`;
-          }
-        }
-      }
-    }
-
-    return exchangeSymbol;
+  // Override symbol normalization for Binance format
+  protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
+    return this.addSlashToSymbol(exchangeSymbol, ["USDT", "USDC", "USD", "EUR"]);
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
@@ -276,40 +241,18 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     }
   }
 
-  protected override handleWebSocketClose(): void {
-    this.stopPingInterval();
-    super.handleWebSocketClose(); // Call base implementation
-  }
-
-  protected override handleWebSocketError(error: Error): void {
-    this.stopPingInterval();
-    super.handleWebSocketError(error); // Call base implementation
-  }
-
-  // Binance requires periodic ping to keep connection alive
-  private startPingInterval(): void {
-    this.pingInterval = setInterval(async () => {
-      if (this.isConnected()) {
-        // Use integrated WebSocket functionality
-        await this.sendWebSocketMessage(JSON.stringify({ method: "ping" }));
-      }
-    }, 30000); // Ping every 30 seconds
-  }
-
-  private stopPingInterval(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = undefined;
+  // Override ping message for Binance-specific format
+  protected override sendPingMessage(): void {
+    if (this.isWebSocketConnected()) {
+      void this.sendWebSocketMessage(JSON.stringify({ method: "ping" }));
     }
   }
 
-  // Subscription management is now provided by BaseExchangeAdapter
-
   protected async doHealthCheck(): Promise<boolean> {
     try {
-      // Try REST API health check
-      const baseUrl = this.config?.restApiUrl || "https://api.binance.com";
-      const response = await fetch(`${baseUrl}/api/v3/ping`);
+      const config = this.getConfig();
+      const baseUrl = config?.restApiUrl || "https://api.binance.com";
+      const response = await this.fetchRestApi(`${baseUrl}/api/v3/ping`, "Binance health check failed");
       return response.ok;
     } catch {
       return false;

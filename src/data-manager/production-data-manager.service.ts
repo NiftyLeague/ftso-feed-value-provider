@@ -189,6 +189,12 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   // Connection management methods
   async addDataSource(source: DataSource): Promise<void> {
     try {
+      // Check if data source already exists
+      if (this.dataSources.has(source.id)) {
+        this.logger.log(`Data source ${source.id} already exists, skipping`);
+        return;
+      }
+
       this.logger.log(`Adding data source: ${source.id}`);
 
       // Initialize connection metrics
@@ -383,7 +389,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
   // Real-time data management methods
   async subscribeToFeed(feedId: CoreFeedId): Promise<void> {
-    this.logger.log(`Subscribing to feed: ${feedId.name}`);
+    this.logger.log(`Tracking subscription for feed: ${feedId.name} (actual subscription handled by orchestrator)`);
 
     // Validate that all configured exchanges are available
     const validation = this.validateFeedSources(feedId);
@@ -397,37 +403,33 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       throw new Error(`No configuration found for feed: ${feedId.name}`);
     }
 
-    this.logger.log(`Subscribing to ${feedConfig.sources.length} configured sources for feed ${feedId.name}`);
+    this.logger.debug(`Tracking ${feedConfig.sources.length} configured sources for feed ${feedId.name}`);
 
-    // Subscribe to each configured source with its specific symbol
+    // Track subscriptions for monitoring purposes (actual subscription handled by orchestrator)
     for (const sourceConfig of feedConfig.sources) {
       try {
         const source = this.getDataSourceForExchange(sourceConfig.exchange);
-        if (!source || !source.isConnected()) {
+        if (!source) {
           this.logger.warn(`Source ${sourceConfig.exchange} not available for feed ${feedId.name}`);
           continue;
         }
 
-        // Use the exchange-specific symbol from the configuration
-        const exchangeSymbol = sourceConfig.symbol;
-        await source.subscribe([exchangeSymbol]);
-
-        // Track subscription
+        // Track subscription (but don't actually subscribe - orchestrator handles this)
         const sourceSubscriptions = this.subscriptions.get(source.id) || [];
         sourceSubscriptions.push({
           sourceId: source.id,
           feedId,
-          symbols: [exchangeSymbol],
+          symbols: [sourceConfig.symbol],
           timestamp: Date.now(),
           lastUpdate: Date.now(),
           active: true,
         });
         this.subscriptions.set(source.id, sourceSubscriptions);
 
-        this.logger.debug(`Successfully subscribed ${source.id} to ${exchangeSymbol} for feed ${feedId.name}`);
+        this.logger.debug(`Tracked subscription ${source.id} to ${sourceConfig.symbol} for feed ${feedId.name}`);
       } catch (error) {
         this.logger.error(
-          `Failed to subscribe to ${sourceConfig.symbol} on ${sourceConfig.exchange} for feed ${feedId.name}:`,
+          `Failed to track subscription to ${sourceConfig.symbol} on ${sourceConfig.exchange} for feed ${feedId.name}:`,
           error
         );
       }

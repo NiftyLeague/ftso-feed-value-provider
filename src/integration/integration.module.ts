@@ -28,8 +28,7 @@ import { AdaptersModule } from "@/adapters/adapters.module";
 import { ValidationService } from "@/data-manager/validation/validation.service";
 import { DataValidator } from "@/data-manager/validation/data-validator";
 
-// WebSocket connection management
-import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
+// WebSocket connection management is now handled directly by adapters
 
 // Failover management is now handled by ErrorHandlingModule
 
@@ -38,6 +37,9 @@ import { DataSourceFactory } from "./services/data-source.factory";
 
 // Startup validation
 import { StartupValidationService } from "./services/startup-validation.service";
+
+// WebSocket orchestration
+import { WebSocketOrchestratorService } from "./services/websocket-orchestrator.service";
 
 @Module({
   imports: [CacheModule, AggregatorsModule, MonitoringModule, AdaptersModule, ConfigModule],
@@ -52,15 +54,11 @@ import { StartupValidationService } from "./services/startup-validation.service"
     // Startup validation
     StartupValidationService,
 
+    // WebSocket orchestration
+    WebSocketOrchestratorService,
+
     // Data management
     ProductionDataManagerService,
-    {
-      provide: WebSocketConnectionManager,
-      useFactory: () => {
-        return new WebSocketConnectionManager();
-      },
-      inject: [],
-    },
 
     // Data source factory
     DataSourceFactory,
@@ -116,6 +114,7 @@ import { StartupValidationService } from "./services/startup-validation.service"
     // Core services
     ProductionDataManagerService,
     StartupValidationService,
+    WebSocketOrchestratorService,
 
     // Factory
     "INTEGRATED_FTSO_PROVIDER",

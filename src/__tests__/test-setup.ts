@@ -98,7 +98,7 @@ global.clearInterval = ((interval: NodeJS.Timeout) => {
 }) as typeof clearInterval;
 
 // Clean up all active timers and intervals after each test
-afterEach(() => {
+afterEach(async () => {
   const cleanupTimers = () => {
     activeTimers.forEach(timer => originalTimers.clearTimeout(timer));
     activeTimers.clear();
@@ -111,6 +111,29 @@ afterEach(() => {
 
   cleanupTimers();
   cleanupIntervals();
+
+  // Additional aggressive cleanup for any remaining timers
+  try {
+    // Clear Jest timers
+    jest.clearAllTimers();
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+
+    // Clear any remaining Node.js timers in a range
+    for (let i = 1; i <= 1000; i++) {
+      try {
+        originalTimers.clearTimeout(i as unknown as NodeJS.Timeout);
+        originalTimers.clearInterval(i as unknown as NodeJS.Timeout);
+      } catch {
+        // Ignore errors for invalid timer IDs
+      }
+    }
+
+    // Force immediate execution of any pending microtasks
+    await new Promise(resolve => setImmediate(resolve));
+  } catch {
+    // Ignore cleanup errors
+  }
 });
 
 // Restore original methods and cleanup after all tests

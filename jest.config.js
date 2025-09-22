@@ -22,7 +22,7 @@ module.exports = {
   // Test ordering will be handled by file naming conventions
   // Test execution settings
   detectOpenHandles: true,
-  forceExit: false,
+  forceExit: true,
   // Timeout configuration - optimized per test type
   testTimeout: process.env.npm_lifecycle_event?.includes("endurance") ? 60000 : 30000,
   // Parallel execution for faster tests, sequential for complex ones

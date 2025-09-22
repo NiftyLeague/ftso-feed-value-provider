@@ -141,7 +141,7 @@ describe("Standardized Error Handling Integration", () => {
 
       const stats = standardizedErrorHandler.getErrorStatistics();
       expect(Object.keys(stats)).toContain("TestController");
-    });
+    }, 30000); // Add 30 second timeout
   });
 
   describe("UniversalRetryService", () => {

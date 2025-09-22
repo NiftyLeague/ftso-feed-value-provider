@@ -59,29 +59,20 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   };
 
   private messageId = 0; // Used for message IDs
-  private pingInterval?: NodeJS.Timeout;
-  private readonly baseWsUrl = "wss://stream.crypto.com/v2/market";
-  private readonly baseRestUrl = "https://api.crypto.com/v2";
 
   constructor(config?: ExchangeConnectionConfig) {
     super({ connection: config });
   }
 
-  // Simple symbol mapping - use exact pairs from feeds.json
   override getSymbolMapping(feedSymbol: string): string {
-    // For Crypto.com, replace "/" with "_" - use the exact symbol from feeds.json
+    // For Crypto.com, replace "/" with "_"
     return feedSymbol.replace("/", "_");
   }
 
   protected async doConnect(): Promise<void> {
-    const wsUrl = this.config?.websocketUrl || this.baseWsUrl;
+    const config = this.getConfig();
+    const wsUrl = config?.websocketUrl || "wss://stream.crypto.com/v2/market";
 
-    // Ensure we have a valid WebSocket URL
-    if (typeof wsUrl !== "string") {
-      throw new Error("WebSocket URL must be a string");
-    }
-
-    // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
@@ -90,17 +81,10 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       pingInterval: 30000,
       pongTimeout: 10000,
     });
-
-    this.startPingInterval();
   }
 
   protected async doDisconnect(): Promise<void> {
-    this.stopPingInterval();
     await this.disconnectWebSocket();
-  }
-
-  override isConnected(): boolean {
-    return super.isConnected() && this.isWebSocketConnected();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
@@ -135,16 +119,6 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     }
   }
 
-  protected override handleWebSocketClose(): void {
-    this.stopPingInterval();
-    super.handleWebSocketClose(); // Call base implementation
-  }
-
-  protected override handleWebSocketError(error: Error): void {
-    this.stopPingInterval();
-    super.handleWebSocketError(error); // Call base implementation
-  }
-
   normalizePriceData(rawData: ICryptocomTickerData): PriceUpdate {
     const price = this.parseNumber(rawData.a);
     const volume = this.parseNumber(rawData.v);
@@ -153,8 +127,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     // Calculate spread for confidence
     const bid = this.parseNumber(rawData.b);
     const ask = this.parseNumber(rawData.k);
-    const spread = ask - bid;
-    const spreadPercent = (spread / price) * 100;
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.i),
@@ -239,50 +212,34 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
     const cryptocomSymbol = this.getSymbolMapping(symbol);
-    const baseUrl = this.config?.restApiUrl || this.baseRestUrl;
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://api.crypto.com/v2";
     const url = `${baseUrl}/public/get-ticker?instrument_name=${cryptocomSymbol}`;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    const response = await this.fetchRestApi(url, `Failed to fetch Crypto.com ticker for ${symbol}`);
+    const result = (await response.json()) as ICryptocomRestResponse;
 
-      const result = (await response.json()) as ICryptocomRestResponse;
-      if (result.code !== 0) {
-        throw new Error(`Crypto.com API error: ${result.code}`);
-      }
-
-      if (!result.result.data || result.result.data.length === 0) {
-        throw new Error("Crypto.com API error: No data");
-      }
-
-      return this.normalizePriceData(result.result.data[0]);
-    } catch (error) {
-      throw new Error(`Failed to fetch Crypto.com ticker for ${symbol}: ${error}`);
+    if (result.code !== 0) {
+      throw new Error(`Crypto.com API error: ${result.code}`);
     }
+
+    if (!result.result.data || result.result.data.length === 0) {
+      throw new Error("Crypto.com API error: No data");
+    }
+
+    return this.normalizePriceData(result.result.data[0]);
   }
 
-  // Helper method to convert exchange symbol back to normalized format
-  private normalizeSymbolFromExchange(exchangeSymbol: string): string {
+  // Override symbol normalization for Crypto.com format
+  protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
     // Convert from exchange format (e.g., "BTC_USDT") to normalized format (e.g., "BTC/USDT")
     return exchangeSymbol.replace("_", "/");
   }
 
-  // Crypto.com requires periodic heartbeat to keep connection alive
-  private startPingInterval(): void {
-    this.pingInterval = setInterval(async () => {
-      if (this.isConnected()) {
-        // Use integrated WebSocket functionality
-        await this.sendWebSocketMessage(JSON.stringify({ method: "public/heartbeat" }));
-      }
-    }, 30000); // Ping every 30 seconds
-  }
-
-  private stopPingInterval(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = undefined;
+  // Override ping message for Crypto.com-specific heartbeat format
+  protected override sendPingMessage(): void {
+    if (this.isWebSocketConnected()) {
+      void this.sendWebSocketMessage(JSON.stringify({ method: "public/heartbeat" }));
     }
   }
 
@@ -293,8 +250,9 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       }
 
       // If not connected via WebSocket, try REST API
-      const baseUrl = this.config?.restApiUrl || this.baseRestUrl;
-      const response = await fetch(`${baseUrl}/public/get-instruments`);
+      const config = this.getConfig();
+      const baseUrl = config?.restApiUrl || "https://api.crypto.com/v2";
+      const response = await this.fetchRestApi(`${baseUrl}/public/get-instruments`, "Crypto.com health check failed");
       const result = await response.json();
       return result.code === 0;
     } catch (error) {

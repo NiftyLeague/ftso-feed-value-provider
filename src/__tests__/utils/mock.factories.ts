@@ -21,16 +21,18 @@ export class MockFactory {
    * Create a mock WebSocket
    */
   static createWebSocket(): MockWebSocket {
+    const eventHandlers = new Map<string, MockWebSocketEventHandler[]>();
+
     const mockWs: MockWebSocket = {
       CONNECTING: 0,
       OPEN: 1,
       CLOSING: 2,
       CLOSED: 3,
       readyState: 1,
-      onopen: jest.fn(),
-      onclose: jest.fn(),
-      onerror: jest.fn(),
-      onmessage: jest.fn(),
+      onopen: null,
+      onclose: null,
+      onerror: null,
+      onmessage: null,
       send: jest.fn(),
       close: jest.fn(),
       url: "ws://test.example.com",
@@ -42,6 +44,13 @@ export class MockFactory {
       removeEventListener: jest.fn(),
       dispatchEvent: jest.fn(),
       on: jest.fn((event: string, handler: MockWebSocketEventHandler): MockWebSocket => {
+        // Store handlers for the event
+        if (!eventHandlers.has(event)) {
+          eventHandlers.set(event, []);
+        }
+        eventHandlers.get(event)!.push(handler);
+
+        // Also set the direct properties for compatibility
         if (event === "open") {
           mockWs.onopen = handler;
         } else if (event === "close") {
@@ -56,21 +65,46 @@ export class MockFactory {
       ping: jest.fn(),
       pong: jest.fn(),
       terminate: jest.fn(),
-      off: jest.fn((_event: string, _handler?: MockWebSocketEventHandler): MockWebSocket => {
+      off: jest.fn((event: string, handler?: MockWebSocketEventHandler): MockWebSocket => {
+        if (handler && eventHandlers.has(event)) {
+          const handlers = eventHandlers.get(event)!;
+          const index = handlers.indexOf(handler);
+          if (index > -1) {
+            handlers.splice(index, 1);
+          }
+        }
         return mockWs;
       }),
-      emit: jest.fn((_event: string, ..._args: unknown[]): boolean => {
-        return true;
+      emit: jest.fn((event: string, ...args: unknown[]): boolean => {
+        const handlers = eventHandlers.get(event) || [];
+        handlers.forEach(handler => {
+          try {
+            handler(...args);
+          } catch {
+            // Ignore handler errors in tests
+          }
+        });
+        return handlers.length > 0;
       }),
     };
 
-    // Immediately trigger open event for faster tests
-    setImmediate(() => {
-      if (mockWs.onopen) {
-        const event = new Event("open");
-        (mockWs.onopen as EventListener).call(mockWs as unknown as WebSocket, event);
+    // Make close function properly update state
+    const originalClose = mockWs.close;
+    mockWs.close = jest.fn((code?: number, reason?: string) => {
+      (mockWs as MockWebSocket & { readyState: number }).readyState = 3; // CLOSED
+      if (mockWs.onclose) {
+        try {
+          const event = new CloseEvent("close", { code: code || 1000, reason: reason || "" });
+          (mockWs.onclose as EventListener).call(mockWs as unknown as WebSocket, event);
+        } catch {
+          // Ignore errors in test callbacks
+        }
       }
+      if (originalClose) originalClose.call(mockWs, code, reason);
     });
+
+    // Don't trigger open event automatically to prevent hanging
+    // Tests should manually trigger events when needed
 
     return mockWs;
   }
@@ -350,16 +384,28 @@ export class MockSetup {
    * Setup global WebSocket mock
    */
   static setupWebSocket() {
-    (global as unknown as { WebSocket: unknown }).WebSocket = jest
-      .fn()
-      .mockImplementation(() => MockFactory.createWebSocket());
+    const mockWebSockets: MockWebSocket[] = [];
 
-    // Mock the ws module
-    jest.mock("ws", () => {
-      return {
-        WebSocket: jest.fn().mockImplementation(() => MockFactory.createWebSocket()),
-      };
+    // Create a WebSocket constructor that returns our mock
+    const WebSocketConstructor = jest.fn().mockImplementation(() => {
+      const ws = MockFactory.createWebSocket();
+      mockWebSockets.push(ws);
+      return ws;
     });
+
+    // Add WebSocket constants
+    Object.assign(WebSocketConstructor, {
+      CONNECTING: 0,
+      OPEN: 1,
+      CLOSING: 2,
+      CLOSED: 3,
+    });
+
+    // Set up global WebSocket
+    (global as unknown as { WebSocket: unknown }).WebSocket = WebSocketConstructor;
+
+    // Store reference for cleanup
+    (global as typeof global & { __mockWebSockets: MockWebSocket[] }).__mockWebSockets = mockWebSockets;
   }
 
   /**
@@ -385,6 +431,59 @@ export class MockSetup {
    * Cleanup all mocks
    */
   static cleanup() {
+    // Cleanup mock WebSockets aggressively
+    const mockWebSockets = (global as typeof global & { __mockWebSockets?: MockWebSocket[] }).__mockWebSockets;
+    if (mockWebSockets && Array.isArray(mockWebSockets)) {
+      mockWebSockets.forEach((ws: MockWebSocket) => {
+        try {
+          if (ws) {
+            // Force immediate closure
+            (ws as MockWebSocket & { readyState: number }).readyState = 3; // CLOSED
+
+            // Clear all event handlers to prevent callbacks
+            ws.onopen = null;
+            ws.onclose = null;
+            ws.onerror = null;
+            ws.onmessage = null;
+
+            if (typeof ws.terminate === "function") {
+              ws.terminate();
+            }
+            if (typeof ws.close === "function") {
+              ws.close(1000, "Test cleanup");
+            }
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+      });
+      mockWebSockets.length = 0;
+    }
+
+    // Clear any pending timers more aggressively
+    try {
+      // Clear all timeouts up to a reasonable range
+      for (let i = 1; i <= 1000; i++) {
+        try {
+          clearTimeout(i as unknown as NodeJS.Timeout);
+          clearInterval(i as unknown as NodeJS.Timeout);
+        } catch {
+          // Ignore errors for invalid timer IDs
+        }
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    // Force garbage collection if available
+    if (typeof global.gc === "function") {
+      try {
+        global.gc();
+      } catch {
+        // Ignore if gc is not available
+      }
+    }
+
     jest.clearAllMocks();
     jest.restoreAllMocks();
   }

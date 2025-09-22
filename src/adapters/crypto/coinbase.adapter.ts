@@ -42,36 +42,13 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     supportedCategories: [FeedCategory.Crypto],
   };
 
-  // Simple symbol mapping - use exact pairs from feeds.json
-  override getSymbolMapping(feedSymbol: string): string {
-    // For Coinbase, replace "/" with "-" - use the exact symbol from feeds.json
-    return feedSymbol.replace("/", "-");
-  }
-
   constructor(config?: ExchangeConnectionConfig) {
     super({ connection: config });
-    this.initValidation();
   }
 
-  protected override initValidation(): void {
-    super.initValidation();
-
-    // Add Coinbase-specific validation rules
-    this.addValidationRule({
-      name: "coinbase-ticker-format",
-      validate: (value: unknown) => {
-        if (!value || typeof value !== "object") return false;
-        const data = value as Partial<CoinbaseTickerData>;
-        return !!(
-          data.type === "ticker" &&
-          data.product_id &&
-          data.price &&
-          data.time &&
-          !isNaN(this.parseNumber(data.price))
-        );
-      },
-      message: "Invalid Coinbase ticker format",
-    });
+  override getSymbolMapping(feedSymbol: string): string {
+    // For Coinbase, replace "/" with "-"
+    return feedSymbol.replace("/", "-");
   }
 
   protected async doConnect(): Promise<void> {
@@ -89,23 +66,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   }
 
   protected async doDisconnect(): Promise<void> {
-    // Note: The base class handles WebSocket disconnection in the disconnect() method
-    // We only need to handle any Coinbase-specific cleanup here
-    try {
-      // Clean up any subscriptions if needed
-      const subscriptions = this.getSubscriptions();
-      if (subscriptions.length > 0) {
-        await this.unsubscribe(subscriptions);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      this.logger?.warn(`Error during Coinbase-specific disconnection: ${errorMessage}`);
-      // Don't rethrow - let the base class handle the disconnection state
-    }
-  }
-
-  override isConnected(): boolean {
-    return this.isConnected_ && this.isWebSocketConnected();
+    await this.disconnectWebSocket();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
@@ -113,15 +74,8 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
    * Process ticker data from WebSocket message
    */
   private processTickerData(ticker: CoinbaseTickerData): void {
-    try {
-      const priceUpdate = this.normalizePriceData(ticker);
-      this.onPriceUpdateCallback?.(priceUpdate);
-      this.recordSuccessfulRequest();
-    } catch (error) {
-      this.logger.error("Error processing ticker data:", error);
-      this.recordFailedRequest();
-      this.onErrorCallback?.(error as Error);
-    }
+    const priceUpdate = this.normalizePriceData(ticker);
+    this.onPriceUpdateCallback?.(priceUpdate);
   }
 
   protected override handleWebSocketMessage(data: unknown): void {
@@ -141,7 +95,6 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
       }
     } catch (error) {
       this.logger.error("Error processing WebSocket message:", error);
-      this.recordFailedRequest();
       this.onErrorCallback?.(error as Error);
     }
   }
@@ -154,8 +107,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     // Calculate spread for confidence
     const bid = rawData.best_bid ? this.parseNumber(rawData.best_bid) : price;
     const ask = rawData.best_ask ? this.parseNumber(rawData.best_ask) : price;
-    const spread = ask - bid;
-    const spreadPercent = (spread / price) * 100;
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.product_id),
@@ -231,44 +183,33 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     const baseUrl = config?.restApiUrl || "https://api.exchange.coinbase.com";
     const url = `${baseUrl}/products/${coinbaseSymbol}/ticker`;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    const response = await this.fetchRestApi(url, `Failed to fetch Coinbase ticker for ${symbol}`);
+    const data: CoinbaseRestTickerData = await response.json();
 
-      const data: CoinbaseRestTickerData = await response.json();
-
-      return {
-        symbol: this.normalizeSymbolFromExchange(coinbaseSymbol),
-        price: this.parseNumber(data.price),
-        timestamp: this.normalizeTimestamp(data.time),
-        source: this.exchangeName,
+    return {
+      symbol: this.normalizeSymbolFromExchange(coinbaseSymbol),
+      price: this.parseNumber(data.price),
+      timestamp: this.normalizeTimestamp(data.time),
+      source: this.exchangeName,
+      volume: data.volume ? this.parseNumber(data.volume) : undefined,
+      confidence: this.calculateConfidence(data, {
+        latency: 0, // REST call, no latency penalty
         volume: data.volume ? this.parseNumber(data.volume) : undefined,
-        confidence: this.calculateConfidence(data, {
-          latency: 0, // REST call, no latency penalty
-          volume: data.volume ? this.parseNumber(data.volume) : undefined,
-        }),
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch Coinbase ticker for ${symbol}: ${error}`);
-    }
+      }),
+    };
   }
 
-  // Event handlers are now provided by BaseExchangeAdapter
-
-  // Helper method to convert exchange symbol back to normalized format
-  private normalizeSymbolFromExchange(exchangeSymbol: string): string {
+  // Override symbol normalization for Coinbase format
+  protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
     // Coinbase uses format like "BTC-USD", convert to "BTC/USD"
-    // Simple and reliable - we only support symbols from feeds.json
     return exchangeSymbol.replace("-", "/");
   }
 
   protected async doHealthCheck(): Promise<boolean> {
     try {
-      // Try REST API health check
-      const baseUrl = this.config?.restApiUrl || "https://api.exchange.coinbase.com";
-      const response = await fetch(`${baseUrl}/time`);
+      const config = this.getConfig();
+      const baseUrl = config?.restApiUrl || "https://api.exchange.coinbase.com";
+      const response = await this.fetchRestApi(`${baseUrl}/time`, "Coinbase health check failed");
       return response.ok;
     } catch {
       return false;

@@ -1,4 +1,4 @@
-import { WebSocketConnectionManager } from "@/data-manager/websocket-connection-manager.service";
+import WebSocket from "ws";
 import { DataProviderService } from "@/common/base/composed.service";
 import { FeedCategory } from "@/common/types/core";
 import type { BaseServiceConfig } from "@/common/types/services";
@@ -37,9 +37,13 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   protected onConnectionChangeCallback?: (connected: boolean) => void;
   protected onErrorCallback?: (error: Error) => void;
 
-  // Integrated WebSocket functionality
-  protected wsManager?: WebSocketConnectionManager;
-  protected wsConnectionId?: string;
+  // Direct WebSocket connection management
+  protected ws?: WebSocket;
+  protected wsConfig?: WSConnectionConfig;
+  private reconnectAttempts = 0;
+  private reconnectTimer?: NodeJS.Timeout;
+  private pingTimer?: NodeJS.Timeout;
+  private maxReconnectAttempts = 5;
 
   constructor(config?: IExchangeAdapterConfig) {
     super(config || { connection: {} });
@@ -193,10 +197,21 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       await this.disconnect();
     }
 
-    // Destroy WebSocket manager if it exists
-    if (this.wsManager) {
-      this.wsManager.destroy();
-      this.wsManager = undefined;
+    // Close WebSocket connection if it exists
+    if (this.ws) {
+      this.ws.close();
+      this.ws = undefined;
+    }
+
+    // Clear timers
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = undefined;
     }
 
     // Clear all maps and sets
@@ -345,6 +360,15 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
+   * Reverse symbol mapping - convert exchange symbol back to normalized format
+   * Override if exchange uses different symbol format
+   */
+  protected normalizeSymbolFromExchange(exchangeSymbol: string): string {
+    // Default implementation - assumes symbols are already normalized
+    return exchangeSymbol;
+  }
+
+  /**
    * Enhanced symbol validation with logging
    */
   validateSymbol(feedSymbol: string): boolean {
@@ -416,11 +440,13 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     }
 
     if (typeof timestamp === "string") {
-      return new Date(timestamp).getTime();
+      const parsed = new Date(timestamp).getTime();
+      return isNaN(parsed) ? Date.now() : parsed;
     }
 
     if (timestamp instanceof Date) {
-      return timestamp.getTime();
+      const time = timestamp.getTime();
+      return isNaN(time) ? Date.now() : time;
     }
 
     // Fallback to current time
@@ -444,6 +470,50 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     }
 
     throw new Error(`Cannot parse number from: ${typeof value}`);
+  }
+
+  /**
+   * Helper method for REST API calls with standardized error handling
+   */
+  protected async fetchRestApi(url: string, errorContext: string): Promise<Response> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`${errorContext}: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Calculate spread percentage for confidence calculation
+   */
+  protected calculateSpreadPercent(bid: number, ask: number, price: number): number {
+    const spread = ask - bid;
+    return (spread / price) * 100;
+  }
+
+  /**
+   * Helper to add slash to symbol by detecting common quote currencies
+   */
+  protected addSlashToSymbol(exchangeSymbol: string, quotes: string[] = ["USDT", "USDC", "USD", "EUR"]): string {
+    if (exchangeSymbol.includes("/")) {
+      return exchangeSymbol;
+    }
+
+    for (const quote of quotes) {
+      if (exchangeSymbol.endsWith(quote)) {
+        const base = exchangeSymbol.slice(0, -quote.length);
+        if (base.length > 0) {
+          return `${base}/${quote}`;
+        }
+      }
+    }
+
+    return exchangeSymbol;
   }
 
   /**
@@ -475,50 +545,64 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
-   * Initialize WebSocket connection manager for this adapter
-   */
-  protected initializeWebSocket(): void {
-    if (!this.wsManager) {
-      this.wsManager = new WebSocketConnectionManager();
-      this.wsConnectionId = `${this.exchangeName}-ws`;
-    }
-  }
-
-  /**
-   * Connect to WebSocket using the centralized connection manager
+   * Connect to WebSocket directly
    */
   protected async connectWebSocket(config: WSConnectionConfig): Promise<void> {
-    this.initializeWebSocket();
-
-    try {
-      await this.wsManager!.createConnection(this.wsConnectionId!, config);
-
-      // Set up message handler
-      this.wsManager!.on("message", (...args: unknown[]) => {
-        const [connectionId, data] = args as [string, unknown];
-        if (connectionId === this.wsConnectionId) {
-          this.handleWebSocketMessage(data);
-        }
-      });
-
-      // Set up connection event handlers
-      this.wsManager!.on("connectionClosed", (...args: unknown[]) => {
-        const [connectionId] = args as [string];
-        if (connectionId === this.wsConnectionId) {
-          this.handleWebSocketClose();
-        }
-      });
-
-      this.wsManager!.on("connectionError", (...args: unknown[]) => {
-        const [connectionId, error] = args as [string, Error];
-        if (connectionId === this.wsConnectionId) {
-          this.handleWebSocketError(error);
-        }
-      });
-    } catch (error) {
-      this.logger.error(`Failed to connect WebSocket: ${error}`);
-      throw error;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.logger.debug(`WebSocket already connected for ${this.exchangeName}`);
+      return;
     }
+
+    this.wsConfig = config;
+
+    return new Promise((resolve, reject) => {
+      try {
+        this.ws = new WebSocket(config.url, config.protocols, {
+          headers: config.headers,
+        });
+
+        // Set up event handlers
+        this.ws.on("open", () => {
+          this.logger.log(`WebSocket connected for ${this.exchangeName}`);
+          this.reconnectAttempts = 0;
+
+          // Set up ping timer if configured
+          if (config.pingInterval) {
+            this.setupPingTimer(config.pingInterval);
+          }
+
+          resolve();
+        });
+
+        this.ws.on("message", (data: WebSocket.Data) => {
+          this.handleWebSocketMessage(data);
+        });
+
+        this.ws.on("close", (code: number, reason: string) => {
+          this.logger.warn(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
+          this.handleWebSocketClose();
+
+          // Auto-reconnect if configured
+          if (config.reconnectInterval && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.scheduleReconnect(config.reconnectInterval);
+          }
+        });
+
+        this.ws.on("error", (error: Error) => {
+          this.logger.error(`WebSocket error for ${this.exchangeName}:`, error);
+          this.handleWebSocketError(error);
+          reject(error);
+        });
+
+        this.ws.on("pong", () => {
+          // Handle pong response
+          this.logger.debug(`Received pong from ${this.exchangeName}`);
+        });
+      } catch (error) {
+        this.logger.error(`Failed to create WebSocket for ${this.exchangeName}:`, error);
+        reject(error);
+      }
+    });
   }
 
   /**
@@ -527,13 +611,20 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
    * @param reason - The WebSocket close reason
    */
   protected async disconnectWebSocket(code?: number, reason?: string): Promise<void> {
-    if (this.wsManager && this.wsConnectionId) {
-      try {
-        await this.wsManager.closeConnection(this.wsConnectionId, code, reason);
-      } catch (error) {
-        this.logger.error(`Failed to disconnect WebSocket: ${error}`);
-        throw error;
-      }
+    // Clear timers
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer);
+      this.pingTimer = undefined;
+    }
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.close(code, reason);
+      this.ws = undefined;
     }
   }
 
@@ -541,15 +632,21 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
    * Check if WebSocket is connected
    */
   protected isWebSocketConnected(): boolean {
-    return this.wsManager?.isConnected(this.wsConnectionId!) ?? false;
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 
   /**
    * Send message via WebSocket
    */
   protected async sendWebSocketMessage(message: string | Buffer): Promise<boolean> {
-    if (this.wsManager && this.wsConnectionId) {
-      return this.wsManager.sendMessage(this.wsConnectionId, message);
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      try {
+        this.ws.send(message);
+        return true;
+      } catch (error) {
+        this.logger.error(`Failed to send WebSocket message for ${this.exchangeName}:`, error);
+        return false;
+      }
     }
     return false;
   }
@@ -558,20 +655,72 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
    * Get WebSocket connection statistics
    */
   protected getWebSocketStats() {
-    if (this.wsManager && this.wsConnectionId) {
-      return this.wsManager.getConnectionStats(this.wsConnectionId);
+    if (this.ws) {
+      return {
+        readyState: this.ws.readyState,
+        url: this.ws.url,
+        protocol: this.ws.protocol,
+        reconnectAttempts: this.reconnectAttempts,
+      };
     }
     return null;
   }
 
   /**
-   * Get WebSocket latency
+   * Get WebSocket latency (simplified - would need ping/pong timing for accuracy)
    */
   protected getWebSocketLatency(): number {
-    if (this.wsManager && this.wsConnectionId) {
-      return this.wsManager.getLatency(this.wsConnectionId);
-    }
+    // This would require implementing ping/pong timing
+    // For now, return 0 as a placeholder
     return 0;
+  }
+
+  /**
+   * Set up ping timer for keeping connection alive
+   */
+  private setupPingTimer(interval: number): void {
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer);
+    }
+
+    this.pingTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        // Allow adapters to override ping behavior
+        this.sendPingMessage();
+      }
+    }, interval);
+  }
+
+  /**
+   * Send ping message - can be overridden by adapters for exchange-specific ping formats
+   */
+  protected sendPingMessage(): void {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      // Default WebSocket ping
+      this.ws.ping();
+    }
+  }
+
+  /**
+   * Schedule reconnection attempt
+   */
+  private scheduleReconnect(delay: number): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    this.reconnectAttempts++;
+    this.logger.log(`Scheduling reconnection attempt ${this.reconnectAttempts} for ${this.exchangeName} in ${delay}ms`);
+
+    this.reconnectTimer = setTimeout(async () => {
+      if (this.wsConfig) {
+        try {
+          await this.connectWebSocket(this.wsConfig);
+        } catch (error) {
+          this.logger.error(`Reconnection failed for ${this.exchangeName}:`, error);
+        }
+      }
+    }, delay);
   }
 
   // Optional WebSocket event handlers (adapters can override these)

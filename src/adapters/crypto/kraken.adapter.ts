@@ -49,9 +49,8 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     super({ connection: config });
   }
 
-  // Simple symbol mapping - use exact pairs from feeds.json
   override getSymbolMapping(feedSymbol: string): string {
-    // For WebSocket, remove the slash - use the exact symbol from feeds.json
+    // For WebSocket, remove the slash
     return feedSymbol.replace("/", "");
   }
 
@@ -59,7 +58,6 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://ws.kraken.com";
 
-    // Use integrated WebSocket functionality from BaseExchangeAdapter
     await this.connectWebSocket({
       url: wsUrl,
       reconnectDelay: 5000,
@@ -74,10 +72,6 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     await this.disconnectWebSocket();
   }
 
-  override isConnected(): boolean {
-    return super.isConnected() && this.isWebSocketConnected();
-  }
-
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
     try {
@@ -87,7 +81,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
       if (typeof data === "string") {
         parsed = JSON.parse(data);
       } else if (typeof data === "object" && data !== null) {
-        // Data is already parsed (from WebSocketConnectionManager)
+        // Data is already parsed (from WebSocket)
         parsed = data;
       } else {
         this.logger.debug("Received non-parseable WebSocket data:", typeof data);
@@ -142,8 +136,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     // Calculate spread for confidence
     const bid = this.parseNumber(rawData.data.b[0]);
     const ask = this.parseNumber(rawData.data.a[0]);
-    const spread = ask - bid;
-    const spreadPercent = (spread / price) * 100;
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.pair),
@@ -199,7 +192,12 @@ export class KrakenAdapter extends BaseExchangeAdapter {
       },
     };
 
-    await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+    try {
+      await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+      this.logger.log(`Subscribed to Kraken symbols: ${krakenSymbols.join(", ")}`);
+    } catch (error) {
+      this.logger.warn(`Kraken subscription error:`, error);
+    }
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
@@ -213,90 +211,65 @@ export class KrakenAdapter extends BaseExchangeAdapter {
       },
     };
 
-    await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+    try {
+      await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+      this.logger.log(`Unsubscribed from Kraken symbols: ${krakenSymbols.join(", ")}`);
+    } catch (error) {
+      this.logger.warn(`Kraken unsubscription error:`, error);
+    }
   }
 
   // REST API fallback methods
   async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
     const krakenSymbol = this.getSymbolMapping(symbol);
-    const baseUrl = this.config?.restApiUrl || "https://api.kraken.com";
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://api.kraken.com";
     const url = `${baseUrl}/0/public/Ticker?pair=${krakenSymbol}`;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    const response = await this.fetchRestApi(url, `Failed to fetch Kraken ticker for ${symbol}`);
+    const result = await response.json();
 
-      const result = await response.json();
-
-      if (result.error && result.error.length > 0) {
-        throw new Error(`Kraken API error: ${result.error.join(", ")}`);
-      }
-
-      const data: KrakenRestTickerData = result.result;
-      const pairData = Object.values(data)[0]; // Get first (and should be only) pair data
-
-      if (!pairData) {
-        throw new Error(`No data returned for symbol ${symbol}`);
-      }
-
-      // Calculate spread for confidence
-      const price = this.parseNumber(pairData.c[0]);
-      const bid = this.parseNumber(pairData.b[0]);
-      const ask = this.parseNumber(pairData.a[0]);
-      const spread = ask - bid;
-      const spreadPercent = (spread / price) * 100;
-
-      return {
-        symbol: this.normalizeSymbolFromExchange(krakenSymbol),
-        price,
-        timestamp: Date.now(), // Kraken REST doesn't provide timestamp
-        source: this.exchangeName,
-        volume: this.parseNumber(pairData.v[1]), // 24h volume
-        confidence: this.calculateConfidence(pairData, {
-          latency: 0, // REST call, no latency penalty
-          volume: this.parseNumber(pairData.v[1]),
-          spread: spreadPercent,
-        }),
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch Kraken ticker for ${symbol}: ${error}`);
+    if (result.error && result.error.length > 0) {
+      throw new Error(`Kraken API error: ${result.error.join(", ")}`);
     }
+
+    const data: KrakenRestTickerData = result.result;
+    const pairData = Object.values(data)[0]; // Get first (and should be only) pair data
+
+    if (!pairData) {
+      throw new Error(`No data returned for symbol ${symbol}`);
+    }
+
+    // Calculate spread for confidence
+    const price = this.parseNumber(pairData.c[0]);
+    const bid = this.parseNumber(pairData.b[0]);
+    const ask = this.parseNumber(pairData.a[0]);
+    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
+
+    return {
+      symbol: this.normalizeSymbolFromExchange(krakenSymbol),
+      price,
+      timestamp: Date.now(), // Kraken REST doesn't provide timestamp
+      source: this.exchangeName,
+      volume: this.parseNumber(pairData.v[1]), // 24h volume
+      confidence: this.calculateConfidence(pairData, {
+        latency: 0, // REST call, no latency penalty
+        volume: this.parseNumber(pairData.v[1]),
+        spread: spreadPercent,
+      }),
+    };
   }
 
-  // Event handlers are now provided by BaseExchangeAdapter
-
-  // Simple method to convert exchange symbol back to normalized format
-  private normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Add slash if not present (WebSocket format comes without slash)
-    if (!exchangeSymbol.includes("/")) {
-      // Simple approach: find the slash position by trying common quote currencies
-      const quotes = ["USD", "USDT", "USDC", "EUR"];
-
-      for (const quote of quotes) {
-        if (exchangeSymbol.endsWith(quote)) {
-          const base = exchangeSymbol.slice(0, -quote.length);
-          if (base.length > 0) {
-            return `${base}/${quote}`;
-          }
-        }
-      }
-    }
-
-    return exchangeSymbol;
+  // Override symbol normalization for Kraken format
+  protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
+    return this.addSlashToSymbol(exchangeSymbol, ["USD", "USDT", "USDC", "EUR"]);
   }
 
   protected async doHealthCheck(): Promise<boolean> {
     try {
-      // Try REST API health check
-      const baseUrl = this.config?.restApiUrl || "https://api.kraken.com";
-      const response = await fetch(`${baseUrl}/0/public/SystemStatus`);
-
-      if (!response.ok) {
-        return false;
-      }
-
+      const config = this.getConfig();
+      const baseUrl = config?.restApiUrl || "https://api.kraken.com";
+      const response = await this.fetchRestApi(`${baseUrl}/0/public/SystemStatus`, "Kraken health check failed");
       const result = await response.json();
       return result.result?.status === "online";
     } catch {

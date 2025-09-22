@@ -317,7 +317,7 @@ describe("CryptocomAdapter", () => {
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error("Network error"));
 
       await expect(adapter.fetchTickerREST("BTC/USDT")).rejects.toThrow(
-        "Failed to fetch Crypto.com ticker for BTC/USDT: Error: Network error"
+        "Failed to fetch Crypto.com ticker for BTC/USDT: Network error"
       );
     });
   });
@@ -412,26 +412,21 @@ describe("CryptocomAdapter", () => {
   });
 
   describe("heartbeat functionality", () => {
-    it("should have heartbeat interval after connection", async () => {
+    it("should be connected after successful connection", async () => {
       await adapter.connect();
 
-      // Check that heartbeat interval is set
-      const pingInterval = (adapter as any).pingInterval;
-      expect(pingInterval).toBeDefined();
+      // Check that adapter is connected (ping is handled by base class)
+      expect(adapter.isConnected()).toBe(true);
     });
 
-    it("should clear heartbeat interval on disconnection", async () => {
+    it("should be disconnected after disconnection", async () => {
       await adapter.connect();
-
-      // Check that heartbeat interval is set
-      let pingInterval = (adapter as any).pingInterval;
-      expect(pingInterval).toBeDefined();
+      expect(adapter.isConnected()).toBe(true);
 
       await adapter.disconnect();
 
-      // Check that heartbeat interval is cleared
-      pingInterval = (adapter as any).pingInterval;
-      expect(pingInterval).toBeUndefined();
+      // Check that adapter is disconnected (ping cleanup handled by base class)
+      expect(adapter.isConnected()).toBe(false);
     });
   });
 

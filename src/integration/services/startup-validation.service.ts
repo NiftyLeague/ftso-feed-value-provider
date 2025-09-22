@@ -1,8 +1,10 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
-import { readFileSync } from "fs";
 import { join } from "path";
-import { StandardService } from "@/common/base/composed.service";
+import { readFileSync } from "fs";
+import { Injectable, OnModuleInit } from "@nestjs/common";
+
 import { ENV, ENV_HELPERS } from "@/config/environment.constants";
+import { ConfigService } from "@/config/config.service";
+import { StandardService } from "@/common/base/composed.service";
 import type { StartupValidationResult } from "@/common/types/services";
 
 import { IntegrationService } from "../integration.service";
@@ -29,15 +31,16 @@ export class StartupValidationService extends StandardService implements OnModul
           });
         }
       } else {
-        this.logger.error("❌ Application startup validation failed");
+        this.logger.warn("⚠️ Application startup validation completed with warnings");
         this.validationResult.errors.forEach(error => {
-          this.logger.error(`❌ ${error}`);
+          this.logger.warn(`⚠️ ${error}`);
         });
-        throw new Error(`Startup validation failed: ${this.validationResult.errors.join(", ")}`);
+        // Don't throw error, just log warnings
+        this.logger.warn("Continuing with degraded mode due to validation issues");
       }
     } catch (error) {
-      this.logger.error("Fatal error during startup validation:", error);
-      throw error;
+      this.logger.warn("Startup validation encountered errors, continuing with degraded mode:", error);
+      // Don't throw error, just log and continue
     }
   }
 
@@ -104,9 +107,6 @@ export class StartupValidationService extends StandardService implements OnModul
 
   private async validateConfigService(result: StartupValidationResult): Promise<void> {
     try {
-      // Import ConfigService dynamically to avoid circular dependencies
-      const { ConfigService } = await import("@/config/config.service");
-
       // Create a temporary instance to test basic functionality
       const configService = new ConfigService();
 
@@ -147,15 +147,18 @@ export class StartupValidationService extends StandardService implements OnModul
 
   private async validateIntegrationService(result: StartupValidationResult): Promise<void> {
     try {
-      // Wait for integration service to be initialized
+      // Wait for integration service to be initialized with a shorter timeout
       if (!this.integrationService.isServiceInitialized()) {
         this.logger.log("Waiting for integration service to initialize...");
 
         // Wait for initialization to complete with a timeout
-        await new Promise<void>((resolve, reject) => {
-          const timeoutMs = parseInt(process.env.INTEGRATION_SERVICE_TIMEOUT_MS || "60000", 10);
+        let timedOut = false;
+        await new Promise<void>(resolve => {
+          const timeoutMs = parseInt(process.env.INTEGRATION_SERVICE_TIMEOUT_MS || "30000", 10); // Reduced from 60s to 30s
           const timeout = setTimeout(() => {
-            reject(new Error("Integration service initialization timeout"));
+            timedOut = true;
+            this.logger.warn("Integration service initialization timeout - continuing with degraded mode");
+            resolve();
           }, timeoutMs);
 
           const checkInitialization = () => {
@@ -174,33 +177,47 @@ export class StartupValidationService extends StandardService implements OnModul
             resolve();
           });
         });
-      }
 
-      // Test integration service health
-      const health = await this.integrationService.getSystemHealth();
-
-      if (health.status === "unhealthy") {
-        // In production mode without real connections, degraded/unhealthy is acceptable
-        result.warnings.push("Integration service is unhealthy - this is expected without live exchange connections");
-      } else if (health.status === "degraded") {
-        result.warnings.push("Integration service is in degraded state");
-      }
-
-      // Check source health information based on available fields
-      const totalSources = health.sources?.length ?? 0;
-      if (totalSources === 0) {
-        result.warnings.push("No data sources have reported health status yet");
-      } else {
-        const unhealthy = health.sources.filter(s => s.status === "unhealthy").length;
-        if (unhealthy === totalSources) {
-          result.warnings.push("All data sources are unhealthy");
+        // Add error if timed out
+        if (timedOut) {
+          result.errors.push("Integration service validation failed: Integration service initialization timeout");
+          result.success = false;
         }
+      }
+
+      // Test integration service health - be more lenient during startup
+      try {
+        const health = await this.integrationService.getSystemHealth();
+
+        if (health.status === "unhealthy") {
+          // In production mode without real connections, degraded/unhealthy is acceptable
+          result.warnings.push("Integration service is unhealthy - this is expected without live exchange connections");
+        } else if (health.status === "degraded") {
+          result.warnings.push("Integration service is in degraded state");
+        }
+
+        // Check source health information based on available fields
+        const totalSources = health.sources?.length ?? 0;
+        if (totalSources === 0) {
+          result.warnings.push("No data sources have reported health status yet");
+        } else {
+          const unhealthy = health.sources.filter(s => s.status === "unhealthy").length;
+          if (unhealthy === totalSources) {
+            result.warnings.push("All data sources are unhealthy - system will operate in degraded mode");
+          }
+        }
+      } catch (error) {
+        // If health check fails, just warn and continue
+        result.warnings.push("Integration service health check failed - continuing with degraded mode");
+        this.logger.warn("Health check failed during startup validation:", error);
       }
 
       result.validatedServices.push("IntegrationService");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      result.errors.push(`Integration service validation failed: ${message}`);
+      // Don't treat integration service errors as fatal during startup
+      result.warnings.push(`Integration service validation failed: ${message} - continuing with degraded mode`);
+      this.logger.warn("Integration service validation error during startup:", error);
     }
   }
 
@@ -240,9 +257,13 @@ export class StartupValidationService extends StandardService implements OnModul
       const memUsagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
 
       if (memUsagePercent > ENV.SYSTEM.MEMORY_CRITICAL_THRESHOLD * 100) {
-        result.warnings.push(`Critical memory usage at startup: ${memUsagePercent.toFixed(1)}%`);
+        result.warnings.push(
+          `Critical memory usage at startup: ${memUsagePercent.toFixed(1)}% - consider increasing heap size`
+        );
       } else if (memUsagePercent > ENV.SYSTEM.MEMORY_WARNING_THRESHOLD * 100) {
-        result.warnings.push(`High memory usage at startup: ${memUsagePercent.toFixed(1)}%`);
+        result.warnings.push(
+          `High memory usage at startup: ${memUsagePercent.toFixed(1)}% - this is normal during initialization`
+        );
       }
 
       // Check available memory

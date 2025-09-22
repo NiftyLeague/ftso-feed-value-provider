@@ -93,9 +93,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   protected async doConnect(): Promise<void> {
-    if (this.isConnected()) {
-      return;
-    }
+    if (this.isConnected()) return;
 
     try {
       this.logger.log("Initializing CCXT Pro multi-exchange adapter...");
@@ -615,15 +613,23 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   protected async doSubscribe(symbols: string[]): Promise<void> {
-    this.logger.log(`Subscribing to WebSocket feeds for symbols: ${symbols.join(", ")}`);
+    // Filter out symbols we're already subscribed to
+    const newSymbols = symbols.filter(symbol => !this.subscriptions.has(symbol));
+
+    if (newSymbols.length === 0) {
+      this.logger.log(`All symbols already subscribed, skipping: ${symbols.join(", ")}`);
+      return;
+    }
+
+    this.logger.log(`Subscribing to WebSocket feeds for symbols: ${newSymbols.join(", ")}`);
 
     // Add symbols to base adapter subscriptions
-    for (const symbol of symbols) {
+    for (const symbol of newSymbols) {
       this.subscriptions.add(symbol);
     }
 
     // Group symbols by exchange based on feeds.json configuration
-    const exchangeToSymbols = this.groupSymbolsByExchange(symbols);
+    const exchangeToSymbols = this.groupSymbolsByExchange(newSymbols);
 
     // Subscribe to each exchange
     for (const [exchangeId, exchangeSymbols] of exchangeToSymbols) {
@@ -752,6 +758,13 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     const exchange = this.exchanges.get(exchangeId);
     if (!exchange) {
       this.logger.warn(`Exchange ${exchangeId} not available for subscription`);
+      return;
+    }
+
+    // Check if we already have subscriptions for this exchange
+    const existingSubscriptions = this.exchangeSubscriptions.get(exchangeId);
+    if (existingSubscriptions && existingSubscriptions.size > 0) {
+      this.logger.log(`Exchange ${exchangeId} already has active subscriptions, skipping`);
       return;
     }
 
