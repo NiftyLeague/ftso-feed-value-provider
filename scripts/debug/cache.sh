@@ -3,18 +3,20 @@
 # Cache System Debugging Script
 # Tests cache performance, hit rates, warming effectiveness, and memory usage
 
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
+
 echo "💾 FTSO Cache System Debugger"
 echo "============================="
 
-# Ensure logs directory exists
-mkdir -p logs
-
 # Configuration
 TIMEOUT=90
-LOG_FILE="logs/cache-debug.log"
+
+# Set up logging using common utility
+setup_debug_logging "cache-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting cache system analysis..."
-echo "📊 Log file: $LOG_FILE"
 
 # Start the application in background
 pnpm start:dev > "$LOG_FILE" 2>&1 &
@@ -256,6 +258,11 @@ else
     echo "❌ No log file found"
 fi
 
+# Show log summary
+show_log_summary "$LOG_FILE" "cache"
+
+# Clean up old logs if in session mode
+cleanup_old_logs "cache"
+
 echo ""
 echo "✨ Cache analysis complete!"
-echo "📁 Detailed logs available at: $LOG_FILE"

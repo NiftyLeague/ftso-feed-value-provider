@@ -3,18 +3,21 @@
 # WebSocket Connection Debugging Script
 # Tests WebSocket connections for all exchanges and monitors their health
 
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
+
 echo "🌐 FTSO WebSocket Connection Debugger"
 echo "====================================="
 
-# Ensure logs directory exists
-mkdir -p logs
-
 # Configuration
 TIMEOUT=90
-LOG_FILE="logs/websocket-debug.log"
+
+# Set up logging using common utility
+setup_debug_logging "websocket-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting WebSocket connection analysis..."
-echo "📊 Log file: $LOG_FILE"
+echo "📁 Log file: $LOG_FILE"
 
 # Start the application in background
 pnpm start:dev > "$LOG_FILE" 2>&1 &

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
 
 # Data Aggregation & Consensus Debugging Script
 # Tests consensus calculation, weight distribution, outlier detection, and aggregation performance
@@ -6,15 +8,16 @@
 echo "🎯 FTSO Data Aggregation & Consensus Debugger"
 echo "============================================="
 
-# Ensure logs directory exists
-mkdir -p logs
+
 
 # Configuration
 TIMEOUT=90
-LOG_FILE="logs/aggregation-debug.log"
+
+# Set up logging using common utility
+setup_debug_logging "data-aggregation"
+LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting aggregation system analysis..."
-echo "📊 Log file: $LOG_FILE"
 
 # Start the application in background
 pnpm start:dev > "$LOG_FILE" 2>&1 &

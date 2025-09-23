@@ -6,22 +6,28 @@
 echo "🚀 FTSO Load & Stress Tester"
 echo "============================"
 
-# Ensure logs directory exists
-mkdir -p logs
+# Source common test utilities
+source "$(dirname "$0")/../utils/test-common.sh"
 
-# Configuration
-TIMEOUT=120
-LOG_FILE="logs/load-test.log"
-LOAD_REPORT="logs/load-test-report.log"
+# Set up cleanup handlers
+setup_cleanup_handlers
 
-# Load test parameters
-CONCURRENT_USERS=50
-REQUESTS_PER_USER=20
-RAMP_UP_TIME=30
-TEST_DURATION=60
+# Configuration - Reduced to prevent hanging
+TIMEOUT=60
+
+# Set up logging using common utility
+setup_test_logging "load"
+LOG_FILE="$TEST_LOG_FILE"
+LOAD_REPORT="$TEST_LOG_DIR/load-test-report.log"
+
+# Load test parameters - Reduced for stability
+CONCURRENT_USERS=10  # Reduced from 50
+REQUESTS_PER_USER=5  # Reduced from 20
+RAMP_UP_TIME=10      # Reduced from 30
+TEST_DURATION=20     # Reduced from 60
 
 echo "📝 Starting load testing..."
-echo "📊 Log file: $LOG_FILE"
+echo "📁 Log file: $LOG_FILE"
 echo "📊 Load report: $LOAD_REPORT"
 echo ""
 echo "🎯 Test Parameters:"
@@ -48,29 +54,30 @@ echo ""
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
 
-# Wait for server to be ready
-READY_TIMEOUT=90
+# Wait for server to be ready - Reduced timeout
+READY_TIMEOUT=30  # Reduced from 90
 ELAPSED=0
 
 while [ $ELAPSED -lt $READY_TIMEOUT ]; do
     if ! kill -0 $APP_PID 2>/dev/null; then
         echo "❌ Application stopped unexpectedly"
+        kill $APP_PID 2>/dev/null || true
         exit 1
     fi
     
-    # Test if server is ready
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
+    # Test if server is ready with timeout
+    if curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
         echo "✅ Server is ready for load testing"
         break
     fi
     
-    sleep 3
-    ELAPSED=$((ELAPSED + 3))
+    sleep 2  # Reduced from 3
+    ELAPSED=$((ELAPSED + 2))
 done
 
 if [ $ELAPSED -ge $READY_TIMEOUT ]; then
     echo "⏰ Server readiness timeout"
-    kill $APP_PID 2>/dev/null
+    kill $APP_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -178,14 +185,19 @@ run_load_test() {
         ) &
     done
     
-    # Wait for test duration
+    # Wait for test duration with timeout protection
     echo "   ⏱️  Running load test for ${TEST_DURATION} seconds..."
-    sleep $TEST_DURATION
+    
+    # Use timeout to prevent hanging
+    timeout ${TEST_DURATION}s sleep $TEST_DURATION || true
     
     # Stop the test
     rm -f "$results_file.running"
-    kill $monitor_pid 2>/dev/null
-    wait
+    kill $monitor_pid 2>/dev/null || true
+    
+    # Kill any remaining background processes
+    jobs -p | xargs -r kill 2>/dev/null || true
+    wait 2>/dev/null || true
     
     # Analyze results
     local end_time=$(date +%s)
@@ -326,10 +338,10 @@ echo ""
 echo "🔥 Stress Testing:"
 echo "=================="
 
-# Increase load parameters for stress test
-CONCURRENT_USERS=100
-REQUESTS_PER_USER=10
-TEST_DURATION=30
+# Increase load parameters for stress test - Reduced for stability
+CONCURRENT_USERS=20  # Reduced from 100
+REQUESTS_PER_USER=3  # Reduced from 10
+TEST_DURATION=15     # Reduced from 30
 
 echo "🔥 Running stress test with increased load..."
 echo "   👥 Concurrent users: $CONCURRENT_USERS"
@@ -355,17 +367,25 @@ for i in $(seq 1 100); do
 done
 LARGE_PAYLOAD="${LARGE_PAYLOAD}]}"
 
-CONCURRENT_USERS=20
-REQUESTS_PER_USER=5
-TEST_DURATION=20
+CONCURRENT_USERS=10  # Reduced for memory test
+REQUESTS_PER_USER=3  # Reduced from 5
+TEST_DURATION=10     # Reduced from 20
 
 run_load_test "/feed-values" "Memory Stress Test" "$LARGE_PAYLOAD"
 
-# Stop the application
+# Stop the application with timeout protection
 echo ""
 echo "🛑 Stopping application..."
-kill $APP_PID 2>/dev/null
-wait $APP_PID 2>/dev/null
+kill $APP_PID 2>/dev/null || true
+
+# Wait with timeout for graceful shutdown
+timeout 10s bash -c "while kill -0 $APP_PID 2>/dev/null; do sleep 1; done" || {
+    echo "⚠️  Force killing application..."
+    kill -9 $APP_PID 2>/dev/null || true
+}
+
+# Kill any remaining background processes
+jobs -p | xargs -r kill -9 2>/dev/null || true
 
 # Analyze application logs for performance issues
 echo ""

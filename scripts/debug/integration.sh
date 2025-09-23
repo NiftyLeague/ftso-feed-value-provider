@@ -1,4 +1,6 @@
 #!/bin/bash
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
 
 # Integration & Orchestration Debugging Script
 # Tests service initialization, inter-service communication, event flow, and orchestration
@@ -7,14 +9,15 @@ echo "🔗 FTSO Integration & Orchestration Debugger"
 echo "============================================"
 
 # Ensure logs directory exists
-mkdir -p logs
 
 # Configuration
 TIMEOUT=90
-LOG_FILE="logs/integration-debug.log"
+
+# Set up logging using common utility
+setup_debug_logging "integration-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting integration system analysis..."
-echo "📊 Log file: $LOG_FILE"
 
 # Start the application in background
 pnpm start:dev > "$LOG_FILE" 2>&1 &

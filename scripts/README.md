@@ -60,12 +60,41 @@ For easier access to scripts, use the convenience runner:
 | `server.sh`            | Test server functionality and endpoints             | `./scripts/test/server.sh`            |
 | `validation.sh`        | Test suite reliability and performance validation   | `./scripts/test/validation.sh`        |
 
+### ⚡ Test Hanging Issues - Fixed
+
+The test scripts have been optimized to prevent hanging issues:
+
+- **Timeout Protection**: All tests now have configurable timeouts (default: 2-5
+  minutes per test)
+- **Process Cleanup**: Automatic cleanup of hanging processes and port conflicts
+- **Reduced Load**: Load tests use reasonable concurrent user counts (10-20 vs
+  50-100)
+- **Jest Optimization**: Disabled `detectOpenHandles` and reduced `maxWorkers`
+  to prevent resource contention
+- **Signal Handlers**: Proper cleanup on script interruption (Ctrl+C)
+
+**Usage with timeout protection:**
+
+```bash
+# Use package.json scripts (recommended)
+pnpm test:scripts           # All tests with timeouts
+pnpm test:scripts:server    # Server test only
+pnpm test:scripts:security  # Security test only
+pnpm test:scripts:load      # Load test only
+
+# Or use run.sh directly
+./scripts/run.sh test all    # All tests
+./scripts/run.sh test server # Individual test
+```
+
 ## 🛠️ Utility Scripts (`scripts/utils/`)
 
-| Script           | Purpose                                           | Usage                                      |
-| ---------------- | ------------------------------------------------- | ------------------------------------------ |
-| `dev-tools.sh`   | Development tools (build, lint, format, validate) | `./scripts/utils/dev-tools.sh [command]`   |
-| `manage-logs.sh` | Log management utilities                          | `./scripts/utils/manage-logs.sh [command]` |
+| Script               | Purpose                                           | Usage                                              |
+| -------------------- | ------------------------------------------------- | -------------------------------------------------- |
+| `dev-tools.sh`       | Development tools (build, lint, format, validate) | `./scripts/utils/dev-tools.sh [command]`           |
+| `manage-logs.sh`     | Log management utilities                          | `./scripts/utils/manage-logs.sh [command]`         |
+| `test-common.sh`     | Common utilities for test scripts                 | `source scripts/utils/test-common.sh`              |
+| `timeout-wrapper.sh` | Timeout wrapper for any script                    | `./scripts/utils/timeout-wrapper.sh script.sh 120` |
 
 ## 🛠️ Development Tools (via `scripts/run.sh dev`)
 

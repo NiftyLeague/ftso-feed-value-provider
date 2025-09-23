@@ -1,4 +1,6 @@
 #!/bin/bash
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
 
 # Feed Data Quality and Validation Debugging Script
 # Tests feed data accuracy, consensus, and validation processes
@@ -7,14 +9,15 @@ echo "📊 FTSO Feed Data Debugger"
 echo "=========================="
 
 # Ensure logs directory exists
-mkdir -p logs
 
 # Configuration
 TIMEOUT=60
-LOG_FILE="logs/feeds-debug.log"
+
+# Set up logging using common utility
+setup_debug_logging "feeds-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting feed data analysis..."
-echo "📊 Log file: $LOG_FILE"
 
 # Start the application in background
 pnpm start:dev > "$LOG_FILE" 2>&1 &
@@ -206,9 +209,13 @@ if [ -f "logs/volumes-response.json" ]; then
     fi
 fi
 
+# Show log summary
+show_log_summary "$LOG_FILE" "feeds"
+
+# Clean up old logs if in session mode
+cleanup_old_logs "feeds"
+
 echo ""
 echo "✨ Feed analysis complete!"
-echo "📁 Logs available at:"
-echo "   - Main log: $LOG_FILE"
 echo "   - Feed values: logs/feed-values-response.json"
 echo "   - Volumes: logs/volumes-response.json"

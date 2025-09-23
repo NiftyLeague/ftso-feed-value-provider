@@ -1,4 +1,6 @@
 #!/bin/bash
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
 
 # Error Analysis and Circuit Breaker Debugging Script
 # Analyzes error patterns, circuit breaker behavior, and failure recovery
@@ -6,16 +8,17 @@
 echo "🚨 FTSO Error Analysis & Circuit Breaker Debugger"
 echo "================================================="
 
-# Ensure logs directory exists
-mkdir -p logs
+
 
 # Configuration
 TIMEOUT=90
-LOG_FILE="logs/error-debug.log"
-ERROR_SUMMARY="logs/error-summary.log"
+
+# Set up logging using common utility
+setup_debug_logging "error-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
+ERROR_SUMMARY="$DEBUG_LOG_DIR/error-summary.log"
 
 echo "📝 Starting error analysis..."
-echo "📊 Main log: $LOG_FILE"
 echo "📊 Error summary: $ERROR_SUMMARY"
 
 # Start the application in background

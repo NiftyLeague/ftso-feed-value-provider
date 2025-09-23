@@ -8,9 +8,9 @@ echo "=========================================="
 pnpm start &
 APP_PID=$!
 
-# Wait for the app to start up
+# Wait for the app to start up - Reduced timeout
 echo "⏳ Waiting for application to start..."
-sleep 10
+sleep 5  # Reduced from 10
 
 # Check if the app is running
 if ps -p $APP_PID > /dev/null; then
@@ -20,18 +20,18 @@ if ps -p $APP_PID > /dev/null; then
     # Send SIGINT signal
     kill -SIGINT $APP_PID
     
-    # Wait for graceful shutdown
+    # Wait for graceful shutdown with timeout
     echo "⏳ Waiting for graceful shutdown..."
-    sleep 5
     
-    # Check if the process is still running
-    if ps -p $APP_PID > /dev/null; then
-        echo "❌ Process is still running after 5 seconds - graceful shutdown may have failed"
+    # Use timeout to prevent hanging
+    timeout 10s bash -c "while kill -0 $APP_PID 2>/dev/null; do sleep 1; done" || {
+        echo "❌ Process is still running after 10 seconds - graceful shutdown may have failed"
         echo "🔄 Force killing process..."
-        kill -9 $APP_PID
-    else
-        echo "✅ Graceful shutdown completed successfully!"
-    fi
+        kill -9 $APP_PID 2>/dev/null || true
+        exit 1
+    }
+    
+    echo "✅ Graceful shutdown completed successfully!"
 else
     echo "❌ Application failed to start"
     exit 1

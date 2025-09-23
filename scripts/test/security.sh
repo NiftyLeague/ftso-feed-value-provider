@@ -3,20 +3,24 @@
 # Security & Rate Limiting Testing Script
 # Tests API security, rate limiting, input validation, and access control
 
+# Source common test utilities
+source "$(dirname "$0")/../utils/test-common.sh"
+
 echo "🔒 FTSO Security & Rate Limiting Tester"
 echo "======================================="
 
-# Ensure logs directory exists
-mkdir -p logs
+# Set up cleanup handlers
+setup_cleanup_handlers
 
-# Configuration
-TIMEOUT=90
-LOG_FILE="logs/security-test.log"
-SECURITY_REPORT="logs/security-report.log"
+# Configuration - Reduced timeout
+TIMEOUT=45  # Reduced from 90
+
+# Set up logging using common utility
+setup_test_logging "security"
+LOG_FILE="$TEST_LOG_FILE"
+SECURITY_REPORT="$TEST_LOG_DIR/security-report.log"
 
 echo "📝 Starting security testing..."
-echo "📊 Log file: $LOG_FILE"
-echo "📊 Security report: $SECURITY_REPORT"
 
 # Initialize security report
 echo "FTSO Security Test Report - $(date)" > "$SECURITY_REPORT"
@@ -30,18 +34,19 @@ APP_PID=$!
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
 
-# Wait for server to be ready
-READY_TIMEOUT=60
+# Wait for server to be ready - Reduced timeout
+READY_TIMEOUT=30  # Reduced from 60
 ELAPSED=0
 
 while [ $ELAPSED -lt $READY_TIMEOUT ]; do
     if ! kill -0 $APP_PID 2>/dev/null; then
         echo "❌ Application stopped unexpectedly"
+        kill $APP_PID 2>/dev/null || true
         exit 1
     fi
     
-    # Test if server is ready
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
+    # Test if server is ready with timeout
+    if curl -s --max-time 3 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
         echo "✅ Server is ready for testing"
         break
     fi
@@ -52,7 +57,7 @@ done
 
 if [ $ELAPSED -ge $READY_TIMEOUT ]; then
     echo "⏰ Server readiness timeout"
-    kill $APP_PID 2>/dev/null
+    kill $APP_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -281,11 +286,16 @@ else
     TESTS_PASSED=$((TESTS_PASSED + 1))
 fi
 
-# Stop the application
+# Stop the application with timeout protection
 echo ""
 echo "🛑 Stopping application..."
-kill $APP_PID 2>/dev/null
-wait $APP_PID 2>/dev/null
+kill $APP_PID 2>/dev/null || true
+
+# Wait with timeout for graceful shutdown
+timeout 10s bash -c "while kill -0 $APP_PID 2>/dev/null; do sleep 1; done" || {
+    echo "⚠️  Force killing application..."
+    kill -9 $APP_PID 2>/dev/null || true
+}
 
 # Analyze application logs for security events
 echo ""

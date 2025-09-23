@@ -3,20 +3,21 @@
 # Configuration & Environment Debugging Script
 # Tests environment variables, configuration validation, and settings consistency
 
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
+
 echo "⚙️  FTSO Configuration & Environment Debugger"
 echo "============================================="
 
-# Ensure logs directory exists
-mkdir -p logs
-
 # Configuration
 TIMEOUT=60
-LOG_FILE="logs/config-debug.log"
-CONFIG_REPORT="logs/config-report.log"
+
+# Set up logging using common utility
+setup_debug_logging "config-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
+CONFIG_REPORT="$DEBUG_LOG_DIR/config-report.log"
 
 echo "📝 Starting configuration analysis..."
-echo "📊 Log file: $LOG_FILE"
-echo "📊 Config report: $CONFIG_REPORT"
 
 # Initialize config report
 echo "FTSO Configuration Analysis Report - $(date)" > "$CONFIG_REPORT"
@@ -106,15 +107,18 @@ if [ -f "$LOG_FILE" ]; then
     echo "------------------------------------"
     
     # Configuration loading
-    CONFIG_LOADED=$(grep -c "Configuration.*loaded\|Config.*loaded" "$LOG_FILE")
+    CONFIG_LOADED=$(grep -c "Configuration.*loaded\|Config.*loaded" "$LOG_FILE" 2>/dev/null)
+    CONFIG_LOADED=${CONFIG_LOADED:-0}
     echo "✅ Configuration loading events: $CONFIG_LOADED"
     
     # Configuration updates
-    CONFIG_UPDATES=$(grep -c "Configuration updated successfully" "$LOG_FILE")
+    CONFIG_UPDATES=$(grep -c "Configuration updated successfully" "$LOG_FILE" 2>/dev/null)
+    CONFIG_UPDATES=${CONFIG_UPDATES:-0}
     echo "🔄 Configuration updates: $CONFIG_UPDATES"
     
     # Environment validation
-    ENV_VALIDATION=$(grep -c "Environment validation passed" "$LOG_FILE")
+    ENV_VALIDATION=$(grep -c "Environment validation passed" "$LOG_FILE" 2>/dev/null)
+    ENV_VALIDATION=${ENV_VALIDATION:-0}
     echo "✅ Environment validation: $ENV_VALIDATION"
     
     if [ $ENV_VALIDATION -eq 0 ]; then
@@ -136,8 +140,9 @@ if [ -f "$LOG_FILE" ]; then
     SERVICES=("RateLimiterService" "RealTimeCacheService" "ConsensusAggregator" "CircuitBreakerService" "AlertingService")
     
     for service in "${SERVICES[@]}"; do
-        SERVICE_CONFIG=$(grep -c "$service.*Configuration updated successfully" "$LOG_FILE")
-        if [ $SERVICE_CONFIG -gt 0 ]; then
+        SERVICE_CONFIG=$(grep -c "$service.*Configuration updated successfully" "$LOG_FILE" 2>/dev/null)
+        SERVICE_CONFIG=${SERVICE_CONFIG:-0}
+        if [ "$SERVICE_CONFIG" -gt 0 ]; then
             echo "  ✅ $service: $SERVICE_CONFIG updates"
         else
             echo "  ❌ $service: No configuration updates"
@@ -192,15 +197,18 @@ if [ -f "$LOG_FILE" ]; then
     echo "-----------------------------------"
     
     # Configuration warnings
-    CONFIG_WARNINGS=$(grep -c "configuration.*warning\|Configuration.*warning\|config.*warn" "$LOG_FILE")
+    CONFIG_WARNINGS=$(grep -c "configuration.*warning\|Configuration.*warning\|config.*warn" "$LOG_FILE" 2>/dev/null)
+    CONFIG_WARNINGS=${CONFIG_WARNINGS:-0}
     echo "⚠️  Configuration warnings: $CONFIG_WARNINGS"
     
     # Configuration errors
-    CONFIG_ERRORS=$(grep -c "configuration.*error\|Configuration.*error\|config.*error" "$LOG_FILE")
+    CONFIG_ERRORS=$(grep -c "configuration.*error\|Configuration.*error\|config.*error" "$LOG_FILE" 2>/dev/null)
+    CONFIG_ERRORS=${CONFIG_ERRORS:-0}
     echo "❌ Configuration errors: $CONFIG_ERRORS"
     
     # Value validation issues
-    VALUE_ISSUES=$(grep -c "above maximum\|below minimum\|invalid.*value" "$LOG_FILE")
+    VALUE_ISSUES=$(grep -c "above maximum\|below minimum\|invalid.*value" "$LOG_FILE" 2>/dev/null)
+    VALUE_ISSUES=${VALUE_ISSUES:-0}
     echo "📏 Value validation issues: $VALUE_ISSUES"
     
     if [ $VALUE_ISSUES -gt 0 ]; then
@@ -210,7 +218,8 @@ if [ -f "$LOG_FILE" ]; then
     fi
     
     # Missing configuration
-    MISSING_CONFIG=$(grep -c "missing.*config\|Missing.*config\|config.*not.*found" "$LOG_FILE")
+    MISSING_CONFIG=$(grep -c "missing.*config\|Missing.*config\|config.*not.*found" "$LOG_FILE" 2>/dev/null)
+    MISSING_CONFIG=${MISSING_CONFIG:-0}
     echo "❓ Missing configuration: $MISSING_CONFIG"
     
     if [ $CONFIG_WARNINGS -gt 0 ] || [ $CONFIG_ERRORS -gt 0 ]; then
@@ -224,21 +233,25 @@ if [ -f "$LOG_FILE" ]; then
     echo "------------------------------"
     
     # Feed configuration loading
-    FEED_CONFIG=$(grep -c "feed.*configuration\|Feed.*configuration" "$LOG_FILE")
+    FEED_CONFIG=$(grep -c "feed.*configuration\|Feed.*configuration" "$LOG_FILE" 2>/dev/null)
+    FEED_CONFIG=${FEED_CONFIG:-0}
     echo "📊 Feed configuration events: $FEED_CONFIG"
     
     # Feed validation
-    FEED_VALIDATION=$(grep -c "feed.*validation\|Feed.*validation" "$LOG_FILE")
+    FEED_VALIDATION=$(grep -c "feed.*validation\|Feed.*validation" "$LOG_FILE" 2>/dev/null)
+    FEED_VALIDATION=${FEED_VALIDATION:-0}
     echo "✅ Feed validation events: $FEED_VALIDATION"
     
     # Feed count
-    CONFIGURED_FEEDS=$(grep -o "Found [0-9]* feed configurations" "$LOG_FILE" | grep -o "[0-9]*")
-    if [ -n "$CONFIGURED_FEEDS" ]; then
+    CONFIGURED_FEEDS=$(grep -o "Found [0-9]* feed configurations" "$LOG_FILE" 2>/dev/null | grep -o "[0-9]*" | head -1)
+    CONFIGURED_FEEDS=${CONFIGURED_FEEDS:-0}
+    if [ "$CONFIGURED_FEEDS" -gt 0 ]; then
         echo "📊 Configured feeds: $CONFIGURED_FEEDS"
     fi
     
     # Feed mapping
-    FEED_MAPPING=$(grep -c "Mapped feed.*to.*exchanges" "$LOG_FILE")
+    FEED_MAPPING=$(grep -c "Mapped feed.*to.*exchanges" "$LOG_FILE" 2>/dev/null)
+    FEED_MAPPING=${FEED_MAPPING:-0}
     echo "🗺️  Feed mappings: $FEED_MAPPING"
     
     echo ""
@@ -246,15 +259,18 @@ if [ -f "$LOG_FILE" ]; then
     echo "----------------------------------"
     
     # Exchange adapter verification
-    ADAPTER_VERIFICATION=$(grep -c "Exchange adapter.*available" "$LOG_FILE")
+    ADAPTER_VERIFICATION=$(grep -c "Exchange adapter.*available" "$LOG_FILE" 2>/dev/null)
+    ADAPTER_VERIFICATION=${ADAPTER_VERIFICATION:-0}
     echo "🔌 Exchange adapters verified: $ADAPTER_VERIFICATION"
     
     # Exchange initialization
-    EXCHANGE_INIT=$(grep -c "Successfully initialized.*exchange" "$LOG_FILE")
+    EXCHANGE_INIT=$(grep -c "Successfully initialized.*exchange" "$LOG_FILE" 2>/dev/null)
+    EXCHANGE_INIT=${EXCHANGE_INIT:-0}
     echo "✅ Exchange initializations: $EXCHANGE_INIT"
     
     # Exchange configuration issues
-    EXCHANGE_ISSUES=$(grep -c "exchange.*configuration.*error\|Exchange.*configuration.*error" "$LOG_FILE")
+    EXCHANGE_ISSUES=$(grep -c "exchange.*configuration.*error\|Exchange.*configuration.*error" "$LOG_FILE" 2>/dev/null)
+    EXCHANGE_ISSUES=${EXCHANGE_ISSUES:-0}
     echo "❌ Exchange configuration issues: $EXCHANGE_ISSUES"
     
     if [ $EXCHANGE_ISSUES -gt 0 ]; then
@@ -296,14 +312,14 @@ if [ -f "$LOG_FILE" ]; then
         echo "   - Review startup sequence"
     fi
     
-    if [ $CONFIGURED_FEEDS -lt 10 ] && [ -n "$CONFIGURED_FEEDS" ]; then
+    if [ "$CONFIGURED_FEEDS" -lt 10 ] && [ "$CONFIGURED_FEEDS" -gt 0 ]; then
         echo "🔧 FEEDS: Low number of configured feeds"
         echo "   - Review feeds.json configuration"
         echo "   - Verify feed definitions"
         echo "   - Check feed validation logic"
     fi
     
-    if [ $EXCHANGE_INIT -lt 5 ]; then
+    if [ "$EXCHANGE_INIT" -lt 5 ]; then
         echo "🔧 EXCHANGES: Few exchanges initialized"
         echo "   - Review exchange adapter configuration"
         echo "   - Check exchange connectivity"
@@ -315,25 +331,25 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Overall Configuration Health:"
     echo "==============================="
     
-    local config_score=100
+    config_score=100
     
-    if [ $CONFIG_ERRORS -gt 0 ]; then
+    if [ "$CONFIG_ERRORS" -gt 0 ]; then
         config_score=$((config_score - 30))
     fi
     
-    if [ $VALUE_ISSUES -gt 0 ]; then
+    if [ "$VALUE_ISSUES" -gt 0 ]; then
         config_score=$((config_score - 20))
     fi
     
-    if [ $CONFIG_WARNINGS -gt 5 ]; then
+    if [ "$CONFIG_WARNINGS" -gt 5 ]; then
         config_score=$((config_score - 15))
     fi
     
-    if [ $ENV_VALIDATION -eq 0 ]; then
+    if [ "$ENV_VALIDATION" -eq 0 ]; then
         config_score=$((config_score - 10))
     fi
     
-    if [ $EXCHANGE_ISSUES -gt 0 ]; then
+    if [ "$EXCHANGE_ISSUES" -gt 0 ]; then
         config_score=$((config_score - 15))
     fi
     
@@ -346,13 +362,13 @@ if [ -f "$LOG_FILE" ]; then
     echo "Value Issues: $VALUE_ISSUES" >> "$CONFIG_REPORT"
     echo "Exchange Issues: $EXCHANGE_ISSUES" >> "$CONFIG_REPORT"
     
-    if [ $config_score -ge 90 ]; then
+    if [ "$config_score" -ge 90 ]; then
         echo "🎉 EXCELLENT: Configuration is optimal (Score: $config_score/100)"
         echo "Status: EXCELLENT" >> "$CONFIG_REPORT"
-    elif [ $config_score -ge 75 ]; then
+    elif [ "$config_score" -ge 75 ]; then
         echo "✅ GOOD: Configuration is well set up (Score: $config_score/100)"
         echo "Status: GOOD" >> "$CONFIG_REPORT"
-    elif [ $config_score -ge 60 ]; then
+    elif [ "$config_score" -ge 60 ]; then
         echo "⚠️  FAIR: Configuration needs some attention (Score: $config_score/100)"
         echo "Status: NEEDS ATTENTION" >> "$CONFIG_REPORT"
     else

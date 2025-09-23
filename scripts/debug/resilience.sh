@@ -1,4 +1,6 @@
 #!/bin/bash
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
 
 # Circuit Breaker & Resilience Debugging Script
 # Tests circuit breakers, failover mechanisms, retry patterns, and recovery
@@ -7,14 +9,15 @@ echo "🛡️  FTSO Resilience & Circuit Breaker Debugger"
 echo "=============================================="
 
 # Ensure logs directory exists
-mkdir -p logs
 
 # Configuration
 TIMEOUT=120
-LOG_FILE="logs/resilience-debug.log"
+
+# Set up logging using common utility
+setup_debug_logging "resilience-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting resilience system analysis..."
-echo "📊 Log file: $LOG_FILE"
 
 # Start the application in background
 pnpm start:dev > "$LOG_FILE" 2>&1 &

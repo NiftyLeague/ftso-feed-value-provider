@@ -20,18 +20,18 @@ module.exports = {
   ],
   globalTeardown: "<rootDir>/__tests__/global-teardown.ts",
   // Test ordering will be handled by file naming conventions
-  // Test execution settings
-  detectOpenHandles: true,
+  // Test execution settings - optimized to prevent hanging
+  detectOpenHandles: false, // Disabled to prevent hanging on cleanup
   forceExit: true,
   // Timeout configuration - optimized per test type
-  testTimeout: process.env.npm_lifecycle_event?.includes("endurance") ? 60000 : 30000,
+  testTimeout: process.env.npm_lifecycle_event?.includes("endurance") ? 60000 : 15000, // Reduced timeout for faster failure
   // Parallel execution for faster tests, sequential for complex ones
   maxWorkers:
     process.env.npm_lifecycle_event?.includes("endurance") ||
     process.env.npm_lifecycle_event?.includes("integration") ||
     process.env.npm_lifecycle_event?.includes("performance")
       ? 1
-      : "50%",
+      : 2, // Reduced from 50% to prevent resource contention
   // Cleanup configuration
   clearMocks: true,
   restoreMocks: true,

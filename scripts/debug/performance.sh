@@ -1,4 +1,6 @@
 #!/bin/bash
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
 
 # Performance Monitoring and Analysis Script
 # Monitors system performance, memory usage, and response times
@@ -7,12 +9,14 @@ echo "📈 FTSO Performance Monitor"
 echo "=========================="
 
 # Ensure logs directory exists
-mkdir -p logs
 
 # Configuration
 TIMEOUT=120
-LOG_FILE="logs/performance-debug.log"
-METRICS_FILE="logs/performance-metrics.log"
+
+# Set up logging using common utility
+setup_debug_logging "performance-debug"
+LOG_FILE="$DEBUG_LOG_FILE"
+METRICS_FILE="$DEBUG_LOG_DIR/performance-metrics.log"
 
 echo "📝 Starting performance monitoring..."
 echo "📊 Main log: $LOG_FILE"
