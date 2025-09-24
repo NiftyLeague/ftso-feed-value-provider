@@ -82,11 +82,16 @@ show_test_log_summary() {
 cleanup_test_processes() {
     echo "🧹 Cleaning up test processes..."
     
-    # Kill common test-related processes
+    # Kill common test-related processes (more comprehensive)
+    pkill -f "pnpm.*jest" 2>/dev/null || true
     pkill -f "pnpm start" 2>/dev/null || true
     pkill -f "nest start" 2>/dev/null || true
     pkill -f "node.*dist/main" 2>/dev/null || true
     pkill -f "jest" 2>/dev/null || true
+    pkill -f "ts-jest" 2>/dev/null || true
+    
+    # Kill any Node.js processes that might be hanging
+    pkill -f "node.*jest" 2>/dev/null || true
     
     # Kill any processes using the test port
     lsof -ti:3101 | xargs -r kill -9 2>/dev/null || true
@@ -177,9 +182,24 @@ format_duration() {
     fi
 }
 
-# Function to strip ANSI color codes
+# Function to strip ANSI color codes and terminal control sequences
 strip_ansi() {
-    sed 's/\x1b\[[0-9;]*m//g'
+    sed -E '
+        s/\x1b\[[0-9;]*[mGKHfABCDsuJhlp]//g
+        s/\x1b\[[?][0-9;]*[hlc]//g
+        s/\[[0-9;]*[ABCDGHKJF]//g
+        s/\[2J\[3J\[H//g
+        s/\[2J//g
+        s/\[3J//g
+        s/\[H//g
+        s/\[[0-9]+m//g
+        s/\[[0-9;]+m//g
+        s/\[38;5;[0-9]+m//g
+        s/\[90m//g
+        s/\[39m//g
+        s/\[32m//g
+        s/\[0m//g
+    '
 }
 
 # Function to log both to console and file

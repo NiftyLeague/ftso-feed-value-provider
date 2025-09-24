@@ -19,8 +19,8 @@ LOG_FILE="$DEBUG_LOG_FILE"
 
 echo "📝 Starting feed data analysis..."
 
-# Start the application in background
-pnpm start:dev > "$LOG_FILE" 2>&1 &
+# Start the application in background with clean output capture
+pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
 echo "🚀 Application started with PID: $APP_PID"

@@ -61,6 +61,35 @@ cleanup_old_logs() {
     fi
 }
 
+# Function to strip ANSI color codes and terminal control sequences
+strip_ansi() {
+    sed -E '
+        s/\x1b\[[0-9;]*[mGKHfABCDsuJhlp]//g
+        s/\x1b\[[?][0-9;]*[hlc]//g
+        s/\[[0-9;]*[ABCDGHKJF]//g
+        s/\[2J\[3J\[H//g
+        s/\[2J//g
+        s/\[3J//g
+        s/\[H//g
+        s/\[[0-9]+m//g
+        s/\[[0-9;]+m//g
+        s/\[38;5;[0-9]+m//g
+        s/\[90m//g
+        s/\[39m//g
+        s/\[32m//g
+        s/\[0m//g
+    '
+}
+
+# Function to capture output with ANSI stripping
+capture_clean_output() {
+    local command="$1"
+    local log_file="$2"
+    
+    # Run command and strip ANSI codes before writing to log
+    eval "$command" 2>&1 | strip_ansi > "$log_file"
+}
+
 # Function to display log summary
 show_log_summary() {
     local log_file=$1

@@ -82,12 +82,20 @@ run_single_test() {
         return 1
     fi
     
-    verbose_log "🚀 Executing: pnpm jest --colors $test_pattern"
+    # Conditionally add verbose flag based on test type
+    # Use global TEST_TYPE to check if we're running all tests
+    local verbose_flag=""
+    if [ "$TEST_TYPE" != "all" ]; then
+        verbose_flag="--verbose"
+    fi
+    
+    verbose_log "🚀 Executing: pnpm jest --colors $verbose_flag --passWithNoTests $test_pattern"
     verbose_log ""
     
-    # Run the test with timeout if available (force colors for terminal, strip for log)
-    local jest_cmd="pnpm jest --colors $test_pattern"
+    # Run the test with proper signal handling and timeout
+    local jest_cmd="pnpm jest --colors $verbose_flag --passWithNoTests --forceExit --detectOpenHandles --runInBand $test_pattern"
     local exit_code=0
+    local jest_pid=""
     
     # Create a function to handle output - show colors in terminal, strip for log
     handle_jest_output() {
@@ -97,29 +105,43 @@ run_single_test() {
         done
     }
     
+    # Function to cleanup jest process on signal
+    cleanup_jest() {
+        if [ -n "$jest_pid" ] && kill -0 "$jest_pid" 2>/dev/null; then
+            echo ""
+            echo "🛑 Stopping Jest process (PID: $jest_pid)..."
+            kill -TERM "$jest_pid" 2>/dev/null
+            sleep 2
+            if kill -0 "$jest_pid" 2>/dev/null; then
+                echo "💀 Force killing Jest process..."
+                kill -KILL "$jest_pid" 2>/dev/null
+            fi
+        fi
+        # Also cleanup any remaining jest processes
+        pkill -f "jest" 2>/dev/null || true
+    }
+    
+    # Set up signal handler for this test run
+    trap cleanup_jest INT TERM
+    
+    # Run Jest in background to capture PID
     if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output
-        exit_code=${PIPESTATUS[0]}
+        gtimeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output &
+        jest_pid=$!
     elif command -v timeout >/dev/null 2>&1; then
-        timeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output
-        exit_code=${PIPESTATUS[0]}
+        timeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output &
+        jest_pid=$!
     else
-        $jest_cmd 2>&1 | handle_jest_output
-        exit_code=${PIPESTATUS[0]}
+        $jest_cmd 2>&1 | handle_jest_output &
+        jest_pid=$!
     fi
     
-    local end_time=$(date +%s)
-    local duration=$((end_time - start_time))
+    # Wait for Jest to complete
+    wait $jest_pid 2>/dev/null
+    exit_code=$?
     
-    if [ $exit_code -eq 0 ]; then
-        log_both "✅ $test_type tests completed successfully"
-    elif [ $exit_code -eq 124 ]; then
-        log_both "⏰ $test_type tests timed out after ${VALIDATION_TIMEOUT}s"
-    else
-        log_both "❌ $test_type tests failed (exit code: $exit_code)"
-    fi
-    
-    log_both "⏱️  Duration: ${duration}s"
+    # Clear the trap
+    trap - INT TERM
     
     return $exit_code
 }
@@ -263,7 +285,13 @@ setup_logging() {
     local mode=$1
     local test_type=$2
     
-    setup_test_logging "${mode}_${test_type}"
+    # Construct log name, avoiding double underscores
+    local log_name="$mode"
+    if [ -n "$test_type" ]; then
+        log_name="${mode}_${test_type}"
+    fi
+    
+    setup_test_logging "$log_name"
     
     verbose_log "📁 Logging Configuration:"
     verbose_log "  Log Directory: $TEST_LOG_DIR"

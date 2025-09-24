@@ -3,6 +3,21 @@
 # FTSO Scripts Runner - Convenience script for common operations
 # Provides easy access to the most frequently used debugging and testing scripts
 
+# Set up signal handling for proper cleanup
+cleanup_on_signal() {
+    echo ""
+    echo "🛑 Received interrupt signal, cleaning up..."
+    # Kill any child processes
+    jobs -p | xargs -r kill 2>/dev/null || true
+    # Cleanup any hanging test processes
+    pkill -f "jest\|pnpm.*jest" 2>/dev/null || true
+    echo "✅ Cleanup completed"
+    exit 130
+}
+
+# Trap signals
+trap cleanup_on_signal INT TERM
+
 echo "🔧 FTSO Scripts Runner"
 echo "================================================================================"
 
@@ -100,13 +115,16 @@ case $SCRIPT in
     # Handle test runner commands
     unit|integration|accuracy|performance|endurance|all)
         if [ "$CATEGORY" = "test" ]; then
-            exec ./scripts/test/runner.sh "$SCRIPT" false "$@"
+            # Use direct execution instead of exec to preserve signal handling
+            ./scripts/test/runner.sh "$SCRIPT" false "$@"
+            exit $?
         fi
         ;;
     validate)
         if [ "$CATEGORY" = "test" ]; then
             # Handle validate - defaults to all tests with validation
-            exec ./scripts/test/runner.sh all true "$@"
+            ./scripts/test/runner.sh all true "$@"
+            exit $?
         fi
         ;;
 esac

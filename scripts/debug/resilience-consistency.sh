@@ -36,8 +36,8 @@ test_environment() {
     # Kill any existing processes on port 3101 to avoid EADDRINUSE
     lsof -ti:3101 | xargs kill -9 2>/dev/null || true
     
-    # Start the application with the specified environment
-    NODE_ENV=$env npm run start:dev > "$log_file" 2>&1 &
+    # Start the application with the specified environment and clean output capture
+    NODE_ENV=$env npm run start:dev 2>&1 | strip_ansi > "$log_file" &
     local pid=$!
     
     # Wait for the specified duration (using sleep instead of timeout for macOS compatibility)
@@ -109,8 +109,8 @@ echo "   Log file: $log_file"
 # Kill any existing processes on port 3101 to avoid EADDRINUSE
 lsof -ti:3101 | xargs kill -9 2>/dev/null || true
 
-# Start the application
-npm run start:dev > "$log_file" 2>&1 &
+# Start the application with clean output capture
+npm run start:dev 2>&1 | strip_ansi > "$log_file" &
 pid=$!
 
 # Wait for the specified duration

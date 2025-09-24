@@ -46,8 +46,8 @@ echo "- Ramp-up time: ${RAMP_UP_TIME}s" >> "$LOAD_REPORT"
 echo "- Test duration: ${TEST_DURATION}s" >> "$LOAD_REPORT"
 echo "" >> "$LOAD_REPORT"
 
-# Start the application in background
-pnpm start:dev > "$LOG_FILE" 2>&1 &
+# Start the application in background with clean output capture
+pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
 echo ""
