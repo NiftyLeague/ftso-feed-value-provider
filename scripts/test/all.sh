@@ -72,13 +72,13 @@ echo "🚀 Phase 3: Load Testing"
 echo "========================"
 run_test_script "test/load.sh" "Load & Stress Testing" 300
 
-echo "🔬 Phase 4: Test Suite Validation"
-echo "================================="
-run_test_script "test/validation.sh" "Test Suite Validation" 240
-
-echo "🛑 Phase 5: Graceful Shutdown Testing"
+echo "🛑 Phase 4: Graceful Shutdown Testing"
 echo "====================================="
 run_test_script "test/graceful-shutdown.sh" "Graceful Shutdown Test" 60
+
+echo "🔬 Phase 5: Comprehensive Test Suite"
+echo "========================================="
+run_test_script "test/runner.sh all" "Comprehensive Test Suite" 600
 
 # Generate comprehensive test summary report
 SUMMARY_FILE="$TEST_DIR/comprehensive_test_summary.md"

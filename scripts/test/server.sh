@@ -155,8 +155,12 @@ if [ $SHUTDOWN_ELAPSED -ge $SHUTDOWN_TIMEOUT ]; then
     kill -9 $APP_PID 2>/dev/null || true
 fi
 
-# Use timeout for wait to prevent hanging
-timeout 5s bash -c "wait $APP_PID" 2>/dev/null || true
+# Use timeout for wait to prevent hanging (macOS compatible)
+WAIT_COUNT=0
+while kill -0 $APP_PID 2>/dev/null && [ $WAIT_COUNT -lt 5 ]; do
+    sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+done
 
 # Show test summary
 show_test_log_summary "$LOG_FILE" "server"

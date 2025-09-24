@@ -230,7 +230,7 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Overall Cache Health:"
     echo "======================="
     
-    local issues=0
+    issues=0
     
     if [ $HIT_RATE -lt 70 ] && [ $TOTAL_CACHE_REQUESTS -gt 0 ]; then
         issues=$((issues + 1))

@@ -298,7 +298,7 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Overall Resilience Health:"
     echo "============================"
     
-    local resilience_score=100
+    resilience_score=100
     
     if [ $CB_OPENED -gt 5 ]; then
         resilience_score=$((resilience_score - 20))

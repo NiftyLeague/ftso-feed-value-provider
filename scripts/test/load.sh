@@ -378,11 +378,17 @@ echo ""
 echo "🛑 Stopping application..."
 kill $APP_PID 2>/dev/null || true
 
-# Wait with timeout for graceful shutdown
-timeout 10s bash -c "while kill -0 $APP_PID 2>/dev/null; do sleep 1; done" || {
+# Wait with timeout for graceful shutdown (macOS compatible)
+WAIT_COUNT=0
+while kill -0 $APP_PID 2>/dev/null && [ $WAIT_COUNT -lt 10 ]; do
+    sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+done
+
+if kill -0 $APP_PID 2>/dev/null; then
     echo "⚠️  Force killing application..."
     kill -9 $APP_PID 2>/dev/null || true
-}
+fi
 
 # Kill any remaining background processes
 jobs -p | xargs -r kill -9 2>/dev/null || true

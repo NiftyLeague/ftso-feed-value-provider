@@ -4,7 +4,7 @@
 # Provides easy access to the most frequently used debugging and testing scripts
 
 echo "🔧 FTSO Scripts Runner"
-echo "====================="
+echo "================================================================================"
 
 # Function to show usage
 show_usage() {
@@ -25,7 +25,13 @@ show_usage() {
     echo "  $0 debug errors        # Analyze error patterns"
     echo ""
     echo "  $0 test server         # Test server functionality"
-    echo "  $0 test validation     # Validate test suite"
+    echo "  $0 test all            # Run all test categories"
+    echo "  $0 test validate       # Validate all test categories (multiple runs)"
+    echo "  $0 test unit           # Run unit tests"
+    echo "  $0 test integration    # Run integration tests"
+    echo "  $0 test accuracy       # Run accuracy tests"
+    echo "  $0 test performance    # Run performance tests"
+    echo "  $0 test endurance      # Run endurance tests"
     echo "  $0 test shutdown       # Test graceful shutdown"
     echo ""
     echo "  $0 utils logs help     # Show log management options"
@@ -40,6 +46,10 @@ show_usage() {
     echo "Examples:"
     echo "  $0 debug all                    # Complete system analysis"
     echo "  $0 test server                  # Test server endpoints"
+    echo "  $0 test all                     # Run all test categories"
+    echo "  $0 test validate                # Validate all test categories"
+    echo "  $0 test accuracy                # Run accuracy tests"
+    echo "  $0 test performance             # Run performance tests"
     echo "  $0 utils logs clean --days 7   # Clean logs older than 7 days"
     echo "  $0 dev validate                 # Run complete code validation"
     echo "  $0 dev build                    # Build the application"
@@ -85,6 +95,18 @@ case $SCRIPT in
         if [ "$CATEGORY" = "utils" ]; then
             # Pass all remaining arguments to the logs script
             exec ./scripts/utils/manage-logs.sh "$@"
+        fi
+        ;;
+    # Handle test runner commands
+    unit|integration|accuracy|performance|endurance|all)
+        if [ "$CATEGORY" = "test" ]; then
+            exec ./scripts/test/runner.sh "$SCRIPT" false "$@"
+        fi
+        ;;
+    validate)
+        if [ "$CATEGORY" = "test" ]; then
+            # Handle validate - defaults to all tests with validation
+            exec ./scripts/test/runner.sh all true "$@"
         fi
         ;;
 esac

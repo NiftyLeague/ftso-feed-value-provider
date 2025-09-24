@@ -23,8 +23,14 @@ if ps -p $APP_PID > /dev/null; then
     # Wait for graceful shutdown with timeout
     echo "⏳ Waiting for graceful shutdown..."
     
-    # Use timeout to prevent hanging
-    timeout 10s bash -c "while kill -0 $APP_PID 2>/dev/null; do sleep 1; done" || {
+    # Use timeout to prevent hanging (macOS compatible)
+    WAIT_COUNT=0
+    while kill -0 $APP_PID 2>/dev/null && [ $WAIT_COUNT -lt 10 ]; do
+        sleep 1
+        WAIT_COUNT=$((WAIT_COUNT + 1))
+    done
+    
+    if kill -0 $APP_PID 2>/dev/null; then
         echo "❌ Process is still running after 10 seconds - graceful shutdown may have failed"
         echo "🔄 Force killing process..."
         kill -9 $APP_PID 2>/dev/null || true

@@ -88,6 +88,10 @@ echo "🔗 Phase 10: Integration Analysis"
 echo "================================="
 run_debug_script "debug/integration.sh" "Integration & Orchestration Analysis"
 
+echo "🧪 Phase 11: Resilience Consistency Test"
+echo "========================================"
+run_debug_script "debug/resilience-consistency.sh" "Environment Consistency Validation"
+
 # Generate comprehensive summary report
 SUMMARY_FILE="$DEBUG_DIR/comprehensive_summary.md"
 
@@ -234,6 +238,7 @@ echo "🔧 Next Steps:"
 echo "1. Review the comprehensive summary: $SUMMARY_FILE"
 echo "2. Check individual component logs in: $DEBUG_DIR"
 echo "3. Address any critical issues identified"
-echo "4. Set up monitoring for ongoing health checks"
+echo "4. Review resilience consistency test results"
+echo "5. Set up monitoring for ongoing health checks"
 echo ""
 echo "✨ Debug session complete!"

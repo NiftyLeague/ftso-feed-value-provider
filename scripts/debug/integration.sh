@@ -310,7 +310,7 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Overall Integration Health:"
     echo "============================="
     
-    local integration_score=100
+    integration_score=100
     
     if [ $INTEGRATION_ERRORS -gt 0 ]; then
         integration_score=$((integration_score - 25))

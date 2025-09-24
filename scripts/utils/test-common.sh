@@ -27,6 +27,9 @@ setup_test_logging() {
     # Set up log file path with consistent _output naming
     TEST_LOG_FILE="$TEST_LOG_DIR/${output_name}_output.log"
     
+    # Clear the log file at the start of each run (don't append)
+    > "$TEST_LOG_FILE"
+    
     # Export for use in calling script
     export TEST_LOG_DIR
     export TEST_LOG_FILE
@@ -98,4 +101,91 @@ cleanup_test_processes() {
 setup_cleanup_handlers() {
     # Trap signals to ensure cleanup on exit
     trap cleanup_test_processes EXIT INT TERM
+}
+
+# =============================================================================
+# TEST UTILITY FUNCTIONS
+# =============================================================================
+
+# Function to get Jest test pattern for different test types
+get_test_pattern() {
+    case $1 in
+        "unit") echo "--testPathIgnorePatterns=/(accuracy|endurance|integration|performance)/" ;;
+        "integration") echo "--testPathPatterns=integration" ;;
+        "accuracy") echo "--testPathPatterns=accuracy" ;;
+        "performance") echo "--testPathPatterns=performance" ;;
+        "endurance") echo "--testPathPatterns=endurance" ;;
+        "all") echo "" ;;  # Run all tests (no pattern filters)
+        *) echo "" ;;
+    esac
+}
+
+# Function to get test description for different test types
+get_test_description() {
+    case $1 in
+        "unit") echo "Fast unit tests for utilities, services, and components" ;;
+        "integration") echo "Integration tests for service interactions" ;;
+        "accuracy") echo "Accuracy and backtesting validation" ;;
+        "performance") echo "Performance and load testing" ;;
+        "endurance") echo "Long-running endurance tests" ;;
+        "all") echo "All test categories in sequence" ;;
+        *) echo "Unknown test type" ;;
+    esac
+}
+
+# Function to print formatted headers
+print_header() {
+    local title=$1
+    local description=$2
+    
+    log_both ""
+    log_both "================================================================================"
+    log_both "🧪 $title"
+    if [ -n "$description" ]; then
+        log_both "📝 $description"
+    fi
+    log_both "================================================================================"
+    log_both ""
+}
+
+# Function to print formatted sections
+print_section() {
+    local title=$1
+    
+    log_both ""
+    log_both "------------------------------------------------------------"
+    log_both "📋 $title"
+    log_both "------------------------------------------------------------"
+}
+
+# Function for verbose logging (requires VERBOSE_LOGS variable)
+verbose_log() {
+    if [ "$VERBOSE_LOGS" = "true" ]; then
+        log_both "$@"
+    fi
+}
+
+# Function to format duration in human-readable format
+format_duration() {
+    local ms=$1
+    if [ $ms -lt 1000 ]; then
+        echo "${ms}ms"
+    elif [ $ms -lt 60000 ]; then
+        echo "$(echo "scale=1; $ms/1000" | bc)s"
+    else
+        echo "$(echo "scale=1; $ms/60000" | bc)m"
+    fi
+}
+
+# Function to strip ANSI color codes
+strip_ansi() {
+    sed 's/\x1b\[[0-9;]*m//g'
+}
+
+# Function to log both to console and file
+log_both() {
+    echo "$@"
+    if [ -n "$TEST_LOG_FILE" ]; then
+        echo "$@" | strip_ansi >> "$TEST_LOG_FILE"
+    fi
 }

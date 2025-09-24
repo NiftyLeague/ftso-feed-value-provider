@@ -12,6 +12,22 @@ echo "📊 Monitoring startup performance and identifying issues..."
 # Set timeout for startup monitoring (60 seconds)
 TIMEOUT=60
 
+# Clean up any existing processes on port 3101
+echo "🧹 Cleaning up any existing processes on port 3101..."
+PORT_PID=$(lsof -ti :3101 2>/dev/null)
+if [ ! -z "$PORT_PID" ]; then
+    echo "   Found process $PORT_PID using port 3101, terminating..."
+    kill $PORT_PID 2>/dev/null
+    sleep 2
+    # Force kill if still running
+    if kill -0 $PORT_PID 2>/dev/null; then
+        kill -9 $PORT_PID 2>/dev/null
+    fi
+    echo "   Port 3101 cleaned up"
+else
+    echo "   Port 3101 is available"
+fi
+
 # Set up logging using common utility
 setup_debug_logging "startup"
 LOG_FILE="$DEBUG_LOG_FILE"

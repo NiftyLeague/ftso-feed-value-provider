@@ -296,7 +296,7 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Overall Aggregation Health:"
     echo "============================="
     
-    local agg_score=100
+    agg_score=100
     
     if [ $CONSENSUS_DEVIATIONS -gt 20 ]; then
         agg_score=$((agg_score - 25))
