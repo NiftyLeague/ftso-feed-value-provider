@@ -105,43 +105,17 @@ run_single_test() {
         done
     }
     
-    # Function to cleanup jest process on signal
-    cleanup_jest() {
-        if [ -n "$jest_pid" ] && kill -0 "$jest_pid" 2>/dev/null; then
-            echo ""
-            echo "🛑 Stopping Jest process (PID: $jest_pid)..."
-            kill -TERM "$jest_pid" 2>/dev/null
-            sleep 2
-            if kill -0 "$jest_pid" 2>/dev/null; then
-                echo "💀 Force killing Jest process..."
-                kill -KILL "$jest_pid" 2>/dev/null
-            fi
-        fi
-        # Also cleanup any remaining jest processes
-        pkill -f "jest" 2>/dev/null || true
-    }
-    
-    # Set up signal handler for this test run
-    trap cleanup_jest INT TERM
-    
-    # Run Jest in background to capture PID
+    # Run Jest with timeout (no background process to avoid job control messages)
     if command -v gtimeout >/dev/null 2>&1; then
-        gtimeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output &
-        jest_pid=$!
+        gtimeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output
+        exit_code=${PIPESTATUS[0]}
     elif command -v timeout >/dev/null 2>&1; then
-        timeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output &
-        jest_pid=$!
+        timeout "${VALIDATION_TIMEOUT}s" $jest_cmd 2>&1 | handle_jest_output
+        exit_code=${PIPESTATUS[0]}
     else
-        $jest_cmd 2>&1 | handle_jest_output &
-        jest_pid=$!
+        $jest_cmd 2>&1 | handle_jest_output
+        exit_code=$?
     fi
-    
-    # Wait for Jest to complete
-    wait $jest_pid 2>/dev/null
-    exit_code=$?
-    
-    # Clear the trap
-    trap - INT TERM
     
     return $exit_code
 }

@@ -1,6 +1,11 @@
 #!/bin/bash
-# Source common debug utilities
+
+# Source common utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
+source "$(dirname "$0")/../utils/cleanup-common.sh"
+
+# Set up cleanup handlers
+setup_cleanup_handlers
 
 # Performance Monitoring and Analysis Script
 # Monitors system performance, memory usage, and response times
@@ -22,9 +27,13 @@ echo "📝 Starting performance monitoring..."
 echo "📊 Main log: $LOG_FILE"
 echo "📊 Metrics log: $METRICS_FILE"
 
-# Start the application in background with clean output capture
+# Start the application manually and register it
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
+
+# Register the PID and port for cleanup
+register_pid "$APP_PID"
+register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Monitoring performance for $TIMEOUT seconds..."
@@ -71,12 +80,9 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     ELAPSED=$((ELAPSED + MONITOR_INTERVAL))
 done
 
-# Stop the application
-if kill -0 $APP_PID 2>/dev/null; then
-    echo "🛑 Stopping application..."
-    kill $APP_PID 2>/dev/null
-    wait $APP_PID 2>/dev/null
-fi
+# Stop the application using shared cleanup system
+echo "🛑 Stopping application..."
+stop_tracked_apps
 
 echo ""
 echo "📊 Performance Analysis:"

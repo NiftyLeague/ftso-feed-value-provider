@@ -49,7 +49,7 @@ tests can run without system impact.
   settings
 - **Enhanced Setup**: `endurance-test-setup.ts` with specialized resource
   management
-- **Separate NPM Script**: `npm run test:endurance` for isolated execution
+- **Separate pnpm Script**: `pnpm run test:endurance` for isolated execution
 - **Force Exit**: Prevents hanging processes after test completion
 
 ### 6. Test-Specific Optimizations
@@ -176,13 +176,13 @@ tests can run without system impact.
 
 ```bash
 # Run only endurance tests (optimized)
-npm run test:endurance
+pnpm run test:endurance
 
 # Run other performance tests (excluding endurance)
-npm run test:performance
+pnpm run test:performance
 
 # Run all tests
-npm test
+pnpm test
 ```
 
 ### Monitoring Resources

@@ -100,19 +100,19 @@ to keep output clean and focused on actual failures.
 
 ```bash
 # Run all tests with clean output (default)
-npm test
+pnpm test
 
 # Run tests with verbose logging (shows all logs)
-npm run test:verbose
+pnpm run test:verbose
 
 # Run tests without log suppression (shows expected errors)
-npm run test:no-suppress
+pnpm run test:no-suppress
 
 # Run specific test types
-npm run test:unit          # Unit tests only
-npm run test:integration   # Integration tests
-npm run test:performance   # Performance tests
-npm run test:endurance     # Long-running endurance tests
+pnpm run test:unit          # Unit tests only
+pnpm run test:integration   # Integration tests
+pnpm run test:performance   # Performance tests
+pnpm run test:endurance     # Long-running endurance tests
 ```
 
 ### Test Logging Control
@@ -121,8 +121,8 @@ The test suite automatically suppresses expected error messages and framework
 noise while preserving actual test failures. You can control this behavior:
 
 - **Default**: Clean output with suppressed expected logs
-- **Verbose**: `VERBOSE_TEST_LOGS=true npm test` - Shows all logs
-- **No suppression**: `SUPPRESS_TEST_LOGS=false npm test` - Shows expected
+- **Verbose**: `VERBOSE_TEST_LOGS=true pnpm test` - Shows all logs
+- **No suppression**: `SUPPRESS_TEST_LOGS=false pnpm test` - Shows expected
   errors
 
 For more details, see [Test Logging Control](docs/test-logging-control.md).
@@ -131,20 +131,20 @@ For more details, see [Test Logging Control](docs/test-logging-control.md).
 
 ```bash
 # Development server with hot reload
-npm run start:dev
+pnpm run start:dev
 
 # Build the project
-npm run build
+pnpm run build
 
 # Lint and format code
-npm run lint
-npm run format
+pnpm run lint
+pnpm run format
 
 # Type checking
-npm run type:check
+pnpm run type:check
 
 # Validate all (lint + format + types)
-npm run validate
+pnpm run validate
 ```
 
 ### Environment Configuration

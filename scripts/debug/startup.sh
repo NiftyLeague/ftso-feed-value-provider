@@ -3,8 +3,12 @@
 # Debug startup script for FTSO Feed Value Provider
 # This script runs the app for a short period to analyze startup logs
 
-# Source common debug utilities
+# Source common utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
+source "$(dirname "$0")/../utils/cleanup-common.sh"
+
+# Set up cleanup handlers
+setup_cleanup_handlers
 
 echo "🚀 Starting FTSO Feed Value Provider in debug mode..."
 echo "📊 Monitoring startup performance and identifying issues..."
@@ -12,31 +16,17 @@ echo "📊 Monitoring startup performance and identifying issues..."
 # Set timeout for startup monitoring (60 seconds)
 TIMEOUT=60
 
-# Clean up any existing processes on port 3101
-echo "🧹 Cleaning up any existing processes on port 3101..."
-PORT_PID=$(lsof -ti :3101 2>/dev/null)
-if [ ! -z "$PORT_PID" ]; then
-    echo "   Found process $PORT_PID using port 3101, terminating..."
-    kill $PORT_PID 2>/dev/null
-    sleep 2
-    # Force kill if still running
-    if kill -0 $PORT_PID 2>/dev/null; then
-        kill -9 $PORT_PID 2>/dev/null
-    fi
-    echo "   Port 3101 cleaned up"
-else
-    echo "   Port 3101 is available"
-fi
+# Initial cleanup
+cleanup_ftso_ports
 
 # Set up logging using common utility
 setup_debug_logging "startup"
 LOG_FILE="$DEBUG_LOG_FILE"
 
-# Start the application in background with clean output capture
-pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
-APP_PID=$!
+# Start the application with automatic cleanup registration
+start_app_with_cleanup "npm run start:dev" 3101 "$LOG_FILE"
+APP_PID="${TRACKED_PIDS[-1]}"  # Get the last registered PID
 
-echo "📝 Application started with PID: $APP_PID"
 echo "⏱️  Monitoring for $TIMEOUT seconds..."
 
 # Monitor for the specified timeout
@@ -46,8 +36,9 @@ sleep $TIMEOUT
 if kill -0 $APP_PID 2>/dev/null; then
     echo "✅ Application is running successfully"
     echo "🛑 Stopping application for analysis..."
-    kill $APP_PID 2>/dev/null
-    wait $APP_PID 2>/dev/null
+    
+    # Use the shared graceful stop function
+    stop_tracked_apps
 else
     echo "❌ Application stopped unexpectedly"
 fi

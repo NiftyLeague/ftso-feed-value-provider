@@ -25,13 +25,21 @@ TEST_TIMEOUT=10     # Reduced from 15 seconds for each test
 echo "🚀 Starting comprehensive server test..." > "$LOG_FILE"
 echo "📊 Startup timeout: ${STARTUP_TIMEOUT}s, Test timeout: ${TEST_TIMEOUT}s"
 
-# Start the application in background
+# Start the application using shared cleanup system
 echo ""
 echo "🚀 Starting FTSO application..."
-echo "📝 Running: pnpm start:dev"
 
+# Initial cleanup
+cleanup_ftso_ports
+
+# Start the application manually and register it
+echo "📝 Running: pnpm start:dev"
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
+
+# Register the PID and port for cleanup
+register_pid "$APP_PID"
+register_port 3101
 
 echo "📝 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready (timeout: ${STARTUP_TIMEOUT}s)..."
@@ -70,8 +78,6 @@ if [ $ELAPSED -ge $STARTUP_TIMEOUT ]; then
     echo "📋 Application may still be starting. Last few log lines:"
     tail -10 "$LOG_FILE" 2>/dev/null || echo "No log available"
     echo "🛑 Killing application..."
-    kill $APP_PID 2>/dev/null
-    wait $APP_PID 2>/dev/null
     exit 1
 fi
 
@@ -128,39 +134,10 @@ else
     echo "Feed values endpoint failed with exit code $FEED_EXIT_CODE" >> "$LOG_FILE"
 fi
 
-# Stop the application
+# Stop the application using shared cleanup system
 echo ""
 echo "🛑 Stopping application..."
-echo "📝 Sending SIGTERM to PID $APP_PID"
-kill $APP_PID 2>/dev/null
-
-# Wait for graceful shutdown with timeout protection
-SHUTDOWN_TIMEOUT=5  # Reduced from 10
-SHUTDOWN_ELAPSED=0
-echo "⏱️  Waiting for graceful shutdown (timeout: ${SHUTDOWN_TIMEOUT}s)..."
-
-while [ $SHUTDOWN_ELAPSED -lt $SHUTDOWN_TIMEOUT ]; do
-    if ! kill -0 $APP_PID 2>/dev/null; then
-        echo "✅ Application stopped gracefully (${SHUTDOWN_ELAPSED}s)"
-        break
-    fi
-    printf "\r⏳ Shutting down... (${SHUTDOWN_ELAPSED}s)"
-    sleep 1
-    SHUTDOWN_ELAPSED=$((SHUTDOWN_ELAPSED + 1))
-done
-
-if [ $SHUTDOWN_ELAPSED -ge $SHUTDOWN_TIMEOUT ]; then
-    echo ""
-    echo "⚠️  Graceful shutdown timeout, forcing termination..."
-    kill -9 $APP_PID 2>/dev/null || true
-fi
-
-# Use timeout for wait to prevent hanging (macOS compatible)
-WAIT_COUNT=0
-while kill -0 $APP_PID 2>/dev/null && [ $WAIT_COUNT -lt 5 ]; do
-    sleep 1
-    WAIT_COUNT=$((WAIT_COUNT + 1))
-done
+stop_tracked_apps
 
 # Show test summary
 show_test_log_summary "$LOG_FILE" "server"

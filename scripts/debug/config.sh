@@ -5,6 +5,10 @@
 
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
+source "$(dirname "$0")/../utils/cleanup-common.sh"
+
+# Set up cleanup handlers
+setup_cleanup_handlers
 
 echo "⚙️  FTSO Configuration & Environment Debugger"
 echo "============================================="
@@ -28,6 +32,10 @@ echo "" >> "$CONFIG_REPORT"
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
+# Register the PID and port for cleanup
+register_pid "$APP_PID"
+register_port 3101
+
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Monitoring configuration for $TIMEOUT seconds..."
 
@@ -38,8 +46,7 @@ sleep $TIMEOUT
 if kill -0 $APP_PID 2>/dev/null; then
     echo "✅ Application is running"
     echo "🛑 Stopping application for analysis..."
-    kill $APP_PID 2>/dev/null
-    wait $APP_PID 2>/dev/null
+    stop_tracked_apps
 else
     echo "❌ Application stopped unexpectedly"
 fi

@@ -40,13 +40,14 @@ show_usage() {
     echo "  $0 debug errors        # Analyze error patterns"
     echo ""
     echo "  $0 test server         # Test server functionality"
-    echo "  $0 test all            # Run all test categories"
-    echo "  $0 test validate       # Validate all test categories (multiple runs)"
-    echo "  $0 test unit           # Run unit tests"
-    echo "  $0 test integration    # Run integration tests"
-    echo "  $0 test accuracy       # Run accuracy tests"
-    echo "  $0 test performance    # Run performance tests"
-    echo "  $0 test endurance      # Run endurance tests"
+    echo "  $0 test all            # Run all test scripts (server, security, load, etc.)"
+    echo "  $0 test jest           # Run all Jest tests"
+    echo "  $0 test unit           # Run Jest unit tests"
+    echo "  $0 test integration    # Run Jest integration tests"
+    echo "  $0 test accuracy       # Run Jest accuracy tests"
+    echo "  $0 test performance    # Run Jest performance tests"
+    echo "  $0 test endurance      # Run Jest endurance tests"
+    echo "  $0 test validate       # Validate all Jest tests (multiple runs)"
     echo "  $0 test shutdown       # Test graceful shutdown"
     echo ""
     echo "  $0 utils logs help     # Show log management options"
@@ -61,10 +62,11 @@ show_usage() {
     echo "Examples:"
     echo "  $0 debug all                    # Complete system analysis"
     echo "  $0 test server                  # Test server endpoints"
-    echo "  $0 test all                     # Run all test categories"
-    echo "  $0 test validate                # Validate all test categories"
-    echo "  $0 test accuracy                # Run accuracy tests"
-    echo "  $0 test performance             # Run performance tests"
+    echo "  $0 test all                     # Run all test scripts"
+    echo "  $0 test jest                    # Run all Jest tests"
+    echo "  $0 test validate                # Validate all Jest tests"
+    echo "  $0 test accuracy                # Run Jest accuracy tests"
+    echo "  $0 test performance             # Run Jest performance tests"
     echo "  $0 utils logs clean --days 7   # Clean logs older than 7 days"
     echo "  $0 dev validate                 # Run complete code validation"
     echo "  $0 dev build                    # Build the application"
@@ -103,7 +105,7 @@ esac
 # Handle special cases and script name mapping
 case $SCRIPT in
     shutdown)
-        SCRIPT="graceful-shutdown"
+        SCRIPT="shutdown"
         ;;
     logs)
         # For utils logs, we need to handle the subcommand
@@ -112,19 +114,34 @@ case $SCRIPT in
             exec ./scripts/utils/manage-logs.sh "$@"
         fi
         ;;
-    # Handle test runner commands
-    unit|integration|accuracy|performance|endurance|all)
+    # Handle Jest test runner commands
+    unit|integration|accuracy|performance|endurance)
         if [ "$CATEGORY" = "test" ]; then
             # Use direct execution instead of exec to preserve signal handling
             ./scripts/test/runner.sh "$SCRIPT" false "$@"
             exit $?
         fi
         ;;
+    # Handle Jest test runner for all tests
+    jest)
+        if [ "$CATEGORY" = "test" ]; then
+            # Run all Jest tests via the test runner
+            ./scripts/test/runner.sh all false "$@"
+            exit $?
+        fi
+        ;;
     validate)
         if [ "$CATEGORY" = "test" ]; then
-            # Handle validate - defaults to all tests with validation
+            # Handle validate - defaults to all Jest tests with validation
             ./scripts/test/runner.sh all true "$@"
             exit $?
+        fi
+        ;;
+    # Handle 'all' - run all test scripts (server.sh, security.sh, etc.)
+    all)
+        if [ "$CATEGORY" = "test" ]; then
+            # Run the comprehensive test scripts (not Jest tests)
+            exec ./scripts/test/all.sh "$@"
         fi
         ;;
 esac

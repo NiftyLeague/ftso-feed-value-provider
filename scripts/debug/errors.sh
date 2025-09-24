@@ -1,6 +1,10 @@
 #!/bin/bash
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
+source "$(dirname "$0")/../utils/cleanup-common.sh"
+
+# Set up cleanup handlers
+setup_cleanup_handlers
 
 # Error Analysis and Circuit Breaker Debugging Script
 # Analyzes error patterns, circuit breaker behavior, and failure recovery
@@ -38,6 +42,10 @@ echo "📊 Error summary: $ERROR_SUMMARY"
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
+# Register the PID and port for cleanup
+register_pid "$APP_PID"
+register_port 3101
+
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Monitoring for errors and circuit breaker events for $TIMEOUT seconds..."
 
@@ -47,8 +55,7 @@ sleep $TIMEOUT
 # Stop the application
 if kill -0 $APP_PID 2>/dev/null; then
     echo "🛑 Stopping application..."
-    kill $APP_PID 2>/dev/null
-    wait $APP_PID 2>/dev/null
+    stop_tracked_apps
 fi
 
 echo ""

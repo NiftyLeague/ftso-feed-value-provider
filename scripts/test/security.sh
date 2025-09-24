@@ -27,9 +27,13 @@ echo "FTSO Security Test Report - $(date)" > "$SECURITY_REPORT"
 echo "====================================" >> "$SECURITY_REPORT"
 echo "" >> "$SECURITY_REPORT"
 
-# Start the application in background with clean output capture
+# Start the application using shared cleanup system
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
+
+# Register the PID and port for cleanup
+register_pid "$APP_PID"
+register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
@@ -41,7 +45,6 @@ ELAPSED=0
 while [ $ELAPSED -lt $READY_TIMEOUT ]; do
     if ! kill -0 $APP_PID 2>/dev/null; then
         echo "❌ Application stopped unexpectedly"
-        kill $APP_PID 2>/dev/null || true
         exit 1
     fi
     
@@ -57,7 +60,6 @@ done
 
 if [ $ELAPSED -ge $READY_TIMEOUT ]; then
     echo "⏰ Server readiness timeout"
-    kill $APP_PID 2>/dev/null || true
     exit 1
 fi
 
@@ -289,19 +291,7 @@ fi
 # Stop the application with timeout protection
 echo ""
 echo "🛑 Stopping application..."
-kill $APP_PID 2>/dev/null || true
-
-# Wait with timeout for graceful shutdown (macOS compatible)
-WAIT_COUNT=0
-while kill -0 $APP_PID 2>/dev/null && [ $WAIT_COUNT -lt 10 ]; do
-    sleep 1
-    WAIT_COUNT=$((WAIT_COUNT + 1))
-done
-
-if kill -0 $APP_PID 2>/dev/null; then
-    echo "⚠️  Force killing application..."
-    kill -9 $APP_PID 2>/dev/null || true
-fi
+stop_tracked_apps
 
 # Analyze application logs for security events
 echo ""

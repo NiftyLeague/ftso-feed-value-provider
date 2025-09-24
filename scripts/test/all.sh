@@ -3,6 +3,12 @@
 # Comprehensive FTSO Testing Suite
 # Runs all testing scripts in sequence for complete system validation
 
+# Source common cleanup utilities
+source "$(dirname "$0")/../utils/cleanup-common.sh"
+
+# Set up cleanup handlers
+setup_cleanup_handlers
+
 echo "🧪 FTSO Comprehensive Testing Suite"
 echo "==================================="
 echo "This script will run all testing tools to provide complete system validation."
@@ -33,25 +39,44 @@ run_test_script() {
         # Extract just the filename without directory and extension
         local base_name=$(basename "$script_name" .sh)
         
-        # Run the script with timeout protection
-        if timeout "${timeout_seconds}s" ./scripts/$script_name; then
-            echo "✅ $description completed"
-            echo "📊 Output: $TEST_DIR/${base_name}_output.log"
-        else
-            local exit_code=$?
-            if [ $exit_code -eq 124 ]; then
-                echo "⏰ $description timed out after ${timeout_seconds}s"
-            else
-                echo "❌ $description failed with exit code: $exit_code"
+        # Run the script in background to allow proper signal handling
+        ./scripts/$script_name &
+        local test_pid=$!
+        
+        # Wait for completion with timeout
+        local count=0
+        while [ $count -lt $timeout_seconds ]; do
+            if ! kill -0 $test_pid 2>/dev/null; then
+                # Process finished, get exit code
+                wait $test_pid 2>/dev/null
+                local exit_code=$?
+                if [ $exit_code -eq 0 ]; then
+                    echo "✅ $description completed"
+                    echo "📊 Output: $TEST_DIR/${base_name}_output.log"
+                else
+                    echo "❌ $description failed with exit code: $exit_code"
+                    # Cleanup processes after failure using shared cleanup (quietly)
+                    cleanup_ftso_processes >/dev/null 2>&1
+                    cleanup_ftso_ports >/dev/null 2>&1
+                fi
+                return $exit_code
             fi
-            
-            # Cleanup processes after failure
-            echo "🧹 Cleaning up processes..."
-            pkill -f "pnpm start" 2>/dev/null || true
-            pkill -f "nest start" 2>/dev/null || true
-            pkill -f "node.*dist/main" 2>/dev/null || true
-            lsof -ti:3101 | xargs -r kill -9 2>/dev/null || true
+            sleep 1
+            count=$((count + 1))
+        done
+        
+        # Timeout reached, kill the process
+        echo "⏰ $description timed out after ${timeout_seconds}s"
+        kill -TERM $test_pid 2>/dev/null
+        sleep 2
+        if kill -0 $test_pid 2>/dev/null; then
+            kill -KILL $test_pid 2>/dev/null
         fi
+        
+        # Cleanup after timeout
+        cleanup_ftso_processes >/dev/null 2>&1
+        cleanup_ftso_ports >/dev/null 2>&1
+        return 124
     else
         echo "❌ Script not found: scripts/$script_name"
     fi
@@ -63,22 +88,27 @@ run_test_script() {
 echo "🧪 Phase 1: Server Functionality Testing"
 echo "========================================"
 run_test_script "test/server.sh" "Server Functionality Test" 120
+if [ $? -eq 130 ]; then exit 130; fi
 
 echo "🔒 Phase 2: Security Testing"
 echo "============================"
 run_test_script "test/security.sh" "Security & Rate Limiting Test" 180
+if [ $? -eq 130 ]; then exit 130; fi
 
 echo "🚀 Phase 3: Load Testing"
 echo "========================"
 run_test_script "test/load.sh" "Load & Stress Testing" 300
+if [ $? -eq 130 ]; then exit 130; fi
 
 echo "🛑 Phase 4: Graceful Shutdown Testing"
 echo "====================================="
-run_test_script "test/graceful-shutdown.sh" "Graceful Shutdown Test" 60
+run_test_script "test/shutdown.sh" "Graceful Shutdown Test" 60
+if [ $? -eq 130 ]; then exit 130; fi
 
 echo "🔬 Phase 5: Comprehensive Test Suite"
 echo "========================================="
 run_test_script "test/runner.sh all" "Comprehensive Test Suite" 600
+if [ $? -eq 130 ]; then exit 130; fi
 
 # Generate comprehensive test summary report
 SUMMARY_FILE="$TEST_DIR/comprehensive_test_summary.md"
@@ -153,11 +183,11 @@ if [ -f "$SESSION_DIR/validation_output.log" ]; then
     echo "" >> "$SUMMARY_FILE"
 fi
 
-if [ -f "$SESSION_DIR/graceful-shutdown_output.log" ]; then
+if [ -f "$SESSION_DIR/shutdown_output.log" ]; then
     echo "#### Graceful Shutdown Testing" >> "$SUMMARY_FILE"
     
     # Extract shutdown metrics
-    SHUTDOWN_SUCCESS=$(grep -c "graceful.*shutdown.*success" "$SESSION_DIR/graceful-shutdown_output.log" || echo "0")
+    SHUTDOWN_SUCCESS=$(grep -c "graceful.*shutdown.*success" "$SESSION_DIR/shutdown_output.log" || echo "0")
     
     echo "- **Graceful Shutdown:** $([ $SHUTDOWN_SUCCESS -gt 0 ] && echo "✅ Successful" || echo "❌ Issues Detected")" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"

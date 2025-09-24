@@ -51,14 +51,14 @@ For easier access to scripts, use the convenience runner:
 
 ## 🧪 Testing Scripts (`scripts/test/`)
 
-| Script                 | Purpose                                             | Usage                                 |
-| ---------------------- | --------------------------------------------------- | ------------------------------------- |
-| `all.sh`               | Comprehensive testing suite (runs all test scripts) | `./scripts/test/all.sh`               |
-| `graceful-shutdown.sh` | Test graceful shutdown behavior                     | `./scripts/test/graceful-shutdown.sh` |
-| `load.sh`              | Load testing and stress testing                     | `./scripts/test/load.sh`              |
-| `security.sh`          | Security testing and rate limiting validation       | `./scripts/test/security.sh`          |
-| `server.sh`            | Test server functionality and endpoints             | `./scripts/test/server.sh`            |
-| `validation.sh`        | Test suite reliability and performance validation   | `./scripts/test/validation.sh`        |
+| Script          | Purpose                                             | Usage                          |
+| --------------- | --------------------------------------------------- | ------------------------------ |
+| `all.sh`        | Comprehensive testing suite (runs all test scripts) | `./scripts/test/all.sh`        |
+| `shutdown.sh`   | Test graceful shutdown behavior                     | `./scripts/test/shutdown.sh`   |
+| `load.sh`       | Load testing and stress testing                     | `./scripts/test/load.sh`       |
+| `security.sh`   | Security testing and rate limiting validation       | `./scripts/test/security.sh`   |
+| `server.sh`     | Test server functionality and endpoints             | `./scripts/test/server.sh`     |
+| `validation.sh` | Test suite reliability and performance validation   | `./scripts/test/validation.sh` |
 
 ### ⚡ Test Hanging Issues - Fixed
 
@@ -172,7 +172,7 @@ pnpm test:scripts:load      # Load test only
 ./scripts/test/security.sh
 ./scripts/test/load.sh
 ./scripts/test/validation.sh
-./scripts/test/graceful-shutdown.sh
+./scripts/test/shutdown.sh
 ```
 
 ### Manage Logs
@@ -241,28 +241,28 @@ logs/
     ├── security_output.log
     ├── load_output.log
     ├── validation_output.log
-    └── graceful-shutdown_output.log
+    └── shutdown_output.log
 ```
 
 ## 🔍 Script Coverage Matrix
 
 ### System Components Covered
 
-| Component                  | Debug Script      | Test Script             | Coverage |
-| -------------------------- | ----------------- | ----------------------- | -------- |
-| **Application Startup**    | ✅ startup.sh     | ✅ server.sh            | Complete |
-| **WebSocket Connections**  | ✅ websockets.sh  | ✅ load.sh              | Complete |
-| **Performance Monitoring** | ✅ performance.sh | ✅ load.sh              | Complete |
-| **Feed Data Quality**      | ✅ feeds.sh       | ✅ validation.sh        | Complete |
-| **Error Handling**         | ✅ errors.sh      | ✅ server.sh            | Complete |
-| **Cache System**           | ✅ cache.sh       | ✅ load.sh              | Complete |
-| **Circuit Breakers**       | ✅ resilience.sh  | ✅ load.sh              | Complete |
-| **Data Aggregation**       | ✅ aggregation.sh | ✅ feeds.sh             | Complete |
-| **Configuration**          | ✅ config.sh      | ✅ validation.sh        | Complete |
-| **Service Integration**    | ✅ integration.sh | ✅ server.sh            | Complete |
-| **API Security**           | ❌                | ✅ security.sh          | Partial  |
-| **Load Handling**          | ❌                | ✅ load.sh              | Partial  |
-| **Graceful Shutdown**      | ❌                | ✅ graceful-shutdown.sh | Partial  |
+| Component                  | Debug Script      | Test Script      | Coverage |
+| -------------------------- | ----------------- | ---------------- | -------- |
+| **Application Startup**    | ✅ startup.sh     | ✅ server.sh     | Complete |
+| **WebSocket Connections**  | ✅ websockets.sh  | ✅ load.sh       | Complete |
+| **Performance Monitoring** | ✅ performance.sh | ✅ load.sh       | Complete |
+| **Feed Data Quality**      | ✅ feeds.sh       | ✅ validation.sh | Complete |
+| **Error Handling**         | ✅ errors.sh      | ✅ server.sh     | Complete |
+| **Cache System**           | ✅ cache.sh       | ✅ load.sh       | Complete |
+| **Circuit Breakers**       | ✅ resilience.sh  | ✅ load.sh       | Complete |
+| **Data Aggregation**       | ✅ aggregation.sh | ✅ feeds.sh      | Complete |
+| **Configuration**          | ✅ config.sh      | ✅ validation.sh | Complete |
+| **Service Integration**    | ✅ integration.sh | ✅ server.sh     | Complete |
+| **API Security**           | ❌                | ✅ security.sh   | Partial  |
+| **Load Handling**          | ❌                | ✅ load.sh       | Partial  |
+| **Graceful Shutdown**      | ❌                | ✅ shutdown.sh   | Partial  |
 
 ## 🛠️ Customization
 

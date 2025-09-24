@@ -167,5 +167,5 @@ grep -r "HybridErrorHandlerService" src/
 npx tsc --noEmit --project tsconfig.json
 
 # Run error handling tests
-npm test -- --testPathPatterns=error-handling
+pnpm test -- --testPathPatterns=error-handling
 ```

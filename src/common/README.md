@@ -269,10 +269,10 @@ All base classes include comprehensive unit tests:
 
 ```bash
 # Run tests for base classes
-npm test -- src/common/__tests__
+pnpm test -- src/common/__tests__
 
 # Run specific test file
-npm test -- src/common/__tests__/base.service.spec.ts
+pnpm test -- src/common/__tests__/base.service.spec.ts
 ```
 
 ## Best Practices

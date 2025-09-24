@@ -1,6 +1,10 @@
 #!/bin/bash
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
+source "$(dirname "$0")/../utils/cleanup-common.sh"
+
+# Set up cleanup handlers
+setup_cleanup_handlers
 
 # Feed Data Quality and Validation Debugging Script
 # Tests feed data accuracy, consensus, and validation processes
@@ -22,6 +26,10 @@ echo "📝 Starting feed data analysis..."
 # Start the application in background with clean output capture
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
+
+# Register the PID and port for cleanup
+register_pid "$APP_PID"
+register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Monitoring feed data for $TIMEOUT seconds..."
@@ -67,8 +75,7 @@ fi
 # Stop the application
 if kill -0 $APP_PID 2>/dev/null; then
     echo "🛑 Stopping application..."
-    kill $APP_PID 2>/dev/null
-    wait $APP_PID 2>/dev/null
+    stop_tracked_apps
 fi
 
 echo ""

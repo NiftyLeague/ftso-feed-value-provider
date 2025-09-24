@@ -4,7 +4,7 @@
 # Runs all debugging scripts in sequence for complete system analysis
 
 echo "🔍 FTSO Comprehensive System Debugger"
-echo "====================================="
+echo "================================================================================"
 echo "This script will run all debugging tools to provide a complete system analysis."
 echo ""
 

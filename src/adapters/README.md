@@ -87,11 +87,11 @@ const adapter = registry.get("binance");
 
 ```bash
 # Test the adapter registry
-npm test -- src/adapters/base/__tests__
+pnpm test -- src/adapters/base/__tests__
 
 # Test crypto adapters (should still work with new imports)
-npm test -- src/adapters/crypto/__tests__
+pnpm test -- src/adapters/crypto/__tests__
 
 # Test data manager (uses adapter interfaces)
-npm test -- src/data-manager/__tests__
+pnpm test -- src/data-manager/__tests__
 ```

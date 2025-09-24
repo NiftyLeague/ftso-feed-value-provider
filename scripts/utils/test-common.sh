@@ -14,7 +14,7 @@ setup_test_logging() {
         "security") output_name="security" ;;
         "load") output_name="load" ;;
         "validation") output_name="validation" ;;
-        "graceful-shutdown") output_name="graceful-shutdown" ;;
+        "shutdown") output_name="shutdown" ;;
         *) output_name="$script_name" ;;  # fallback to original name
     esac
     
@@ -78,35 +78,9 @@ show_test_log_summary() {
     fi
 }
 
-# Function to cleanup hanging processes
-cleanup_test_processes() {
-    echo "🧹 Cleaning up test processes..."
-    
-    # Kill common test-related processes (more comprehensive)
-    pkill -f "pnpm.*jest" 2>/dev/null || true
-    pkill -f "pnpm start" 2>/dev/null || true
-    pkill -f "nest start" 2>/dev/null || true
-    pkill -f "node.*dist/main" 2>/dev/null || true
-    pkill -f "jest" 2>/dev/null || true
-    pkill -f "ts-jest" 2>/dev/null || true
-    
-    # Kill any Node.js processes that might be hanging
-    pkill -f "node.*jest" 2>/dev/null || true
-    
-    # Kill any processes using the test port
-    lsof -ti:3101 | xargs -r kill -9 2>/dev/null || true
-    
-    # Wait for cleanup
-    sleep 2
-    
-    echo "✅ Process cleanup completed"
-}
-
-# Function to setup signal handlers for cleanup
-setup_cleanup_handlers() {
-    # Trap signals to ensure cleanup on exit
-    trap cleanup_test_processes EXIT INT TERM
-}
+# Import shared cleanup system
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
+source "$SCRIPT_DIR/cleanup-common.sh"
 
 # =============================================================================
 # TEST UTILITY FUNCTIONS
