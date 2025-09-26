@@ -239,10 +239,12 @@ describe("Backtesting Framework", () => {
 
         const aggregationTimes: number[] = [];
         let successfulAggregations = 0;
+        let attemptedAggregations = 0;
 
         for (const [_windowStart, updates] of windows) {
           if (updates.length < 3) continue;
 
+          attemptedAggregations++;
           const startTime = process.hrtime.bigint();
 
           try {
@@ -259,7 +261,7 @@ describe("Backtesting Framework", () => {
 
         const averageAggregationTime = aggregationTimes.reduce((sum, time) => sum + time, 0) / aggregationTimes.length;
         const maxAggregationTime = Math.max(...aggregationTimes);
-        const successRate = successfulAggregations / windows.size;
+        const successRate = attemptedAggregations > 0 ? successfulAggregations / attemptedAggregations : 0;
 
         performanceResults.push({
           dataSize,

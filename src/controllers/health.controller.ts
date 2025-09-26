@@ -489,13 +489,13 @@ export class HealthController extends BaseController {
       if (!this.integrationService.isServiceInitialized()) {
         // Integration service not initialized yet, be lenient during startup
         const timeSinceStartup = Date.now() - this.startupTime;
-        if (timeSinceStartup < 30000) {
-          // First 30 seconds - consider integration ready
+        if (timeSinceStartup < 90000) {
+          // First 90 seconds - consider integration ready during startup
           checks.integration.ready = true;
           checks.integration.status = "degraded";
           checks.integration.error = null;
         } else {
-          // After 30 seconds, mark as not ready
+          // After 90 seconds, mark as not ready
           checks.integration.ready = false;
           checks.integration.status = "unhealthy";
           checks.integration.error = "Integration service not initialized";
@@ -518,8 +518,8 @@ export class HealthController extends BaseController {
       // During startup, be more lenient - if integration service is not ready yet,
       // consider it ready if we're still in startup phase
       const timeSinceStartup = Date.now() - this.startupTime;
-      if (timeSinceStartup < 30000) {
-        // First 30 seconds
+      if (timeSinceStartup < 90000) {
+        // First 90 seconds - be lenient during startup
         checks.integration.ready = true;
         checks.integration.status = "degraded";
         checks.integration.error = null;

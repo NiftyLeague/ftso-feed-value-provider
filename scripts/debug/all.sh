@@ -52,9 +52,9 @@ echo "🚀 Phase 1: Startup Analysis"
 echo "============================"
 run_debug_script "debug/startup.sh" "Startup Analysis"
 
-echo "🌐 Phase 2: WebSocket Analysis"
-echo "=============================="
-run_debug_script "debug/websockets.sh" "WebSocket Connection Analysis"
+echo "🌐 Phase 2: WebSocket Stability Analysis"
+echo "========================================"
+run_debug_script "debug/websockets.sh" "Comprehensive WebSocket Stability Test"
 
 echo "📈 Phase 3: Performance Analysis"
 echo "================================"
@@ -107,11 +107,11 @@ This report provides a comprehensive analysis of the FTSO Feed Value Provider sy
 
 ### Analysis Coverage
 - ✅ Startup Performance
-- ✅ WebSocket Connections  
-- ✅ System Performance
-- ✅ Feed Data Quality
-- ✅ Error Patterns
-- ✅ Server Functionality
+- ✅ WebSocket Stability & Connection Health
+- ✅ System Performance & Resource Usage
+- ✅ Feed Data Quality & Validation
+- ✅ Error Patterns & Diagnostics
+- ✅ Cache & Resilience Systems
 
 ### Key Findings
 
@@ -131,14 +131,18 @@ if [ -f "$SESSION_DIR/debug-startup_output.log" ]; then
 fi
 
 if [ -f "$SESSION_DIR/debug-websockets_output.log" ]; then
-    echo "#### WebSocket Analysis" >> "$SUMMARY_FILE"
+    echo "#### WebSocket Stability Analysis" >> "$SUMMARY_FILE"
     
-    # Extract WebSocket metrics
-    SUCCESSFUL_CONN=$(grep "Successful connections:" "$SESSION_DIR/debug-websockets_output.log" | awk '{print $3}' || echo "0")
-    FAILED_CONN=$(grep "Failed connections:" "$SESSION_DIR/debug-websockets_output.log" | awk '{print $3}' || echo "0")
+    # Extract enhanced WebSocket metrics
+    TOTAL_CONNECTIONS=$(grep "Total successful connections:" "$SESSION_DIR/debug-websockets_output.log" | awk '{print $4}' || echo "0")
+    TOTAL_DISCONNECTS=$(grep "Total disconnections:" "$SESSION_DIR/debug-websockets_output.log" | awk '{print $3}' || echo "0")
+    STABILITY_PERCENTAGE=$(grep "Overall stability:" "$SESSION_DIR/debug-websockets_output.log" | awk '{print $3}' || echo "N/A")
+    TEST_RESULT=$(grep -E "(EXCELLENT|GOOD|ACCEPTABLE|POOR):" "$SESSION_DIR/debug-websockets_output.log" | head -1 | awk '{print $2}' || echo "Unknown")
     
-    echo "- **Successful Connections:** $SUCCESSFUL_CONN" >> "$SUMMARY_FILE"
-    echo "- **Failed Connections:** $FAILED_CONN" >> "$SUMMARY_FILE"
+    echo "- **Total Connections:** $TOTAL_CONNECTIONS" >> "$SUMMARY_FILE"
+    echo "- **Total Disconnections:** $TOTAL_DISCONNECTS" >> "$SUMMARY_FILE"
+    echo "- **Stability Rating:** $STABILITY_PERCENTAGE" >> "$SUMMARY_FILE"
+    echo "- **Test Result:** $TEST_RESULT" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 
@@ -187,7 +191,8 @@ cat >> "$SUMMARY_FILE" << EOF
 ### Immediate Actions
 - Review any fatal errors or connection failures
 - Monitor memory usage if above 70%
-- Check WebSocket connection stability
+- Address WebSocket stability issues if below 80%
+- Check exchange-specific connection problems
 
 ### Performance Optimization
 - Consider adjusting cache sizes if memory usage is high
@@ -197,7 +202,8 @@ cat >> "$SUMMARY_FILE" << EOF
 ### Monitoring
 - Set up alerts for critical error patterns
 - Monitor feed data quality metrics
-- Track WebSocket connection health
+- Track WebSocket connection health and reconnection rates
+- Monitor exchange-specific stability metrics
 
 ## Files Generated
 EOF
@@ -219,26 +225,16 @@ echo "📋 Comprehensive Analysis Complete!"
 echo "=================================="
 echo ""
 echo "📁 All results saved to: $DEBUG_DIR"
+
 echo ""
-echo "📊 Quick Summary:"
-echo "-----------------"
-
-# Show key metrics from summary
-if [ -f "$SUMMARY_FILE" ]; then
-    echo "📄 Comprehensive report: $SUMMARY_FILE"
-    echo ""
-    echo "🔍 Key Findings:"
-    
-    # Show a few key lines from the summary
-    grep -E "Successful Connections|Failed Connections|Fatal Errors|Total Errors" "$SUMMARY_FILE" | head -4
-fi
-
+echo "📄 Comprehensive report: $SUMMARY_FILE"
 echo ""
 echo "🔧 Next Steps:"
-echo "1. Review the comprehensive summary: $SUMMARY_FILE"
-echo "2. Check individual component logs in: $DEBUG_DIR"
-echo "3. Address any critical issues identified"
-echo "4. Review resilience consistency test results"
-echo "5. Set up monitoring for ongoing health checks"
+echo "1. Review the enhanced log analysis above for critical issues"
+echo "2. Check the comprehensive summary: $SUMMARY_FILE"
+echo "3. Check individual component logs in: $DEBUG_DIR"
+echo "4. Address any critical issues identified"
+echo "5. Review resilience consistency test results"
+echo "6. Set up monitoring for ongoing health checks"
 echo ""
 echo "✨ Debug session complete!"

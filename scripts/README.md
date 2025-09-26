@@ -28,9 +28,7 @@ For easier access to scripts, use the convenience runner:
 ./scripts/run.sh debug startup       # Debug startup issues
 ./scripts/run.sh test all            # Complete testing suite
 ./scripts/run.sh test server         # Test server functionality
-./scripts/run.sh utils logs clean    # Clean old logs
-./scripts/run.sh dev build           # Build the application
-./scripts/run.sh dev validate        # Run complete validation
+./scripts/run.sh utils audit analyze # Analyze existing logs
 ```
 
 ## 🔍 Debug Scripts (`scripts/debug/`)
@@ -89,23 +87,11 @@ pnpm test:scripts:load      # Load test only
 
 ## 🛠️ Utility Scripts (`scripts/utils/`)
 
-| Script               | Purpose                                           | Usage                                              |
-| -------------------- | ------------------------------------------------- | -------------------------------------------------- |
-| `dev-tools.sh`       | Development tools (build, lint, format, validate) | `./scripts/utils/dev-tools.sh [command]`           |
-| `manage-logs.sh`     | Log management utilities                          | `./scripts/utils/manage-logs.sh [command]`         |
-| `test-common.sh`     | Common utilities for test scripts                 | `source scripts/utils/test-common.sh`              |
-| `timeout-wrapper.sh` | Timeout wrapper for any script                    | `./scripts/utils/timeout-wrapper.sh script.sh 120` |
-
-## 🛠️ Development Tools (via `scripts/run.sh dev`)
-
-| Command    | Purpose                                        | Usage                             |
-| ---------- | ---------------------------------------------- | --------------------------------- |
-| `build`    | Build the application                          | `./scripts/run.sh dev build`      |
-| `clean`    | Clean build artifacts                          | `./scripts/run.sh dev clean`      |
-| `format`   | Format code with Prettier                      | `./scripts/run.sh dev format`     |
-| `lint`     | Run ESLint (with optional --fix)               | `./scripts/run.sh dev lint --fix` |
-| `type`     | Run TypeScript type checking                   | `./scripts/run.sh dev type`       |
-| `validate` | Run complete validation (format + lint + type) | `./scripts/run.sh dev validate`   |
+| Script               | Purpose                           | Usage                                              |
+| -------------------- | --------------------------------- | -------------------------------------------------- |
+| `audit.sh`           | System audit and log analysis     | `./scripts/utils/audit.sh [command]`               |
+| `test-common.sh`     | Common utilities for test scripts | `source scripts/utils/test-common.sh`              |
+| `timeout-wrapper.sh` | Timeout wrapper for any script    | `./scripts/utils/timeout-wrapper.sh script.sh 120` |
 
 ## 📊 Quick Start
 
@@ -175,29 +161,29 @@ pnpm test:scripts:load      # Load test only
 ./scripts/test/shutdown.sh
 ```
 
-### Manage Logs
+### System Audit
 
 ```bash
-# Show log management options
-./scripts/utils/manage-logs.sh help
+# Show audit system options
+./scripts/utils/audit.sh help
 
-# Clean old logs (keep last 7 days)
-./scripts/utils/manage-logs.sh clean
+# Analyze existing logs (without re-running scripts)
+./scripts/utils/audit.sh analyze
 
-# Archive all logs
-./scripts/utils/manage-logs.sh archive
+# Show current system status
+./scripts/utils/audit.sh status
 
-# Quick log analysis
-./scripts/utils/manage-logs.sh analyze
+# Establish system baseline
+./scripts/utils/audit.sh baseline
 
-# Show log directory size
-./scripts/utils/manage-logs.sh size
+# Compare current state with baseline
+./scripts/utils/audit.sh compare
 
-# List all log files
-./scripts/utils/manage-logs.sh list
+# Clean old audit files (keep latest 2)
+./scripts/utils/audit.sh clean
 
-# Tail most recent log
-./scripts/utils/manage-logs.sh tail
+# Run full audit (setup + debug + test + analysis)
+./scripts/utils/audit.sh full
 ```
 
 ## 📁 Log Organization
@@ -330,15 +316,15 @@ LOG_FILE="logs/script-name.log"
 
 4. **Logs Directory Full**
    ```bash
-   # Clean old logs
-   ./scripts/utils/manage-logs.sh clean --days 3
+   # Run system audit
+   ./scripts/utils/audit.sh analyze
    ```
 
 ### Getting Help
 
 1. **Script Usage**: Run any script with `--help` or check the script header
-2. **Log Analysis**: Use `./scripts/utils/manage-logs.sh analyze` for quick
-   insights
+2. **System Audit**: Use `./scripts/utils/audit.sh analyze` for comprehensive
+   log analysis
 3. **Complete Analysis**: Run `./scripts/debug/all.sh` for complete system
    overview
 4. **Complete Testing**: Run `./scripts/test/all.sh` for comprehensive testing
@@ -349,8 +335,8 @@ LOG_FILE="logs/script-name.log"
 
 - Run `debug/all.sh` weekly for system health checks
 - Run `test/all.sh` before deployments for validation
-- Clean logs monthly: `utils/manage-logs.sh clean --days 30`
-- Archive logs before major deployments: `utils/manage-logs.sh archive`
+- Run system audit weekly: `utils/audit.sh full`
+- Clean audit files monthly: `utils/audit.sh clean`
 
 ### Performance Monitoring
 

@@ -6,6 +6,11 @@ import type { ExchangeCapabilities, ExchangeConnectionConfig, IExchangeAdapter }
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import type { WSConnectionConfig } from "@/common/types/data-manager";
 import { ENV, ENV_HELPERS } from "@/config/environment.constants";
+import {
+  categorizeConnectionError,
+  extractStatusCode,
+  getBackoffParameters,
+} from "@/common/utils/error-classification.utils";
 
 /**
  * Extended configuration for exchange adapters
@@ -26,6 +31,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   protected retryDelay = 1000; // ms
   protected lastRetryTime = 0;
   protected isConnected_ = false;
+  protected isShuttingDown = false;
 
   // Rate limiting for warnings
   private warningLastLogged = new Map<string, number>();
@@ -43,7 +49,10 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   private reconnectAttempts = 0;
   private reconnectTimer?: NodeJS.Timeout;
   private pingTimer?: NodeJS.Timeout;
-  private maxReconnectAttempts = 5;
+  private pongTimer?: NodeJS.Timeout;
+  private maxReconnectAttempts = ENV.WEBSOCKET.MAX_RECONNECT_ATTEMPTS;
+  private lastPongReceived = 0;
+  private lastMessageReceived = 0;
 
   constructor(config?: IExchangeAdapterConfig) {
     super(config || { connection: {} });
@@ -98,32 +107,27 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         this.connectionRetryCount = attempt + 1;
 
         if (attempt < this.maxRetries) {
-          let delay = this.retryDelay * Math.pow(2, attempt); // Standard exponential backoff
+          // Use centralized error classification for intelligent backoff
+          const errorCategory = categorizeConnectionError(lastError);
+          const backoffParams = getBackoffParameters(lastError);
 
-          // Special handling for 429 (rate limiting) errors
-          if (lastError.message.includes("429")) {
-            // For 429 errors, use much longer delays with exponential backoff
-            delay = Math.min(300000, this.retryDelay * Math.pow(3, attempt + 1)); // Max 5 minutes
+          // Calculate delay using centralized backoff parameters
+          const baseDelay = Math.max(this.retryDelay, backoffParams.minDelay);
+          let delay = Math.min(
+            baseDelay * Math.pow(backoffParams.multiplier, attempt),
+            300000 // Max 5 minutes
+          );
 
-            // Rate limit the warning to prevent spam
-            const now = Date.now();
-            const warningKey = `${this.exchangeName}_429_warning`;
-            const lastLogged = this.warningLastLogged.get(warningKey) || 0;
+          // Rate limit the warning to prevent spam
+          const now = Date.now();
+          const warningKey = `${this.exchangeName}_${errorCategory.type}_warning`;
+          const lastLogged = this.warningLastLogged.get(warningKey) || 0;
 
-            if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
-              this.logger.warn(`Rate limited (429) for ${this.exchangeName}, using extended backoff: ${delay}ms`);
-              this.warningLastLogged.set(warningKey, now);
-            }
-          } else {
-            // Rate limit other warnings too (but not in test mode)
-            const now = Date.now();
-            const warningKey = `${this.exchangeName}_connection_warning`;
-            const lastLogged = this.warningLastLogged.get(warningKey) || 0;
-
-            if (ENV_HELPERS.isTest() || now - lastLogged > this.WARNING_COOLDOWN_MS) {
-              this.logger.warn(`Connection attempt ${attempt + 1} failed, retrying in ${delay}ms: ${error}`);
-              this.warningLastLogged.set(warningKey, now);
-            }
+          if (ENV_HELPERS.isTest() || now - lastLogged > this.WARNING_COOLDOWN_MS) {
+            this.logger.warn(
+              `${errorCategory.type} error for ${this.exchangeName}, retrying in ${delay}ms (attempt ${attempt + 1}): ${lastError.message}`
+            );
+            this.warningLastLogged.set(warningKey, now);
           }
 
           await this.sleep(delay);
@@ -135,9 +139,15 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     const finalError = new Error(
       `Failed to connect to ${this.exchangeName} after ${this.maxRetries + 1} attempts: ${lastError?.message}`
     );
-    this.onErrorCallback?.(finalError);
+
+    // Always allow graceful degradation to REST API fallback
+    // This ensures consistent behavior across all environments
+    this.logger.warn(
+      `Connection failed for ${this.exchangeName}, continuing with REST API fallback: ${finalError.message}`
+    );
     this.onConnectionChangeCallback?.(false);
-    throw finalError;
+    this.onErrorCallback?.(finalError);
+    // Don't throw the error - let the adapter work in REST-only mode
   }
 
   /**
@@ -192,6 +202,9 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
    * Cleanup method to prevent memory leaks
    */
   override async cleanup(): Promise<void> {
+    // Set shutdown flag to avoid warning logs during normal shutdown
+    this.isShuttingDown = true;
+
     // Disconnect if connected
     if (this.isConnected_) {
       await this.disconnect();
@@ -250,10 +263,17 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       );
     }
 
+    // Filter out already subscribed symbols to avoid duplicates
+    const newSymbols = validSymbols.filter(symbol => !this.isSubscribed(symbol));
+    if (newSymbols.length === 0) {
+      this.logger.debug(`All symbols already subscribed on ${this.exchangeName}`);
+      return;
+    }
+
     try {
-      await this.doSubscribe(validSymbols);
-      this.trackSubscriptions(validSymbols);
-      this.logger.debug(`Subscribed to ${validSymbols.length} symbols on ${this.exchangeName}`);
+      await this.doSubscribe(newSymbols);
+      this.trackSubscriptions(newSymbols);
+      this.logger.debug(`Subscribed to ${newSymbols.length} symbols on ${this.exchangeName}`);
     } catch (error) {
       this.logger.error(`Subscription failed on ${this.exchangeName}:`, error);
       throw error;
@@ -382,7 +402,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         feedSymbol.split("/").length === 2; // Must have exactly one separator
 
       if (!isValid) {
-        this.logger.debug(`Invalid symbol format: ${feedSymbol}`);
+        this.logger.debug(`Invalid or unsupported symbol: ${feedSymbol} -> ${exchangeSymbol}`);
       }
       return isValid;
     } catch (error) {
@@ -545,7 +565,131 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
-   * Connect to WebSocket directly
+   * Standardized symbol normalization - handles common patterns
+   */
+  protected standardizeSymbolFromExchange(exchangeSymbol: string, separators: string[] = ["-", "_"]): string {
+    // Try each separator and convert to standard "/" format
+    for (const separator of separators) {
+      if (exchangeSymbol.includes(separator)) {
+        return exchangeSymbol.replace(separator, "/");
+      }
+    }
+
+    // If no separator found, try to add slash using common quote currencies
+    return this.addSlashToSymbol(exchangeSymbol, ["USDT", "USDC", "USD", "EUR", "BTC", "ETH"]);
+  }
+
+  /**
+   * Standardized spread calculation for confidence
+   */
+  protected calculateSpreadForConfidence(bid: number, ask: number, price: number): number {
+    return this.calculateSpreadPercent(bid, ask, price);
+  }
+
+  /**
+   * Standardized timestamp handling
+   */
+  protected standardizeTimestamp(timestamp: string | number | undefined): number {
+    if (!timestamp) {
+      return Date.now();
+    }
+
+    if (typeof timestamp === "string") {
+      return this.normalizeTimestamp(timestamp);
+    }
+
+    return timestamp;
+  }
+
+  /**
+   * Standardized REST API error handling
+   */
+  protected handleRestApiError(result: unknown, exchangeName: string): void {
+    // Type guard to safely access properties
+    const apiResult = result as {
+      error?: string | string[];
+      errors?: string | string[];
+      code?: string | number;
+      msg?: string;
+      message?: string;
+      status?: string;
+    };
+
+    // Common error patterns across exchanges
+    if (apiResult?.error || apiResult?.errors) {
+      const errorMsg = Array.isArray(apiResult.error)
+        ? apiResult.error.join(", ")
+        : apiResult.error || apiResult.errors;
+      throw new Error(`${exchangeName} API error: ${errorMsg}`);
+    }
+
+    if (apiResult?.code && apiResult.code !== "0" && apiResult.code !== 0) {
+      throw new Error(`${exchangeName} API error: ${apiResult.msg || apiResult.message || apiResult.code}`);
+    }
+
+    if (apiResult?.status && apiResult.status !== "ok" && apiResult.status !== "online") {
+      throw new Error(`${exchangeName} API error: ${apiResult.status}`);
+    }
+  }
+
+  /**
+   * Standardized health check implementation
+   */
+  protected async performStandardHealthCheck(healthEndpoint: string): Promise<boolean> {
+    try {
+      const response = await this.fetchRestApi(healthEndpoint, `${this.exchangeName} health check failed`);
+
+      if (!response.ok) {
+        return false;
+      }
+
+      // For simple ping endpoints, just check if response is ok
+      if (healthEndpoint.includes("/ping")) {
+        return true;
+      }
+
+      // For endpoints that return JSON, check the result
+      try {
+        const result = await response.json();
+        this.handleRestApiError(result, this.exchangeName);
+        return true;
+      } catch (error) {
+        // If handleRestApiError throws (API error), return false
+        // If JSON parsing fails but response was ok, consider it healthy
+        if (error instanceof Error && error.message.includes("API error")) {
+          return false;
+        }
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Create standardized WebSocket configuration with exchange-specific overrides
+   */
+  protected createWebSocketConfig(url: string, overrides?: Partial<WSConnectionConfig>): WSConnectionConfig {
+    const standardConfig: WSConnectionConfig = {
+      url,
+      reconnectInterval: ENV.WEBSOCKET.RECONNECT_DELAY_MS,
+      maxReconnectAttempts: ENV.WEBSOCKET.MAX_RECONNECT_ATTEMPTS,
+      pingInterval: ENV.WEBSOCKET.PING_INTERVAL_MS,
+      pongTimeout: ENV.WEBSOCKET.PONG_TIMEOUT_MS,
+      connectionTimeout: ENV.WEBSOCKET.CONNECTION_TIMEOUT_MS,
+      headers: {
+        "User-Agent": "FTSO-Provider/1.0",
+        "Accept-Encoding": "gzip, deflate",
+      },
+    };
+
+    return { ...standardConfig, ...overrides };
+  }
+
+  /**
+   * Connect to WebSocket with graceful degradation to REST API fallback
+   * This method implements resilient connection handling that works consistently
+   * across all environments (development, staging, production)
    */
   protected async connectWebSocket(config: WSConnectionConfig): Promise<void> {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -561,8 +705,18 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           headers: config.headers,
         });
 
+        // Set up connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+            this.ws.terminate();
+            this.logger.warn(`WebSocket connection timeout for ${this.exchangeName}, falling back to REST API`);
+            resolve(); // Always resolve to allow REST-only mode
+          }
+        }, config.connectionTimeout || 10000); // 10 second default timeout
+
         // Set up event handlers
         this.ws.on("open", () => {
+          clearTimeout(connectionTimeout);
           this.logger.log(`WebSocket connected for ${this.exchangeName}`);
           this.reconnectAttempts = 0;
 
@@ -575,23 +729,63 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         });
 
         this.ws.on("message", (data: WebSocket.Data) => {
+          this.lastMessageReceived = Date.now();
           this.handleWebSocketMessage(data);
         });
 
         this.ws.on("close", (code: number, reason: string) => {
-          this.logger.warn(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
-          this.handleWebSocketClose();
+          clearTimeout(connectionTimeout);
 
-          // Auto-reconnect if configured
-          if (config.reconnectInterval && this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.scheduleReconnect(config.reconnectInterval);
+          // Let child classes handle specific logging first
+          const handled = this.handleWebSocketClose(code, reason);
+
+          // Only log here if child class didn't handle it
+          if (!handled) {
+            // Handle different close codes appropriately
+            if (code === 1006) {
+              this.logger.warn(
+                `WebSocket closed for ${this.exchangeName}: ${code} - abnormal closure (connection lost)`
+              );
+            } else if (code === 1000) {
+              this.logger.log(`WebSocket closed for ${this.exchangeName}: ${code} - normal closure`);
+            } else {
+              this.logger.warn(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
+            }
+          }
+
+          // Auto-reconnect if configured and not a normal closure during shutdown
+          if (config.reconnectInterval && this.reconnectAttempts < this.maxReconnectAttempts && !this.isShuttingDown) {
+            // For abnormal closures (1006), add a longer delay to prevent rapid reconnection attempts
+            const reconnectDelay =
+              code === 1006 ? Math.max(config.reconnectInterval * 2, 5000) : config.reconnectInterval;
+            this.scheduleReconnect(reconnectDelay);
           }
         });
 
         this.ws.on("error", (error: Error) => {
-          this.logger.error(`WebSocket error for ${this.exchangeName}:`, error);
-          this.handleWebSocketError(error);
-          reject(error);
+          clearTimeout(connectionTimeout);
+
+          // Use centralized error categorization to determine if error is recoverable
+          const errorCategory = categorizeConnectionError(error);
+          const isRecoverableError =
+            errorCategory.retryable &&
+            (errorCategory.type === "network" ||
+              errorCategory.type === "timeout" ||
+              errorCategory.type === "connection");
+
+          if (isRecoverableError) {
+            // For recoverable errors, gracefully degrade to REST API
+            this.logger.warn(
+              `WebSocket ${errorCategory.type} error for ${this.exchangeName}, falling back to REST API: ${error.message}`
+            );
+            this.handleWebSocketError(error);
+            resolve(); // Resolve to allow REST-only mode
+          } else {
+            // For non-recoverable errors (authentication, protocol, etc.), these are likely configuration issues
+            this.logger.error(`WebSocket ${errorCategory.type} error for ${this.exchangeName}:`, error);
+            this.handleWebSocketError(error);
+            reject(error);
+          }
         });
 
         this.ws.on("pong", () => {
@@ -599,8 +793,12 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           this.logger.debug(`Received pong from ${this.exchangeName}`);
         });
       } catch (error) {
-        this.logger.error(`Failed to create WebSocket for ${this.exchangeName}:`, error);
-        reject(error);
+        const createError = error as Error;
+        // For creation errors, log and allow REST fallback
+        this.logger.warn(
+          `Failed to create WebSocket for ${this.exchangeName}, falling back to REST API: ${createError.message}`
+        );
+        resolve(); // Always resolve to allow REST-only mode
       }
     });
   }
@@ -615,6 +813,11 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = undefined;
+    }
+
+    if (this.pongTimer) {
+      clearTimeout(this.pongTimer);
+      this.pongTimer = undefined;
     }
 
     if (this.reconnectTimer) {
@@ -683,12 +886,83 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       clearInterval(this.pingTimer);
     }
 
+    this.logger.debug(`Setting up ping timer for ${this.exchangeName} with ${interval}ms interval`);
     this.pingTimer = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        // Allow adapters to override ping behavior
-        this.sendPingMessage();
+        // Check if we received a pong for the last ping (if pong timeout is configured)
+        const pongTimeout = this.wsConfig?.pongTimeout;
+        if (pongTimeout && this.lastPongReceived > 0) {
+          const timeSinceLastPong = Date.now() - this.lastPongReceived;
+          const timeSinceLastMessage = Date.now() - this.lastMessageReceived;
+          // Add 50% buffer to pong timeout to reduce false positives
+          const adjustedTimeout = pongTimeout * 1.5;
+
+          // Only timeout if we haven't received any messages recently
+          if (timeSinceLastPong > adjustedTimeout && timeSinceLastMessage > pongTimeout) {
+            this.logger.warn(
+              `Pong timeout exceeded for ${this.exchangeName} (${timeSinceLastPong}ms > ${adjustedTimeout}ms), closing connection`
+            );
+            this.ws.close(1001, "Pong timeout");
+            return;
+          }
+        }
+
+        // Send ping and set up pong timeout if configured
+        try {
+          this.sendPingMessage();
+          if (pongTimeout) {
+            this.setupPongTimeout(pongTimeout);
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to send ping to ${this.exchangeName}:`, error);
+          // Don't close connection immediately on ping failure, let pong timeout handle it
+        }
+      } else {
+        this.logger.debug(
+          `Ping timer fired but WebSocket not ready for ${this.exchangeName} (state: ${this.ws?.readyState})`
+        );
       }
     }, interval);
+  }
+
+  /**
+   * Set up pong timeout for the current ping
+   */
+  private setupPongTimeout(timeout: number): void {
+    if (this.pongTimer) {
+      clearTimeout(this.pongTimer);
+    }
+
+    // Add 50% buffer to timeout to reduce false positives
+    const adjustedTimeout = timeout * 1.5;
+    this.pongTimer = setTimeout(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        // Check if we've received recent data (which might indicate connection is healthy)
+        const timeSinceLastMessage = Date.now() - (this.lastMessageReceived || 0);
+        // Be more lenient - if we received any data within the original timeout, keep connection
+        if (timeSinceLastMessage < timeout * 1.2) {
+          this.logger.debug(
+            `Pong timeout for ${this.exchangeName} but received recent data (${timeSinceLastMessage}ms ago), keeping connection`
+          );
+          return;
+        }
+
+        this.logger.warn(`Pong timeout for ${this.exchangeName} after ${adjustedTimeout}ms, closing connection`);
+        this.ws.close(1001, "Pong timeout");
+      }
+    }, adjustedTimeout);
+  }
+
+  /**
+   * Called when a pong is received - should be called by adapters in their message handlers
+   */
+  protected onPongReceived(): void {
+    this.lastPongReceived = Date.now();
+    if (this.pongTimer) {
+      clearTimeout(this.pongTimer);
+      this.pongTimer = undefined;
+    }
+    this.logger.debug(`Pong received for ${this.exchangeName} - connection healthy`);
   }
 
   /**
@@ -729,16 +1003,47 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     this.logger.debug(`Received WebSocket message: ${JSON.stringify(data)}`);
   }
 
-  protected handleWebSocketClose(): void {
+  protected handleWebSocketClose(_code?: number, _reason?: string): boolean {
     // Default implementation - adapters should override this
-    this.logger.warn(`WebSocket connection closed for ${this.exchangeName}`);
+    // Handle connection state changes
     this.isConnected_ = false;
     this.onConnectionChangeCallback?.(false);
+    // Return false to indicate base class should handle logging
+    return false;
   }
 
   protected handleWebSocketError(error: Error): void {
-    // Default implementation - adapters should override this
-    this.logger.error(`WebSocket error for ${this.exchangeName}:`, error);
+    // Use centralized error categorization
+    const category = categorizeConnectionError(error);
+    const statusCode = extractStatusCode(error.message);
+
+    // Log appropriate message based on error category and severity
+    const logMessage = `WebSocket ${category.type} error for ${this.exchangeName}${statusCode ? ` (${statusCode})` : ""}: ${error.message}`;
+
+    switch (category.severity) {
+      case "critical":
+        this.logger.error(logMessage);
+        break;
+      case "high":
+        this.logger.warn(logMessage);
+        break;
+      case "medium":
+      case "low":
+      default:
+        this.logger.warn(logMessage);
+        break;
+    }
+
+    // Log error event for monitoring with detailed categorization
+    this.logger.debug("WebSocket error categorized", {
+      exchange: this.exchangeName,
+      category: category.type,
+      severity: category.severity,
+      retryable: category.retryable,
+      statusCode,
+      timestamp: Date.now(),
+    });
+
     this.onErrorCallback?.(error);
   }
 

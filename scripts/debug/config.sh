@@ -5,7 +5,8 @@
 
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -60,46 +61,75 @@ echo "📄 Environment File Analysis:"
 echo "-----------------------------"
 
 if [ -f ".env" ]; then
-    ENV_VARS=$(grep -c "^[A-Z]" .env)
-    echo "📊 Environment variables defined: $ENV_VARS"
+    # Count actual environment variable assignments (not comments or empty lines)
+    ENV_VARS=$(grep -c "^[A-Z][A-Z_]*=" .env)
+    echo "📊 Environment variables overridden: $ENV_VARS"
     
     # Log to report
     echo "Environment Variables: $ENV_VARS" >> "$CONFIG_REPORT"
     echo "" >> "$CONFIG_REPORT"
     
     # Check for common configuration categories
-    PERFORMANCE_VARS=$(grep -c "PERFORMANCE\|MONITORING\|CACHE" .env)
-    WEBSOCKET_VARS=$(grep -c "WEBSOCKET" .env)
-    TIMEOUT_VARS=$(grep -c "TIMEOUT\|INTERVAL" .env)
-    LOGGING_VARS=$(grep -c "LOG\|DEBUG" .env)
+    PERFORMANCE_VARS=$(grep -c "^[A-Z][A-Z_]*=.*" .env | xargs -I {} sh -c 'grep -c "PERFORMANCE\|MONITORING\|CACHE" .env')
+    WEBSOCKET_VARS=$(grep -c "^WEBSOCKET.*=" .env)
+    TIMEOUT_VARS=$(grep -c "^.*TIMEOUT.*=\|^.*INTERVAL.*=" .env)
+    LOGGING_VARS=$(grep -c "^LOG.*=\|^.*DEBUG.*=\|^ENABLE.*LOG.*=" .env)
     
-    echo "  🚀 Performance variables: $PERFORMANCE_VARS"
-    echo "  🌐 WebSocket variables: $WEBSOCKET_VARS"
-    echo "  ⏱️  Timeout variables: $TIMEOUT_VARS"
-    echo "  📝 Logging variables: $LOGGING_VARS"
+    echo "  🚀 Performance overrides: $PERFORMANCE_VARS"
+    echo "  🌐 WebSocket overrides: $WEBSOCKET_VARS"
+    echo "  ⏱️  Timeout overrides: $TIMEOUT_VARS"
+    echo "  📝 Logging overrides: $LOGGING_VARS"
     
-    # Check for empty or default values
+    # Check for problematic configurations
     echo ""
     echo "🔍 Configuration Validation:"
-    EMPTY_VARS=$(grep -c "=$" .env)
-    echo "  ⚠️  Empty variables: $EMPTY_VARS"
+    
+    # Check for truly empty values (variables set to nothing)
+    EMPTY_VARS=$(grep -c "^[A-Z][A-Z_]*=$" .env)
+    echo "  ⚠️  Variables with empty values: $EMPTY_VARS"
     
     if [ $EMPTY_VARS -gt 0 ]; then
-        echo "  Empty variables found:"
-        grep "=$" .env | head -5
+        echo "  Variables with empty values (may need attention):"
+        grep "^[A-Z][A-Z_]*=$" .env | head -5
     fi
     
-    # Check for API keys
+    # Check for potentially unsafe production values
     echo ""
-    echo "🔑 API Key Configuration:"
-    API_KEYS=$(grep -c "API_KEY\|SECRET" .env)
-    echo "  🔑 API key variables: $API_KEYS"
+    echo "🔒 Production Safety Check:"
     
-    EMPTY_API_KEYS=$(grep -E "(API_KEY|SECRET)=$" .env | wc -l)
-    echo "  ⚠️  Empty API keys: $EMPTY_API_KEYS"
+    # Check NODE_ENV
+    NODE_ENV_VAL=$(grep "^NODE_ENV=" .env | cut -d'=' -f2)
+    if [ "$NODE_ENV_VAL" = "production" ]; then
+        echo "  ✅ NODE_ENV set to production"
+    elif [ "$NODE_ENV_VAL" = "development" ]; then
+        echo "  ⚠️  NODE_ENV set to development (consider production for deployment)"
+    else
+        echo "  ❓ NODE_ENV: $NODE_ENV_VAL"
+    fi
     
-    if [ $EMPTY_API_KEYS -gt 0 ]; then
-        echo "  Note: Empty API keys will use public endpoints"
+    # Check for debug flags that should be disabled in production
+    DEBUG_ENABLED=$(grep -c "^.*DEBUG.*=true" .env)
+    if [ $DEBUG_ENABLED -gt 0 ]; then
+        echo "  ⚠️  Debug flags enabled: $DEBUG_ENABLED (consider disabling for production)"
+        grep "^.*DEBUG.*=true" .env | head -3
+    else
+        echo "  ✅ No debug flags enabled"
+    fi
+    
+    # Check for file logging in production
+    FILE_LOGGING=$(grep "^ENABLE_FILE_LOGGING=true" .env)
+    if [ -n "$FILE_LOGGING" ]; then
+        echo "  ⚠️  File logging enabled (ensure log rotation is configured)"
+    else
+        echo "  ✅ File logging disabled (good for containerized environments)"
+    fi
+    
+    # Check for alerting configuration
+    ALERT_CONFIG=$(grep -c "^ALERT.*=" .env)
+    if [ $ALERT_CONFIG -gt 0 ]; then
+        echo "  ✅ Alerting configured: $ALERT_CONFIG settings"
+    else
+        echo "  ❓ No alerting configured (consider enabling for production monitoring)"
     fi
     
 else
@@ -305,13 +335,6 @@ if [ -f "$LOG_FILE" ]; then
         echo "   - Validate numeric configurations"
     fi
     
-    if [ $EMPTY_API_KEYS -gt 5 ]; then
-        echo "🔧 API KEYS: Many empty API keys"
-        echo "   - Consider adding API keys for better rate limits"
-        echo "   - Review exchange API documentation"
-        echo "   - Test with public endpoints first"
-    fi
-    
     if [ $ENV_VALIDATION -eq 0 ]; then
         echo "🔧 VALIDATION: No environment validation detected"
         echo "   - Verify environment validation is enabled"
@@ -386,6 +409,9 @@ if [ -f "$LOG_FILE" ]; then
 else
     echo "❌ No application log file found"
 fi
+
+# Show log summary
+log_summary "$LOG_FILE" "config" "debug"
 
 echo ""
 echo "✨ Configuration analysis complete!"

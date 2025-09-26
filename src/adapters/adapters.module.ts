@@ -39,6 +39,7 @@ import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
           getFeedConfigurations: () => getAllFeedConfigurations(),
         });
       },
+      scope: 1, // Make it a singleton
     },
 
     // Adapter initialization - this factory ensures all adapters are registered

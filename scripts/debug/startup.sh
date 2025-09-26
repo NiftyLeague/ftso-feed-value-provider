@@ -5,7 +5,8 @@
 
 # Source common utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -25,7 +26,13 @@ LOG_FILE="$DEBUG_LOG_FILE"
 
 # Start the application with automatic cleanup registration
 start_app_with_cleanup "npm run start:dev" 3101 "$LOG_FILE"
-APP_PID="${TRACKED_PIDS[-1]}"  # Get the last registered PID
+# Get the last registered PID safely
+if [ ${#TRACKED_PIDS[@]} -gt 0 ]; then
+    APP_PID="${TRACKED_PIDS[-1]}"
+else
+    echo "❌ Failed to get application PID"
+    exit 1
+fi
 
 echo "⏱️  Monitoring for $TIMEOUT seconds..."
 
@@ -54,15 +61,18 @@ if [ -f "$LOG_FILE" ]; then
     
     echo ""
     echo "⚠️  Warnings and errors:"
-    grep -E "(WARN|ERROR|Failed|failed)" "$LOG_FILE" | head -10
+    # Only match actual WARN and ERROR log levels from NestJS, not configuration values
+    grep -E "\[Nest\].*\s+(WARN|ERROR)\s+" "$LOG_FILE" | head -10
     
     echo ""
     echo "🔧 Performance issues:"
-    grep -E "(slow|timeout|delay|optimization)" "$LOG_FILE" | head -10
+    # Look for actual performance problems, not configuration values
+    grep -E "(slow query|high latency|performance degraded|timeout exceeded|connection timeout)" "$LOG_FILE" | head -10
     
     echo ""
     echo "📈 Memory usage:"
-    grep -E "(Memory|memory|heap)" "$LOG_FILE" | head -5
+    # Look for actual memory issues, not configuration values
+    grep -E "(memory leak|out of memory|heap overflow|memory pressure|GC pressure)" "$LOG_FILE" | head -5
     
     echo ""
     echo "🌐 WebSocket connections:"
@@ -81,11 +91,11 @@ else
     echo "❌ No startup log found at $LOG_FILE"
 fi
 
-# Show log summary
-show_log_summary "$LOG_FILE" "startup"
-
 # Clean up old logs if in session mode
 cleanup_old_logs "startup"
+
+# Show log summary
+log_summary "$LOG_FILE" "startup" "debug"
 
 echo ""
 echo "✨ Analysis complete!"

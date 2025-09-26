@@ -31,6 +31,11 @@ export class IntegrationService
   }
 
   override async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      this.logger.debug("Integration service already initialized, skipping");
+      return;
+    }
+
     this.startTimer("initialize");
 
     await this.executeWithErrorHandling(
@@ -39,18 +44,23 @@ export class IntegrationService
 
         // Step 1: Initialize data source integration
         await this.dataSourceIntegration.initialize();
+        this.triggerGarbageCollection("after_data_source_init");
 
         // Step 2: Initialize price aggregation coordination
         await this.priceAggregationCoordinator.initialize();
+        this.triggerGarbageCollection("after_aggregation_init");
 
         // Step 3: Initialize system health monitoring
         await this.systemHealth.initialize();
+        this.triggerGarbageCollection("after_health_init");
 
         // Step 4: Wire service interactions
         await this.wireServiceInteractions();
+        this.triggerGarbageCollection("after_wiring");
 
         // Step 5: Subscribe to configured feeds
         await this.subscribeToFeeds();
+        this.triggerGarbageCollection("after_feed_subscription");
 
         const duration = this.endTimer("initialize");
         this.logger.log(`Module initialization completed in ${duration.toFixed(2)}ms`);
@@ -64,6 +74,16 @@ export class IntegrationService
         },
       }
     );
+  }
+
+  private triggerGarbageCollection(phase: string): void {
+    if (global.gc) {
+      const memBefore = process.memoryUsage();
+      global.gc();
+      const memAfter = process.memoryUsage();
+      const freed = memBefore.heapUsed - memAfter.heapUsed;
+      this.logger.debug(`GC triggered after ${phase}: freed ${(freed / 1024 / 1024).toFixed(2)}MB`);
+    }
   }
 
   override async cleanup(): Promise<void> {
@@ -94,6 +114,22 @@ export class IntegrationService
         retryDelay: 1000,
       }
     );
+  }
+
+  // Service state management
+  public override isServiceInitialized(): boolean {
+    // Check if this service is initialized
+    if (!this.isInitialized) {
+      return false;
+    }
+
+    // Check if all required sub-services are initialized
+    // Handle both real services and test mocks gracefully
+    const dataSourceReady = this.dataSourceIntegration?.isInitialized ?? true;
+    const aggregationReady = this.priceAggregationCoordinator?.isInitialized ?? true;
+    const healthReady = this.systemHealth?.isInitialized ?? true;
+
+    return dataSourceReady && aggregationReady && healthReady;
   }
 
   // Public API methods

@@ -105,8 +105,6 @@ describe("BaseExchangeAdapter", () => {
       const config: ExchangeConnectionConfig = {
         websocketUrl: "wss://custom.example.com",
         restApiUrl: "https://api.custom.com",
-        apiKey: "test-key",
-        apiSecret: "test-secret",
       };
 
       const customAdapter = new TestExchangeAdapter({ connection: config });
@@ -139,13 +137,20 @@ describe("BaseExchangeAdapter", () => {
         }
       })();
 
+      // Temporarily enable retries for this test
+      (failingAdapter as any).maxRetries = 2;
+      (failingAdapter as any).retryDelay = 1; // Very short delay for testing
+
+      // Mock the sleep method to avoid delays in tests
+      (failingAdapter as any).sleep = jest.fn().mockResolvedValue(undefined);
+
       await failingAdapter.connect();
       expect(attempts).toBe(3);
       expect(failingAdapter.isConnected()).toBe(true);
 
       // Cleanup
       await failingAdapter.cleanup();
-    }, 5000);
+    });
 
     it("should handle disconnection", async () => {
       const connectionSpy = jest.fn();

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
@@ -22,7 +22,7 @@ interface ExchangeConnectionState {
  * 4. Handles both custom adapters and CCXT adapter properly
  */
 @Injectable()
-export class WebSocketOrchestratorService extends EventDrivenService implements OnModuleInit {
+export class WebSocketOrchestratorService extends EventDrivenService {
   private exchangeStates = new Map<string, ExchangeConnectionState>();
   private feedToExchangeMap = new Map<string, Array<{ exchange: string; symbol: string }>>();
   public override isInitialized = false;
@@ -34,19 +34,13 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
     super({ useEnhancedLogging: true });
   }
 
-  override async onModuleInit(): Promise<void> {
-    // Initialize after a short delay to ensure all adapters are registered
-    setTimeout(() => {
-      void this.initialize();
-    }, 1000);
-  }
-
   override async initialize(): Promise<void> {
     if (this.isInitialized) {
       this.logger.log("WebSocket orchestrator already initialized, skipping");
       return;
     }
 
+    // Initialize synchronously only the essential parts needed for the service to be ready
     await this.executeWithErrorHandling(
       async () => {
         this.logger.log("Initializing WebSocket orchestrator...");
@@ -57,14 +51,12 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
         // Step 2: Initialize exchange connection states
         await this.initializeExchangeStates();
 
-        // Step 3: Connect to all required exchanges once
-        await this.connectAllExchanges();
-
-        // Step 4: Subscribe to required symbols based on feeds.json
-        await this.subscribeToRequiredSymbols();
-
+        // Mark as initialized so the service is ready
         this.isInitialized = true;
         this.logger.log("WebSocket orchestrator initialized successfully");
+
+        // Step 3 & 4: Connect and subscribe asynchronously to avoid blocking server startup
+        this.initializeConnectionsAsync();
       },
       "websocket_orchestrator_initialization",
       {
@@ -72,6 +64,43 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
         retryDelay: 3000,
       }
     );
+  }
+
+  /**
+   * Initialize WebSocket connections asynchronously to avoid blocking server startup
+   */
+  private initializeConnectionsAsync(): void {
+    // Use setTimeout to ensure this runs after the current call stack
+    setTimeout(async () => {
+      try {
+        this.logger.log("Starting asynchronous WebSocket connections...");
+
+        // Step 3: Connect to all required exchanges once
+        await this.connectAllExchanges();
+
+        // Step 4: Subscribe to required symbols based on feeds.json (also async)
+        this.subscribeToRequiredSymbolsAsync();
+
+        this.logger.log("Asynchronous WebSocket initialization completed");
+      } catch (error) {
+        this.logger.error("Failed to initialize WebSocket connections asynchronously:", error);
+        // Don't throw here as this shouldn't block the application
+      }
+    }, 100); // Small delay to ensure server startup completes first
+  }
+
+  /**
+   * Subscribe to required symbols asynchronously to avoid blocking
+   */
+  private subscribeToRequiredSymbolsAsync(): void {
+    setTimeout(async () => {
+      try {
+        await this.subscribeToRequiredSymbols();
+        this.logger.log("Asynchronous symbol subscription completed");
+      } catch (error) {
+        this.logger.error("Failed to subscribe to symbols asynchronously:", error);
+      }
+    }, 1000); // Wait a bit longer for connections to stabilize
   }
 
   /**
@@ -86,6 +115,10 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
       return;
     }
 
+    // Group symbols by adapter type to avoid duplicate subscriptions
+    const ccxtSymbols = new Set<string>();
+    const customAdapterSubscriptions = new Map<IExchangeAdapter, Set<string>>();
+
     for (const config of exchangeConfigs) {
       const exchangeState = this.exchangeStates.get(config.exchange);
       if (!exchangeState) {
@@ -96,15 +129,63 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
       // Add to required symbols
       exchangeState.requiredSymbols.add(config.symbol);
 
-      // Subscribe if not already subscribed and exchange is connected
+      // Group by adapter type
       if (exchangeState.isConnected && !exchangeState.subscribedSymbols.has(config.symbol)) {
-        try {
-          await exchangeState.adapter.subscribe([config.symbol]);
-          exchangeState.subscribedSymbols.add(config.symbol);
-          this.logger.debug(`Subscribed ${config.exchange} to ${config.symbol} for feed ${feedKey}`);
-        } catch (error) {
-          this.logger.error(`Failed to subscribe ${config.exchange} to ${config.symbol}:`, error);
+        if (exchangeState.adapter.exchangeName === "ccxt-multi-exchange") {
+          // Collect all CCXT symbols for batch subscription
+          ccxtSymbols.add(config.symbol);
+        } else {
+          // Group custom adapter subscriptions
+          if (!customAdapterSubscriptions.has(exchangeState.adapter)) {
+            customAdapterSubscriptions.set(exchangeState.adapter, new Set());
+          }
+          customAdapterSubscriptions.get(exchangeState.adapter)!.add(config.symbol);
         }
+      }
+    }
+
+    // Subscribe to CCXT adapter once with all symbols
+    if (ccxtSymbols.size > 0) {
+      // Find the CCXT adapter from any exchange state that uses it
+      let ccxtAdapter: IExchangeAdapter | undefined;
+      for (const state of this.exchangeStates.values()) {
+        if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+          ccxtAdapter = state.adapter;
+          break;
+        }
+      }
+
+      if (ccxtAdapter) {
+        try {
+          await ccxtAdapter.subscribe(Array.from(ccxtSymbols));
+          // Update all CCXT exchange states
+          for (const state of this.exchangeStates.values()) {
+            if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+              ccxtSymbols.forEach(symbol => state.subscribedSymbols.add(symbol));
+            }
+          }
+          this.logger.debug(`Subscribed CCXT adapter to ${ccxtSymbols.size} symbols for feed ${feedKey}`);
+        } catch (error) {
+          this.logger.error(`Failed to subscribe CCXT adapter to symbols for feed ${feedKey}:`, error);
+        }
+      } else {
+        this.logger.warn(`CCXT adapter not found for feed ${feedKey}`);
+      }
+    }
+
+    // Subscribe to custom adapters individually
+    for (const [adapter, symbols] of customAdapterSubscriptions) {
+      try {
+        await adapter.subscribe(Array.from(symbols));
+        // Update the corresponding exchange state
+        for (const state of this.exchangeStates.values()) {
+          if (state.adapter === adapter) {
+            symbols.forEach(symbol => state.subscribedSymbols.add(symbol));
+          }
+        }
+        this.logger.debug(`Subscribed ${adapter.exchangeName} to ${symbols.size} symbols for feed ${feedKey}`);
+      } catch (error) {
+        this.logger.error(`Failed to subscribe ${adapter.exchangeName} to symbols for feed ${feedKey}:`, error);
       }
     }
   }
@@ -260,47 +341,72 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   }
 
   private async connectAllExchanges(): Promise<void> {
-    this.logger.log("Requesting connections to all required exchanges...");
+    this.logger.log("Requesting connections to all required exchanges (parallel with concurrency limit)...");
 
-    const connectionPromises: Promise<void>[] = [];
+    const totalExchanges = this.exchangeStates.size;
+    const concurrencyLimit = 5; // Connect to 5 exchanges at a time
+    const exchanges = Array.from(this.exchangeStates.entries());
+    let connectedCount = 0;
 
-    for (const [exchangeName, state] of this.exchangeStates) {
-      connectionPromises.push(
-        this.executeWithErrorHandling(
-          async () => {
-            this.logger.log(`Requesting connection to exchange: ${exchangeName}`);
-            state.lastConnectionAttempt = Date.now();
+    // Process exchanges in batches to balance speed and memory usage
+    for (let i = 0; i < exchanges.length; i += concurrencyLimit) {
+      const batch = exchanges.slice(i, i + concurrencyLimit);
 
-            // Let adapter handle its own connection
-            await state.adapter.connect();
+      const connectionPromises = batch.map(async ([exchangeName, state]) => {
+        try {
+          this.logger.log(
+            `Requesting connection to exchange: ${exchangeName} (batch ${Math.floor(i / concurrencyLimit) + 1})`
+          );
+          state.lastConnectionAttempt = Date.now();
 
-            // Update our tracking based on adapter's actual state
-            state.isConnected = state.adapter.isConnected();
+          // Let adapter handle its own connection
+          await state.adapter.connect();
 
-            if (state.isConnected) {
-              this.logger.log(`Successfully connected to exchange: ${exchangeName}`);
-            } else {
-              this.logger.warn(`Exchange ${exchangeName} connection failed`);
-            }
-          },
-          `connect_${exchangeName}`,
-          {
-            shouldThrow: false, // Don't fail entire initialization if one exchange fails
-            retries: 2,
-            retryDelay: 2000,
-            onError: error => {
-              this.logger.warn(`Failed to connect to exchange ${exchangeName}: ${error.message}`);
-              state.isConnected = false;
-            },
+          // Update our tracking based on adapter's actual state
+          state.isConnected = state.adapter.isConnected();
+
+          if (state.isConnected) {
+            this.logger.log(`Successfully connected to exchange: ${exchangeName}`);
+            return { exchangeName, success: true };
+          } else {
+            this.logger.warn(`Exchange ${exchangeName} connection failed`);
+            return { exchangeName, success: false };
           }
-        )
-      );
+        } catch (error) {
+          this.logger.warn(`Failed to connect to exchange ${exchangeName}:`, error);
+          state.isConnected = false;
+          return { exchangeName, success: false };
+        }
+      });
+
+      // Wait for all connections in this batch to complete
+      const results = await Promise.allSettled(connectionPromises);
+
+      // Count successful connections
+      results.forEach(result => {
+        if (result.status === "fulfilled" && result.value.success) {
+          connectedCount++;
+        }
+      });
+
+      // Trigger garbage collection after each batch to manage memory
+      if (global.gc) {
+        const memBefore = process.memoryUsage();
+        global.gc();
+        const memAfter = process.memoryUsage();
+        const freed = memBefore.heapUsed - memAfter.heapUsed;
+        this.logger.debug(
+          `GC after batch ${Math.floor(i / concurrencyLimit) + 1}: freed ${(freed / 1024 / 1024).toFixed(2)}MB`
+        );
+      }
+
+      // Small delay between batches to prevent overwhelming the system
+      if (i + concurrencyLimit < exchanges.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
 
-    await Promise.allSettled(connectionPromises);
-
-    const connectedCount = Array.from(this.exchangeStates.values()).filter(s => s.isConnected).length;
-    this.logger.log(`Connected to ${connectedCount}/${this.exchangeStates.size} exchanges`);
+    this.logger.log(`Connected to ${connectedCount}/${totalExchanges} exchanges`);
   }
 
   private async subscribeToRequiredSymbols(): Promise<void> {

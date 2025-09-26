@@ -9,9 +9,6 @@ import { PriceUpdate, VolumeUpdate } from "../core/data-source.types";
 export interface ExchangeConnectionConfig {
   websocketUrl?: string;
   restApiUrl?: string;
-  apiKey?: string;
-  apiSecret?: string;
-  passphrase?: string;
   rateLimit?: number; // requests per second
 }
 

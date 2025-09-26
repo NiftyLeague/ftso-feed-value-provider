@@ -1,7 +1,8 @@
 #!/bin/bash
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -30,13 +31,13 @@ fi
 TIMEOUT=90
 
 # Set up logging using common utility
+echo "📝 Starting error analysis..."
 setup_debug_logging "error-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
-ERROR_SUMMARY="$DEBUG_LOG_DIR/error-summary.log"
 
-echo "📁 Log file: $LOG_FILE"
-echo "📝 Starting error analysis..."
+ERROR_SUMMARY="$DEBUG_LOG_DIR/error-summary.log"
 echo "📊 Error summary: $ERROR_SUMMARY"
+echo ""
 
 # Start the application in background with clean output capture
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
@@ -71,10 +72,10 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Error Statistics:"
     echo "-------------------"
     
-    # Count different types of errors
-    FATAL_ERRORS=$(grep -c "FATAL\|Fatal" "$LOG_FILE")
-    ERROR_LOGS=$(grep -c "ERROR\|Error" "$LOG_FILE")
-    WARNINGS=$(grep -c "WARN\|Warning" "$LOG_FILE")
+    # Count different types of errors (only actual log levels, not content)
+    FATAL_ERRORS=$(grep -c "\] *FATAL " "$LOG_FILE")
+    ERROR_LOGS=$(grep -c "\] *ERROR " "$LOG_FILE")
+    WARNINGS=$(grep -c "\] *WARN " "$LOG_FILE")
     
     echo "💀 Fatal errors: $FATAL_ERRORS"
     echo "❌ Errors: $ERROR_LOGS"
@@ -174,9 +175,9 @@ if [ -f "$LOG_FILE" ]; then
     echo "🔍 Error Patterns:"
     echo "-----------------"
     
-    # Most common error messages
+    # Most common error messages (only actual log levels)
     echo "Most common error patterns:"
-    grep -E "(ERROR|Error|WARN|Warning)" "$LOG_FILE" | \
+    grep -E "\] *(ERROR |WARN )" "$LOG_FILE" | \
         sed 's/\[[0-9:]*\s*[AP]M\]//g' | \
         sed 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}.*[AP]M//g' | \
         sort | uniq -c | sort -nr | head -5
@@ -185,13 +186,13 @@ if [ -f "$LOG_FILE" ]; then
     echo "🕐 Error Timeline:"
     echo "-----------------"
     
-    # Show error timeline (first and last few errors)
+    # Show error timeline (first and last few errors, only actual log levels)
     echo "First errors:"
-    grep -E "(ERROR|Error|WARN|Warning)" "$LOG_FILE" | head -3
+    grep -E "\] *(ERROR |WARN )" "$LOG_FILE" | head -3
     
     echo ""
     echo "Recent errors:"
-    grep -E "(ERROR|Error|WARN|Warning)" "$LOG_FILE" | tail -3
+    grep -E "\] *(ERROR |WARN )" "$LOG_FILE" | tail -3
     
     echo ""
     echo "🧪 Data Validation Errors:"
@@ -275,6 +276,9 @@ if [ -f "$LOG_FILE" ]; then
         echo "   - Continue monitoring for any emerging patterns"
     fi
 fi
+
+# Show log summary
+log_summary "$LOG_FILE" "errors" "debug"
 
 echo ""
 echo "✨ Error analysis complete!"

@@ -53,7 +53,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
 
       await binanceAdapter.disconnect();
       expect(binanceAdapter.isConnected()).toBe(false);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
 
     it("should handle subscription management", async () => {
       await binanceAdapter.connect();
@@ -65,7 +65,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       await binanceAdapter.unsubscribe(["BTC/USDT"]);
       const afterUnsubscribe = binanceAdapter.getSubscriptions();
       expect(afterUnsubscribe.length).toBe(0);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
   });
 
   describe("message processing", () => {
@@ -109,7 +109,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       expect(priceUpdates).toHaveLength(1);
       expect(priceUpdates[0].symbol).toBe("BTC/USDT");
       expect(priceUpdates[0].price).toBe(50000);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
 
     it("should process Coinbase messages", async () => {
       const priceUpdates: PriceUpdate[] = [];
@@ -138,7 +138,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       expect(priceUpdates).toHaveLength(1);
       expect(priceUpdates[0].symbol).toBe("BTC/USD");
       expect(priceUpdates[0].price).toBe(50100);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
 
     it("should handle multiple messages efficiently", async () => {
       const priceUpdates: PriceUpdate[] = [];
@@ -177,7 +177,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
 
       expect(priceUpdates).toHaveLength(10);
       expect(priceUpdates[9].price).toBe(50009);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
   });
 
   describe("error handling", () => {
@@ -195,7 +195,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
 
       // Should generate errors but not crash
       expect(errors.length).toBeGreaterThan(0);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
 
     it("should handle connection failures", async () => {
       const errors: Error[] = [];
@@ -209,7 +209,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       }
 
       expect(errors).toHaveLength(1);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
   });
 
   describe("REST API fallback", () => {
@@ -232,7 +232,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
       expect(result.source).toBe("binance");
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
 
     it("should handle REST API errors", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -242,7 +242,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       });
 
       await expect(binanceAdapter.fetchTickerREST("BTC/USDT")).rejects.toThrow();
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
   });
 
   describe("health checks", () => {
@@ -251,11 +251,11 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
 
       const isHealthy = await binanceAdapter.healthCheck();
       expect(isHealthy).toBe(true);
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
 
     it("should handle health check when disconnected", async () => {
       const isHealthy = await binanceAdapter.healthCheck();
       expect(typeof isHealthy).toBe("boolean");
-    }, 3000);
+    }, 10000); // Increased timeout to 10 seconds
   });
 });

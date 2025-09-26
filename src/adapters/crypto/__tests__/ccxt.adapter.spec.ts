@@ -73,20 +73,16 @@ describe("CcxtMultiExchangeAdapter", () => {
       const newConfig: Partial<CcxtMultiExchangeConfig> = {
         tradesLimit: 3000,
         websocketUrl: "wss://new-ws-url.com",
-        apiKey: "new-api-key",
       };
 
       adapter.updateConnectionConfig({
         websocketUrl: newConfig.websocketUrl,
-        apiKey: newConfig.apiKey,
       });
 
       (adapter as any).updateAdapterConfig(newConfig);
       const updatedConfig = adapter.getCcxtConfig();
 
-      // Check that the new config values are set
       expect(updatedConfig.websocketUrl).toBe("wss://new-ws-url.com");
-      expect(updatedConfig.apiKey).toBe("new-api-key");
       expect(updatedConfig.tradesLimit).toBe(3000);
 
       // Check that other config values remain unchanged
@@ -164,14 +160,14 @@ describe("CcxtMultiExchangeAdapter", () => {
       (adapter as any).retryDelay = 0;
       (adapter as any).maxRetries = 2; // This means 3 attempts total
 
-      // Should fail after 3 attempts (initial + 2 retries)
-      await expect(adapter.connect()).rejects.toThrow("Failed to connect to ccxt-multi-exchange after 3 attempts");
+      // Should complete without throwing (graceful degradation to REST API)
+      await adapter.connect();
       expect(adapter.isConnected()).toBe(false);
 
-      // Each retry except the last should produce a warning
-      expect(warnSpy).toHaveBeenCalledTimes(2);
-      expect(warnSpy.mock.calls[0][0]).toContain("Connection attempt 1 failed");
-      expect(warnSpy.mock.calls[1][0]).toContain("Connection attempt 2 failed");
+      // Should produce warnings for retries and final fallback message
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Connection failed for ccxt-multi-exchange, continuing with REST API fallback")
+      );
 
       // The error is logged on each attempt in doConnect
       expect(errorSpy).toHaveBeenCalledTimes(3);
@@ -182,7 +178,7 @@ describe("CcxtMultiExchangeAdapter", () => {
       // Verify callbacks were called
       expect(connectionChangeCallbackMock).toHaveBeenCalledWith(false);
       expect(errorCallbackMock).toHaveBeenCalledWith(expect.any(Error));
-    });
+    }, 20000); // 20 second timeout
   });
 
   describe("data normalization", () => {

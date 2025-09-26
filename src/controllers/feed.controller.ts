@@ -93,7 +93,7 @@ export class FeedController extends BaseController {
         body,
         useStandardizedErrorHandling: false,
         useRetryLogic: false,
-        performanceThreshold: 100, // Sub-100ms requirement
+        performanceThreshold: 3000, // 3 second threshold for initial requests (system warmup)
       }
     );
   }

@@ -30,6 +30,67 @@ export interface OkxWebSocketMessage {
   data: OkxTickerData[];
 }
 
+export interface OkxPongMessage {
+  event?: "pong";
+  op?: "pong";
+}
+
+export interface OkxSubscriptionMessage {
+  event: "subscribe" | "subscription";
+}
+
+export interface OkxErrorMessage {
+  event: "error";
+  msg?: string;
+  code?: string;
+}
+
+export type OkxMessage = OkxWebSocketMessage | OkxPongMessage | OkxSubscriptionMessage | OkxErrorMessage;
+
+// Type guard functions
+function isOkxPongMessage(message: unknown): message is OkxPongMessage {
+  if (typeof message !== "object" || message === null) {
+    return false;
+  }
+
+  const msg = message as Record<string, unknown>;
+  return ("event" in msg && msg.event === "pong") || ("op" in msg && msg.op === "pong");
+}
+
+function isOkxSubscriptionMessage(message: unknown): message is OkxSubscriptionMessage {
+  if (typeof message !== "object" || message === null) {
+    return false;
+  }
+
+  const msg = message as Record<string, unknown>;
+  return "event" in msg && (msg.event === "subscribe" || msg.event === "subscription");
+}
+
+function isOkxErrorMessage(message: unknown): message is OkxErrorMessage {
+  if (typeof message !== "object" || message === null) {
+    return false;
+  }
+
+  const msg = message as Record<string, unknown>;
+  return "event" in msg && msg.event === "error";
+}
+
+function isOkxWebSocketMessage(message: unknown): message is OkxWebSocketMessage {
+  if (typeof message !== "object" || message === null) {
+    return false;
+  }
+
+  const msg = message as Record<string, unknown>;
+  return (
+    "arg" in msg &&
+    "data" in msg &&
+    typeof msg.arg === "object" &&
+    msg.arg !== null &&
+    "channel" in (msg.arg as Record<string, unknown>) &&
+    Array.isArray(msg.data)
+  );
+}
+
 export interface OkxRestTickerData {
   instType: string;
   instId: string;
@@ -79,36 +140,117 @@ export class OkxAdapter extends BaseExchangeAdapter {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://ws.okx.com:8443/ws/v5/public";
 
-    await this.connectWebSocket({
-      url: wsUrl,
-      reconnectInterval: 5000,
-      maxReconnectAttempts: 5,
-      pingInterval: 30000, // OKX requires periodic ping
-      pongTimeout: 10000,
-    });
+    await this.connectWebSocket(
+      this.createWebSocketConfig(wsUrl, {
+        // OKX has its own 30s timeout mechanism and doesn't respond to pings
+        // Send pings more frequently to keep connection alive
+        pingInterval: 25000, // 25 seconds - just before OKX's 30s timeout
+        pongTimeout: 35000, // 35 seconds - allow for OKX's timeout behavior
+        connectionTimeout: 45000, // Longer connection timeout
+      })
+    );
   }
 
   protected async doDisconnect(): Promise<void> {
     await this.disconnectWebSocket();
   }
 
+  // Override WebSocket close handler for OKX-specific handling
+  protected override handleWebSocketClose(code?: number, reason?: string): boolean {
+    // Only log if not shutting down to reduce noise
+    if (!this.isShuttingDown) {
+      // Handle OKX-specific close codes with appropriate log levels
+      if (code === 4004) {
+        // OKX closes connections after 30s of no data - this is expected behavior
+        this.logger.debug(`OKX WebSocket closed due to no data timeout (${code}) - normal behavior`, {
+          component: "OkxAdapter",
+          operation: "handleWebSocketClose",
+          code,
+          reason: "no data received in 30s",
+          severity: "low",
+        });
+      } else if (code === 1006) {
+        this.logger.warn(`OKX WebSocket closed abnormally (${code}) - connection lost`, {
+          component: "OkxAdapter",
+          operation: "handleWebSocketClose",
+          code,
+          reason: reason || "connection lost",
+          severity: "medium",
+          retryable: true,
+        });
+      } else if (code === 1000) {
+        this.logger.debug(`OKX WebSocket closed normally (${code})`, {
+          component: "OkxAdapter",
+          operation: "handleWebSocketClose",
+          code,
+          reason: "normal closure",
+        });
+      } else {
+        this.logger.warn(`OKX WebSocket closed with code ${code}: ${reason || "unknown reason"}`, {
+          component: "OkxAdapter",
+          operation: "handleWebSocketClose",
+          code,
+          reason: reason || "unknown",
+          severity: "medium",
+        });
+      }
+      // Return true to indicate we handled the logging
+      return true;
+    }
+    // If shutting down, let base class handle it
+    return super.handleWebSocketClose(code, reason);
+  }
+
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
     try {
-      const message = typeof data === "string" ? JSON.parse(data) : data;
+      let message: unknown;
+      let rawString: string;
 
-      // Handle ping/pong
-      if (message?.event === "pong") {
+      // Convert to string first to check for simple pong responses
+      if (typeof data === "string") {
+        rawString = data;
+      } else if (Buffer.isBuffer(data)) {
+        rawString = data.toString("utf8");
+      } else {
+        rawString = String(data);
+      }
+
+      // Handle simple pong responses before JSON parsing
+      if (rawString === "pong") {
+        this.onPongReceived();
         return;
       }
 
-      // Handle subscription confirmation
-      if (message?.event === "subscribe") {
+      // Parse the message as JSON
+      try {
+        message = JSON.parse(rawString);
+      } catch {
+        this.logger.debug(`Received non-JSON message from OKX: ${rawString}`);
+        return;
+      }
+
+      // Handle ping/pong in JSON format
+      if (isOkxPongMessage(message)) {
+        this.onPongReceived();
+        return;
+      }
+
+      // Handle subscription confirmation - OKX uses different formats
+      if (isOkxSubscriptionMessage(message)) {
+        this.logger.debug("OKX subscription confirmation:", message);
+        return;
+      }
+
+      // Handle errors
+      if (isOkxErrorMessage(message)) {
+        this.logger.warn("OKX WebSocket error:", message);
         return;
       }
 
       // Handle ticker data
-      if (message?.arg?.channel === "tickers" && message?.data) {
+      if (isOkxWebSocketMessage(message) && message.arg.channel === "tickers") {
+        this.logger.debug(`OKX ticker data received for ${message.data.length} symbols`);
         message.data.forEach((ticker: OkxTickerData) => {
           if (this.validateResponse(ticker)) {
             const priceUpdate = this.normalizePriceData(ticker);
@@ -127,12 +269,12 @@ export class OkxAdapter extends BaseExchangeAdapter {
   normalizePriceData(rawData: OkxTickerData): PriceUpdate {
     const price = this.parseNumber(rawData.last);
     const volume = this.parseNumber(rawData.vol24h);
-    const timestamp = parseInt(rawData.ts);
+    const timestamp = this.standardizeTimestamp(rawData.ts);
 
-    // Calculate spread for confidence
+    // Calculate spread for confidence using standardized method
     const bid = this.parseNumber(rawData.bidPx);
     const ask = this.parseNumber(rawData.askPx);
-    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
+    const spreadPercent = this.calculateSpreadForConfidence(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.instId),
@@ -179,36 +321,46 @@ export class OkxAdapter extends BaseExchangeAdapter {
   protected async doSubscribe(symbols: string[]): Promise<void> {
     const okxSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
-    for (const symbol of okxSymbols) {
-      const subscribeMessage = {
-        op: "subscribe",
-        args: [
-          {
-            channel: "tickers",
-            instId: symbol,
-          },
-        ],
-      };
+    try {
+      for (const symbol of okxSymbols) {
+        const subscribeMessage = {
+          op: "subscribe",
+          args: [
+            {
+              channel: "tickers",
+              instId: symbol,
+            },
+          ],
+        };
 
-      await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+        await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+      }
+      this.logger.log(`Subscribed to OKX symbols: ${okxSymbols.join(", ")}`);
+    } catch (error) {
+      this.logger.warn(`OKX subscription error:`, error);
     }
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
     const okxSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
-    for (const symbol of okxSymbols) {
-      const unsubscribeMessage = {
-        op: "unsubscribe",
-        args: [
-          {
-            channel: "tickers",
-            instId: symbol,
-          },
-        ],
-      };
+    try {
+      for (const symbol of okxSymbols) {
+        const unsubscribeMessage = {
+          op: "unsubscribe",
+          args: [
+            {
+              channel: "tickers",
+              instId: symbol,
+            },
+          ],
+        };
 
-      await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+        await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+      }
+      this.logger.log(`Unsubscribed from OKX symbols: ${okxSymbols.join(", ")}`);
+    } catch (error) {
+      this.logger.warn(`OKX unsubscription error:`, error);
     }
   }
 
@@ -222,8 +374,10 @@ export class OkxAdapter extends BaseExchangeAdapter {
     const response = await this.fetchRestApi(url, `Failed to fetch OKX ticker for ${symbol}`);
     const result: OkxRestResponse = await response.json();
 
-    if (result.code !== "0" || !result.data || result.data.length === 0) {
-      throw new Error(`OKX API error: ${result.msg || "No data"}`);
+    this.handleRestApiError(result, "OKX");
+
+    if (!result.data || result.data.length === 0) {
+      throw new Error("OKX API error: No data");
     }
 
     const data = result.data[0];
@@ -250,26 +404,31 @@ export class OkxAdapter extends BaseExchangeAdapter {
 
   // Override symbol normalization for OKX format
   protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // OKX uses format like "BTC-USDT", convert to "BTC/USDT"
-    return exchangeSymbol.replace("-", "/");
+    return this.standardizeSymbolFromExchange(exchangeSymbol, ["-"]);
   }
 
-  // Override ping message for OKX-specific format
+  // Override ping message for OKX - they don't respond to pings but we can send them
   protected override sendPingMessage(): void {
     if (this.isWebSocketConnected()) {
-      void this.sendWebSocketMessage("ping");
+      try {
+        // OKX doesn't respond to pings, but sending them may help keep connection alive
+        void this.sendWebSocketMessage("ping");
+        this.logger.debug("✅ Sent ping to OKX WebSocket (no pong expected)");
+      } catch (error) {
+        this.logger.debug("❌ Failed to send ping to OKX WebSocket:", error);
+        // Don't treat ping failure as critical for OKX since they don't respond
+      }
+    } else {
+      this.logger.debug("⚠️  Cannot send ping to OKX - WebSocket not connected");
     }
   }
 
+  // OKX uses its own 30s timeout mechanism and doesn't require ping/pong
+  // The connection stays alive as long as data is flowing from subscriptions
+
   protected async doHealthCheck(): Promise<boolean> {
-    try {
-      const config = this.getConfig();
-      const baseUrl = config?.restApiUrl || "https://www.okx.com";
-      const response = await this.fetchRestApi(`${baseUrl}/api/v5/system/status`, "OKX health check failed");
-      const result: OkxRestResponse = await response.json();
-      return result.code === "0";
-    } catch {
-      return false;
-    }
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://www.okx.com";
+    return this.performStandardHealthCheck(`${baseUrl}/api/v5/system/status`);
   }
 }

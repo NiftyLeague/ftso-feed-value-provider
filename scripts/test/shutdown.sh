@@ -5,7 +5,7 @@ echo "Testing graceful shutdown functionality"
 echo "=========================================="
 
 # Source common cleanup utilities
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -134,6 +134,12 @@ else
     
     exit 1
 fi
+
+# Source enhanced log summary utilities
+source "$(dirname "$0")/../utils/parse-logs.sh"
+
+# Show test summary
+log_summary "$LOG_FILE" "shutdown" "test"
 
 echo "=========================================="
 echo "✅ Graceful shutdown test completed successfully!"

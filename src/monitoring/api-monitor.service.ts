@@ -378,17 +378,14 @@ export class ApiMonitorService extends EventDrivenService {
 
   private startPeriodicCleanup(): void {
     // Clean up old metrics every 5 minutes
-    this.createInterval(
-      () => {
-        this.cleanupOldMetrics();
-      },
-      parseInt(process.env.MONITORING_BUCKET_SIZE_MS || "300000", 10)
-    );
+    this.createInterval(() => {
+      this.cleanupOldMetrics();
+    }, ENV.MONITORING.BUCKET_SIZE_MS);
   }
 
   private cleanupOldMetrics(): void {
     const now = Date.now();
-    const maxAge = parseInt(process.env.MONITORING_DATA_RETENTION_MS || "3600000", 10);
+    const maxAge = ENV.MONITORING.DATA_RETENTION_MS;
     const cutoff = now - maxAge;
 
     // Remove old metrics

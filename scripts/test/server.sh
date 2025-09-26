@@ -4,6 +4,7 @@
 
 # Source common test utilities
 source "$(dirname "$0")/../utils/test-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
 
 echo "🚀 FTSO Server Functionality Test"
 echo "================================="
@@ -12,15 +13,13 @@ echo "================================="
 setup_cleanup_handlers
 
 # Set up logging using common utility
+echo "📊 Starting comprehensive server test..."
 setup_test_logging "server"
 LOG_FILE="$TEST_LOG_FILE"
 
-echo "📊 Starting comprehensive server test..."
-echo "📁 Log file: $LOG_FILE"
-
-# Configuration - Further reduced for stability
-STARTUP_TIMEOUT=30  # Reduced from 60 seconds
-TEST_TIMEOUT=10     # Reduced from 15 seconds for each test
+# Configuration - Increased for WebSocket initialization
+STARTUP_TIMEOUT=90  # Increased to allow WebSocket connections to establish
+TEST_TIMEOUT=15     # Increased for more reliable testing
 
 echo "🚀 Starting comprehensive server test..." > "$LOG_FILE"
 echo "📊 Startup timeout: ${STARTUP_TIMEOUT}s, Test timeout: ${TEST_TIMEOUT}s"
@@ -122,7 +121,7 @@ echo "-------------------------------"
 echo "🔍 Testing POST /feed-values..."
 FEED_RESPONSE=$(curl -s --max-time $TEST_TIMEOUT -X POST \
     -H "Content-Type: application/json" \
-    -d '{"feeds": ["BTC/USD", "ETH/USD"]}' \
+    -d '{"feeds": [{"category": 1, "name": "BTC/USD"}, {"category": 1, "name": "ETH/USD"}]}' \
     http://localhost:3101/feed-values 2>/dev/null)
 FEED_EXIT_CODE=$?
 
@@ -140,7 +139,7 @@ echo "🛑 Stopping application..."
 stop_tracked_apps
 
 # Show test summary
-show_test_log_summary "$LOG_FILE" "server"
+log_summary "$LOG_FILE" "server" "test"
 
 # Clean up old logs if in session mode
 cleanup_old_test_logs "server"

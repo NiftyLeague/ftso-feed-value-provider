@@ -77,6 +77,21 @@ export class UniversalRetryService extends EventDrivenService {
             throw new Error(`Service is shutting down, aborting retry for ${serviceId}`);
           }
 
+          // Check if error is retryable before attempting
+          if (lastError && !this.isRetryableError(lastError, serviceId)) {
+            this.enhancedLogger?.debug(
+              `Error is not retryable, aborting retry for ${serviceId}: ${lastError.message}`,
+              {
+                component: "UniversalRetryService",
+                operation: "execute_with_retry",
+                serviceId,
+                operationName,
+                errorType: lastError.constructor.name,
+              }
+            );
+            throw lastError;
+          }
+
           // Execute through circuit breaker
           result = await this.circuitBreaker.execute(serviceId, async () => {
             this.enhancedLogger?.debug(`Executing ${operationName} (attempt ${attempt})`, {
@@ -100,22 +115,79 @@ export class UniversalRetryService extends EventDrivenService {
             throw lastError;
           }
 
-          // Log retry attempt with rate limiting
+          // Check if this is a non-retryable error
+          if (!this.isRetryableError(lastError, serviceId)) {
+            this.enhancedLogger?.debug(
+              `Non-retryable error encountered, aborting retry for ${serviceId}: ${lastError.message}`,
+              {
+                component: "UniversalRetryService",
+                operation: "execute_with_retry",
+                serviceId,
+                operationName,
+                errorType: lastError.constructor.name,
+              }
+            );
+            throw lastError;
+          }
+
+          // Log retry attempt with rate limiting and appropriate severity
           const now = Date.now();
           const warningKey = `${serviceId}_retry_warning`;
           const lastLogged = this.warningLastLogged.get(warningKey) || 0;
 
           if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
-            this.logger?.warn(
-              `Attempt ${attempt}/${config.maxRetries + 1} failed: ${lastError.message}. Retrying in ${delayMs}ms...`
-            );
+            // Determine log level based on error type and attempt number
+            const isConnectionError =
+              lastError.message.includes("WebSocket") ||
+              lastError.message.includes("connection") ||
+              lastError.message.includes("timeout") ||
+              lastError.message.includes("ECONNREFUSED") ||
+              lastError.message.includes("ENOTFOUND") ||
+              lastError.message.includes("ETIMEDOUT");
+
+            const logLevel = attempt <= 2 && isConnectionError ? "debug" : "warn";
+            const severity: "high" | "medium" = attempt > 3 ? "high" : "medium";
+
+            const logData = {
+              component: "UniversalRetryService",
+              operation: "executeWithRetry",
+              serviceId,
+              operationName,
+              attempt,
+              maxRetries: config.maxRetries + 1,
+              delayMs,
+              errorType: lastError.constructor.name,
+              isConnectionError,
+              severity,
+            };
+
+            if (logLevel === "debug") {
+              this.logger?.debug(
+                `Attempt ${attempt}/${config.maxRetries + 1} failed: ${lastError.message}. Retrying in ${delayMs}ms...`,
+                logData
+              );
+            } else {
+              this.logger?.warn(
+                `Attempt ${attempt}/${config.maxRetries + 1} failed: ${lastError.message}. Retrying in ${delayMs}ms...`,
+                logData
+              );
+            }
             this.warningLastLogged.set(warningKey, now);
+          }
+
+          // Apply adaptive delay based on error type
+          let adaptiveDelay = delayMs;
+
+          // Reduce delay for connection errors that might recover quickly
+          if (lastError.message.includes("connection") || lastError.message.includes("ECONNREFUSED")) {
+            adaptiveDelay = Math.min(delayMs * 0.7, config.maxDelayMs);
           }
 
           // Apply jitter if enabled
           const actualDelay = config.jitter
-            ? delayMs * (ENV.PERFORMANCE.JITTER_MIN_FACTOR + Math.random() * ENV.PERFORMANCE.JITTER_MAX_FACTOR)
-            : delayMs;
+            ? adaptiveDelay * (ENV.PERFORMANCE.JITTER_MIN_FACTOR + Math.random() * ENV.PERFORMANCE.JITTER_MAX_FACTOR)
+            : adaptiveDelay;
+
           await new Promise(resolve => setTimeout(resolve, actualDelay));
 
           // Calculate next delay with backoff
@@ -433,32 +505,42 @@ export class UniversalRetryService extends EventDrivenService {
       this.retryStats.set(serviceId, stats);
     }
 
-    stats.totalAttempts += attemptCount;
-    stats.successfulRetries++;
+    // Only count as retry if more than 1 attempt was made
+    if (attemptCount > 1) {
+      stats.totalAttempts += attemptCount;
+      stats.successfulRetries++;
+    }
+
     stats.lastRetryTime = new Date();
 
     // Update average retry time
-    const totalRetryTime = stats.averageRetryTime * (stats.successfulRetries - 1) + totalTime;
-    stats.averageRetryTime = totalRetryTime / stats.successfulRetries;
+    const totalRetryTime = stats.averageRetryTime * Math.max(stats.successfulRetries - 1, 0) + totalTime;
+    stats.averageRetryTime = stats.successfulRetries > 0 ? totalRetryTime / stats.successfulRetries : totalTime;
 
-    this.enhancedLogger?.log(`Retry operation succeeded: ${operationName}`, {
-      component: "UniversalRetryService",
-      operation: "record_retry_success",
-      serviceId,
-      operationName,
-      attemptCount,
-      totalTime,
-      successRate: (stats.successfulRetries / (stats.successfulRetries + stats.failedRetries)) * 100,
-    });
+    // Only log if this was actually a retry (more than 1 attempt)
+    if (attemptCount > 1) {
+      this.enhancedLogger?.log(`Retry operation succeeded: ${operationName}`, {
+        component: "UniversalRetryService",
+        operation: "record_retry_success",
+        serviceId,
+        operationName,
+        attemptCount,
+        totalTime,
+        successRate:
+          stats.successfulRetries > 0 && stats.failedRetries >= 0
+            ? (stats.successfulRetries / (stats.successfulRetries + stats.failedRetries)) * 100
+            : 100,
+      });
 
-    // Emit success event
-    this.emit("retrySuccess", {
-      serviceId,
-      operationName,
-      attemptCount,
-      totalTime,
-      timestamp: Date.now(),
-    });
+      // Emit success event
+      this.emit("retrySuccess", {
+        serviceId,
+        operationName,
+        attemptCount,
+        totalTime,
+        timestamp: Date.now(),
+      });
+    }
   }
 
   private recordRetryFailure(
@@ -479,33 +561,43 @@ export class UniversalRetryService extends EventDrivenService {
       this.retryStats.set(serviceId, stats);
     }
 
-    stats.totalAttempts += attemptCount;
-    stats.failedRetries++;
+    // Only count as retry failure if more than 1 attempt was made
+    if (attemptCount > 1) {
+      stats.totalAttempts += attemptCount;
+      stats.failedRetries++;
+    }
+
     stats.lastRetryTime = new Date();
 
-    this.enhancedLogger?.error(error, {
-      component: "UniversalRetryService",
-      operation: "record_retry_failure",
-      serviceId,
-      operationName,
-      attemptCount,
-      totalTime,
-      severity: "high",
-      metadata: {
-        failureRate: (stats.failedRetries / (stats.successfulRetries + stats.failedRetries)) * 100,
-        consecutiveFailures: stats.failedRetries,
-      },
-    });
+    // Only log retry failures, not first-attempt failures
+    if (attemptCount > 1) {
+      this.enhancedLogger?.error(error, {
+        component: "UniversalRetryService",
+        operation: "record_retry_failure",
+        serviceId,
+        operationName,
+        attemptCount,
+        totalTime,
+        severity: "high",
+        metadata: {
+          failureRate:
+            stats.successfulRetries + stats.failedRetries > 0
+              ? (stats.failedRetries / (stats.successfulRetries + stats.failedRetries)) * 100
+              : 0,
+          consecutiveFailures: stats.failedRetries,
+        },
+      });
 
-    // Emit failure event
-    this.emit("retryFailure", {
-      serviceId,
-      operationName,
-      attemptCount,
-      totalTime,
-      error: error.message,
-      timestamp: Date.now(),
-    });
+      // Emit failure event
+      this.emit("retryFailure", {
+        serviceId,
+        operationName,
+        attemptCount,
+        totalTime,
+        error: error.message,
+        timestamp: Date.now(),
+      });
+    }
   }
 
   /**

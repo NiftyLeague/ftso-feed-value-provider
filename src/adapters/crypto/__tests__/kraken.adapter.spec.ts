@@ -15,6 +15,9 @@ describe("KrakenAdapter", () => {
   let adapter: KrakenAdapter;
 
   beforeEach(() => {
+    // Reset fetch mock
+    jest.clearAllMocks();
+
     // Mock the logger to prevent console output
     const mockLogger = {
       debug: jest.fn(),
@@ -282,18 +285,17 @@ describe("KrakenAdapter", () => {
   describe("REST API", () => {
     it("should fetch ticker data via REST", async () => {
       const mockResponse = {
-        error: [],
         result: {
-          XBTUSD: {
+          XXBTZUSD: {
             a: ["50001.00", "1", "1.000"],
             b: ["49999.00", "1", "1.000"],
             c: ["50000.00", "0.1"],
-            v: ["1000.0", "5000.0"],
-            p: ["50000.00", "49500.00"],
-            t: [500, 2500],
-            l: ["48000.00", "47000.00"],
-            h: ["51000.00", "52000.00"],
-            o: "49000.00",
+            v: ["1000.0", "2000.0"],
+            p: ["49500.0", "49750.0"],
+            t: [100, 200],
+            l: ["48000.0", "47000.0"],
+            h: ["51000.0", "52000.0"],
+            o: "49000.0",
           },
         },
       };
@@ -308,7 +310,9 @@ describe("KrakenAdapter", () => {
       expect(result.symbol).toBe("BTC/USD");
       expect(result.price).toBe(50000);
       expect(result.source).toBe("kraken");
-      expect(result.volume).toBe(5000);
+      expect(result.volume).toBe(2000);
+      expect(result.confidence).toBeGreaterThan(0);
+      expect(result.confidence).toBeLessThanOrEqual(1);
     });
 
     it("should handle REST API errors", async () => {
@@ -346,7 +350,7 @@ describe("KrakenAdapter", () => {
     it("should check REST API when not connected", async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ error: [], result: { status: "online" } }),
+        json: () => Promise.resolve({ result: { status: "online" } }),
       });
 
       const isHealthy = await adapter.healthCheck();

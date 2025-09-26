@@ -125,24 +125,6 @@ const missingKeys = ENV_HELPERS.getMissingExchangeKeys();
 - `ENV.ALERT_WEBHOOK_HEADERS` - Webhook headers (default: {})
 - `ENV.ALERT_WEBHOOK_TIMEOUT` - Webhook timeout (default: 5000ms)
 
-#### Exchange API Keys
-
-- `ENV.EXCHANGE_KEYS.BINANCE_API_KEY` - Binance API key
-- `ENV.EXCHANGE_KEYS.BINANCE_SECRET` - Binance secret
-- `ENV.EXCHANGE_KEYS.BINANCE_PASSPHRASE` - Binance passphrase
-- `ENV.EXCHANGE_KEYS.COINBASE_API_KEY` - Coinbase API key
-- `ENV.EXCHANGE_KEYS.COINBASE_SECRET` - Coinbase secret
-- `ENV.EXCHANGE_KEYS.COINBASE_PASSPHRASE` - Coinbase passphrase
-- `ENV.EXCHANGE_KEYS.KRAKEN_API_KEY` - Kraken API key
-- `ENV.EXCHANGE_KEYS.KRAKEN_SECRET` - Kraken secret
-- `ENV.EXCHANGE_KEYS.KRAKEN_PASSPHRASE` - Kraken passphrase
-- `ENV.EXCHANGE_KEYS.OKX_API_KEY` - OKX API key
-- `ENV.EXCHANGE_KEYS.OKX_SECRET` - OKX secret
-- `ENV.EXCHANGE_KEYS.OKX_PASSPHRASE` - OKX passphrase
-- `ENV.EXCHANGE_KEYS.CRYPTOCOM_API_KEY` - Crypto.com API key
-- `ENV.EXCHANGE_KEYS.CRYPTOCOM_SECRET` - Crypto.com secret
-- `ENV.EXCHANGE_KEYS.CRYPTOCOM_PASSPHRASE` - Crypto.com passphrase
-
 ### Helper Functions
 
 #### Environment Checks

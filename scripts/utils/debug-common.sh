@@ -90,20 +90,3 @@ capture_clean_output() {
     eval "$command" 2>&1 | strip_ansi > "$log_file"
 }
 
-# Function to display log summary
-show_log_summary() {
-    local log_file=$1
-    local script_name=$2
-    
-    if [ -f "$log_file" ]; then
-        echo ""
-        echo "📊 Log Summary for $script_name:"
-        echo "================================"
-        echo "📝 Total lines: $(wc -l < "$log_file")"
-        echo "⚠️  Warnings: $(grep -c "WARN\|Warning\|warning" "$log_file" 2>/dev/null || echo "0")"
-        echo "❌ Errors: $(grep -c "ERROR\|Error\|error" "$log_file" 2>/dev/null || echo "0")"
-        echo "📁 Full log: $log_file"
-    else
-        echo "❌ No log file found at $log_file"
-    fi
-}

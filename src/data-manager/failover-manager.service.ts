@@ -10,6 +10,7 @@ export class FailoverManager extends EventDrivenService {
   private sourceHealth = new Map<string, SourceHealth>();
   private failoverGroups = new Map<string, FailoverGroup>();
   private healthCheckTimer?: NodeJS.Timeout;
+  private sourceFailoverCooldowns = new Map<string, number>();
 
   constructor() {
     super({
@@ -109,7 +110,22 @@ export class FailoverManager extends EventDrivenService {
 
   // Trigger manual failover for a source
   async triggerFailover(sourceId: string, reason: string): Promise<void> {
+    // Check source-specific cooldown to prevent excessive failover attempts
+    const now = Date.now();
+    const lastSourceFailover = this.sourceFailoverCooldowns.get(sourceId) || 0;
+    const sourceCooldown = ENV.FAILOVER.MIN_FAILURE_INTERVAL_MS;
+
+    if (now - lastSourceFailover < sourceCooldown) {
+      this.logger.debug(
+        `Skipping failover for source ${sourceId} - cooldown active (${now - lastSourceFailover}ms ago)`
+      );
+      return;
+    }
+
     this.logger.warn(`Triggering manual failover for source ${sourceId}: ${reason}`);
+
+    // Update source cooldown immediately
+    this.sourceFailoverCooldowns.set(sourceId, now);
 
     const startTime = Date.now();
 
@@ -173,7 +189,7 @@ export class FailoverManager extends EventDrivenService {
       return;
     }
 
-    // Update last failover time
+    // Update last failover time immediately to prevent race conditions
     group.lastFailoverTime = now;
 
     // Move failed source to failed list
@@ -287,33 +303,88 @@ export class FailoverManager extends EventDrivenService {
     const health = this.sourceHealth.get(sourceId);
     if (!health) return;
 
+    const now = Date.now();
+
     if (!connected) {
       health.consecutiveFailures++;
       health.consecutiveSuccesses = 0;
 
-      // Add circuit breaker logic to prevent excessive failover attempts
-      const timeSinceLastFailure = Date.now() - (health.lastFailure || 0);
+      // Enhanced circuit breaker logic to prevent excessive failover attempts
+      const timeSinceLastFailure = now - (health.lastFailure || 0);
       const minFailureInterval = this.failoverConfig.minFailureInterval;
 
+      // Implement exponential backoff for repeated failures
+      const backoffMultiplier = Math.min(health.consecutiveFailures, 5); // Cap at 5x
+      const adaptiveMinInterval = minFailureInterval * backoffMultiplier;
+
+      // Only trigger failover if:
+      // 1. We've reached the failure threshold
+      // 2. Enough time has passed since last failure (with backoff)
+      // 3. The source was previously healthy (avoid cascading failures)
       if (
         health.consecutiveFailures >= this.failoverConfig.failureThreshold &&
-        timeSinceLastFailure > minFailureInterval
+        timeSinceLastFailure > adaptiveMinInterval &&
+        health.isHealthy
       ) {
         health.isHealthy = false;
-        this.triggerFailover(sourceId, "Connection lost").catch(error => {
+
+        // Log the failover decision with context
+        this.logger.warn(
+          `Triggering failover for ${sourceId} after ${health.consecutiveFailures} consecutive failures`,
+          {
+            component: "FailoverManager",
+            operation: "handle_connection_change",
+            sourceId,
+            consecutiveFailures: health.consecutiveFailures,
+            timeSinceLastFailure,
+            adaptiveMinInterval,
+            backoffMultiplier,
+          }
+        );
+
+        this.triggerFailover(sourceId, `Connection lost after ${health.consecutiveFailures} failures`).catch(error => {
           this.logger.error(`Failed to trigger failover for ${sourceId}:`, error);
+        });
+      } else if (health.consecutiveFailures >= this.failoverConfig.failureThreshold) {
+        // Log why we're not triggering failover
+        this.logger.debug(`Skipping failover for ${sourceId}`, {
+          component: "FailoverManager",
+          operation: "handle_connection_change",
+          sourceId,
+          reason: timeSinceLastFailure <= adaptiveMinInterval ? "cooldown_active" : "already_unhealthy",
+          consecutiveFailures: health.consecutiveFailures,
+          timeSinceLastFailure,
+          adaptiveMinInterval,
+          isHealthy: health.isHealthy,
         });
       }
 
       // Update lastFailure after the calculation
-      health.lastFailure = Date.now();
+      health.lastFailure = now;
     } else {
       health.consecutiveSuccesses++;
 
-      if (health.consecutiveSuccesses >= this.failoverConfig.recoveryThreshold) {
+      // Require more consecutive successes for recovery if there were many failures
+      const requiredSuccesses = Math.max(
+        this.failoverConfig.recoveryThreshold,
+        Math.min(health.consecutiveFailures, this.failoverConfig.recoveryThreshold * 2)
+      );
+
+      if (health.consecutiveSuccesses >= requiredSuccesses) {
+        const wasUnhealthy = !health.isHealthy;
         health.consecutiveFailures = 0;
         health.isHealthy = true;
-        this.handleSourceRecovery(sourceId);
+
+        if (wasUnhealthy) {
+          this.logger.log(`Source ${sourceId} recovered after ${health.consecutiveSuccesses} consecutive successes`, {
+            component: "FailoverManager",
+            operation: "handle_connection_change",
+            sourceId,
+            consecutiveSuccesses: health.consecutiveSuccesses,
+            requiredSuccesses,
+          });
+          this.handleSourceRecovery(sourceId);
+        }
       }
     }
   }

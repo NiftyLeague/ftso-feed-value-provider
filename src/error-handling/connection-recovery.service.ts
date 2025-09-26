@@ -6,6 +6,7 @@ import type { DataSource, CoreFeedId } from "@/common/types/core";
 import { CircuitBreakerState } from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ENV } from "@/config/environment.constants";
+import { getErrorCategoryString, getBackoffParameters } from "@/common/utils/error-classification.utils";
 
 export interface ConnectionRecoveryConfig extends BaseServiceConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2
@@ -173,7 +174,21 @@ export class ConnectionRecoveryService extends EventDrivenService {
    */
   async triggerFailover(sourceId: string, reason: string): Promise<FailoverResult> {
     const startTime = Date.now();
-    this.logger.warn(`Triggering failover for source ${sourceId}: ${reason}`);
+
+    // Rate limit failover warnings to prevent spam
+    const now = Date.now();
+    const lastAttempt = this.lastReconnectAttempt.get(sourceId) || 0;
+
+    if (now - lastAttempt > this.RECONNECT_COOLDOWN_MS) {
+      this.logger.warn(`Triggering failover for source ${sourceId}: ${reason}`, {
+        component: "ConnectionRecoveryService",
+        operation: "triggerFailover",
+        sourceId,
+        reason,
+        severity: "medium",
+      });
+      this.lastReconnectAttempt.set(sourceId, now);
+    }
 
     try {
       // Update connection health
@@ -182,10 +197,15 @@ export class ConnectionRecoveryService extends EventDrivenService {
         health.isHealthy = false;
         health.consecutiveFailures++;
         health.lastDisconnected = Date.now();
-      }
 
-      // Open circuit breaker
-      this.circuitBreaker.openCircuit(sourceId, reason);
+        // Don't immediately open circuit breaker for normal WebSocket disconnections
+        const isNormalDisconnection =
+          reason.includes("normal closure") || reason.includes("1000") || reason.includes("No data received");
+
+        if (!isNormalDisconnection && health.consecutiveFailures > 3) {
+          this.circuitBreaker.openCircuit(sourceId, reason);
+        }
+      }
 
       // Perform failover through failover manager
       await this.failoverManager.triggerFailover(sourceId, reason);
@@ -193,7 +213,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
       // Assess degradation level
       const degradationLevel = this.assessDegradationLevel();
 
-      // Schedule recovery attempt
+      // Schedule recovery attempt with exponential backoff
       this.scheduleRecovery(sourceId);
 
       const failoverTime = Date.now() - startTime;
@@ -447,7 +467,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
     this.emit("connectionRestored", sourceId);
   }
 
-  private scheduleRecovery(sourceId: string): void {
+  private scheduleRecovery(sourceId: string, errorType?: string): void {
     const health = this.connectionHealth.get(sourceId);
     const source = this.dataSources.get(sourceId);
 
@@ -469,11 +489,14 @@ export class ConnectionRecoveryService extends EventDrivenService {
       return;
     }
 
-    const delay = this.calculateReconnectDelay(health.reconnectAttempts);
+    const delay = this.calculateReconnectDelay(health.reconnectAttempts, errorType);
     health.reconnectAttempts++;
     this.lastReconnectAttempt.set(sourceId, now);
 
-    this.logger.log(`Scheduling reconnection for ${sourceId} in ${delay}ms (attempt ${health.reconnectAttempts})`);
+    const errorTypeMsg = errorType ? ` (${errorType})` : "";
+    this.logger.log(
+      `Scheduling reconnection for ${sourceId} in ${delay}ms (attempt ${health.reconnectAttempts})${errorTypeMsg}`
+    );
 
     const timer = setTimeout(async () => {
       await this.attemptReconnection(sourceId);
@@ -509,11 +532,24 @@ export class ConnectionRecoveryService extends EventDrivenService {
     }
   }
 
-  private calculateReconnectDelay(attemptNumber: number): number {
-    const delay = Math.min(
-      this.recoveryConfig.reconnectDelay * Math.pow(this.recoveryConfig.backoffMultiplier, attemptNumber),
-      this.recoveryConfig.maxReconnectDelay
-    );
+  private calculateReconnectDelay(attemptNumber: number, errorType?: string, lastError?: Error): number {
+    let baseDelay = this.recoveryConfig.reconnectDelay;
+    let multiplier = this.recoveryConfig.backoffMultiplier;
+
+    // Use centralized backoff parameters if we have error information
+    if (lastError) {
+      const backoffParams = getBackoffParameters(lastError);
+      baseDelay = Math.max(baseDelay, backoffParams.minDelay);
+      multiplier = Math.max(multiplier, backoffParams.multiplier);
+    } else if (errorType) {
+      // Fallback to error type-based logic for backward compatibility
+      if (errorType === "service_unavailable" || errorType === "server_error") {
+        baseDelay = Math.max(baseDelay, 30000); // Minimum 30 seconds for server errors
+        multiplier = Math.max(multiplier, 2.5); // More aggressive backoff
+      }
+    }
+
+    const delay = Math.min(baseDelay * Math.pow(multiplier, attemptNumber), this.recoveryConfig.maxReconnectDelay);
     return delay;
   }
 
@@ -612,11 +648,12 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   /**
-   * Handle disconnection event
+   * Handle disconnection event with optional error information
    */
-  async handleDisconnection(sourceId: string): Promise<void> {
+  async handleDisconnection(sourceId: string, error?: Error): Promise<void> {
     try {
-      this.logger.debug(`Handling disconnection for source: ${sourceId}`);
+      const errorType = error ? this.categorizeConnectionError(error) : "unknown";
+      this.logger.debug(`Handling disconnection for source: ${sourceId}${error ? ` (${errorType})` : ""}`);
 
       const health = this.connectionHealth.get(sourceId);
       if (health) {
@@ -625,13 +662,23 @@ export class ConnectionRecoveryService extends EventDrivenService {
         health.lastDisconnected = Date.now();
       }
 
-      // Trigger failover
-      await this.triggerFailover(sourceId, "Disconnection detected");
+      // Schedule recovery with error type information for better backoff strategy
+      this.scheduleRecovery(sourceId, errorType);
 
-      this.emit("disconnectionHandled", sourceId);
+      // Trigger failover
+      await this.triggerFailover(sourceId, `Disconnection detected${error ? `: ${error.message}` : ""}`);
+
+      this.emit("disconnectionHandled", { sourceId, errorType });
     } catch (error) {
       this.logger.error(`Error handling disconnection for ${sourceId}:`, error);
     }
+  }
+
+  /**
+   * Categorize connection errors for better recovery strategies
+   */
+  private categorizeConnectionError(error: Error): string {
+    return getErrorCategoryString(error);
   }
 
   /**

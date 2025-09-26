@@ -3,6 +3,7 @@ import { EventDrivenService } from "@/common/base/composed.service";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { UniversalRetryService } from "./universal-retry.service";
 import { isRetryableError } from "@/common/utils/error.utils";
+import { classifyError } from "@/common/utils/error-classification.utils";
 import {
   type IErrorDetails,
   type EnhancedErrorResponse,
@@ -382,71 +383,7 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
   }
 
   private classifyError(error: Error): StandardErrorClassification {
-    const message = error.message.toLowerCase();
-    const name = error.name.toLowerCase();
-
-    // Authentication/Authorization errors
-    if (message.includes("unauthorized") || message.includes("authentication") || name.includes("auth")) {
-      return ErrorClass.AUTHENTICATION_ERROR;
-    }
-    if (message.includes("forbidden") || message.includes("access denied")) {
-      return ErrorClass.AUTHORIZATION_ERROR;
-    }
-
-    // Network and connection errors
-    if (message.includes("timeout") || message.includes("timed out") || name.includes("timeout")) {
-      return ErrorClass.TIMEOUT_ERROR;
-    }
-    if (message.includes("connection") || message.includes("network") || message.includes("econnrefused")) {
-      return ErrorClass.CONNECTION_ERROR;
-    }
-
-    // Rate limiting
-    if (message.includes("rate limit") || message.includes("too many requests")) {
-      return ErrorClass.RATE_LIMIT_ERROR;
-    }
-
-    // Service availability
-    if (message.includes("service unavailable") || message.includes("temporarily unavailable")) {
-      return ErrorClass.SERVICE_UNAVAILABLE_ERROR;
-    }
-
-    // Validation errors
-    if (message.includes("validation") || message.includes("invalid") || name.includes("validation")) {
-      return ErrorClass.VALIDATION_ERROR;
-    }
-
-    // Not found errors
-    if (message.includes("not found") || name.includes("notfound")) {
-      return ErrorClass.NOT_FOUND_ERROR;
-    }
-
-    // Data errors
-    if (message.includes("data") && (message.includes("corrupt") || message.includes("invalid"))) {
-      return ErrorClass.DATA_ERROR;
-    }
-
-    // Configuration errors
-    if (message.includes("config") || message.includes("configuration")) {
-      return ErrorClass.CONFIGURATION_ERROR;
-    }
-
-    // Circuit breaker errors
-    if (message.includes("circuit") && message.includes("open")) {
-      return ErrorClass.CIRCUIT_BREAKER_ERROR;
-    }
-
-    // Processing errors
-    if (message.includes("processing") || message.includes("calculation") || message.includes("aggregation")) {
-      return ErrorClass.PROCESSING_ERROR;
-    }
-
-    // External service errors
-    if (message.includes("external") || message.includes("upstream") || message.includes("adapter")) {
-      return ErrorClass.EXTERNAL_SERVICE_ERROR;
-    }
-
-    return ErrorClass.UNKNOWN_ERROR;
+    return classifyError(error);
   }
 
   private determineSeverity(classification: StandardErrorClassification, _error: Error): ErrorSeverity {
@@ -583,7 +520,18 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
     stats.lastError = new Date();
     stats.errorsByType.set(classification, (stats.errorsByType.get(classification) || 0) + 1);
 
-    this.enhancedLogger?.error(error, {
+    // Determine appropriate log level based on error type and consecutive failures
+    const isConnectionError =
+      classification === ErrorClass.CONNECTION_ERROR ||
+      classification === ErrorClass.TIMEOUT_ERROR ||
+      error.message.includes("WebSocket") ||
+      error.message.includes("connection");
+
+    const logLevel = stats.consecutiveFailures > 5 || !isConnectionError ? "error" : "warn";
+    const severity: "critical" | "high" | "medium" =
+      stats.consecutiveFailures > 10 ? "critical" : stats.consecutiveFailures > 5 ? "high" : "medium";
+
+    const logData = {
       component: "StandardizedErrorHandler",
       operation: "record_failure",
       serviceId,
@@ -591,8 +539,19 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
       responseTime,
       classification,
       consecutiveFailures: stats.consecutiveFailures,
-      severity: "high",
-    });
+      totalErrors: stats.totalErrors,
+      errorType: error.constructor.name,
+      severity,
+      isConnectionError,
+      errorMessage: error.message,
+      stack: error.stack?.split("\n").slice(0, 3).join("\n"), // First 3 lines of stack
+    };
+
+    if (logLevel === "error") {
+      this.enhancedLogger?.error(error, logData);
+    } else {
+      this.enhancedLogger?.warn(error.message, logData);
+    }
   }
 
   private logStandardizedError(

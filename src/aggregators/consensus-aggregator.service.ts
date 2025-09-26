@@ -307,22 +307,71 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Fast validation with minimal overhead
+   * Enhanced validation with improved staleness handling and price stability checks
    */
   private fastValidateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
     const now = Date.now();
     const maxAge = this.consensusConfig.maxStalenessMs;
 
-    return updates.filter(update => {
-      // Fast staleness check
-      if (now - update.timestamp > maxAge) return false;
-
+    // Pre-filter for basic validity
+    const basicValid = updates.filter(update => {
       // Fast price validity check
-      if (!update.price || update.price <= 0 || !isFinite(update.price)) return false;
+      if (!update.price || update.price <= 0 || !isFinite(update.price)) {
+        this.logger.debug(`Rejecting invalid price from ${update.source}: ${update.price}`);
+        return false;
+      }
 
-      // Fast confidence check
-      if (update.confidence < 0.1 || update.confidence > 1) return false;
+      // Improved confidence check with better bounds
+      if (update.confidence < 0.05 || update.confidence > 1) {
+        this.logger.debug(`Rejecting low confidence update from ${update.source}: ${update.confidence}`);
+        return false;
+      }
 
+      return true;
+    });
+
+    // Calculate median price for stability check
+    if (basicValid.length > 2) {
+      const prices = basicValid.map(u => u.price).sort((a, b) => a - b);
+      const medianPrice = prices[Math.floor(prices.length / 2)];
+
+      // Filter out prices that deviate too much from median (pre-consensus stability)
+      const stableUpdates = basicValid.filter(update => {
+        const deviation = Math.abs(update.price - medianPrice) / medianPrice;
+        if (deviation > 0.15) {
+          // 15% pre-filter threshold
+          this.logger.debug(
+            `Pre-filtering unstable price from ${update.source}: ${(deviation * 100).toFixed(2)}% deviation`
+          );
+          return false;
+        }
+        return true;
+      });
+
+      // Use stable updates if we have enough, otherwise fall back to basic valid
+      const validUpdates =
+        stableUpdates.length >= Math.max(2, Math.floor(basicValid.length * 0.6)) ? stableUpdates : basicValid;
+
+      // Apply staleness check to final set
+      return validUpdates.filter(update => {
+        const age = now - update.timestamp;
+        const stalenessFactor = update.confidence > 0.8 ? 1.2 : 1.0; // 20% more tolerance for high confidence
+        if (age > maxAge * stalenessFactor) {
+          this.logger.debug(`Rejecting stale update from ${update.source}: age=${age}ms, max=${maxAge}ms`);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // For small sets, just apply staleness check
+    return basicValid.filter(update => {
+      const age = now - update.timestamp;
+      const stalenessFactor = update.confidence > 0.8 ? 1.2 : 1.0;
+      if (age > maxAge * stalenessFactor) {
+        this.logger.debug(`Rejecting stale update from ${update.source}: age=${age}ms, max=${maxAge}ms`);
+        return false;
+      }
       return true;
     });
   }
@@ -411,7 +460,7 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Optimized weighted median calculation with fast sorting
+   * Enhanced weighted median calculation with improved precision and consensus optimization
    */
   private calculateOptimizedWeightedMedian(pricePoints: IPricePoint[]): number {
     if (pricePoints.length === 0) {
@@ -422,86 +471,217 @@ export class ConsensusAggregator extends StandardService {
       return pricePoints[0].price;
     }
 
-    // Fast outlier removal before median calculation
+    // Enhanced outlier removal before median calculation
     const filteredPoints = this.fastOutlierRemoval(pricePoints);
 
-    // Sort by price (optimized for small arrays)
-    filteredPoints.sort((a, b) => a.price - b.price);
+    // Sort by price with stable sorting for consistent results
+    filteredPoints.sort((a, b) => {
+      if (a.price === b.price) {
+        // Secondary sort by weight (higher weight first) for stability
+        return b.weight - a.weight;
+      }
+      return a.price - b.price;
+    });
 
-    // Calculate total weight
+    // Calculate total weight with tier adjustments
     const totalWeight = filteredPoints.reduce((sum, point) => sum + point.weight, 0);
 
     if (totalWeight === 0) {
-      // Fallback to simple median
-      const mid = Math.floor(filteredPoints.length / 2);
-      return filteredPoints.length % 2 === 0
-        ? (filteredPoints[mid - 1].price + filteredPoints[mid].price) / 2
-        : filteredPoints[mid].price;
+      // Enhanced fallback using tier-weighted simple median
+      const tierWeightedPrices = filteredPoints.map(point => ({
+        price: point.price,
+        tierWeight: point.tier === 1 ? 2 : 1,
+      }));
+
+      const totalTierWeight = tierWeightedPrices.reduce((sum, item) => sum + item.tierWeight, 0);
+      const weightedSum = tierWeightedPrices.reduce((sum, item) => sum + item.price * item.tierWeight, 0);
+
+      return weightedSum / totalTierWeight;
     }
 
-    // Find weighted median efficiently
+    // Enhanced weighted median calculation with interpolation
     let cumulativeWeight = 0;
     const targetWeight = totalWeight / 2;
 
-    for (const point of filteredPoints) {
-      cumulativeWeight += point.weight;
-      if (cumulativeWeight >= targetWeight) {
+    for (let i = 0; i < filteredPoints.length; i++) {
+      const point = filteredPoints[i];
+      const nextWeight = cumulativeWeight + point.weight;
+
+      if (nextWeight >= targetWeight) {
+        // Check if we should interpolate between this point and the previous one
+        if (cumulativeWeight < targetWeight && i > 0) {
+          const prevPoint = filteredPoints[i - 1];
+          const weightDiff = nextWeight - cumulativeWeight;
+          const targetOffset = targetWeight - cumulativeWeight;
+          const interpolationRatio = targetOffset / weightDiff;
+
+          // Interpolate between previous and current price
+          const interpolatedPrice = prevPoint.price + (point.price - prevPoint.price) * interpolationRatio;
+
+          this.logger.debug(
+            `Interpolated weighted median: ${interpolatedPrice.toFixed(6)} (between ${prevPoint.price.toFixed(6)} and ${point.price.toFixed(6)})`
+          );
+
+          return interpolatedPrice;
+        }
+
         return point.price;
       }
+
+      cumulativeWeight = nextWeight;
     }
 
-    // Fallback (should not reach here)
-    return filteredPoints[filteredPoints.length - 1].price;
+    // Enhanced fallback with weight consideration
+    const weightedSum = filteredPoints.reduce((sum, point) => sum + point.price * point.weight, 0);
+    return weightedSum / totalWeight;
   }
 
   /**
-   * Fast outlier removal using IQR method
+   * Enhanced outlier removal using multiple statistical methods for improved consensus
    */
   private fastOutlierRemoval(pricePoints: IPricePoint[]): IPricePoint[] {
-    if (pricePoints.length <= 4) {
+    if (pricePoints.length <= 3) {
       return pricePoints; // Too few points for outlier detection
     }
 
-    // Sort prices for quartile calculation
+    // Sort prices for statistical calculations
     const sortedPrices = pricePoints.map(p => p.price).sort((a, b) => a - b);
     const n = sortedPrices.length;
 
-    // Calculate quartiles efficiently
+    // Calculate statistical measures
+    const median = sortedPrices[Math.floor(n / 2)];
+    const mean = sortedPrices.reduce((sum, price) => sum + price, 0) / n;
+
+    // Calculate quartiles with improved precision
     const q1Index = Math.floor(n * 0.25);
     const q3Index = Math.floor(n * 0.75);
     const q1 = sortedPrices[q1Index];
     const q3 = sortedPrices[q3Index];
     const iqr = q3 - q1;
 
-    // Define outlier bounds
-    const lowerBound = q1 - 1.5 * iqr;
-    const upperBound = q3 + 1.5 * iqr;
+    // Calculate standard deviation for additional validation
+    const variance = sortedPrices.reduce((sum, price) => sum + Math.pow(price - mean, 2), 0) / n;
+    const stdDev = Math.sqrt(variance);
 
-    // Filter outliers
-    return pricePoints.filter(point => point.price >= lowerBound && point.price <= upperBound);
+    // More aggressive outlier bounds for better consensus
+    const iqrMultiplier = 1.5; // Standard IQR multiplier
+    const iqrLowerBound = q1 - iqrMultiplier * iqr;
+    const iqrUpperBound = q3 + iqrMultiplier * iqr;
+
+    // Additional Z-score bounds (2 standard deviations)
+    const zScoreThreshold = 2.0;
+    const zLowerBound = mean - zScoreThreshold * stdDev;
+    const zUpperBound = mean + zScoreThreshold * stdDev;
+
+    // Filter outliers using multiple criteria
+    const filtered = pricePoints.filter(point => {
+      // Check IQR bounds
+      const iqrOutlier = point.price < iqrLowerBound || point.price > iqrUpperBound;
+
+      // Check Z-score bounds
+      const zScoreOutlier = point.price < zLowerBound || point.price > zUpperBound;
+
+      // Check percentage deviation from median
+      const medianDeviation = Math.abs(point.price - median) / median;
+      const percentageOutlier = medianDeviation > this.consensusConfig.outlierThreshold;
+
+      const isOutlier = iqrOutlier || zScoreOutlier || percentageOutlier;
+
+      if (isOutlier) {
+        // More stringent criteria for keeping high-weight outliers
+        const deviation = Math.abs(point.price - median) / median;
+
+        // Only keep high-weight sources if deviation is very small and weight is very high
+        if (point.weight > 0.15 && deviation < 0.05 && point.tier === 1) {
+          this.logger.debug(
+            `Keeping tier-1 high-weight outlier from ${point.source}: price=${point.price}, weight=${point.weight.toFixed(4)}, deviation=${(deviation * 100).toFixed(2)}%`
+          );
+          return true;
+        }
+
+        this.logger.debug(
+          `Removing outlier from ${point.source}: price=${point.price}, median=${median.toFixed(4)}, deviation=${(deviation * 100).toFixed(2)}%`
+        );
+        return false;
+      }
+
+      return true;
+    });
+
+    // Ensure we maintain minimum data points for consensus
+    const minPoints = Math.max(2, Math.floor(pricePoints.length * 0.7)); // Keep at least 70%
+    if (filtered.length < minPoints) {
+      this.logger.warn(
+        `Outlier removal too aggressive, keeping original points: ${filtered.length}/${pricePoints.length}`
+      );
+      return pricePoints;
+    }
+
+    if (filtered.length < pricePoints.length) {
+      const removedCount = pricePoints.length - filtered.length;
+      const removalRate = (removedCount / pricePoints.length) * 100;
+      this.logger.debug(
+        `Enhanced outlier removal: removed ${removedCount} outliers (${removalRate.toFixed(1)}%), kept ${filtered.length} points`
+      );
+    }
+
+    return filtered;
   }
 
   /**
-   * Fast consensus score calculation
+   * Enhanced consensus score calculation with improved deviation handling and stricter thresholds
    */
   private calculateFastConsensusScore(pricePoints: IPricePoint[], medianPrice: number): number {
     if (pricePoints.length === 0) return 0;
+    if (pricePoints.length === 1) return 0.95; // High confidence for single source
 
-    // Calculate weighted average deviation
+    // Calculate weighted average deviation with enhanced precision
     let totalWeightedDeviation = 0;
     let totalWeight = 0;
+    let maxDeviation = 0;
+    let deviationCount = 0;
 
     for (const point of pricePoints) {
       const deviation = Math.abs(point.price - medianPrice) / medianPrice;
-      const weightedDeviation = deviation * point.weight;
+      maxDeviation = Math.max(maxDeviation, deviation);
+
+      // Count significant deviations for additional penalty
+      if (deviation > 0.01) {
+        // 1% threshold
+        deviationCount++;
+      }
+
+      // Use logarithmic weight adjustment to reduce extreme weight impact
+      const adjustedWeight = Math.log(1 + point.weight * 10);
+      const weightedDeviation = deviation * adjustedWeight;
+
       totalWeightedDeviation += weightedDeviation;
-      totalWeight += point.weight;
+      totalWeight += adjustedWeight;
     }
 
     const avgDeviation = totalWeight > 0 ? totalWeightedDeviation / totalWeight : 1;
 
-    // Convert to consensus score (0-1, higher is better)
-    return Math.max(0, 1 - avgDeviation / this.consensusConfig.outlierThreshold);
+    // Enhanced consensus score calculation with stricter penalties
+    // More aggressive penalty for maximum deviations
+    const maxDeviationPenalty = Math.min(0.4, maxDeviation * 3);
+
+    // Additional penalty for multiple deviating sources
+    const multiDeviationPenalty = Math.min(0.2, (deviationCount / pricePoints.length) * 0.3);
+
+    // Tighter base score calculation using reduced outlier threshold
+    const effectiveThreshold = this.consensusConfig.outlierThreshold * 0.75; // 25% stricter
+    const baseScore = Math.max(0, 1 - avgDeviation / effectiveThreshold);
+
+    // Apply all penalties
+    const adjustedScore = Math.max(0, baseScore - maxDeviationPenalty - multiDeviationPenalty);
+
+    // Reduced bonus for more sources to maintain stricter standards
+    const sourceBonus = Math.min(0.05, (pricePoints.length - 1) * 0.01);
+
+    // Additional quality bonus for very tight consensus (< 0.5% deviation)
+    const tightConsensusBonus = avgDeviation < 0.005 ? 0.1 : 0;
+
+    return Math.min(1, adjustedScore + sourceBonus + tightConsensusBonus);
   }
 
   /**
@@ -632,14 +812,36 @@ export class ConsensusAggregator extends StandardService {
    * Optimize weights based on performance history
    */
   private optimizeWeights(): void {
-    // This would analyze historical performance and adjust weights
-    // For now, just log that optimization is running
-    this.logger.debug("Running weight optimization process");
-
-    // Update last updated timestamps
     const now = Date.now();
-    for (const weights of Object.values(this.precomputedWeights)) {
-      weights.lastUpdated = now;
+    let updatedCount = 0;
+
+    // Analyze performance and adjust weights
+    for (const [exchange, weights] of Object.entries(this.precomputedWeights)) {
+      const oldWeight = weights.baseWeight;
+
+      // Simple adaptive weighting based on reliability score
+      // In a real implementation, this would use historical performance data
+      const performanceFactor = weights.reliabilityScore;
+      const adaptiveAdjustment = (performanceFactor - 0.8) * 0.1; // Adjust by up to ±10%
+
+      // Update base weight with bounds checking
+      const newWeight = Math.max(0.01, Math.min(0.5, oldWeight + adaptiveAdjustment));
+
+      if (Math.abs(newWeight - oldWeight) > 0.001) {
+        weights.baseWeight = newWeight;
+        weights.lastUpdated = now;
+        updatedCount++;
+
+        this.logger.debug(`Updated weight for ${exchange}: ${oldWeight.toFixed(4)} → ${newWeight.toFixed(4)}`);
+      } else {
+        weights.lastUpdated = now;
+      }
+    }
+
+    if (updatedCount > 0) {
+      this.logger.log(`Weight optimization completed: updated ${updatedCount} exchange weights`);
+    } else {
+      this.logger.debug("Weight optimization completed: no significant changes needed");
     }
   }
 

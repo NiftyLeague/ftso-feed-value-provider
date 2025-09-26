@@ -497,27 +497,39 @@ describe("BinanceAdapter", () => {
       let connectionAttempts = 0;
 
       // Temporarily enable retries for this test
-      (adapter as any).maxRetries = 3;
-      (adapter as any).retryDelay = 10; // Very short delay for testing
+      (adapter as any).maxRetries = 2;
+      (adapter as any).retryDelay = 1; // Very short delay for testing
+
+      // Mock the sleep method to avoid delays in tests
+      const originalSleep = (adapter as any).sleep;
+      (adapter as any).sleep = jest.fn().mockResolvedValue(undefined);
 
       // Override the doConnect method to simulate failures
       const originalDoConnect = (adapter as any).doConnect;
       (adapter as any).doConnect = jest.fn().mockImplementation(async () => {
         connectionAttempts++;
-        if (connectionAttempts < 4) {
+        if (connectionAttempts < 3) {
           throw new Error("Connection failed");
         }
-        // Mock successful connection on 4th attempt
-        jest.spyOn(adapter, "isConnected").mockReturnValue(true);
+        // Mock successful connection on 3rd attempt
         return Promise.resolve();
       });
 
-      // Should eventually succeed after retries (maxRetries=3 means 4 total attempts: 0,1,2,3)
-      await expect(adapter.connect()).resolves.toBeUndefined();
-      expect(connectionAttempts).toBe(4);
+      // Mock the isConnected method to return true after successful connection
+      const originalIsConnected = adapter.isConnected;
+      jest.spyOn(adapter, "isConnected").mockImplementation(() => {
+        return connectionAttempts >= 3;
+      });
 
-      // Restore original method and settings
+      // Should eventually succeed after retries (maxRetries=2 means 3 total attempts: 0,1,2)
+      await expect(adapter.connect()).resolves.toBeUndefined();
+      expect(connectionAttempts).toBe(3);
+      expect(adapter.isConnected()).toBe(true);
+
+      // Restore original methods and settings
       (adapter as any).doConnect = originalDoConnect;
+      (adapter as any).sleep = originalSleep;
+      adapter.isConnected = originalIsConnected;
       (adapter as any).maxRetries = 0;
       (adapter as any).retryDelay = 0;
     });

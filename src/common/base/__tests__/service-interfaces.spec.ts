@@ -60,7 +60,7 @@ describe("Service Interface Implementation", () => {
             hasCustomAdapter: jest.fn(),
             getAdapterClass: jest.fn(),
             getCcxtId: jest.fn(),
-            getExchangeApiKey: jest.fn(),
+
             getHealthStatus: jest.fn(),
             getServicePerformanceMetrics: jest.fn(),
             getServiceName: jest.fn().mockReturnValue("ConfigService"),
@@ -124,7 +124,6 @@ describe("Service Interface Implementation", () => {
       expect(configService.hasCustomAdapter).toBeDefined();
       expect(configService.getAdapterClass).toBeDefined();
       expect(configService.getCcxtId).toBeDefined();
-      expect(configService.getExchangeApiKey).toBeDefined();
     });
   });
 

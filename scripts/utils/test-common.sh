@@ -58,29 +58,14 @@ cleanup_old_test_logs() {
     fi
 }
 
-# Function to display log summary
-show_test_log_summary() {
-    local log_file=$1
-    local script_name=$2
-    
-    if [ -f "$log_file" ]; then
-        echo ""
-        echo "📊 Test Summary for $script_name:"
-        echo "================================"
-        echo "📝 Total lines: $(wc -l < "$log_file")"
-        echo "⚠️  Warnings: $(grep -c "WARN\|Warning\|warning" "$log_file" 2>/dev/null || echo "0")"
-        echo "❌ Errors: $(grep -c "ERROR\|Error\|error" "$log_file" 2>/dev/null || echo "0")"
-        echo "✅ Passed: $(grep -c "PASS\|✅\|SUCCESS" "$log_file" 2>/dev/null || echo "0")"
-        echo "❌ Failed: $(grep -c "FAIL\|❌\|FAILED" "$log_file" 2>/dev/null || echo "0")"
-        echo "📁 Full log: $log_file"
-    else
-        echo "❌ No log file found at $log_file"
-    fi
-}
+
 
 # Import shared cleanup system
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-source "$SCRIPT_DIR/cleanup-common.sh"
+if [ -f "$SCRIPT_DIR/cleanup.sh" ]; then
+    source "$SCRIPT_DIR/cleanup.sh"
+fi
+
 
 # =============================================================================
 # TEST UTILITY FUNCTIONS

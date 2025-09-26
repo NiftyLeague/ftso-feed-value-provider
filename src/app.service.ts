@@ -111,7 +111,7 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
     try {
       // Production integration mode - volume data would be handled by the integration service
       // For now, return empty volumes as this functionality is not yet implemented
-      this.logWarning("Volume data not yet implemented in production integration mode", "getVolumes");
+      this.logger.debug("Volume data not yet implemented in production integration mode - returning empty volumes");
 
       const responseTime = this.endTimer("getVolumes");
       this.logPerformance(`getVolumes-${feeds.length}feeds-${volumeWindow}s`, responseTime);

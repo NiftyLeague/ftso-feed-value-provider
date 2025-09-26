@@ -7,6 +7,10 @@
 # Ensures production failures can be accurately tested in development
 # =============================================================================
 
+# Source common debug utilities
+source "$(dirname "$0")/../utils/debug-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+
 echo "🧪 FTSO Resilience Consistency Test"
 echo "===================================="
 echo "Verifying consistent resilient behavior across environments"
@@ -15,8 +19,7 @@ echo ""
 # Configuration
 TEST_DURATION=8
 RESULTS_DIR="logs/debug"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-REPORT_FILE="$RESULTS_DIR/resilience-consistency-report_$TIMESTAMP.log"
+REPORT_FILE="$RESULTS_DIR/resilience-consistency-report.log"
 
 # Ensure logs directory exists
 mkdir -p "$RESULTS_DIR"
@@ -28,7 +31,7 @@ echo ""
 # Function to test a single environment
 test_environment() {
     local env=$1
-    local log_file="$RESULTS_DIR/resilience_test_${env}_$TIMESTAMP.log"
+    local log_file="$RESULTS_DIR/resilience_output.log"
     
     echo "🔍 Testing environment: $env"
     echo "   Log file: $log_file"
@@ -37,15 +40,19 @@ test_environment() {
     lsof -ti:3101 | xargs kill -9 2>/dev/null || true
     
     # Start the application with the specified environment and clean output capture
-    NODE_ENV=$env pnpm run start:dev 2>&1 | strip_ansi > "$log_file" &
+    NODE_ENV=$env pnpm run build > /dev/null 2>&1
+    NODE_ENV=$env pnpm run start 2>&1 | strip_ansi > "$log_file" &
     local pid=$!
     
-    # Wait for the specified duration (using sleep instead of timeout for macOS compatibility)
-    sleep $TEST_DURATION
+    # Wait for the specified duration with timeout
+    timeout $TEST_DURATION sleep $TEST_DURATION || true
     
-    # Kill the process
-    kill $pid 2>/dev/null
-    wait $pid 2>/dev/null
+    # Kill the process and all its children
+    pkill -P $pid 2>/dev/null || true
+    kill -TERM $pid 2>/dev/null || true
+    sleep 2
+    kill -KILL $pid 2>/dev/null || true
+    wait $pid 2>/dev/null || true
     
     # Analyze the output
     local websocket_fallback=0
@@ -103,22 +110,20 @@ EOF
 # Run a single test to check for resilient behavior patterns
 echo "🔍 Testing current resilient behavior patterns..."
 
-log_file="$RESULTS_DIR/resilience_test_$TIMESTAMP.log"
+log_file="$RESULTS_DIR/resilience_output.log"
 echo "   Log file: $log_file"
 
 # Kill any existing processes on port 3101 to avoid EADDRINUSE
 lsof -ti:3101 | xargs kill -9 2>/dev/null || true
 
 # Start the application with clean output capture
-pnpm run start:dev 2>&1 | strip_ansi > "$log_file" &
-pid=$!
+pnpm run build > /dev/null 2>&1
 
-# Wait for the specified duration
-sleep $TEST_DURATION
+# Use timeout to run the application for the specified duration
+timeout $TEST_DURATION pnpm run start 2>&1 | strip_ansi > "$log_file" || true
 
-# Kill the process
-kill $pid 2>/dev/null
-wait $pid 2>/dev/null
+# Ensure any remaining processes are cleaned up
+lsof -ti:3101 | xargs kill -9 2>/dev/null || true
 
 echo ""
 echo "📊 System Health & Resilience Analysis"
@@ -157,8 +162,12 @@ if grep -q "FATAL\|Fatal\|Critical error\|System crash" "$log_file"; then
     no_fatal_errors=0
 fi
 
-# Check for environment-specific logic (this should NOT be found)
-if grep -q "isDevelopment\|isProduction\|NODE_ENV.*development\|NODE_ENV.*production" "$log_file"; then
+# Check for problematic environment-specific logic (this should NOT be found)
+# Exclude acceptable patterns like isProductionReady (system health indicator)
+if grep -q "isDevelopment\|NODE_ENV.*development\|NODE_ENV.*production\|if.*NODE_ENV\|switch.*NODE_ENV" "$log_file"; then
+    no_environment_specific=0
+elif grep -q "isProduction[^R]" "$log_file"; then
+    # Only flag isProduction if it's not isProductionReady
     no_environment_specific=0
 fi
 
@@ -243,6 +252,9 @@ The system may have resilience or stability issues that need attention.
 EOF
     exit_code=1
 fi
+
+# Show log summary
+log_summary "$log_file" "resilience-consistency" "debug"
 
 echo ""
 echo "📁 Detailed report saved to: $REPORT_FILE"

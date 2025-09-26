@@ -96,11 +96,17 @@ describe("CryptocomAdapter", () => {
       // Mock the doConnect method to simulate connection failure
       jest.spyOn(adapter as any, "doConnect").mockRejectedValue(new Error("Connection failed"));
 
-      // Test that connection errors are handled gracefully
-      await expect(adapter.connect()).rejects.toThrow(
-        "Failed to connect to cryptocom after 4 attempts: Connection failed"
-      );
+      // Mock the sleep method to avoid delays in tests
+      (adapter as any).sleep = jest.fn().mockResolvedValue(undefined);
+
+      const errorSpy = jest.fn();
+      adapter.onError(errorSpy);
+
+      // The base adapter now handles connection failures gracefully
+      // It should not throw but should call the error callback
+      await expect(adapter.connect()).resolves.toBeUndefined();
       expect(adapter.isConnected()).toBe(false);
+      expect(errorSpy).toHaveBeenCalled();
     });
 
     it("should disconnect successfully", async () => {

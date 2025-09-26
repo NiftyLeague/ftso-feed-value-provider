@@ -346,7 +346,6 @@ export class TestModuleBuilder {
       .addProvider(StandardizedErrorHandlerService, {
         executeWithStandardizedHandling: jest.fn().mockImplementation(operation => operation()),
         handleValidationError: jest.fn(),
-        handleAuthenticationError: jest.fn(),
         handleRateLimitError: jest.fn(),
         handleExternalServiceError: jest.fn(),
         getErrorStatistics: jest.fn().mockReturnValue({}),
@@ -509,23 +508,6 @@ export class TestModuleBuilder {
               code: "VALIDATION_ERROR",
               message,
               severity: "medium",
-              timestamp: Date.now(),
-            },
-            timestamp: Date.now(),
-            requestId: requestId || "test-request-id",
-            retryable: false,
-          });
-          return httpException;
-        }),
-        handleAuthenticationError: jest.fn().mockImplementation((message, requestId) => {
-          const httpException = new Error(message) as MockHttpException;
-          httpException.getStatus = () => 401;
-          httpException.getResponse = () => ({
-            success: false,
-            error: {
-              code: "AUTHENTICATION_ERROR",
-              message,
-              severity: "high",
               timestamp: Date.now(),
             },
             timestamp: Date.now(),

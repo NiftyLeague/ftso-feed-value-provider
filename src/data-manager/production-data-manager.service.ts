@@ -85,8 +85,10 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       // Perform comprehensive health check
       let isHealthy = metrics.isHealthy;
 
-      // Check for stale data
-      if (timeSinceLastUpdate > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
+      // Check for stale data - be more lenient during normal operations
+      // Only mark as unhealthy if data is significantly stale (3x the threshold)
+      // This accounts for temporary network issues and exchange maintenance
+      if (timeSinceLastUpdate > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS * 3) {
         isHealthy = false;
       }
 

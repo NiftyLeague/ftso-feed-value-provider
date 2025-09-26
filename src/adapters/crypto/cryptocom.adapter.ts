@@ -73,18 +73,21 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://stream.crypto.com/v2/market";
 
-    await this.connectWebSocket({
-      url: wsUrl,
-      reconnectDelay: 5000,
-      reconnectInterval: 5000,
-      maxReconnectAttempts: 5,
-      pingInterval: 30000,
-      pongTimeout: 10000,
-    });
+    await this.connectWebSocket(this.createWebSocketConfig(wsUrl));
   }
 
   protected async doDisconnect(): Promise<void> {
     await this.disconnectWebSocket();
+  }
+
+  // Override WebSocket close handler for Crypto.com-specific handling
+  protected override handleWebSocketClose(): boolean {
+    // Only log if not shutting down to reduce noise
+    if (!this.isShuttingDown) {
+      this.logger.warn(`Crypto.com WebSocket connection closed`);
+      return true; // We handled the logging
+    }
+    return super.handleWebSocketClose();
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
@@ -92,8 +95,9 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     try {
       const message = typeof data === "string" ? JSON.parse(data) : data;
 
-      // Handle pong response
+      // Handle heartbeat response
       if (message?.method === "public/heartbeat") {
+        this.onPongReceived();
         return;
       }
 
@@ -122,12 +126,12 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   normalizePriceData(rawData: ICryptocomTickerData): PriceUpdate {
     const price = this.parseNumber(rawData.a);
     const volume = this.parseNumber(rawData.v);
-    const timestamp = rawData.t;
+    const timestamp = this.standardizeTimestamp(rawData.t);
 
-    // Calculate spread for confidence
+    // Calculate spread for confidence using standardized method
     const bid = this.parseNumber(rawData.b);
     const ask = this.parseNumber(rawData.k);
-    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
+    const spreadPercent = this.calculateSpreadForConfidence(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.i),
@@ -173,40 +177,40 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
 
   protected async doSubscribe(symbols: string[]): Promise<void> {
     const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
-    const newSymbols = cryptocomSymbols.filter(sym => !this.subscriptions.has(sym));
-
-    if (newSymbols.length === 0) {
-      return; // Already subscribed to all symbols
-    }
 
     const subscribeMessage = {
       id: this.messageId++,
       method: "subscribe",
       params: {
-        channels: newSymbols.map(sym => `ticker.${sym}`),
+        channels: cryptocomSymbols.map(sym => `ticker.${sym}`),
       },
     };
 
-    await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+    try {
+      await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+      this.logger.log(`Subscribed to Crypto.com symbols: ${cryptocomSymbols.join(", ")}`);
+    } catch (error) {
+      this.logger.warn(`Crypto.com subscription error:`, error);
+    }
   }
 
   protected async doUnsubscribe(symbols: string[]): Promise<void> {
     const cryptocomSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
-    const subscribedSymbols = cryptocomSymbols.filter(sym => this.subscriptions.has(sym));
-
-    if (subscribedSymbols.length === 0) {
-      return; // Not subscribed to any of these symbols
-    }
 
     const unsubscribeMessage = {
       id: this.messageId++,
       method: "unsubscribe",
       params: {
-        channels: subscribedSymbols.map(sym => `ticker.${sym}`),
+        channels: cryptocomSymbols.map(sym => `ticker.${sym}`),
       },
     };
 
-    await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+    try {
+      await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
+      this.logger.log(`Unsubscribed from Crypto.com symbols: ${cryptocomSymbols.join(", ")}`);
+    } catch (error) {
+      this.logger.warn(`Crypto.com unsubscription error:`, error);
+    }
   }
 
   // REST API fallback methods
@@ -219,9 +223,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     const response = await this.fetchRestApi(url, `Failed to fetch Crypto.com ticker for ${symbol}`);
     const result = (await response.json()) as ICryptocomRestResponse;
 
-    if (result.code !== 0) {
-      throw new Error(`Crypto.com API error: ${result.code}`);
-    }
+    this.handleRestApiError(result, "Crypto.com");
 
     if (!result.result.data || result.result.data.length === 0) {
       throw new Error("Crypto.com API error: No data");
@@ -232,32 +234,38 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
 
   // Override symbol normalization for Crypto.com format
   protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    // Convert from exchange format (e.g., "BTC_USDT") to normalized format (e.g., "BTC/USDT")
-    return exchangeSymbol.replace("_", "/");
+    return this.standardizeSymbolFromExchange(exchangeSymbol, ["_"]);
   }
 
   // Override ping message for Crypto.com-specific heartbeat format
   protected override sendPingMessage(): void {
     if (this.isWebSocketConnected()) {
-      void this.sendWebSocketMessage(JSON.stringify({ method: "public/heartbeat" }));
+      try {
+        void this.sendWebSocketMessage(
+          JSON.stringify({
+            id: this.messageId++,
+            method: "public/heartbeat",
+          })
+        );
+        this.logger.log("✅ Sent heartbeat to Crypto.com WebSocket");
+      } catch (error) {
+        this.logger.warn("❌ Failed to send heartbeat to Crypto.com WebSocket:", error);
+        // If heartbeat fails, the connection might be stale, trigger reconnection
+        this.handleWebSocketError(error as Error);
+      }
+    } else {
+      this.logger.warn("⚠️  Cannot send heartbeat to Crypto.com - WebSocket not connected");
     }
   }
 
   protected async doHealthCheck(): Promise<boolean> {
-    try {
-      if (this.isConnected()) {
-        return true;
-      }
-
-      // If not connected via WebSocket, try REST API
-      const config = this.getConfig();
-      const baseUrl = config?.restApiUrl || "https://api.crypto.com/v2";
-      const response = await this.fetchRestApi(`${baseUrl}/public/get-instruments`, "Crypto.com health check failed");
-      const result = await response.json();
-      return result.code === 0;
-    } catch (error) {
-      this.logger.error("Health check failed:", error);
-      return false;
+    if (this.isConnected()) {
+      return true;
     }
+
+    // If not connected via WebSocket, try REST API
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://api.crypto.com/v2";
+    return this.performStandardHealthCheck(`${baseUrl}/public/get-instruments`);
   }
 }

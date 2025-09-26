@@ -1,7 +1,8 @@
 #!/bin/bash
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -338,6 +339,9 @@ if [ -f "$LOG_FILE" ]; then
 else
     echo "❌ No log file found"
 fi
+
+# Show log summary
+log_summary "$LOG_FILE" "data-aggregation" "debug"
 
 echo ""
 echo "✨ Aggregation analysis complete!"

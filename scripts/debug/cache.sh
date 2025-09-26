@@ -5,7 +5,8 @@
 
 # Source common utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -17,10 +18,10 @@ echo "============================="
 TIMEOUT=90
 
 # Set up logging using common utility
+echo "📝 Starting cache system analysis..."
 setup_debug_logging "cache-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 
-echo "📝 Starting cache system analysis..."
 
 # Start the application using shared cleanup system
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
@@ -33,8 +34,44 @@ register_port 3101
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Monitoring cache system for $TIMEOUT seconds..."
 
-# Monitor for the specified timeout
-sleep $TIMEOUT
+# Wait for application to start up and be ready
+echo "⏳ Waiting for application startup..."
+sleep 15
+
+# Wait for application to be ready by checking health endpoint
+echo "🔍 Checking application readiness..."
+for attempt in {1..10}; do
+    if curl -X GET http://localhost:3101/health --max-time 3 --silent > /dev/null 2>&1; then
+        echo "✅ Application is ready after $((15 + attempt * 3)) seconds"
+        break
+    else
+        echo "⏳ Application not ready yet, waiting... (attempt $attempt/10)"
+        sleep 3
+    fi
+done
+
+# Make some test requests to generate cache activity
+echo "🧪 Generating cache activity with test requests..."
+for i in {1..5}; do
+    echo "Making test request $i..."
+    if curl -X POST http://localhost:3101/feed-values \
+         -H "Content-Type: application/json" \
+         -d '{"feeds":[{"category":1,"name":"BTC/USD"},{"category":1,"name":"ETH/USD"}]}' \
+         --max-time 10 --silent > /dev/null 2>&1; then
+        echo "✅ Request $i succeeded"
+    else
+        echo "❌ Request $i failed"
+    fi
+    sleep 2
+done
+
+# Continue monitoring for remaining time
+STARTUP_TIME=45  # 15 initial + up to 30 for readiness check + 10 for requests
+REMAINING_TIME=$((TIMEOUT - STARTUP_TIME))
+if [ $REMAINING_TIME -gt 0 ]; then
+    echo "⏱️  Continuing monitoring for $REMAINING_TIME more seconds..."
+    sleep $REMAINING_TIME
+fi
 
 # Check if process is still running
 if kill -0 $APP_PID 2>/dev/null; then
@@ -67,14 +104,19 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Cache Performance Metrics:"
     echo "-----------------------------"
     
-    # Cache hit rates
-    CACHE_HITS=$(grep -c "cache.*hit\|Cache.*hit" "$LOG_FILE")
-    CACHE_MISSES=$(grep -c "cache.*miss\|Cache.*miss" "$LOG_FILE")
+    # Cache hit rates - look for debug messages and cache activity
+    CACHE_HITS=$(grep -c "Cache hit for\|cache hit\|Cache.*hit" "$LOG_FILE")
+    CACHE_MISSES=$(grep -c "cache miss\|Cache.*miss\|fresh aggregated price\|Aggregated price for" "$LOG_FILE")
+    CACHE_REQUESTS=$(grep -c "feed-values\|POST.*feed" "$LOG_FILE")
     TOTAL_CACHE_REQUESTS=$((CACHE_HITS + CACHE_MISSES))
     
     echo "🎯 Cache hits: $CACHE_HITS"
     echo "❌ Cache misses: $CACHE_MISSES"
-    echo "📊 Total requests: $TOTAL_CACHE_REQUESTS"
+    echo "📊 Total cache operations: $TOTAL_CACHE_REQUESTS"
+    echo "🌐 API requests processed: $CACHE_REQUESTS"
+    
+    # Initialize HIT_RATE to avoid unary operator errors
+    HIT_RATE=0
     
     if [ $TOTAL_CACHE_REQUESTS -gt 0 ]; then
         HIT_RATE=$((CACHE_HITS * 100 / TOTAL_CACHE_REQUESTS))
@@ -198,12 +240,30 @@ if [ -f "$LOG_FILE" ]; then
     echo "🎯 Cache Recommendations:"
     echo "========================"
     
+    # Check for data source health issues
+    UNHEALTHY_SOURCES=$(grep -c "marked as unhealthy\|is unhealthy" "$LOG_FILE")
+    CIRCUIT_BREAKER_OPENS=$(grep -c "Circuit breaker OPENED" "$LOG_FILE")
+    
+    if [ $UNHEALTHY_SOURCES -gt 0 ]; then
+        echo "🔧 CRITICAL: Data source health issues detected"
+        echo "   - $UNHEALTHY_SOURCES data sources marked as unhealthy"
+        echo "   - $CIRCUIT_BREAKER_OPENS circuit breakers opened"
+        echo "   - This prevents cache activity - fix data pipeline first"
+        echo "   - Check WebSocket connections and data flow"
+        echo "   - Review data source update intervals"
+    fi
+    
     # Provide recommendations based on analysis
     if [ $HIT_RATE -lt 70 ] && [ $TOTAL_CACHE_REQUESTS -gt 0 ]; then
         echo "🔧 RECOMMENDATION: Improve cache hit rate"
         echo "   - Consider increasing cache TTL"
         echo "   - Review cache warming strategies"
         echo "   - Analyze access patterns"
+    elif [ $TOTAL_CACHE_REQUESTS -eq 0 ] && [ $UNHEALTHY_SOURCES -eq 0 ]; then
+        echo "🔧 RECOMMENDATION: Generate cache activity"
+        echo "   - Make API requests to test cache functionality"
+        echo "   - Verify application endpoints are accessible"
+        echo "   - Check if cache warming is working"
     fi
     
     if [ $SIZE_OPTIMIZATIONS -gt 20 ]; then
@@ -239,6 +299,14 @@ if [ -f "$LOG_FILE" ]; then
     
     issues=0
     
+    # Check for critical data source issues first
+    if [ $UNHEALTHY_SOURCES -gt 0 ]; then
+        echo "❌ CRITICAL: Data pipeline issues preventing cache operation"
+        echo "   - Fix data source health issues before evaluating cache performance"
+        echo "   - $UNHEALTHY_SOURCES unhealthy data sources detected"
+        echo "   - Cache cannot function properly without healthy data sources"
+    else
+    
     if [ $HIT_RATE -lt 70 ] && [ $TOTAL_CACHE_REQUESTS -gt 0 ]; then
         issues=$((issues + 1))
     fi
@@ -251,7 +319,18 @@ if [ -f "$LOG_FILE" ]; then
         issues=$((issues + 1))
     fi
     
-    if [ $issues -eq 0 ]; then
+    # Special case: no cache activity but no data source issues
+    if [ $TOTAL_CACHE_REQUESTS -eq 0 ] && [ $CACHE_REQUESTS -gt 0 ]; then
+        echo "⚠️  FAIR: Cache system ready but no activity detected"
+        echo "   - Application processed $CACHE_REQUESTS API requests"
+        echo "   - Cache infrastructure is healthy but unused"
+        echo "   - Consider testing with actual API calls"
+    elif [ $TOTAL_CACHE_REQUESTS -eq 0 ] && [ $CACHE_REQUESTS -eq 0 ]; then
+        echo "⚠️  FAIR: Cache system idle - no requests processed"
+        echo "   - Cache infrastructure appears healthy"
+        echo "   - No API requests detected during monitoring period"
+        echo "   - Test with actual API calls to verify functionality"
+    elif [ $issues -eq 0 ]; then
         echo "🎉 EXCELLENT: Cache system is performing optimally"
     elif [ $issues -eq 1 ]; then
         echo "✅ GOOD: Cache system is performing well with minor issues"
@@ -260,16 +339,17 @@ if [ -f "$LOG_FILE" ]; then
     else
         echo "❌ POOR: Cache system requires immediate attention"
     fi
+    fi
     
 else
     echo "❌ No log file found"
 fi
 
-# Show log summary
-show_log_summary "$LOG_FILE" "cache"
-
 # Clean up old logs if in session mode
 cleanup_old_logs "cache"
+
+# Show log summary
+log_summary "$LOG_FILE" "cache" "debug"
 
 echo ""
 echo "✨ Cache analysis complete!"

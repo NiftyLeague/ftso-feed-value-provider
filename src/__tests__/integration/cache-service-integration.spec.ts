@@ -58,10 +58,10 @@ describe("Cache Service Integration - Task 7 Implementation", () => {
       expect(cachedPrice?.confidence).toBe(mockAggregatedPrice.confidence);
     });
 
-    it("should respect 1-second TTL maximum for real-time requirements", () => {
+    it("should respect 3-second TTL maximum for real-time requirements", () => {
       const now = Date.now();
 
-      // Set price with long TTL (should be capped at 1 second)
+      // Set price with long TTL (should be capped at 3 seconds)
       cacheService.set(
         "test-key",
         {
@@ -77,15 +77,15 @@ describe("Cache Service Integration - Task 7 Implementation", () => {
       let cached = cacheService.get("test-key");
       expect(cached).toBeDefined();
 
-      // Wait for TTL to expire (slightly more than 1 second)
+      // Wait for TTL to expire (slightly more than 3 seconds)
       return new Promise<void>(resolve => {
         setTimeout(() => {
           cached = cacheService.get("test-key");
-          expect(cached).toBeNull(); // Should be expired due to 1-second TTL cap
+          expect(cached).toBeNull(); // Should be expired due to 3-second TTL cap
           resolve();
-        }, 1100);
+        }, 3100);
       });
-    });
+    }, 30000); // Increased timeout
   });
 
   describe("Task 7.2: Implement proper cache invalidation on new price updates", () => {

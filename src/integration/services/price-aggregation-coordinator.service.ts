@@ -31,6 +31,12 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
   }
 
   override async initialize(): Promise<void> {
+    // Prevent double initialization
+    if (this.isInitialized) {
+      this.logger.debug("Price aggregation coordinator already initialized, skipping");
+      return;
+    }
+
     const operationId = `init_${Date.now()}`;
     this.startTimer(operationId);
 
@@ -60,17 +66,17 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
         },
         true
       );
-
-      this.endTimer(operationId);
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.endTimer(operationId);
       this.logFatal(`Price aggregation initialization failed: ${errObj.message}`, "price_aggregation_initialization", {
         severity: "critical",
         error: errObj.message,
         stack: errObj.stack,
       });
       throw error;
+    } finally {
+      // Always end the timer, regardless of success or failure
+      this.endTimer(operationId);
     }
   }
 

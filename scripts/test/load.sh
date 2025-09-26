@@ -15,10 +15,6 @@ setup_cleanup_handlers
 # Configuration - Reduced to prevent hanging
 TIMEOUT=60
 
-# Set up logging using common utility
-setup_test_logging "load"
-LOG_FILE="$TEST_LOG_FILE"
-LOAD_REPORT="$TEST_LOG_DIR/load-test-report.log"
 
 # Load test parameters - Reduced for stability
 CONCURRENT_USERS=10  # Reduced from 50
@@ -26,10 +22,14 @@ REQUESTS_PER_USER=5  # Reduced from 20
 RAMP_UP_TIME=10      # Reduced from 30
 TEST_DURATION=20     # Reduced from 60
 
+# Set up logging using common utility
 echo "📝 Starting load testing..."
-echo "📁 Log file: $LOG_FILE"
+setup_test_logging "load"
+LOG_FILE="$TEST_LOG_FILE"
+LOAD_REPORT="$TEST_LOG_DIR/load-test-report.log"
 echo "📊 Load report: $LOAD_REPORT"
 echo ""
+
 echo "🎯 Test Parameters:"
 echo "  👥 Concurrent users: $CONCURRENT_USERS"
 echo "  📊 Requests per user: $REQUESTS_PER_USER"
@@ -46,8 +46,16 @@ echo "- Ramp-up time: ${RAMP_UP_TIME}s" >> "$LOAD_REPORT"
 echo "- Test duration: ${TEST_DURATION}s" >> "$LOAD_REPORT"
 echo "" >> "$LOAD_REPORT"
 
-# Start the application using shared cleanup system
-pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
+# Build and start the application for load testing (faster than watch mode)
+echo "📦 Building application for load testing..."
+pnpm build > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed"
+    exit 1
+fi
+
+# Start the built application in production mode (most stable)
+NODE_ENV=production LOG_LEVEL=log pnpm start:prod 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
 # Register the PID and port for cleanup
@@ -58,24 +66,40 @@ echo ""
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
 
-# Wait for server to be ready - Reduced timeout
-READY_TIMEOUT=30  # Reduced from 90
+# Wait for server to be ready - Extended timeout for production mode startup
+READY_TIMEOUT=180  # Extended for production mode initialization
 ELAPSED=0
 
 while [ $ELAPSED -lt $READY_TIMEOUT ]; do
     if ! kill -0 $APP_PID 2>/dev/null; then
         echo "❌ Application stopped unexpectedly"
+        echo "📋 Last few lines of log:"
+        tail -10 "$LOG_FILE" 2>/dev/null || echo "No log file available"
         exit 1
     fi
     
-    # Test if server is ready with timeout
-    if curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
-        echo "✅ Server is ready for load testing"
-        break
+    # Test if server is ready with timeout and show progress
+    HTTP_CODE=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null || echo "000")
+    if echo "$HTTP_CODE" | grep -q "200"; then
+        # Additional check: test if feed-values endpoint is also ready
+        FEED_CODE=$(curl -s --max-time 5 -X POST -H "Content-Type: application/json" -d '{"feeds": [{"category": 1, "name": "BTC/USD"}]}' -o /dev/null -w "%{http_code}" http://localhost:3101/feed-values 2>/dev/null || echo "000")
+        if echo "$FEED_CODE" | grep -q "200"; then
+            echo "✅ Server is ready for load testing (Health: $HTTP_CODE, Feed: $FEED_CODE)"
+            break
+        else
+            echo "⏳ Health endpoint ready ($HTTP_CODE) but feed endpoint not ready ($FEED_CODE), waiting..."
+        fi
     fi
     
-    sleep 2  # Reduced from 3
-    ELAPSED=$((ELAPSED + 2))
+    # Show progress every 30 seconds
+    if [ $((ELAPSED % 30)) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+        echo "⏳ Still waiting for server readiness... (${ELAPSED}s/${READY_TIMEOUT}s, HTTP: $HTTP_CODE)"
+        echo "📋 Recent log activity:"
+        tail -3 "$LOG_FILE" 2>/dev/null || echo "No recent log activity"
+    fi
+    
+    sleep 5  # Increased check interval to reduce load
+    ELAPSED=$((ELAPSED + 5))
 done
 
 if [ $ELAPSED -ge $READY_TIMEOUT ]; then
@@ -330,7 +354,7 @@ echo "================"
 run_load_test "/health" "Health Endpoint Load Test" ""
 
 # Test 2: Feed values endpoint load test
-run_load_test "/feed-values" "Feed Values Load Test" '{"feeds": ["BTC/USD", "ETH/USD", "FLR/USD"]}'
+run_load_test "/feed-values" "Feed Values Load Test" '{"feeds": [{"category": 1, "name": "BTC/USD"}, {"category": 1, "name": "ETH/USD"}, {"category": 1, "name": "FLR/USD"}]}'
 
 # Test 3: Metrics endpoint load test
 run_load_test "/metrics" "Metrics Endpoint Load Test" ""
@@ -362,7 +386,7 @@ echo "🧠 Running memory-intensive operations..."
 # Create large payloads to test memory handling
 LARGE_PAYLOAD='{"feeds": ['
 for i in $(seq 1 100); do
-    LARGE_PAYLOAD="${LARGE_PAYLOAD}\"SYMBOL${i}/USD\""
+    LARGE_PAYLOAD="${LARGE_PAYLOAD}{\"category\": 1, \"name\": \"SYMBOL${i}/USD\"}"
     if [ $i -lt 100 ]; then
         LARGE_PAYLOAD="${LARGE_PAYLOAD},"
     fi
@@ -479,7 +503,7 @@ echo ""
 echo "🚀 Overall Load Test Assessment:"
 echo "==============================="
 
-local load_score=100
+load_score=100
 
 if [ $MEMORY_WARNINGS -gt 5 ]; then
     load_score=$((load_score - 20))
@@ -512,6 +536,12 @@ else
     echo "❌ POOR: System struggles significantly under load (Score: $load_score/100)"
     echo "Assessment: CRITICAL" >> "$LOAD_REPORT"
 fi
+
+# Source enhanced log summary utilities
+source "$(dirname "$0")/../utils/parse-logs.sh"
+
+# Show test summary
+log_summary "$LOG_FILE" "load" "test"
 
 echo ""
 echo "✨ Load testing complete!"

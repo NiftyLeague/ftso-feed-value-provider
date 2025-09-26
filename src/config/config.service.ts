@@ -5,7 +5,7 @@
 
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "@/common/base/composed.service";
-import { ENV, ENV_HELPERS } from "./environment.constants";
+import { ENV } from "./environment.constants";
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import { type IConfigurationService } from "@/common/types";
 import { type FeedConfiguration } from "@/common/types/core";
@@ -67,11 +67,6 @@ export class ConfigService extends StandardService implements IConfigurationServ
       errors.push("Webhook alerting enabled but URL not configured");
     }
 
-    const missingKeys = ENV_HELPERS.getMissingExchangeKeys();
-    if (missingKeys.length > 0) {
-      warnings.push(`Missing exchange API keys: ${missingKeys.join(", ")}`);
-    }
-
     return {
       isValid: errors.length === 0,
       errors,
@@ -96,18 +91,6 @@ export class ConfigService extends StandardService implements IConfigurationServ
   getCcxtId(exchange: string): string | undefined {
     const customExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
     return customExchanges.includes(exchange) ? undefined : exchange;
-  }
-
-  getExchangeApiKey(exchange: string) {
-    const key = `${exchange.toUpperCase()}_API_KEY` as keyof typeof ENV.EXCHANGE.KEYS;
-    const secret = `${exchange.toUpperCase()}_SECRET` as keyof typeof ENV.EXCHANGE.KEYS;
-    const passphrase = `${exchange.toUpperCase()}_PASSPHRASE` as keyof typeof ENV.EXCHANGE.KEYS;
-
-    return {
-      apiKey: ENV.EXCHANGE.KEYS[key] || undefined,
-      secret: ENV.EXCHANGE.KEYS[secret] || undefined,
-      passphrase: ENV.EXCHANGE.KEYS[passphrase] || undefined,
-    };
   }
 
   reloadFeedConfigurations(): void {

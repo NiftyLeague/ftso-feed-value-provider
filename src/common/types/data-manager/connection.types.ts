@@ -94,6 +94,7 @@ export interface WSConnectionConfig {
   pongTimeout: number;
   headers?: Record<string, string>;
   reconnectDelay?: number;
+  connectionTimeout?: number; // Timeout for initial connection attempt
 }
 
 export interface WSConnectionStats extends ConnectionStats {

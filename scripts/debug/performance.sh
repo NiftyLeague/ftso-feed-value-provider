@@ -2,7 +2,8 @@
 
 # Source common utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -19,12 +20,10 @@ echo "=========================="
 TIMEOUT=120
 
 # Set up logging using common utility
+echo "📝 Starting performance monitoring..."
 setup_debug_logging "performance-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 METRICS_FILE="$DEBUG_LOG_DIR/performance-metrics.log"
-
-echo "📝 Starting performance monitoring..."
-echo "📊 Main log: $LOG_FILE"
 echo "📊 Metrics log: $METRICS_FILE"
 
 # Start the application manually and register it
@@ -177,6 +176,9 @@ if [ -f "$METRICS_FILE" ] && [ $(wc -l < "$METRICS_FILE") -gt 1 ]; then
 else
     echo "❌ No metrics data available"
 fi
+
+# Show log summary
+log_summary "$LOG_FILE" "performance" "debug"
 
 echo ""
 echo "✨ Performance analysis complete!"

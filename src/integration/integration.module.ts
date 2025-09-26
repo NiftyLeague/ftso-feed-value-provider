@@ -46,16 +46,36 @@ import { WebSocketOrchestratorService } from "./services/websocket-orchestrator.
   controllers: [],
   providers: [
     // Decomposed integration services
-    IntegrationService,
-    DataSourceIntegrationService,
-    PriceAggregationCoordinatorService,
-    SystemHealthService,
+    {
+      provide: IntegrationService,
+      useClass: IntegrationService,
+      scope: 1, // Make it a singleton
+    },
+    {
+      provide: DataSourceIntegrationService,
+      useClass: DataSourceIntegrationService,
+      scope: 1, // Make it a singleton
+    },
+    {
+      provide: PriceAggregationCoordinatorService,
+      useClass: PriceAggregationCoordinatorService,
+      scope: 1, // Make it a singleton
+    },
+    {
+      provide: SystemHealthService,
+      useClass: SystemHealthService,
+      scope: 1, // Make it a singleton
+    },
 
     // Startup validation
     StartupValidationService,
 
     // WebSocket orchestration
-    WebSocketOrchestratorService,
+    {
+      provide: WebSocketOrchestratorService,
+      useClass: WebSocketOrchestratorService,
+      scope: 1, // Make it a singleton
+    },
 
     // Data management
     ProductionDataManagerService,

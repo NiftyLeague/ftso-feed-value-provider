@@ -62,7 +62,7 @@ export class PerformanceOptimizationCoordinatorService
       enabled: true,
       monitoringInterval: ENV.INTERVALS.PERFORMANCE_MONITORING_MS,
       optimizationInterval: ENV.PERFORMANCE.OPTIMIZATION_INTERVAL_MS,
-      autoOptimization: true, // Whether to automatically apply performance fixes
+      autoOptimization: ENV.PERFORMANCE.AUTO_OPTIMIZATION, // Whether to automatically apply performance fixes
       performanceTargets: {
         responseTime: ENV.PERFORMANCE.RESPONSE_TIME_TARGET_MS,
         cacheHitRate: ENV.CACHE.HIT_RATE_TARGET,

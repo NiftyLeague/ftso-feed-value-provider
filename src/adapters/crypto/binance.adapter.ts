@@ -75,15 +75,17 @@ export class BinanceAdapter extends BaseExchangeAdapter {
 
   protected async doConnect(): Promise<void> {
     const config = this.getConfig();
+    // Use the all-ticker stream URL to get all symbols at once
+    // This is more efficient than individual subscriptions
     const wsUrl = config?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
 
-    await this.connectWebSocket({
-      url: wsUrl,
-      reconnectInterval: 10000,
-      maxReconnectAttempts: 3,
-      pingInterval: 30000, // Binance requires periodic ping
-      pongTimeout: 15000,
-    });
+    await this.connectWebSocket(
+      this.createWebSocketConfig(wsUrl, {
+        // Binance doesn't require custom ping/pong, disable them
+        pingInterval: 0,
+        pongTimeout: 0,
+      })
+    );
   }
 
   protected async doDisconnect(): Promise<void> {
@@ -93,12 +95,12 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   normalizePriceData(rawData: BinanceTickerData): PriceUpdate {
     const price = this.parseNumber(rawData.c);
     const volume = this.parseNumber(rawData.v);
-    const timestamp = rawData.E;
+    const timestamp = this.standardizeTimestamp(rawData.E);
 
-    // Calculate spread for confidence
+    // Calculate spread for confidence using standardized method
     const bid = this.parseNumber(rawData.b);
     const ask = this.parseNumber(rawData.a);
-    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
+    const spreadPercent = this.calculateSpreadForConfidence(bid, ask, price);
 
     return {
       symbol: this.normalizeSymbolFromExchange(rawData.s),
@@ -206,7 +208,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
 
   // Override symbol normalization for Binance format
   protected override normalizeSymbolFromExchange(exchangeSymbol: string): string {
-    return this.addSlashToSymbol(exchangeSymbol, ["USDT", "USDC", "USD", "EUR"]);
+    return this.standardizeSymbolFromExchange(exchangeSymbol, []);
   }
 
   // Override WebSocket event handlers from BaseExchangeAdapter
@@ -221,6 +223,20 @@ export class BinanceAdapter extends BaseExchangeAdapter {
       } else {
         this.logger.debug("Received non-parseable WebSocket data:", typeof data);
         return;
+      }
+
+      // Handle stream format: { "stream": "!ticker@arr", "data": [...] }
+      if (typeof parsed === "object" && parsed !== null) {
+        const streamData = parsed as { stream?: string; data?: unknown };
+        if (streamData.stream === "!ticker@arr" && Array.isArray(streamData.data)) {
+          streamData.data.forEach(ticker => {
+            if (this.validateResponse(ticker)) {
+              const priceUpdate = this.normalizePriceData(ticker);
+              this.onPriceUpdateCallback?.(priceUpdate);
+            }
+          });
+          return;
+        }
       }
 
       // Handle array of tickers (from !ticker@arr stream)
@@ -241,21 +257,9 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     }
   }
 
-  // Override ping message for Binance-specific format
-  protected override sendPingMessage(): void {
-    if (this.isWebSocketConnected()) {
-      void this.sendWebSocketMessage(JSON.stringify({ method: "ping" }));
-    }
-  }
-
   protected async doHealthCheck(): Promise<boolean> {
-    try {
-      const config = this.getConfig();
-      const baseUrl = config?.restApiUrl || "https://api.binance.com";
-      const response = await this.fetchRestApi(`${baseUrl}/api/v3/ping`, "Binance health check failed");
-      return response.ok;
-    } catch {
-      return false;
-    }
+    const config = this.getConfig();
+    const baseUrl = config?.restApiUrl || "https://api.binance.com";
+    return this.performStandardHealthCheck(`${baseUrl}/api/v3/ping`);
   }
 }

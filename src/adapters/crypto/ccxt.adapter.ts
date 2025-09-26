@@ -519,14 +519,6 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
       connectionConfig.websocketUrl = config.websocketUrl;
       this.adapterConfig.websocketUrl = config.websocketUrl;
     }
-    if ("apiKey" in config) {
-      connectionConfig.apiKey = config.apiKey;
-      this.adapterConfig.apiKey = config.apiKey;
-    }
-    if ("apiSecret" in config) {
-      connectionConfig.apiSecret = config.apiSecret;
-      this.adapterConfig.apiSecret = config.apiSecret;
-    }
 
     // Only call parent if we have any connection config to update
     if (Object.keys(connectionConfig).length > 0) {
@@ -617,7 +609,8 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     const newSymbols = symbols.filter(symbol => !this.subscriptions.has(symbol));
 
     if (newSymbols.length === 0) {
-      this.logger.log(`All symbols already subscribed, skipping: ${symbols.join(", ")}`);
+      // Only log at debug level to reduce noise
+      this.logger.debug(`All symbols already subscribed, skipping: ${symbols.join(", ")}`);
       return;
     }
 
@@ -677,12 +670,9 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
           ] as typeof ccxt.Exchange;
           if (ExchangeClass) {
             exchange = new ExchangeClass({
-              newUpdates: true, // Enable real-time updates
+              newUpdates: true,
               enableRateLimit: true,
               timeout: ENV.TIMEOUTS.CCXT_MS,
-              // Add API credentials if available
-              apiKey: this.adapterConfig.apiKey,
-              secret: this.adapterConfig.apiSecret,
             });
             this.logger.debug(`Initialized ${exchangeId} exchange via CCXT Pro`);
           }
@@ -697,9 +687,6 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
             exchange = new ExchangeClass({
               enableRateLimit: true,
               timeout: ENV.TIMEOUTS.CCXT_MS,
-              // Add API credentials if available
-              apiKey: this.adapterConfig.apiKey,
-              secret: this.adapterConfig.apiSecret,
             });
             this.logger.debug(`Initialized ${exchangeId} exchange via regular CCXT`);
           }
@@ -764,7 +751,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     // Check if we already have subscriptions for this exchange
     const existingSubscriptions = this.exchangeSubscriptions.get(exchangeId);
     if (existingSubscriptions && existingSubscriptions.size > 0) {
-      this.logger.log(`Exchange ${exchangeId} already has active subscriptions, skipping`);
+      this.logger.debug(`Exchange ${exchangeId} already has active subscriptions, skipping`);
       return;
     }
 
@@ -794,8 +781,27 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
       this.logger.log(`Started WebSocket watching for ${marketIds.length} markets on ${exchangeId}`);
     } catch (error) {
+      // Handle specific exchange maintenance errors gracefully
+      const errorMessage = (error as Error)?.message || String(error);
+      if (
+        errorMessage.includes("SERVER_MAINTANACE") ||
+        errorMessage.includes("MAINTENANCE") ||
+        errorMessage.includes("maintenance")
+      ) {
+        this.logger.warn(`Exchange ${exchangeId} is under maintenance, skipping subscription. Will retry later.`);
+        // Mark exchange as temporarily unavailable
+        this.exchanges.delete(exchangeId);
+        return;
+      }
+
+      // Handle other common exchange errors gracefully
+      if (errorMessage.includes("doesn't support WebSocket trades")) {
+        this.logger.log(`Exchange ${exchangeId} doesn't support WebSocket trades, using REST polling fallback`);
+        return;
+      }
+
       this.logger.error(`Failed to subscribe to ${exchangeId}:`, error);
-      // Fall back to REST polling
+      // Fall back to REST polling for other errors
       this.startRestPolling(exchange, symbols, exchangeId);
     }
   }
@@ -812,7 +818,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         }
       } else {
         // Fall back to REST polling
-        this.logger.warn(`Exchange ${exchangeId} doesn't support WebSocket trades, falling back to REST polling`);
+        this.logger.log(`Exchange ${exchangeId} doesn't support WebSocket trades, using REST polling fallback`);
         this.startRestPolling(exchange, marketIds, exchangeId);
       }
     } catch (error) {
@@ -970,10 +976,11 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
   }
 
-  protected override handleWebSocketClose(): void {
+  protected override handleWebSocketClose(): boolean {
     this.logger.warn("CCXT Pro WebSocket connection closed");
     this.isConnected_ = false;
     this.onConnectionChangeCallback?.(false);
+    return true; // We handled the logging
   }
 
   protected override handleWebSocketError(error: Error): void {
@@ -1110,8 +1117,6 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
             newUpdates: true,
             enableRateLimit: true,
             timeout: 10000,
-            apiKey: this.adapterConfig.apiKey,
-            secret: this.adapterConfig.apiSecret,
           });
         }
       } catch {
@@ -1125,8 +1130,6 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
           exchange = new ExchangeClass({
             enableRateLimit: true,
             timeout: 10000,
-            apiKey: this.adapterConfig.apiKey,
-            secret: this.adapterConfig.apiSecret,
           });
         }
       }

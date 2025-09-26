@@ -25,6 +25,10 @@ import { DataSourceFactory } from "./data-source.factory";
 export class DataSourceIntegrationService extends EventDrivenService {
   public override isInitialized = false;
 
+  // Rate limiting for health warnings to prevent spam
+  private healthWarningLastLogged = new Map<string, number>();
+  private readonly HEALTH_WARNING_COOLDOWN_MS = 30000; // 30 seconds
+
   constructor(
     private readonly dataManager: ProductionDataManagerService,
     private readonly adapterRegistry: ExchangeAdapterRegistry,
@@ -51,18 +55,23 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
         // Step 1: Register exchange adapters
         await this.registerExchangeAdapters();
+        this.triggerGarbageCollection("after_adapter_registration");
 
         // Step 2: Initialize WebSocket orchestrator (handles connections centrally)
         await this.wsOrchestrator.initialize();
+        this.triggerGarbageCollection("after_orchestrator_init");
 
         // Step 3: Initialize error handling
         await this.initializeErrorHandling();
+        this.triggerGarbageCollection("after_error_handling_init");
 
         // Step 4: Start data sources (without connecting - orchestrator handles this)
         await this.startDataSources();
+        this.triggerGarbageCollection("after_data_sources_start");
 
         // Step 5: Wire data flow connections
         await this.wireDataFlow();
+        this.triggerGarbageCollection("after_data_flow_wiring");
 
         this.isInitialized = true;
 
@@ -78,6 +87,16 @@ export class DataSourceIntegrationService extends EventDrivenService {
         },
       }
     );
+  }
+
+  private triggerGarbageCollection(phase: string): void {
+    if (global.gc) {
+      const memBefore = process.memoryUsage();
+      global.gc();
+      const memAfter = process.memoryUsage();
+      const freed = memBefore.heapUsed - memAfter.heapUsed;
+      this.logger.debug(`GC triggered after ${phase}: freed ${(freed / 1024 / 1024).toFixed(2)}MB`);
+    }
   }
 
   async shutdown(): Promise<void> {
@@ -196,17 +215,17 @@ export class DataSourceIntegrationService extends EventDrivenService {
         },
         missingAdapters.length === 0
       );
-
-      this.endTimer(operationId);
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.endTimer(operationId);
       this.logFatal(`Exchange adapters verification failed: ${errObj.message}`, "verify_exchange_adapters", {
         severity: "critical",
         error: errObj.message,
         stack: errObj.stack,
       });
       throw error;
+    } finally {
+      // Always end the timer, regardless of success or failure
+      this.endTimer(operationId);
     }
   }
 
@@ -228,7 +247,15 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
       // Connect data manager unhealthy source events
       this.dataManager.on("sourceUnhealthy", (sourceId: string) => {
-        this.logger.warn(`Data source ${sourceId} is unhealthy`);
+        // Rate limit health warnings to prevent spam
+        const now = Date.now();
+        const lastLogged = this.healthWarningLastLogged.get(sourceId) || 0;
+
+        if (now - lastLogged > this.HEALTH_WARNING_COOLDOWN_MS) {
+          this.logger.warn(`Data source ${sourceId} is unhealthy`);
+          this.healthWarningLastLogged.set(sourceId, now);
+        }
+
         this.handleSourceUnhealthy(sourceId);
       });
 
@@ -300,6 +327,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
     try {
       const adapters = this.adapterRegistry.getFiltered({ isActive: true });
+      let registeredCount = 0;
 
       for (const adapter of adapters) {
         try {
@@ -320,7 +348,22 @@ export class DataSourceIntegrationService extends EventDrivenService {
           // Add to data manager (without connecting)
           await this.dataManager.addDataSource(dataSource);
 
-          this.logger.log(`Registered data source: ${adapter.exchangeName}`);
+          registeredCount++;
+          this.logger.log(`Registered data source: ${adapter.exchangeName} (${registeredCount}/${adapters.length})`);
+
+          // Trigger garbage collection after each registration to manage memory
+          if (global.gc) {
+            const memBefore = process.memoryUsage();
+            global.gc();
+            const memAfter = process.memoryUsage();
+            const freed = memBefore.heapUsed - memAfter.heapUsed;
+            this.logger.debug(
+              `GC after ${adapter.exchangeName} registration: freed ${(freed / 1024 / 1024).toFixed(2)}MB`
+            );
+          }
+
+          // Small delay between registrations to prevent overwhelming the system
+          await new Promise(resolve => setTimeout(resolve, 50));
         } catch (error) {
           this.logger.error(`Failed to register data source ${adapter.exchangeName}:`, error);
 
@@ -344,7 +387,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
         }
       }
 
-      this.logger.log("Data sources registered (connections managed by orchestrator)");
+      this.logger.log(
+        `Data sources registered (${registeredCount}/${adapters.length}) - connections managed by orchestrator`
+      );
     } catch (error) {
       this.logger.error("Failed to register data sources:", error);
       throw error;
@@ -449,20 +494,31 @@ export class DataSourceIntegrationService extends EventDrivenService {
       // Update adapter health status
       this.adapterRegistry.updateHealthStatus(sourceId, "unhealthy");
 
-      // Open circuit breaker
+      // Use consistent circuit breaker behavior across all environments
       this.circuitBreaker.openCircuit(sourceId, "Source unhealthy");
 
       // Emit for system health monitoring
       this.emit("sourceUnhealthy", sourceId);
+
+      this.logger.debug(`Handled unhealthy source ${sourceId} - circuit breaker opened`);
     } catch (error) {
       this.logger.error(`Error handling unhealthy source ${sourceId}:`, error);
     }
+  }
+
+  private sourceFailureCounts = new Map<string, number>();
+
+  private resetSourceFailureCount(sourceId: string): void {
+    this.sourceFailureCounts.delete(sourceId);
   }
 
   private handleSourceHealthy(sourceId: string): void {
     try {
       // Update adapter health status
       this.adapterRegistry.updateHealthStatus(sourceId, "healthy");
+
+      // Reset failure count when source becomes healthy
+      this.resetSourceFailureCount(sourceId);
 
       // Emit for system health monitoring
       this.emit("sourceHealthy", sourceId);
@@ -475,6 +531,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
     try {
       // Update adapter health status
       this.adapterRegistry.updateHealthStatus(sourceId, "healthy");
+
+      // Reset failure count when source recovers
+      this.resetSourceFailureCount(sourceId);
 
       // Close circuit breaker
       this.circuitBreaker.closeCircuit(sourceId, "Source recovered");

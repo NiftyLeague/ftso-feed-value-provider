@@ -79,6 +79,12 @@ export class RealTimeAggregationService
   private readonly performanceBuffer: number[] = [];
   private adaptiveProcessing = true;
 
+  // Rate limiting for performance warnings
+  private performanceWarningLastLogged = new Map<string, number>();
+  private readonly PERFORMANCE_WARNING_COOLDOWN_MS = 60000; // 1 minute
+  private readonly startupTime = Date.now();
+  private readonly STARTUP_GRACE_PERIOD_MS = 120000; // 2 minutes grace period for startup
+
   // Rate limiting for aggregation failure warnings
   private aggregationFailureLastLogged = new Map<string, number>();
   private readonly AGGREGATION_FAILURE_COOLDOWN_MS = ENV.AGGREGATION.FAILURE_COOLDOWN_MS;
@@ -205,19 +211,36 @@ export class RealTimeAggregationService
 
       const responseTime = this.endTimer(operationId);
 
-      // Log performance warning if exceeding target
+      // Log performance warning if exceeding target (with rate limiting and startup grace period)
       if (responseTime > this.aggregationConfig.performanceTargetMs) {
-        this.enhancedLogger?.warn(`Aggregation performance threshold exceeded`, {
-          component: "RealTimeAggregation",
-          operation: "get_aggregated_price",
-          symbol: feedId.name,
-          metadata: {
-            responseTime: responseTime.toFixed(2),
-            target: this.aggregationConfig.performanceTargetMs,
-            sourceCount: updates.length,
-            price: aggregatedPrice.price,
-          },
-        });
+        const now = Date.now();
+        const isStartupPeriod = now - this.startupTime < this.STARTUP_GRACE_PERIOD_MS;
+
+        // Skip warnings during startup grace period
+        if (!isStartupPeriod) {
+          const warningKey = `perf_${feedId.name}`;
+          const lastLogged = this.performanceWarningLastLogged.get(warningKey) || 0;
+
+          if (now - lastLogged > this.PERFORMANCE_WARNING_COOLDOWN_MS) {
+            this.enhancedLogger?.warn(`Aggregation performance threshold exceeded`, {
+              component: "RealTimeAggregation",
+              operation: "get_aggregated_price",
+              symbol: feedId.name,
+              metadata: {
+                responseTime: responseTime.toFixed(2),
+                target: this.aggregationConfig.performanceTargetMs,
+                sourceCount: updates.length,
+                price: aggregatedPrice.price,
+              },
+            });
+            this.performanceWarningLastLogged.set(warningKey, now);
+          }
+        } else {
+          // During startup, just log as debug
+          this.enhancedLogger?.debug(
+            `Initial aggregation for ${feedId.name} took ${responseTime.toFixed(2)}ms (startup warmup)`
+          );
+        }
       }
 
       // Record performance metrics (ensure minimum time for testing)

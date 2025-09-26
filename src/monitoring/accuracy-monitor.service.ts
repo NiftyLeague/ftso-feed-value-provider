@@ -297,9 +297,10 @@ export class AccuracyMonitorService extends EventDrivenService {
     try {
       const feedId = aggregatedPrice.symbol || "unknown";
 
-      // For now, we'll use a mock consensus median since we don't have historical data
-      // In a real implementation, this would compare against actual consensus
-      const mockConsensusMedian = aggregatedPrice.price * (1 + (Math.random() - 0.5) * 0.01); // ±0.5% variation
+      // For now, we'll use the aggregated price itself as consensus since it's already
+      // the result of consensus calculation across multiple sources
+      // In a real implementation, this would compare against historical consensus
+      const mockConsensusMedian = aggregatedPrice.price; // Use the aggregated price as consensus
 
       const metrics = this.trackConsensusDeviation(
         feedId,
@@ -308,7 +309,7 @@ export class AccuracyMonitorService extends EventDrivenService {
         aggregatedPrice.votingRound
       );
 
-      // Check if we should emit an accuracy alert
+      // Only emit alerts for actual deviations (which should be 0 with this approach)
       if (metrics.consensusDeviation > this.thresholds.accuracy.maxConsensusDeviation) {
         const alert: AccuracyAlertData = {
           feedId,

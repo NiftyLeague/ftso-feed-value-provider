@@ -22,6 +22,8 @@ export class SystemHealthService extends EventDrivenService {
   private sourceHealthMap = new Map<string, SourceHealthStatus>();
   private aggregationErrors: Error[] = [];
   private healthMetrics: DetailedSystemHealthMetrics;
+  private alertCooldowns = new Map<string, number>();
+  private readonly ALERT_COOLDOWN_MS = 30000; // 30 seconds between duplicate alerts
 
   constructor(
     private readonly accuracyMonitor: AccuracyMonitorService,
@@ -49,6 +51,12 @@ export class SystemHealthService extends EventDrivenService {
   }
 
   override async initialize(): Promise<void> {
+    // Prevent double initialization
+    if (this.isInitialized) {
+      this.logger.debug("System health service already initialized, skipping");
+      return;
+    }
+
     const operationId = `init_${Date.now()}`;
     this.startTimer(operationId);
 
@@ -67,7 +75,7 @@ export class SystemHealthService extends EventDrivenService {
       // Step 3: Start health monitoring loop
       this.startHealthMonitoring();
 
-      // initialized
+      this.isInitialized = true;
 
       this.logCriticalOperation(
         "system_health_initialization",
@@ -78,17 +86,17 @@ export class SystemHealthService extends EventDrivenService {
         },
         true
       );
-
-      this.endTimer(operationId);
     } catch (error) {
       const errObj = error instanceof Error ? error : new Error(String(error));
-      this.endTimer(operationId);
       this.logFatal(`System health initialization failed: ${errObj.message}`, "system_health_initialization", {
         severity: "critical",
         error: errObj.message,
         stack: errObj.stack,
       });
       throw error;
+    } finally {
+      // Always end the timer, regardless of success or failure
+      this.endTimer(operationId);
     }
   }
 
@@ -325,6 +333,16 @@ export class SystemHealthService extends EventDrivenService {
 
   private checkAndSendHealthAlert(sourceId: string, status: string): void {
     try {
+      // Check alert cooldown to prevent spam
+      const alertKey = `${sourceId}_${status}`;
+      const now = Date.now();
+      const lastAlertTime = this.alertCooldowns.get(alertKey) || 0;
+
+      if (now - lastAlertTime < this.ALERT_COOLDOWN_MS) {
+        this.logger.debug(`Skipping duplicate alert for ${sourceId} (${status}) - cooldown active`);
+        return;
+      }
+
       let alertSeverity: "log" | "warning" | "error" | "critical" = "log";
       let alertMessage = `Data source ${sourceId} status changed to ${status}`;
 
@@ -345,6 +363,9 @@ export class SystemHealthService extends EventDrivenService {
       };
 
       this.sendAlert(alert);
+
+      // Update cooldown
+      this.alertCooldowns.set(alertKey, now);
     } catch (error) {
       this.logger.error(`Error sending health alert for ${sourceId}:`, error);
     }
@@ -367,9 +388,12 @@ export class SystemHealthService extends EventDrivenService {
 
   private sendAlert(alert: HealthAlert): void {
     try {
+      // Generate unique alert ID to prevent duplicates
+      const alertId = `health_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
       // Map HealthAlert to generic Alert for delivery service
       const mapped: Alert = {
-        id: `health_${Date.now()}`,
+        id: alertId,
         ruleId: alert.type,
         type: "health",
         title: alert.type,

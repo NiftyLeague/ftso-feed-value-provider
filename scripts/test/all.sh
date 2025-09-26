@@ -4,7 +4,7 @@
 # Runs all testing scripts in sequence for complete system validation
 
 # Source common cleanup utilities
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -237,25 +237,15 @@ echo "📋 Comprehensive Testing Complete!"
 echo "=================================="
 echo ""
 echo "📁 All results saved to: $TEST_DIR"
+
 echo ""
-echo "📊 Quick Summary:"
-echo "-----------------"
-
-# Show key metrics from summary
-if [ -f "$SUMMARY_FILE" ]; then
-    echo "📄 Comprehensive report: $SUMMARY_FILE"
-    echo ""
-    echo "🔍 Key Findings:"
-    
-    # Show a few key lines from the summary
-    grep -E "Server Readiness|Security Issues|Load Tests|Flaky Tests" "$SUMMARY_FILE" | head -4
-fi
-
+echo "📄 Comprehensive report: $SUMMARY_FILE"
 echo ""
 echo "🔧 Next Steps:"
-echo "1. Review the comprehensive summary: $SUMMARY_FILE"
-echo "2. Check individual test logs in: $TEST_DIR"
-echo "3. Address any critical issues identified"
-echo "4. Set up monitoring for ongoing test health"
+echo "1. Review the enhanced log analysis above for critical issues"
+echo "2. Check the comprehensive summary: $SUMMARY_FILE"
+echo "3. Check individual test logs in: $TEST_DIR"
+echo "4. Address any critical issues identified"
+echo "5. Set up monitoring for ongoing test health"
 echo ""
 echo "✨ Testing session complete!"

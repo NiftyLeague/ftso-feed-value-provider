@@ -1,7 +1,8 @@
 #!/bin/bash
 # Source common debug utilities
 source "$(dirname "$0")/../utils/debug-common.sh"
-source "$(dirname "$0")/../utils/cleanup-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
+source "$(dirname "$0")/../utils/cleanup.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -106,13 +107,15 @@ if [ -f "$LOG_FILE" ]; then
     echo "🔄 Failover Analysis:"
     echo "--------------------"
     
-    # Failover events
-    FAILOVER_EVENTS=$(grep -c "Failover\|failover\|Triggering.*failover" "$LOG_FILE")
-    echo "🔄 Failover events: $FAILOVER_EVENTS"
+    # Failover events - exclude configuration messages
+    FAILOVER_EVENTS=$(grep -c "Triggering.*failover\|Failover completed\|Failover failed" "$LOG_FILE")
+    FAILOVER_CONFIG_EVENTS=$(grep -c "Configuring failover group" "$LOG_FILE")
+    echo "🔄 Actual failover events: $FAILOVER_EVENTS"
+    echo "⚙️  Failover configuration events: $FAILOVER_CONFIG_EVENTS"
     
     # Failover triggers
-    MANUAL_FAILOVERS=$(grep -c "manual.*failover\|Manual.*failover" "$LOG_FILE")
-    AUTO_FAILOVERS=$(grep -c "automatic.*failover\|Automatic.*failover" "$LOG_FILE")
+    MANUAL_FAILOVERS=$(grep -c "Triggering manual failover\|manual failover.*triggered" "$LOG_FILE")
+    AUTO_FAILOVERS=$(grep -c "Triggering.*failover.*Connection lost\|automatic.*failover" "$LOG_FILE")
     
     echo "🔧 Manual failovers: $MANUAL_FAILOVERS"
     echo "🤖 Automatic failovers: $AUTO_FAILOVERS"
@@ -133,16 +136,16 @@ if [ -f "$LOG_FILE" ]; then
     echo "🔁 Retry Pattern Analysis:"
     echo "-------------------------"
     
-    # Retry attempts
-    RETRY_ATTEMPTS=$(grep -c "retry\|Retry\|retrying\|Retrying" "$LOG_FILE")
-    echo "🔁 Retry attempts: $RETRY_ATTEMPTS"
+    # Retry attempts - only count actual retry operations
+    RETRY_ATTEMPTS=$(grep -c "Retry operation\|attempt.*failed.*Retrying\|executeWithRetry.*attempt" "$LOG_FILE")
+    echo "🔁 Actual retry attempts: $RETRY_ATTEMPTS"
     
     # Successful retries
-    SUCCESSFUL_RETRIES=$(grep -c "retry.*success\|Retry.*success\|retry.*completed" "$LOG_FILE")
+    SUCCESSFUL_RETRIES=$(grep -c "Retry operation succeeded\|retry.*completed successfully" "$LOG_FILE")
     echo "✅ Successful retries: $SUCCESSFUL_RETRIES"
     
     # Failed retries
-    FAILED_RETRIES=$(grep -c "retry.*failed\|Retry.*failed\|retry.*exhausted" "$LOG_FILE")
+    FAILED_RETRIES=$(grep -c "record_retry_failure\|retry.*exhausted\|retry.*failed after" "$LOG_FILE")
     echo "❌ Failed retries: $FAILED_RETRIES"
     
     # Retry success rate
@@ -265,11 +268,17 @@ if [ -f "$LOG_FILE" ]; then
         echo "   - Consider increasing timeout values"
     fi
     
-    if [ $FAILOVER_EVENTS -gt 10 ]; then
-        echo "🔧 FAILOVER: Frequent failover events"
+    if [ $FAILOVER_EVENTS -gt 5 ]; then
+        echo "🔧 FAILOVER: Frequent actual failover events"
         echo "   - Review primary service stability"
         echo "   - Check failover trigger sensitivity"
         echo "   - Validate backup service capacity"
+    elif [ $FAILOVER_EVENTS -gt 2 ]; then
+        echo "⚠️  FAILOVER: Some failover events detected"
+        echo "   - Monitor primary service health"
+        echo "   - Consider failover threshold tuning"
+    elif [ $FAILOVER_CONFIG_EVENTS -gt 50 ]; then
+        echo "ℹ️  INFO: Many failover groups configured (normal during startup)"
     fi
     
     if [ $RETRY_ATTEMPTS -gt 0 ] && [ $RETRY_SUCCESS_RATE -lt 60 ]; then
@@ -311,8 +320,10 @@ if [ -f "$LOG_FILE" ]; then
         resilience_score=$((resilience_score - 20))
     fi
     
-    if [ $FAILOVER_EVENTS -gt 10 ]; then
+    if [ $FAILOVER_EVENTS -gt 5 ]; then
         resilience_score=$((resilience_score - 15))
+    elif [ $FAILOVER_EVENTS -gt 2 ]; then
+        resilience_score=$((resilience_score - 5))
     fi
     
     if [ $RETRY_ATTEMPTS -gt 0 ] && [ $RETRY_SUCCESS_RATE -lt 60 ]; then
@@ -336,6 +347,9 @@ if [ -f "$LOG_FILE" ]; then
 else
     echo "❌ No log file found"
 fi
+
+# Show log summary
+log_summary "$LOG_FILE" "resilience" "debug"
 
 echo ""
 echo "✨ Resilience analysis complete!"

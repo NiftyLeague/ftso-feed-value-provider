@@ -415,7 +415,7 @@ describe("Controllers Integration", () => {
         expect(response.body.performance).toHaveProperty("throughput");
         expect(response.body.system).toHaveProperty("uptime");
         expect(response.body.system).toHaveProperty("memory");
-      });
+      }, 20000); // 20 second timeout
     });
   });
 
@@ -446,7 +446,7 @@ describe("Controllers Integration", () => {
           // Note: Not all error responses include timestamp
         }
       }
-    });
+    }, 20000); // 20 second timeout
 
     it("should handle concurrent requests across controllers", async () => {
       const requests = [

@@ -43,6 +43,32 @@ export class RetryError extends Error {
 /** Check if error is retryable based on common patterns */
 export function isRetryableError(error: Error): boolean {
   const message = error.message.toLowerCase();
+  const errorName = error.name.toLowerCase();
+
+  // Non-retryable error patterns (take precedence)
+  const nonRetryablePatterns = [
+    "authentication",
+    "authorization",
+    "forbidden",
+    "invalid api key",
+    "invalid signature",
+    "permission denied",
+    "bad request",
+    "malformed",
+    "invalid json",
+    "syntax error",
+    "validation error",
+    "not found", // 404 errors are usually not retryable
+    "method not allowed",
+    "unsupported",
+  ];
+
+  // Check for non-retryable patterns first
+  if (nonRetryablePatterns.some(pattern => message.includes(pattern) || errorName.includes(pattern))) {
+    return false;
+  }
+
+  // Retryable error patterns
   const retryablePatterns = [
     "timeout",
     "connection",
@@ -51,12 +77,33 @@ export function isRetryableError(error: Error): boolean {
     "rate limit",
     "service unavailable",
     "too many requests",
+    "server error", // 5xx errors
+    "internal server error",
+    "bad gateway",
+    "service temporarily unavailable",
+    "gateway timeout",
     "econnreset",
     "enotfound",
     "etimedout",
+    "econnrefused",
+    "socket hang up",
+    "fetch failed",
+    "request timeout",
+    "connect econnrefused",
+    "getaddrinfo enotfound",
+    "websocket",
+    "connection lost",
+    "disconnected",
+    "reconnect",
+    "circuit breaker",
+    "quota exceeded",
+    "api unavailable",
+    "maintenance mode",
+    "overloaded",
+    "throttled",
   ];
 
-  return retryablePatterns.some(pattern => message.includes(pattern));
+  return retryablePatterns.some(pattern => message.includes(pattern) || errorName.includes(pattern));
 }
 
 /** Retry only if error is retryable */

@@ -116,14 +116,14 @@ describe("Module Dependency Injection Integration", () => {
       expect(registry).toBeDefined();
     });
 
-    it("should resolve CcxtMultiExchangeAdapter with ConfigService", () => {
-      const ccxtAdapter = module.get<CcxtMultiExchangeAdapter>(CcxtMultiExchangeAdapter);
+    it("should resolve CcxtMultiExchangeAdapter with ConfigService", async () => {
+      const ccxtAdapter = await module.resolve<CcxtMultiExchangeAdapter>(CcxtMultiExchangeAdapter);
       expect(ccxtAdapter).toBeDefined();
     });
 
-    it("should handle ConfigService dependency injection", () => {
+    it("should handle ConfigService dependency injection", async () => {
       const configService = module.get<ConfigService>(ConfigService);
-      const ccxtAdapter = module.get<CcxtMultiExchangeAdapter>(CcxtMultiExchangeAdapter);
+      const ccxtAdapter = await module.resolve<CcxtMultiExchangeAdapter>(CcxtMultiExchangeAdapter);
 
       expect(configService).toBeDefined();
       expect(ccxtAdapter).toBeDefined();
@@ -143,11 +143,13 @@ describe("Module Dependency Injection Integration", () => {
       await module.close();
     });
 
-    it("should resolve all integration services", () => {
+    it("should resolve all integration services", async () => {
       expect(module.get<ProductionDataManagerService>(ProductionDataManagerService)).toBeDefined();
-      expect(module.get<SystemHealthService>(SystemHealthService)).toBeDefined();
-      expect(module.get<DataSourceIntegrationService>(DataSourceIntegrationService)).toBeDefined();
-      expect(module.get<PriceAggregationCoordinatorService>(PriceAggregationCoordinatorService)).toBeDefined();
+      expect(await module.resolve<SystemHealthService>(SystemHealthService)).toBeDefined();
+      expect(await module.resolve<DataSourceIntegrationService>(DataSourceIntegrationService)).toBeDefined();
+      expect(
+        await module.resolve<PriceAggregationCoordinatorService>(PriceAggregationCoordinatorService)
+      ).toBeDefined();
     });
 
     it("should resolve DataValidator and ValidationService with proper dependencies", () => {

@@ -6,10 +6,13 @@ import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { DocumentBuilder, SwaggerDocumentOptions, SwaggerModule } from "@nestjs/swagger";
 import { ValidationPipe, LogLevel } from "@nestjs/common";
+import type { Request, Response, NextFunction } from "express";
 import { FilteredLogger } from "@/common/logging/filtered-logger";
 import { AppModule } from "@/app.module";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
+import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
+import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
 import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 
 // Global application instance for graceful shutdown
@@ -39,11 +42,25 @@ async function bootstrap() {
 
     enhancedLogger.startPerformanceTimer(operationId, "application_bootstrap", "Bootstrap");
 
+    // Log heap size configuration for verification
+    const v8 = require("v8");
+    const heapStats = v8.getHeapStatistics();
+    const heapSizeMB = Math.round(heapStats.heap_size_limit / 1024 / 1024);
+
+    enhancedLogger.log(`Node.js heap size configured: ${heapSizeMB}MB`, {
+      component: "Bootstrap",
+      operation: "heap_verification",
+      heapSizeLimitMB: heapSizeMB,
+      nodeOptions: process.env.NODE_OPTIONS || null,
+      isProductionReady: heapSizeMB >= 1000, // 1GB minimum for production
+    });
+
     enhancedLogger.logCriticalOperation("application_startup", "Bootstrap", {
       nodeVersion: process.version,
       platform: process.platform,
       pid: process.pid,
       environment: ENV.APPLICATION.NODE_ENV,
+      heapSizeMB: heapSizeMB,
       timestamp: Date.now(),
     });
 
@@ -62,22 +79,22 @@ async function bootstrap() {
       },
     });
 
-    // Configure CORS
-    app.enableCors({
-      origin: true, // Or specify allowed origins: ["http://localhost:3000", "https://yourdomain.com"]
-      methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-      exposedHeaders: ["Content-Range", "X-Total-Count"],
-      credentials: true,
-      maxAge: ENV.APPLICATION.CORS_MAX_AGE,
-    });
-
     const appCreationTime = performance.now() - appCreationStart;
 
     enhancedLogger.log(`NestJS application created in ${appCreationTime.toFixed(2)}ms`, {
       component: "Bootstrap",
       operation: "create_nestjs_app",
       duration: appCreationTime,
+    });
+
+    // Configure CORS with proper security settings
+    app.enableCors({
+      origin: process.env.CORS_ORIGIN || true, // Allow all origins in development, restrict in production
+      methods: ["GET", "POST", "OPTIONS"], // Only allow necessary methods
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+      exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+      credentials: false,
+      maxAge: ENV.APPLICATION.CORS_MAX_AGE,
     });
 
     // Configure security middleware
@@ -91,12 +108,77 @@ async function bootstrap() {
             imgSrc: ["'self'", "data:", "https:"],
           },
         },
+        crossOriginEmbedderPolicy: false, // Allow for API usage
+        hsts: {
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        },
       })
     );
 
     enhancedLogger.log("Security middleware configured", {
       component: "Bootstrap",
       operation: "configure_security",
+    });
+
+    // Add HTTP method filtering middleware
+    app.use((req: Request, res: Response, next: NextFunction): void => {
+      const allowedMethods = ["GET", "POST", "OPTIONS"];
+      if (!allowedMethods.includes(req.method)) {
+        res.status(405).json({
+          success: false,
+          error: {
+            code: "METHOD_NOT_ALLOWED",
+            message: "Method Not Allowed",
+            severity: "medium",
+            module: "HttpFilter",
+            timestamp: Date.now(),
+            context: {
+              classification: "VALIDATION_ERROR",
+              method: req.method,
+              allowedMethods,
+              httpStatus: 405,
+            },
+          },
+          timestamp: Date.now(),
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          retryable: false,
+        });
+        return;
+      }
+      next();
+    });
+
+    // Add Content-Type validation middleware for POST requests
+    app.use((req: Request, res: Response, next: NextFunction): void => {
+      if (req.method === "POST") {
+        const contentType = req.get("Content-Type");
+        if (!contentType || !contentType.includes("application/json")) {
+          res.status(415).json({
+            success: false,
+            error: {
+              code: "UNSUPPORTED_MEDIA_TYPE",
+              message: "Unsupported Media Type. Only application/json is accepted.",
+              severity: "medium",
+              module: "HttpFilter",
+              timestamp: Date.now(),
+              context: {
+                classification: "VALIDATION_ERROR",
+                method: req.method,
+                contentType: contentType || "none",
+                expectedContentType: "application/json",
+                httpStatus: 415,
+              },
+            },
+            timestamp: Date.now(),
+            requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            retryable: false,
+          });
+          return;
+        }
+      }
+      next();
     });
 
     // Configure global validation pipe
@@ -112,6 +194,24 @@ async function bootstrap() {
     // Configure enhanced global exception filter with standardized error handling
     app.useGlobalFilters(new HttpExceptionFilter());
 
+    // Configure global rate limiting
+    const rateLimiterService = new RateLimiterService({
+      windowMs: 60000, // 1 minute
+      maxRequests: 100, // 100 requests per minute per client
+      skipSuccessfulRequests: false,
+      skipFailedRequests: false,
+    });
+
+    const rateLimitGuard = new RateLimitGuard(rateLimiterService);
+    app.useGlobalGuards(rateLimitGuard);
+
+    enhancedLogger.log("Rate limiting configured", {
+      component: "Bootstrap",
+      operation: "configure_rate_limiting",
+      windowMs: 60000,
+      maxRequests: 100,
+    });
+
     // Configure API documentation
     const basePath = ENV.APPLICATION.BASE_PATH;
     await setupSwaggerDocumentation(app, basePath);
@@ -122,11 +222,53 @@ async function bootstrap() {
     // Configure graceful shutdown handlers
     setupGracefulShutdown();
 
-    // Start the HTTP server
+    // Start the HTTP server IMMEDIATELY to avoid blocking
     const PORT = ENV.APPLICATION.PORT;
 
+    if (enhancedLogger) {
+      enhancedLogger.log("🚀 Starting HTTP server...", {
+        component: "Bootstrap",
+        operation: "start_http_server",
+        port: PORT,
+      });
+    }
+
     const serverStartTime = performance.now();
-    await app.listen(PORT, "0.0.0.0");
+    try {
+      await app.listen(PORT, "0.0.0.0");
+
+      if (enhancedLogger) {
+        enhancedLogger.log(`🎉 HTTP server is now listening on port ${PORT}`, {
+          component: "Bootstrap",
+          operation: "server_listening",
+          port: PORT,
+          host: "0.0.0.0",
+        });
+      }
+    } catch (error) {
+      const errObj = error instanceof Error ? error : new Error(String(error));
+
+      if (errObj.message.includes("EADDRINUSE")) {
+        enhancedLogger.error(errObj, {
+          component: "Bootstrap",
+          operation: "server_startup",
+          severity: "critical",
+          metadata: {
+            port: PORT,
+            suggestion: "Port is already in use. Try stopping other instances or use a different port.",
+          },
+        });
+
+        // In development, suggest solutions
+        if (!ENV_HELPERS.isProduction()) {
+          console.error(`\n🚨 Port ${PORT} is already in use!`);
+          console.error(`💡 Try running: lsof -ti :${PORT} | xargs kill`);
+          console.error(`💡 Or set a different port: export APP_PORT=3102\n`);
+        }
+      }
+
+      throw errObj;
+    }
     const serverStartDuration = performance.now() - serverStartTime;
 
     enhancedLogger.logCriticalOperation(
@@ -141,9 +283,7 @@ async function bootstrap() {
       true
     );
 
-    // Wait for application to be fully initialized
-    await waitForApplicationReady();
-
+    // Log successful server startup
     enhancedLogger.logCriticalOperation(
       "application_startup",
       "Bootstrap",
@@ -155,6 +295,14 @@ async function bootstrap() {
       },
       true
     );
+
+    // Application is ready to serve requests
+    // Start non-blocking readiness monitoring
+    if (enhancedLogger) {
+      setTimeout(() => {
+        void checkApplicationReadiness(enhancedLogger!, PORT, basePath);
+      }, 5000); // Give integration service time to initialize
+    }
 
     enhancedLogger.endPerformanceTimer(operationId, true, {
       port: PORT,
@@ -414,52 +562,47 @@ async function gracefulShutdown(): Promise<void> {
   }
 }
 
-async function waitForApplicationReady(): Promise<void> {
-  const maxWaitTime = ENV.TIMEOUTS.APP_READINESS_MS;
-  const checkInterval = ENV.TIMEOUTS.READINESS_CHECK_INTERVAL_MS;
-  const startTime = Date.now();
+async function checkApplicationReadiness(logger: EnhancedLoggerService, port: number, basePath: string): Promise<void> {
+  const maxAttempts = 12; // Try for 60 seconds (12 * 5s intervals)
+  let attempts = 0;
 
-  if (logger) {
-    logger.log("Waiting for application to be ready...");
-  }
+  const checkReadiness = async (): Promise<void> => {
+    attempts++;
 
-  while (Date.now() - startTime < maxWaitTime) {
     try {
-      // Try to access the health endpoint to verify the application is ready
-      const port = ENV.APPLICATION.PORT;
-      const basePath = ENV.APPLICATION.BASE_PATH;
       const url = `http://localhost:${port}${basePath}/health/ready`;
-
-      // Create a timeout promise
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Request timeout")), ENV.TIMEOUTS.READINESS_REQUEST_TIMEOUT_MS)
-      );
-
-      const response = await Promise.race([fetch(url, { method: "GET" }), timeoutPromise]);
+      const response = await fetch(url, {
+        method: "GET",
+        signal: AbortSignal.timeout(ENV.TIMEOUTS.READINESS_REQUEST_TIMEOUT_MS),
+      });
 
       if (response.ok) {
         const data = await response.json();
         if (data.ready) {
-          if (logger) {
-            logger.log(`✅ Application ready after ${Date.now() - startTime}ms`);
-          }
-          return; // Application is ready
+          logger.log(`✅ Application readiness confirmed after ${attempts * 5} seconds`);
+          return;
         }
       }
+
+      // Not ready yet, but server is responding
+      logger.debug(`Readiness check ${attempts}/${maxAttempts}: System not fully ready yet`);
     } catch (error) {
-      // Health check not ready yet, continue waiting
       const msg = error instanceof Error ? error.message : String(error);
-      if (logger) {
-        logger.debug(`Readiness check failed: ${msg}`);
-      }
+      logger.debug(`Readiness check ${attempts}/${maxAttempts}: ${msg}`);
     }
 
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
-  }
+    // Schedule next check if we haven't exceeded max attempts
+    if (attempts < maxAttempts) {
+      setTimeout(checkReadiness, 5000);
+    } else {
+      logger.warn(
+        `⚠️ Application readiness monitoring completed after ${maxAttempts * 5} seconds. System may still be initializing.`
+      );
+    }
+  };
 
-  if (logger) {
-    logger.warn(`⚠️ Application readiness check timed out after ${maxWaitTime}ms, but continuing startup`);
-  }
+  // Start the first check
+  await checkReadiness();
 }
 
 function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
@@ -469,14 +612,23 @@ function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
 
   setInterval(() => {
     const memUsage = process.memoryUsage();
+    const v8 = require("v8");
+    const heapStats = v8.getHeapStatistics();
+
     const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
     const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
-    const heapUsedPercent = memUsage.heapUsed / memUsage.heapTotal;
+    const heapLimitMB = Math.round(heapStats.heap_size_limit / 1024 / 1024);
+
+    // Use heap limit for percentage calculation, not current heap total
+    const heapUsedPercent = memUsage.heapUsed / heapStats.heap_size_limit;
+    const currentHeapUtilization = memUsage.heapUsed / memUsage.heapTotal;
 
     const memoryInfo = {
       heapUsed: `${heapUsedMB}MB`,
       heapTotal: `${heapTotalMB}MB`,
+      heapLimit: `${heapLimitMB}MB`,
       heapUsedPercent: `${(heapUsedPercent * 100).toFixed(1)}%`,
+      currentHeapUtilization: `${(currentHeapUtilization * 100).toFixed(1)}%`,
       external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
       rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
     };

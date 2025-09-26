@@ -42,9 +42,6 @@ export interface EnvironmentConfiguration {
     alertRetentionDays: number;
   };
 
-  // Exchange API configuration (from environment variables)
-  exchangeApiKeys: Record<string, ExchangeApiKeyConfig>;
-
   // Cache configuration (lightweight service-level cache parameters)
   cache: {
     ttlMs: number;
@@ -100,15 +97,6 @@ export interface EnvironmentConfiguration {
     // Log levels by component
     componentLogLevels: Record<string, string>;
   };
-}
-
-/**
- * API key configuration per exchange (environment-driven)
- */
-export interface ExchangeApiKeyConfig {
-  apiKey?: string;
-  secret?: string;
-  passphrase?: string;
 }
 
 /**
@@ -205,13 +193,6 @@ export interface IConfigurationService extends IBaseService {
    * @returns CCXT ID or undefined
    */
   getCcxtId(exchange: string): string | undefined;
-
-  /**
-   * Get API key for specific exchange
-   * @param exchange - Exchange name
-   * @returns API key configuration or undefined
-   */
-  getExchangeApiKey(exchange: string): ExchangeApiKeyConfig | undefined;
 
   /**
    * Reload configuration from source

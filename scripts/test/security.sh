@@ -12,8 +12,8 @@ echo "======================================="
 # Set up cleanup handlers
 setup_cleanup_handlers
 
-# Configuration - Reduced timeout
-TIMEOUT=45  # Reduced from 90
+# Configuration - Increased timeout for full initialization
+TIMEOUT=90  # Increased to allow for WebSocket connections
 
 # Set up logging using common utility
 setup_test_logging "security"
@@ -38,8 +38,8 @@ register_port 3101
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
 
-# Wait for server to be ready - Reduced timeout
-READY_TIMEOUT=30  # Reduced from 60
+# Wait for server to be ready - Increased timeout for full initialization
+READY_TIMEOUT=60  # Increased to allow for WebSocket connections
 ELAPSED=0
 
 while [ $ELAPSED -lt $READY_TIMEOUT ]; do
@@ -48,10 +48,13 @@ while [ $ELAPSED -lt $READY_TIMEOUT ]; do
         exit 1
     fi
     
-    # Test if server is ready with timeout
-    if curl -s --max-time 3 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
-        echo "✅ Server is ready for testing"
+    # Test if server is ready with timeout - check for any response
+    HTTP_CODE=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null || echo "000")
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "503" ]; then
+        echo "✅ Server is ready for testing (HTTP $HTTP_CODE)"
         break
+    elif [ "$HTTP_CODE" != "000" ]; then
+        echo "⏳ Server responding but not ready yet (HTTP $HTTP_CODE), waiting..."
     fi
     
     sleep 2
@@ -84,19 +87,39 @@ run_security_test() {
     result=$(eval "$test_command" 2>/dev/null)
     local exit_code=$?
     
-    if [ "$expected_result" = "success" ] && [ $exit_code -eq 0 ]; then
-        echo "  ✅ PASS: $test_name"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        echo "PASS: $test_name" >> "$SECURITY_REPORT"
-    elif [ "$expected_result" = "fail" ] && [ $exit_code -ne 0 ]; then
-        echo "  ✅ PASS: $test_name (correctly rejected)"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        echo "PASS: $test_name (correctly rejected)" >> "$SECURITY_REPORT"
+    # For HTTP status code tests, check the actual status code
+    if echo "$test_command" | grep -q "w '%{http_code}'"; then
+        # This is an HTTP status code test
+        if [ "$expected_result" = "success" ] && [ "$result" = "200" ]; then
+            echo "  ✅ PASS: $test_name"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            echo "PASS: $test_name" >> "$SECURITY_REPORT"
+        elif [ "$expected_result" = "fail" ] && [ "$result" != "200" ] && [ "$result" != "000" ]; then
+            echo "  ✅ PASS: $test_name (correctly rejected with HTTP $result)"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            echo "PASS: $test_name (correctly rejected with HTTP $result)" >> "$SECURITY_REPORT"
+        else
+            echo "  ❌ FAIL: $test_name (HTTP $result)"
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+            SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
+            echo "FAIL: $test_name (HTTP $result)" >> "$SECURITY_REPORT"
+        fi
     else
-        echo "  ❌ FAIL: $test_name"
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
-        echo "FAIL: $test_name" >> "$SECURITY_REPORT"
+        # This is a response content test (like JSON validation)
+        if [ "$expected_result" = "success" ] && [ $exit_code -eq 0 ]; then
+            echo "  ✅ PASS: $test_name"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            echo "PASS: $test_name" >> "$SECURITY_REPORT"
+        elif [ "$expected_result" = "fail" ] && ([ $exit_code -ne 0 ] || echo "$result" | grep -q "error\|Error\|ERROR"); then
+            echo "  ✅ PASS: $test_name (correctly rejected)"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            echo "PASS: $test_name (correctly rejected)" >> "$SECURITY_REPORT"
+        else
+            echo "  ❌ FAIL: $test_name"
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+            SECURITY_ISSUES=$((SECURITY_ISSUES + 1))
+            echo "FAIL: $test_name" >> "$SECURITY_REPORT"
+        fi
     fi
     
     echo "    Result: $result" >> "$SECURITY_REPORT"
@@ -140,33 +163,6 @@ else
 fi
 
 echo ""
-echo "🚦 Rate Limiting Testing:"
-echo "-------------------------"
-
-# Test rate limiting
-echo "Testing rate limiting..."
-
-# Make multiple rapid requests to test rate limiting
-RATE_LIMIT_REQUESTS=20
-RATE_LIMITED=0
-
-for i in $(seq 1 $RATE_LIMIT_REQUESTS); do
-    RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:3101/health 2>/dev/null)
-    if [ "$RESPONSE" = "429" ]; then
-        RATE_LIMITED=$((RATE_LIMITED + 1))
-    fi
-    sleep 0.1
-done
-
-if [ $RATE_LIMITED -gt 0 ]; then
-    echo "  ✅ Rate limiting is working ($RATE_LIMITED/20 requests limited)"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
-else
-    echo "  ⚠️  Rate limiting not triggered (may need more requests)"
-    TESTS_FAILED=$((TESTS_FAILED + 1))
-fi
-
-echo ""
 echo "🔍 Input Validation Testing:"
 echo "----------------------------"
 
@@ -192,7 +188,7 @@ echo "🌐 CORS Testing:"
 echo "---------------"
 
 # Test CORS configuration
-CORS_TEST=$(curl -s -H "Origin: http://malicious-site.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -X OPTIONS http://localhost:3101/feed-values 2>/dev/null)
+CORS_TEST=$(curl -s -I -H "Origin: http://malicious-site.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -X OPTIONS http://localhost:3101/feed-values 2>/dev/null)
 
 if echo "$CORS_TEST" | grep -qi "access-control-allow-origin"; then
     echo "  ✅ CORS headers present"
@@ -218,7 +214,7 @@ run_security_test "Public Metrics Endpoint" \
 
 # Test with invalid authentication headers
 run_security_test "Invalid Auth Header" \
-    "curl -s -H 'Authorization: Bearer invalid-token' -o /dev/null -w '%{http_code}' http://localhost:3101/feed-values" \
+    "curl -s -X POST -H 'Authorization: Bearer invalid-token' -H 'Content-Type: application/json' -d '{\"feeds\":[{\"category\":1,\"name\":\"BTC/USD\"}]}' -o /dev/null -w '%{http_code}' http://localhost:3101/feed-values" \
     "success"
 
 echo ""
@@ -272,6 +268,33 @@ echo "-----------------------"
 run_security_test "Host Header Injection" \
     "curl -s -H 'Host: malicious-host.com' -o /dev/null -w '%{http_code}' http://localhost:3101/health" \
     "success"
+
+echo ""
+echo "🚦 Rate Limiting Testing:"
+echo "-------------------------"
+
+# Test rate limiting
+echo "Testing rate limiting..."
+
+# Make multiple rapid requests to test rate limiting
+RATE_LIMIT_REQUESTS=105  # Slightly exceed the 100 requests per minute limit
+RATE_LIMITED=0
+
+for i in $(seq 1 $RATE_LIMIT_REQUESTS); do
+    RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:3101/health 2>/dev/null)
+    if [ "$RESPONSE" = "429" ]; then
+        RATE_LIMITED=$((RATE_LIMITED + 1))
+    fi
+    # No sleep to make requests as fast as possible
+done
+
+if [ $RATE_LIMITED -gt 0 ]; then
+    echo "  ✅ Rate limiting is working ($RATE_LIMITED/$RATE_LIMIT_REQUESTS requests limited)"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo "  ⚠️  Rate limiting not triggered (may need more requests or different configuration)"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
 
 echo ""
 echo "📝 Response Analysis:"
@@ -393,6 +416,12 @@ elif [ $SECURITY_SCORE -ge 70 ]; then
 else
     echo "❌ POOR: Security posture requires immediate attention"
 fi
+
+# Source enhanced log summary utilities
+source "$(dirname "$0")/../utils/parse-logs.sh"
+
+# Show test summary
+log_summary "$LOG_FILE" "security" "test"
 
 echo ""
 echo "✨ Security testing complete!"

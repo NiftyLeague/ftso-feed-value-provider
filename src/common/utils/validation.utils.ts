@@ -202,7 +202,7 @@ export class ValidationUtils {
   }
 
   /**
-   * Validate request body structure
+   * Validate request body structure with enhanced security checks
    */
   static validateRequestBody(body: unknown): UnknownInput {
     if (!body || typeof body !== "object") {
@@ -211,6 +211,39 @@ export class ValidationUtils {
 
     if (Array.isArray(body)) {
       throw new TimestampedBadRequestException("Request body must be an object, not an array");
+    }
+
+    // Check for malicious patterns in the JSON string
+    const bodyStr = JSON.stringify(body);
+
+    // Check for SQL injection patterns
+    const sqlPatterns = [
+      /drop\s+table/i,
+      /delete\s+from/i,
+      /insert\s+into/i,
+      /update\s+.*set/i,
+      /union\s+select/i,
+      /;\s*--/,
+      /'\s*or\s*'1'\s*=\s*'1/i,
+    ];
+
+    // Check for XSS patterns
+    const xssPatterns = [/<script[^>]*>/i, /<\/script>/i, /javascript:/i, /on\w+\s*=/i, /<iframe[^>]*>/i];
+
+    // Check for path traversal patterns
+    const pathTraversalPatterns = [/\.\.\//, /\.\.\\/, /%2e%2e%2f/i, /%2e%2e%5c/i];
+
+    const allPatterns = [...sqlPatterns, ...xssPatterns, ...pathTraversalPatterns];
+
+    for (const pattern of allPatterns) {
+      if (pattern.test(bodyStr)) {
+        throw new TimestampedBadRequestException("Request contains potentially malicious content");
+      }
+    }
+
+    // Check for excessively large payloads (prevent DoS)
+    if (bodyStr.length > 10000) {
+      throw new TimestampedBadRequestException("Request payload too large");
     }
 
     return body as UnknownInput;

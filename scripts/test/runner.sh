@@ -12,6 +12,7 @@
 
 # Source common utilities
 source "$(dirname "$0")/../utils/test-common.sh"
+source "$(dirname "$0")/../utils/parse-logs.sh"
 source "$(dirname "$0")/../utils/port-manager.sh"
 
 # =============================================================================
@@ -386,7 +387,6 @@ main() {
     fi
     
     log_both "📁 Logs available at: $TEST_LOG_FILE"
-    echo ""
     
     # Cleanup results directory
     rm -rf "$RESULTS_DIR"

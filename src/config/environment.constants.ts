@@ -10,31 +10,12 @@ export const ENV_HELPERS = {
   isTest: (): boolean => ENV.APPLICATION.NODE_ENV === "test",
   isDevelopment: (): boolean => ENV.APPLICATION.NODE_ENV === "development",
   isProduction: (): boolean => ENV.APPLICATION.NODE_ENV === "production",
-  getMissingExchangeKeys: (): string[] => {
-    const exchangeKeys = [
-      "BINANCE_API_KEY",
-      "BINANCE_SECRET",
-      "COINBASE_API_KEY",
-      "COINBASE_SECRET",
-      "KRAKEN_API_KEY",
-      "KRAKEN_SECRET",
-      "OKX_API_KEY",
-      "OKX_SECRET",
-      "CRYPTOCOM_API_KEY",
-      "CRYPTOCOM_SECRET",
-    ];
-
-    return exchangeKeys.filter(key => {
-      const value = ENV.EXCHANGE.KEYS[key as keyof typeof ENV.EXCHANGE.KEYS];
-      return !value || value.trim() === "";
-    });
-  },
 };
 
 export const ENV = {
   // Application Settings
   APPLICATION: {
-    NODE_ENV: EnvironmentUtils.parseString("NODE_ENV", "development"),
+    NODE_ENV: EnvironmentUtils.parseString("NODE_ENV", "production"),
     PORT: EnvironmentUtils.parseInt("APP_PORT", 3101, {
       min: 1,
       max: 65535,
@@ -67,8 +48,8 @@ export const ENV = {
   // Data Freshness
   DATA_FRESHNESS: {
     FRESH_DATA_MS: EnvironmentUtils.parseInt("DATA_FRESH_THRESHOLD_MS", 2000, { min: 500, max: 10000 }),
-    MAX_DATA_AGE_MS: EnvironmentUtils.parseInt("DATA_MAX_AGE_MS", 20000, { min: 5000, max: 60000 }),
-    STALE_WARNING_MS: EnvironmentUtils.parseInt("DATA_STALE_WARNING_MS", 10000, { min: 500, max: 30000 }),
+    MAX_DATA_AGE_MS: EnvironmentUtils.parseInt("DATA_MAX_AGE_MS", 45000, { min: 5000, max: 60000 }),
+    STALE_WARNING_MS: EnvironmentUtils.parseInt("DATA_STALE_WARNING_MS", 30000, { min: 500, max: 30000 }),
   },
 
   // Rate Limiting
@@ -82,7 +63,7 @@ export const ENV = {
     // Application lifecycle
     GRACEFUL_SHUTDOWN_MS: EnvironmentUtils.parseInt("GRACEFUL_SHUTDOWN_TIMEOUT_MS", 30000, { min: 1000, max: 300000 }),
     APP_READINESS_MS: EnvironmentUtils.parseInt("APP_READINESS_TIMEOUT_MS", 30000, { min: 1000, max: 300000 }),
-    INTEGRATION_MS: EnvironmentUtils.parseInt("INTEGRATION_SERVICE_TIMEOUT_MS", 60000, { min: 1000, max: 300000 }),
+    INTEGRATION_MS: EnvironmentUtils.parseInt("INTEGRATION_SERVICE_TIMEOUT_MS", 120000, { min: 1000, max: 300000 }),
     HEALTH_CHECK_MS: EnvironmentUtils.parseInt("HEALTH_CHECK_TIMEOUT_MS", 3000, { min: 1000, max: 10000 }),
     LIVENESS_CHECK_MS: EnvironmentUtils.parseInt("LIVENESS_CHECK_TIMEOUT_MS", 2000, { min: 1000, max: 5000 }),
 
@@ -265,7 +246,7 @@ export const ENV = {
       min: 1000,
       max: 10000000,
     }),
-    CACHE_SIZE: EnvironmentUtils.parseInt("DATA_QUALITY_CACHE_SIZE", 1000, { min: 100, max: 10000 }),
+    CACHE_SIZE: EnvironmentUtils.parseInt("DATA_QUALITY_CACHE_SIZE", 100, { min: 100, max: 10000 }),
     CACHE_TTL_MS: EnvironmentUtils.parseInt("DATA_QUALITY_CACHE_TTL_MS", 5000, { min: 1000, max: 60000 }),
 
     // Confidence penalties - unified
@@ -301,12 +282,12 @@ export const ENV = {
 
   // System Resources and Performance
   SYSTEM: {
-    // Memory thresholds
-    MEMORY_CRITICAL_THRESHOLD: EnvironmentUtils.parseFloat("SYSTEM_MEMORY_CRITICAL_THRESHOLD", 0.95, {
+    // Memory thresholds - production-safe values with adequate headroom for GC and memory spikes
+    MEMORY_CRITICAL_THRESHOLD: EnvironmentUtils.parseFloat("SYSTEM_MEMORY_CRITICAL_THRESHOLD", 0.85, {
       min: 0.7,
       max: 1.0,
     }),
-    MEMORY_WARNING_THRESHOLD: EnvironmentUtils.parseFloat("SYSTEM_MEMORY_WARNING_THRESHOLD", 0.85, {
+    MEMORY_WARNING_THRESHOLD: EnvironmentUtils.parseFloat("SYSTEM_MEMORY_WARNING_THRESHOLD", 0.75, {
       min: 0.5,
       max: 0.95,
     }),
@@ -326,19 +307,19 @@ export const ENV = {
   // Cache System - Unified Configuration
   CACHE: {
     // Core cache settings
-    TTL_MS: EnvironmentUtils.parseInt("CACHE_TTL_MS", 600, { min: 100, max: 2000 }),
-    MAX_ENTRIES: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 25000, { min: 100, max: 1000000 }),
+    TTL_MS: EnvironmentUtils.parseInt("CACHE_TTL_MS", 3000, { min: 100, max: 10000 }),
+    MAX_ENTRIES: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 1500, { min: 100, max: 1000000 }),
     ACCESS_UPDATE_THRESHOLD_MS: EnvironmentUtils.parseInt("CACHE_ACCESS_UPDATE_THRESHOLD_MS", 100, {
       min: 50,
       max: 1000,
     }),
-    EVICTION_PERCENTAGE: EnvironmentUtils.parseFloat("CACHE_EVICTION_PERCENTAGE", 0.15, { min: 0.05, max: 0.5 }),
-    MAX_EVICTION_COUNT: EnvironmentUtils.parseInt("CACHE_MAX_EVICTION_COUNT", 200, { min: 10, max: 1000 }),
+    EVICTION_PERCENTAGE: EnvironmentUtils.parseFloat("CACHE_EVICTION_PERCENTAGE", 0.1, { min: 0.05, max: 0.5 }),
+    MAX_EVICTION_COUNT: EnvironmentUtils.parseInt("CACHE_MAX_EVICTION_COUNT", 150, { min: 10, max: 1000 }),
     FRESHNESS_CHECK_MS: EnvironmentUtils.parseInt("CACHE_FRESHNESS_CHECK_MS", 200, { min: 50, max: 1000 }),
 
     // Buffer and warmup settings
-    MAX_BUFFER_SIZE: EnvironmentUtils.parseInt("CACHE_MAX_BUFFER_SIZE", 100, { min: 10, max: 1000 }),
-    WARMUP_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMUP_INTERVAL_MS", 30000, { min: 1000, max: 300000 }),
+    MAX_BUFFER_SIZE: EnvironmentUtils.parseInt("CACHE_MAX_BUFFER_SIZE", 25, { min: 10, max: 1000 }),
+    WARMUP_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMUP_INTERVAL_MS", 120000, { min: 1000, max: 300000 }),
     STALE_PATTERN_THRESHOLD_MS: EnvironmentUtils.parseInt("CACHE_STALE_PATTERN_THRESHOLD_MS", 86400000, {
       min: 3600000,
       max: 604800000,
@@ -349,12 +330,12 @@ export const ENV = {
     }),
 
     // Performance targets
-    HIT_RATE_TARGET: EnvironmentUtils.parseFloat("CACHE_HIT_RATE_TARGET", 0.95, { min: 0.8, max: 1.0 }),
-    RESPONSE_TIME_P95_TARGET_MS: EnvironmentUtils.parseInt("CACHE_RESPONSE_TIME_P95_TARGET_MS", 500, {
+    HIT_RATE_TARGET: EnvironmentUtils.parseFloat("CACHE_HIT_RATE_TARGET", 0.9, { min: 0.8, max: 1.0 }),
+    RESPONSE_TIME_P95_TARGET_MS: EnvironmentUtils.parseInt("CACHE_RESPONSE_TIME_P95_TARGET_MS", 300, {
       min: 10,
       max: 5000,
     }),
-    MEMORY_LIMIT_MB: EnvironmentUtils.parseInt("CACHE_MEMORY_LIMIT_MB", 500, { min: 100, max: 2000 }),
+    MEMORY_LIMIT_MB: EnvironmentUtils.parseInt("CACHE_MEMORY_LIMIT_MB", 50, { min: 50, max: 2000 }),
     MIN_REQUESTS_FOR_HIT_RATE: EnvironmentUtils.parseInt("CACHE_MIN_REQUESTS_FOR_HIT_RATE", 10, { min: 1, max: 100 }),
     MIN_REQUESTS_FOR_RESPONSE_TIME: EnvironmentUtils.parseInt("CACHE_MIN_REQUESTS_FOR_RESPONSE_TIME", 5, {
       min: 1,
@@ -363,11 +344,11 @@ export const ENV = {
 
     // Cache Warmer settings
     WARMER: {
-      AGGRESSIVE_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMER_AGGRESSIVE_INTERVAL_MS", 3000, {
+      AGGRESSIVE_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMER_AGGRESSIVE_INTERVAL_MS", 2000, {
         min: 1000,
         max: 10000,
       }),
-      PREDICTIVE_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMER_PREDICTIVE_INTERVAL_MS", 7000, {
+      PREDICTIVE_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMER_PREDICTIVE_INTERVAL_MS", 5000, {
         min: 2000,
         max: 30000,
       }),
@@ -375,17 +356,17 @@ export const ENV = {
         min: 5000,
         max: 60000,
       }),
-      CRITICAL_TARGET_FEEDS: EnvironmentUtils.parseInt("CACHE_WARMER_CRITICAL_TARGET_FEEDS", 20, { min: 5, max: 100 }),
-      CRITICAL_CONCURRENCY: EnvironmentUtils.parseInt("CACHE_WARMER_CRITICAL_CONCURRENCY", 16, { min: 1, max: 50 }),
-      CRITICAL_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMER_CRITICAL_INTERVAL_MS", 2000, {
+      CRITICAL_TARGET_FEEDS: EnvironmentUtils.parseInt("CACHE_WARMER_CRITICAL_TARGET_FEEDS", 30, { min: 5, max: 100 }),
+      CRITICAL_CONCURRENCY: EnvironmentUtils.parseInt("CACHE_WARMER_CRITICAL_CONCURRENCY", 20, { min: 1, max: 50 }),
+      CRITICAL_INTERVAL_MS: EnvironmentUtils.parseInt("CACHE_WARMER_CRITICAL_INTERVAL_MS", 1500, {
         min: 500,
         max: 10000,
       }),
-      PREDICTIVE_TARGET_FEEDS: EnvironmentUtils.parseInt("CACHE_WARMER_PREDICTIVE_TARGET_FEEDS", 40, {
+      PREDICTIVE_TARGET_FEEDS: EnvironmentUtils.parseInt("CACHE_WARMER_PREDICTIVE_TARGET_FEEDS", 50, {
         min: 10,
         max: 200,
       }),
-      PREDICTIVE_CONCURRENCY: EnvironmentUtils.parseInt("CACHE_WARMER_PREDICTIVE_CONCURRENCY", 12, {
+      PREDICTIVE_CONCURRENCY: EnvironmentUtils.parseInt("CACHE_WARMER_PREDICTIVE_CONCURRENCY", 16, {
         min: 1,
         max: 30,
       }),
@@ -456,11 +437,11 @@ export const ENV = {
 
   // Health Check Intervals - Consolidated
   HEALTH_CHECKS: {
-    MONITORING_INTERVAL_MS: EnvironmentUtils.parseInt("MONITORING_HEALTH_CHECK_INTERVAL_MS", 5000, {
+    MONITORING_INTERVAL_MS: EnvironmentUtils.parseInt("MONITORING_HEALTH_CHECK_INTERVAL_MS", 10000, {
       min: 1000,
       max: 60000,
     }),
-    CONNECTION_RECOVERY_INTERVAL_MS: EnvironmentUtils.parseInt("CONNECTION_RECOVERY_HEALTH_CHECK_INTERVAL_MS", 10000, {
+    CONNECTION_RECOVERY_INTERVAL_MS: EnvironmentUtils.parseInt("CONNECTION_RECOVERY_HEALTH_CHECK_INTERVAL_MS", 15000, {
       min: 5000,
       max: 60000,
     }),
@@ -468,25 +449,25 @@ export const ENV = {
       min: 10000,
       max: 300000,
     }),
-    FAILOVER_INTERVAL_MS: EnvironmentUtils.parseInt("FAILOVER_HEALTH_CHECK_INTERVAL_MS", 5000, {
+    FAILOVER_INTERVAL_MS: EnvironmentUtils.parseInt("FAILOVER_HEALTH_CHECK_INTERVAL_MS", 10000, {
       min: 1000,
       max: 30000,
     }),
   },
 
-  // System Intervals - Consolidated
+  // System Intervals - Optimized for performance
   INTERVALS: {
-    MONITORING_MS: EnvironmentUtils.parseInt("INTERVALS_MONITORING_MS", 5000, { min: 1000, max: 60000 }),
-    PERFORMANCE_MONITORING_MS: EnvironmentUtils.parseInt("INTERVALS_PERFORMANCE_MONITORING_MS", 3000, {
+    MONITORING_MS: EnvironmentUtils.parseInt("INTERVALS_MONITORING_MS", 10000, { min: 1000, max: 60000 }), // Increased from 5s to 10s to reduce overhead
+    PERFORMANCE_MONITORING_MS: EnvironmentUtils.parseInt("INTERVALS_PERFORMANCE_MONITORING_MS", 15000, {
       min: 1000,
-      max: 10000,
-    }),
+      max: 30000,
+    }), // Increased from 5s to 15s to reduce frequent cache optimization cycles
     SYSTEM_CHECK_MS: EnvironmentUtils.parseInt("INTERVALS_SYSTEM_CHECK_MS", 30000, {
       min: 10000,
       max: 300000,
     }),
     AGGREGATION_MS: EnvironmentUtils.parseInt("INTERVALS_AGGREGATION_MS", 50, { min: 10, max: 1000 }),
-    CACHE_CLEANUP_MS: EnvironmentUtils.parseInt("INTERVALS_CACHE_CLEANUP_MS", 1500, { min: 500, max: 10000 }),
+    CACHE_CLEANUP_MS: EnvironmentUtils.parseInt("INTERVALS_CACHE_CLEANUP_MS", 5000, { min: 500, max: 10000 }), // Increased from 2.5s to 5s to reduce cleanup overhead
   },
 
   // Monitoring and Performance - Consolidated
@@ -500,8 +481,8 @@ export const ENV = {
       min: 3600000,
       max: 604800000,
     }),
-    MAX_METRICS_HISTORY: EnvironmentUtils.parseInt("MONITORING_MAX_METRICS_HISTORY", 10000, { min: 1000, max: 100000 }),
-    MAX_ERROR_HISTORY: EnvironmentUtils.parseInt("MONITORING_MAX_ERROR_HISTORY", 1000, { min: 100, max: 10000 }),
+    MAX_METRICS_HISTORY: EnvironmentUtils.parseInt("MONITORING_MAX_METRICS_HISTORY", 2000, { min: 1000, max: 100000 }),
+    MAX_ERROR_HISTORY: EnvironmentUtils.parseInt("MONITORING_MAX_ERROR_HISTORY", 200, { min: 100, max: 10000 }),
 
     // Performance thresholds
     MAX_RESPONSE_LATENCY_MS: EnvironmentUtils.parseInt("MONITORING_MAX_RESPONSE_LATENCY_MS", 100, {
@@ -515,11 +496,11 @@ export const ENV = {
     // Health thresholds
     MAX_ERROR_RATE: EnvironmentUtils.parseInt("MONITORING_MAX_ERROR_RATE", 3, { min: 0, max: 1000 }),
     MAX_CPU_USAGE: EnvironmentUtils.parseInt("MONITORING_MAX_CPU_USAGE", 70, { min: 0, max: 100 }),
-    MAX_MEMORY_USAGE: EnvironmentUtils.parseInt("MONITORING_MAX_MEMORY_USAGE", 70, { min: 0, max: 100 }),
+    MAX_MEMORY_USAGE: EnvironmentUtils.parseInt("MONITORING_MAX_MEMORY_USAGE", 80, { min: 0, max: 100 }),
     MIN_CONNECTION_RATE: EnvironmentUtils.parseInt("MONITORING_MIN_CONNECTION_RATE", 95, { min: 0, max: 100 }),
 
     // Accuracy thresholds
-    MAX_CONSENSUS_DEVIATION: EnvironmentUtils.parseFloat("MONITORING_MAX_CONSENSUS_DEVIATION", 0.5, {
+    MAX_CONSENSUS_DEVIATION: EnvironmentUtils.parseFloat("MONITORING_MAX_CONSENSUS_DEVIATION", 0.3, {
       min: 0,
       max: 10,
     }),
@@ -562,7 +543,7 @@ export const ENV = {
     CRITICAL_THRESHOLD: EnvironmentUtils.parseFloat("MONITORING_CRITICAL_THRESHOLD", 1.0, { min: 0.5, max: 5.0 }),
     MAX_DEVIATION: EnvironmentUtils.parseFloat("MONITORING_MAX_DEVIATION", 2.0, { min: 0.5, max: 10.0 }),
     MIN_PARTICIPANTS: EnvironmentUtils.parseInt("MONITORING_MIN_PARTICIPANTS", 2, { min: 1, max: 20 }),
-    BUFFER_SIZE: EnvironmentUtils.parseInt("MONITORING_BUFFER_SIZE", 2000, { min: 100, max: 10000 }),
+    BUFFER_SIZE: EnvironmentUtils.parseInt("MONITORING_BUFFER_SIZE", 500, { min: 100, max: 10000 }),
   },
 
   // Performance Configuration - Consolidated
@@ -613,10 +594,11 @@ export const ENV = {
     }),
 
     // Optimization settings
-    OPTIMIZATION_INTERVAL_MS: EnvironmentUtils.parseInt("PERFORMANCE_OPTIMIZATION_INTERVAL_MS", 20000, {
+    OPTIMIZATION_INTERVAL_MS: EnvironmentUtils.parseInt("PERFORMANCE_OPTIMIZATION_INTERVAL_MS", 30000, {
       min: 5000,
       max: 60000,
     }),
+    AUTO_OPTIMIZATION: EnvironmentUtils.parseBoolean("PERFORMANCE_AUTO_OPTIMIZATION", true),
     RESPONSE_TIME_TARGET_MS: EnvironmentUtils.parseInt("PERFORMANCE_RESPONSE_TIME_TARGET_MS", 50, {
       min: 10,
       max: 200,
@@ -625,11 +607,11 @@ export const ENV = {
       min: 50,
       max: 500,
     }),
-    MEMORY_USAGE_THRESHOLD: EnvironmentUtils.parseInt("PERFORMANCE_MEMORY_USAGE_THRESHOLD", 60, {
+    MEMORY_USAGE_THRESHOLD: EnvironmentUtils.parseInt("PERFORMANCE_MEMORY_USAGE_THRESHOLD", 75, {
       min: 30,
       max: 90,
     }),
-    CPU_USAGE_THRESHOLD: EnvironmentUtils.parseInt("PERFORMANCE_CPU_USAGE_THRESHOLD", 50, { min: 20, max: 80 }),
+    CPU_USAGE_THRESHOLD: EnvironmentUtils.parseInt("PERFORMANCE_CPU_USAGE_THRESHOLD", 65, { min: 20, max: 80 }),
 
     // Calculation helpers
     SMOOTHING_ALPHA: EnvironmentUtils.parseFloat("PERFORMANCE_SMOOTHING_ALPHA", 0.1, { min: 0.01, max: 0.5 }),
@@ -646,18 +628,18 @@ export const ENV = {
     FREQUENCY_MULTIPLIER: EnvironmentUtils.parseFloat("PERFORMANCE_FREQUENCY_MULTIPLIER", 0.1, { min: 0.01, max: 1.0 }),
   },
 
-  // WebSocket Configuration - Consolidated
+  // WebSocket Configuration - Optimized for performance and stability
   WEBSOCKET: {
-    PING_INTERVAL_MS: EnvironmentUtils.parseInt("WEBSOCKET_PING_INTERVAL_MS", 30000, { min: 5000, max: 300000 }),
-    PONG_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_PONG_TIMEOUT_MS", 15000, { min: 2000, max: 60000 }), // Increased from 10s to 15s
-    RECONNECT_DELAY_MS: EnvironmentUtils.parseInt("WEBSOCKET_RECONNECT_DELAY_MS", 10000, { min: 1000, max: 60000 }), // Increased from 5s to 10s
-    MAX_RECONNECT_ATTEMPTS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_RECONNECT_ATTEMPTS", 5, { min: 1, max: 50 }), // Reduced from 10 to 5
-    ERROR_COOLDOWN_MS: EnvironmentUtils.parseInt("WEBSOCKET_ERROR_COOLDOWN_MS", 30000, { min: 10000, max: 300000 }), // Reduced from 60s to 30s
-    MAX_BACKOFF_MS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_BACKOFF_MS", 120000, { min: 30000, max: 1800000 }), // Reduced from 5min to 2min
-    CONNECTION_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_CONNECTION_TIMEOUT_MS", 45000, {
+    PING_INTERVAL_MS: EnvironmentUtils.parseInt("WEBSOCKET_PING_INTERVAL_MS", 30000, { min: 5000, max: 300000 }), // Increased to 30s for better stability with exchange servers
+    PONG_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_PONG_TIMEOUT_MS", 20000, { min: 2000, max: 60000 }), // Increased to 20s to reduce false timeouts
+    RECONNECT_DELAY_MS: EnvironmentUtils.parseInt("WEBSOCKET_RECONNECT_DELAY_MS", 3000, { min: 1000, max: 60000 }), // Reduced from 5s to 3s for faster recovery
+    MAX_RECONNECT_ATTEMPTS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_RECONNECT_ATTEMPTS", 5, { min: 1, max: 50 }), // Maintained at 5 for good resilience
+    ERROR_COOLDOWN_MS: EnvironmentUtils.parseInt("WEBSOCKET_ERROR_COOLDOWN_MS", 45000, { min: 10000, max: 300000 }), // Reduced from 60s to 45s for faster error recovery
+    MAX_BACKOFF_MS: EnvironmentUtils.parseInt("WEBSOCKET_MAX_BACKOFF_MS", 120000, { min: 30000, max: 1800000 }), // Reduced from 3min to 2min for faster recovery
+    CONNECTION_TIMEOUT_MS: EnvironmentUtils.parseInt("WEBSOCKET_CONNECTION_TIMEOUT_MS", 30000, {
       min: 5000,
       max: 120000,
-    }), // Increased from 30s to 45s
+    }), // Reduced from 45s to 30s for faster connection timeout detection
     RATE_LIMIT_BACKOFF_BASE_MS: EnvironmentUtils.parseInt("WEBSOCKET_RATE_LIMIT_BACKOFF_BASE_MS", 10000, {
       min: 1000,
       max: 30000,
@@ -691,25 +673,6 @@ export const ENV = {
       min: 1.5,
       max: 5.0,
     }),
-
-    // API Keys
-    KEYS: {
-      BINANCE_API_KEY: EnvironmentUtils.parseString("BINANCE_API_KEY", ""),
-      BINANCE_SECRET: EnvironmentUtils.parseString("BINANCE_SECRET", ""),
-      BINANCE_PASSPHRASE: EnvironmentUtils.parseString("BINANCE_PASSPHRASE", ""),
-      COINBASE_API_KEY: EnvironmentUtils.parseString("COINBASE_API_KEY", ""),
-      COINBASE_SECRET: EnvironmentUtils.parseString("COINBASE_SECRET", ""),
-      COINBASE_PASSPHRASE: EnvironmentUtils.parseString("COINBASE_PASSPHRASE", ""),
-      KRAKEN_API_KEY: EnvironmentUtils.parseString("KRAKEN_API_KEY", ""),
-      KRAKEN_SECRET: EnvironmentUtils.parseString("KRAKEN_SECRET", ""),
-      KRAKEN_PASSPHRASE: EnvironmentUtils.parseString("KRAKEN_PASSPHRASE", ""),
-      OKX_API_KEY: EnvironmentUtils.parseString("OKX_API_KEY", ""),
-      OKX_SECRET: EnvironmentUtils.parseString("OKX_SECRET", ""),
-      OKX_PASSPHRASE: EnvironmentUtils.parseString("OKX_PASSPHRASE", ""),
-      CRYPTOCOM_API_KEY: EnvironmentUtils.parseString("CRYPTOCOM_API_KEY", ""),
-      CRYPTOCOM_SECRET: EnvironmentUtils.parseString("CRYPTOCOM_SECRET", ""),
-      CRYPTOCOM_PASSPHRASE: EnvironmentUtils.parseString("CRYPTOCOM_PASSPHRASE", ""),
-    },
   },
 
   // CCXT Exchange Adapter - Specialized Configuration
@@ -772,7 +735,7 @@ export const ENV = {
       max: 300000,
     }),
     CACHE_TTL_MS: EnvironmentUtils.parseInt("AGGREGATION_CACHE_TTL_MS", 300, { min: 100, max: 2000 }),
-    MAX_CACHE_SIZE: EnvironmentUtils.parseInt("AGGREGATION_MAX_CACHE_SIZE", 1000, { min: 100, max: 10000 }),
+    MAX_CACHE_SIZE: EnvironmentUtils.parseInt("AGGREGATION_MAX_CACHE_SIZE", 250, { min: 100, max: 10000 }),
     FRESH_DATA_THRESHOLD_MS: EnvironmentUtils.parseInt("AGGREGATION_FRESH_DATA_THRESHOLD_MS", 2000, {
       min: 500,
       max: 10000,
@@ -781,14 +744,14 @@ export const ENV = {
       min: 10,
       max: 1000,
     }),
-    PERFORMANCE_BUFFER_SIZE: EnvironmentUtils.parseInt("AGGREGATION_PERFORMANCE_BUFFER_SIZE", 100, {
+    PERFORMANCE_BUFFER_SIZE: EnvironmentUtils.parseInt("AGGREGATION_PERFORMANCE_BUFFER_SIZE", 50, {
       min: 10,
       max: 1000,
     }),
 
-    LAMBDA_DECAY: EnvironmentUtils.parseFloat("AGGREGATION_LAMBDA_DECAY", 0.00004, { min: 0.00001, max: 0.001 }),
-    OUTLIER_THRESHOLD: EnvironmentUtils.parseFloat("AGGREGATION_OUTLIER_THRESHOLD", 0.12, { min: 0.01, max: 0.5 }),
-    PERFORMANCE_TARGET_MS: EnvironmentUtils.parseInt("AGGREGATION_PERFORMANCE_TARGET_MS", 80, { min: 10, max: 1000 }),
+    LAMBDA_DECAY: EnvironmentUtils.parseFloat("AGGREGATION_LAMBDA_DECAY", 0.00003, { min: 0.00001, max: 0.001 }),
+    OUTLIER_THRESHOLD: EnvironmentUtils.parseFloat("AGGREGATION_OUTLIER_THRESHOLD", 0.08, { min: 0.01, max: 0.5 }),
+    PERFORMANCE_TARGET_MS: EnvironmentUtils.parseInt("AGGREGATION_PERFORMANCE_TARGET_MS", 500, { min: 10, max: 2000 }),
     MIN_SOURCES: EnvironmentUtils.parseInt("AGGREGATION_MIN_SOURCES", 1, { min: 1, max: 10 }),
     BATCH_SIZE: EnvironmentUtils.parseInt("AGGREGATION_BATCH_SIZE", 50, { min: 10, max: 200 }),
     TIER_1_WEIGHT: EnvironmentUtils.parseFloat("AGGREGATION_TIER_1_WEIGHT", 1.4, { min: 1.0, max: 2.0 }),

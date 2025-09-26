@@ -42,6 +42,14 @@ export class CircuitBreakerService extends EventDrivenService {
     this.logger.log(`Registering circuit breaker for service: ${serviceId}`);
 
     const fullConfig = { ...this.circuitBreakerConfig, ...config };
+
+    // Adjust thresholds for data source integration services to reduce false positives
+    if (serviceId.includes("Adapter") || serviceId.includes("DataSource") || serviceId.includes("Integration")) {
+      fullConfig.failureThreshold = Math.max(fullConfig.failureThreshold, 10); // More lenient for adapters
+      fullConfig.recoveryTimeout = Math.min(fullConfig.recoveryTimeout, 20000); // Faster recovery for adapters
+      fullConfig.successThreshold = Math.max(fullConfig.successThreshold, 3); // Require more successes
+    }
+
     this.configs.set(serviceId, fullConfig);
     this.circuits.set(serviceId, CircuitBreakerState.CLOSED);
     this.requestHistory.set(serviceId, []);
@@ -183,7 +191,16 @@ export class CircuitBreakerService extends EventDrivenService {
    * Manually open a circuit breaker
    */
   openCircuit(serviceId: string, reason?: string): void {
-    this.logger.warn(`Manually opening circuit for ${serviceId}: ${reason || "Manual trigger"}`);
+    // Rate limit manual circuit opening warnings
+    const now = Date.now();
+    const warningKey = `${serviceId}_manual_open`;
+    const lastLogged = this.warningLastLogged.get(warningKey) || 0;
+
+    if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
+      this.logger.warn(`Manually opening circuit for ${serviceId}: ${reason || "Manual trigger"}`);
+      this.warningLastLogged.set(warningKey, now);
+    }
+
     this.transitionToOpen(serviceId);
   }
 
@@ -384,7 +401,20 @@ export class CircuitBreakerService extends EventDrivenService {
     const lastLogged = this.warningLastLogged.get(serviceId) || 0;
 
     if (now - lastLogged > this.WARNING_COOLDOWN_MS) {
-      this.logger.warn(`Circuit breaker OPENED for service: ${serviceId}`);
+      // Provide more context in the error message
+      const failureCount = stats?.failureCount || 0;
+      const totalRequests = stats?.totalRequests || 0;
+      const failureRate = totalRequests > 0 ? ((failureCount / totalRequests) * 100).toFixed(2) : "0";
+
+      this.logger.warn(`Circuit breaker OPENED for service: ${serviceId}`, {
+        failureCount,
+        totalRequests,
+        failureRate: `${failureRate}%`,
+        recoveryTimeout: config?.recoveryTimeout,
+        component: "CircuitBreakerService",
+        operation: "transitionToOpen",
+        severity: "high",
+      });
       this.warningLastLogged.set(serviceId, now);
     }
 
