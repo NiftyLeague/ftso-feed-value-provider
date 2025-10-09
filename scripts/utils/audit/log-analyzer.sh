@@ -9,6 +9,9 @@ set -eo pipefail
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 if [ -f "$SCRIPT_DIR/../parse-logs.sh" ]; then
     source "$SCRIPT_DIR/../parse-logs.sh"
+    echo "✅ Loaded enhanced log parsing functions" >&2
+else
+    echo "⚠️  Warning: parse-logs.sh not found, using basic parsing" >&2
 fi
 
 # Color codes for output
@@ -156,8 +159,8 @@ analyze_log_file() {
     done
     
     # Use reusable parsing functions for consistent filtering
-    local error_count=$(count_actual_errors "$log_file")
-    local warning_count=$(count_actual_warnings "$log_file")
+    local error_count=$(count_actual_errors "$log_file" | tr -d ' \t\n')
+    local warning_count=$(count_actual_warnings "$log_file" | tr -d ' \t\n')
     
     # Format counts without leading zeros
     printf "Error count: %d\n" "$error_count" >> "$output_file"
@@ -228,8 +231,12 @@ analyze_all_logs() {
     if [[ -d "$DEBUG_LOGS_DIR" ]]; then
         for log_file in "$DEBUG_LOGS_DIR"/*.log; do
             if [[ -f "$log_file" ]]; then
-                local errors=$(count_actual_errors "$log_file")
-                local warnings=$(count_actual_warnings "$log_file")
+                local errors=$(count_actual_errors "$log_file" | tr -d ' \t\n')
+                local warnings=$(count_actual_warnings "$log_file" | tr -d ' \t\n')
+                # Debug output
+                if [[ $verbose == true ]]; then
+                    echo "Debug: $(basename "$log_file"): $errors errors, $warnings warnings" >&2
+                fi
                 total_errors=$((total_errors + ${errors:-0}))
                 total_warnings=$((total_warnings + ${warnings:-0}))
             fi
@@ -240,8 +247,12 @@ analyze_all_logs() {
     if [[ -d "$TEST_LOGS_DIR" ]]; then
         for log_file in "$TEST_LOGS_DIR"/*.log; do
             if [[ -f "$log_file" ]]; then
-                local errors=$(count_actual_errors "$log_file")
-                local warnings=$(count_actual_warnings "$log_file")
+                local errors=$(count_actual_errors "$log_file" | tr -d ' \t\n')
+                local warnings=$(count_actual_warnings "$log_file" | tr -d ' \t\n')
+                # Debug output
+                if [[ $verbose == true ]]; then
+                    echo "Debug: $(basename "$log_file"): $errors errors, $warnings warnings" >&2
+                fi
                 total_errors=$((total_errors + ${errors:-0}))
                 total_warnings=$((total_warnings + ${warnings:-0}))
             fi
@@ -251,6 +262,11 @@ analyze_all_logs() {
     echo "Total errors found: $total_errors" >> "$output_file"
     echo "Total warnings found: $total_warnings" >> "$output_file"
     echo "Analysis completed: $(date)" >> "$output_file"
+    
+    # Debug output
+    if [[ $verbose == true ]]; then
+        echo "Debug: Final totals - Errors: $total_errors, Warnings: $total_warnings" >&2
+    fi
     
     # Create symlink to latest analysis
     ln -sf "history/analysis_$timestamp.txt" "$ANALYSIS_OUTPUT_DIR/latest_analysis.txt"
@@ -353,8 +369,8 @@ create_log_analysis_baseline() {
                     local script_name=$(basename "$log_file" .log)
                     local file_size=$(wc -c < "$log_file" 2>/dev/null || echo "0")
                     local line_count=$(wc -l < "$log_file" 2>/dev/null || echo "0")
-                    local error_count=$(count_actual_errors "$log_file")
-                    local warning_count=$(count_actual_warnings "$log_file")
+                    local error_count=$(count_actual_errors "$log_file" | tr -d ' \t\n')
+                    local warning_count=$(count_actual_warnings "$log_file" | tr -d ' \t\n')
                     
                     printf "    \"%s\": {\n" "$script_name"
                     printf "      \"file\": \"%s\",\n" "$log_file"
@@ -379,8 +395,8 @@ create_log_analysis_baseline() {
                     local script_name=$(basename "$log_file" .log)
                     local file_size=$(wc -c < "$log_file" 2>/dev/null || echo "0")
                     local line_count=$(wc -l < "$log_file" 2>/dev/null || echo "0")
-                    local error_count=$(count_actual_errors "$log_file")
-                    local warning_count=$(count_actual_warnings "$log_file")
+                    local error_count=$(count_actual_errors "$log_file" | tr -d ' \t\n')
+                    local warning_count=$(count_actual_warnings "$log_file" | tr -d ' \t\n')
                     
                     printf "    \"%s\": {\n" "$script_name"
                     printf "      \"file\": \"%s\",\n" "$log_file"

@@ -5,6 +5,7 @@
 
 # Source common test utilities
 source "$(dirname "$0")/../utils/test-common.sh"
+source "$(dirname "$0")/../utils/websocket-detection.sh"
 
 echo "🔒 FTSO Security & Rate Limiting Tester"
 echo "======================================="
@@ -27,44 +28,31 @@ echo "FTSO Security Test Report - $(date)" > "$SECURITY_REPORT"
 echo "====================================" >> "$SECURITY_REPORT"
 echo "" >> "$SECURITY_REPORT"
 
-# Start the application using shared cleanup system
-pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
+# Source port manager utility
+source "$(dirname "$0")/../utils/port-manager.sh"
+
+# Set up dynamic port first
+TEST_PORT=$(setup_test_port)
+echo "📝 Using dynamic port: $TEST_PORT"
+
+# Start the application with the dynamic port
+APP_PORT=$TEST_PORT pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
 # Register the PID and port for cleanup
 register_pid "$APP_PID"
-register_port 3101
+register_port "$TEST_PORT"
 
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
 
-# Wait for server to be ready - Increased timeout for full initialization
-READY_TIMEOUT=60  # Increased to allow for WebSocket connections
-ELAPSED=0
-
-while [ $ELAPSED -lt $READY_TIMEOUT ]; do
-    if ! kill -0 $APP_PID 2>/dev/null; then
-        echo "❌ Application stopped unexpectedly"
-        exit 1
-    fi
-    
-    # Test if server is ready with timeout - check for any response
-    HTTP_CODE=$(curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null || echo "000")
-    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "503" ]; then
-        echo "✅ Server is ready for testing (HTTP $HTTP_CODE)"
-        break
-    elif [ "$HTTP_CODE" != "000" ]; then
-        echo "⏳ Server responding but not ready yet (HTTP $HTTP_CODE), waiting..."
-    fi
-    
-    sleep 2
-    ELAPSED=$((ELAPSED + 2))
-done
-
-if [ $ELAPSED -ge $READY_TIMEOUT ]; then
-    echo "⏰ Server readiness timeout"
+# Use smart system readiness detection
+if ! check_system_readiness "$LOG_FILE"; then
+    echo "❌ System not ready for security testing"
     exit 1
 fi
+
+echo "✅ System ready for security testing"
 
 echo ""
 echo "🔒 Security Testing:"
@@ -132,7 +120,7 @@ echo "---------------------------------"
 # Test security headers
 echo "Testing security headers..."
 
-HEADERS_TEST=$(curl -s -I http://localhost:3101/health 2>/dev/null)
+HEADERS_TEST=$(curl -s -I http://localhost:$TEST_PORT/health 2>/dev/null)
 
 # Check for security headers
 if echo "$HEADERS_TEST" | grep -qi "x-content-type-options"; then
@@ -168,19 +156,19 @@ echo "----------------------------"
 
 # Test input validation with malicious payloads
 run_security_test "SQL Injection Test" \
-    "curl -s -X POST http://localhost:3101/feed-values -H 'Content-Type: application/json' -d '{\"feeds\": [\"'; DROP TABLE users; --\"]}'" \
+    "curl -s -X POST http://localhost:$TEST_PORT/feed-values -H 'Content-Type: application/json' -d '{\"feeds\": [\"'; DROP TABLE users; --\"]}'" \
     "fail"
 
 run_security_test "XSS Test" \
-    "curl -s -X POST http://localhost:3101/feed-values -H 'Content-Type: application/json' -d '{\"feeds\": [\"<script>alert(1)</script>\"]}'" \
+    "curl -s -X POST http://localhost:$TEST_PORT/feed-values -H 'Content-Type: application/json' -d '{\"feeds\": [\"<script>alert(1)</script>\"]}'" \
     "fail"
 
 run_security_test "Large Payload Test" \
-    "curl -s -X POST http://localhost:3101/feed-values -H 'Content-Type: application/json' -d '{\"feeds\": [\"$(printf 'A%.0s' {1..10000})\"]}'" \
+    "curl -s -X POST http://localhost:$TEST_PORT/feed-values -H 'Content-Type: application/json' -d '{\"feeds\": [\"$(printf 'A%.0s' {1..10000})\"]}'" \
     "fail"
 
 run_security_test "Invalid JSON Test" \
-    "curl -s -X POST http://localhost:3101/feed-values -H 'Content-Type: application/json' -d '{invalid json}'" \
+    "curl -s -X POST http://localhost:$TEST_PORT/feed-values -H 'Content-Type: application/json' -d '{invalid json}'" \
     "fail"
 
 echo ""
@@ -188,7 +176,7 @@ echo "🌐 CORS Testing:"
 echo "---------------"
 
 # Test CORS configuration
-CORS_TEST=$(curl -s -I -H "Origin: http://malicious-site.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -X OPTIONS http://localhost:3101/feed-values 2>/dev/null)
+CORS_TEST=$(curl -s -I -H "Origin: http://malicious-site.com" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: Content-Type" -X OPTIONS http://localhost:$TEST_PORT/feed-values 2>/dev/null)
 
 if echo "$CORS_TEST" | grep -qi "access-control-allow-origin"; then
     echo "  ✅ CORS headers present"
@@ -205,16 +193,16 @@ echo "--------------------------"
 
 # Test endpoints without authentication (should work for public API)
 run_security_test "Public Health Endpoint" \
-    "curl -s -o /dev/null -w '%{http_code}' http://localhost:3101/health" \
+    "curl -s -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
     "success"
 
 run_security_test "Public Metrics Endpoint" \
-    "curl -s -o /dev/null -w '%{http_code}' http://localhost:3101/metrics" \
+    "curl -s -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/metrics" \
     "success"
 
 # Test with invalid authentication headers
 run_security_test "Invalid Auth Header" \
-    "curl -s -X POST -H 'Authorization: Bearer invalid-token' -H 'Content-Type: application/json' -d '{\"feeds\":[{\"category\":1,\"name\":\"BTC/USD\"}]}' -o /dev/null -w '%{http_code}' http://localhost:3101/feed-values" \
+    "curl -s -X POST -H 'Authorization: Bearer invalid-token' -H 'Content-Type: application/json' -d '{\"feeds\":[{\"category\":1,\"name\":\"BTC/USD\"}]}' -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/feed-values" \
     "success"
 
 echo ""
@@ -223,15 +211,15 @@ echo "-----------------------"
 
 # Test unsupported HTTP methods
 run_security_test "TRACE Method Test" \
-    "curl -s -X TRACE -o /dev/null -w '%{http_code}' http://localhost:3101/health" \
+    "curl -s -X TRACE -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
     "fail"
 
 run_security_test "DELETE Method Test" \
-    "curl -s -X DELETE -o /dev/null -w '%{http_code}' http://localhost:3101/health" \
+    "curl -s -X DELETE -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
     "fail"
 
 run_security_test "PUT Method Test" \
-    "curl -s -X PUT -o /dev/null -w '%{http_code}' http://localhost:3101/health" \
+    "curl -s -X PUT -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
     "fail"
 
 echo ""
@@ -240,11 +228,11 @@ echo "------------------------"
 
 # Test content type validation
 run_security_test "XML Content Type" \
-    "curl -s -X POST -H 'Content-Type: application/xml' -d '<xml>test</xml>' -o /dev/null -w '%{http_code}' http://localhost:3101/feed-values" \
+    "curl -s -X POST -H 'Content-Type: application/xml' -d '<xml>test</xml>' -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/feed-values" \
     "fail"
 
 run_security_test "Plain Text Content Type" \
-    "curl -s -X POST -H 'Content-Type: text/plain' -d 'plain text' -o /dev/null -w '%{http_code}' http://localhost:3101/feed-values" \
+    "curl -s -X POST -H 'Content-Type: text/plain' -d 'plain text' -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/feed-values" \
     "fail"
 
 echo ""
@@ -253,11 +241,11 @@ echo "-------------------------"
 
 # Test path traversal attempts
 run_security_test "Path Traversal Test 1" \
-    "curl -s -o /dev/null -w '%{http_code}' 'http://localhost:3101/../../../etc/passwd'" \
+    "curl -s -o /dev/null -w '%{http_code}' 'http://localhost:$TEST_PORT/../../../etc/passwd'" \
     "fail"
 
 run_security_test "Path Traversal Test 2" \
-    "curl -s -o /dev/null -w '%{http_code}' 'http://localhost:3101/health/../../config'" \
+    "curl -s -o /dev/null -w '%{http_code}' 'http://localhost:$TEST_PORT/health/../../config'" \
     "fail"
 
 echo ""
@@ -266,7 +254,7 @@ echo "-----------------------"
 
 # Test host header injection
 run_security_test "Host Header Injection" \
-    "curl -s -H 'Host: malicious-host.com' -o /dev/null -w '%{http_code}' http://localhost:3101/health" \
+    "curl -s -H 'Host: malicious-host.com' -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
     "success"
 
 echo ""
@@ -281,7 +269,7 @@ RATE_LIMIT_REQUESTS=105  # Slightly exceed the 100 requests per minute limit
 RATE_LIMITED=0
 
 for i in $(seq 1 $RATE_LIMIT_REQUESTS); do
-    RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:3101/health 2>/dev/null)
+    RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:$TEST_PORT/health 2>/dev/null)
     if [ "$RESPONSE" = "429" ]; then
         RATE_LIMITED=$((RATE_LIMITED + 1))
     fi
@@ -301,7 +289,7 @@ echo "📝 Response Analysis:"
 echo "--------------------"
 
 # Analyze responses for information disclosure
-HEALTH_RESPONSE=$(curl -s http://localhost:3101/health 2>/dev/null)
+HEALTH_RESPONSE=$(curl -s http://localhost:$TEST_PORT/health 2>/dev/null)
 
 if echo "$HEALTH_RESPONSE" | grep -qi "version\|build\|debug"; then
     echo "  ⚠️  Potential information disclosure in health endpoint"

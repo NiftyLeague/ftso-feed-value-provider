@@ -4,6 +4,7 @@
 
 # Source common test utilities
 source "$(dirname "$0")/../utils/test-common.sh"
+source "$(dirname "$0")/../utils/websocket-detection.sh"
 source "$(dirname "$0")/../utils/parse-logs.sh"
 
 echo "🚀 FTSO Server Functionality Test"
@@ -31,52 +32,42 @@ echo "🚀 Starting FTSO application..."
 # Initial cleanup
 cleanup_ftso_ports
 
-# Start the application manually and register it
-echo "📝 Running: pnpm start:dev"
-pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
+# Source port manager utility
+source "$(dirname "$0")/../utils/port-manager.sh"
+
+# Set up dynamic port
+TEST_PORT=$(setup_test_port)
+echo "📝 Using dynamic port: $TEST_PORT"
+
+# Start the application with the dynamic port
+echo "📝 Running: APP_PORT=$TEST_PORT pnpm start:dev"
+APP_PORT=$TEST_PORT pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
 # Register the PID and port for cleanup
 register_pid "$APP_PID"
-register_port 3101
+register_port "$TEST_PORT"
 
 echo "📝 Application started with PID: $APP_PID"
-echo "⏱️  Waiting for server to be ready (timeout: ${STARTUP_TIMEOUT}s)..."
+echo "⏱️  Waiting for server to be ready..."
 
-# Wait for server to be ready with progress indicators
-INTERVAL=3
-ELAPSED=0
+# Source readiness utilities
+source "$(dirname "$0")/../utils/readiness-utils.sh"
 
-while [ $ELAPSED -lt $STARTUP_TIMEOUT ]; do
-    # Check if process is still running
-    if ! kill -0 $APP_PID 2>/dev/null; then
-        echo ""
-        echo "❌ Application stopped unexpectedly after ${ELAPSED}s"
-        echo "📋 Last few log lines:"
-        tail -5 "$LOG_FILE" 2>/dev/null || echo "No log available"
-        exit 1
-    fi
+# Wait for service readiness using existing health endpoints
+echo "⏱️  Waiting for service readiness..."
+if wait_for_service_health "http://localhost:$TEST_PORT" 60 1000 5000; then
+    echo "✅ Server health endpoint is responding!"
     
-    # Test if server is ready
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3101/health 2>/dev/null || echo "000")
-    
-    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "503" ]; then
-        echo ""
-        echo "✅ Server is ready and responding! (${ELAPSED}s) [HTTP: $HTTP_CODE]"
-        break
+    # Now wait for full readiness (data sources connected and operational)
+    echo "⏱️  Waiting for full system readiness..."
+    if wait_for_http_endpoint "http://localhost:$TEST_PORT/health/ready" 200 30 2000 5000; then
+        echo "✅ Server is fully ready and operational!"
     else
-        printf "\r⏳ Starting... (${ELAPSED}s) [HTTP: $HTTP_CODE] [PID: $APP_PID]"
-        sleep $INTERVAL
-        ELAPSED=$((ELAPSED + INTERVAL))
+        echo "⚠️  Server is healthy but not fully ready, proceeding with basic tests"
     fi
-done
-
-if [ $ELAPSED -ge $STARTUP_TIMEOUT ]; then
-    echo ""
-    echo "⏰ Startup timeout reached (${STARTUP_TIMEOUT}s)"
-    echo "📋 Application may still be starting. Last few log lines:"
-    tail -10 "$LOG_FILE" 2>/dev/null || echo "No log available"
-    echo "🛑 Killing application..."
+else
+    echo "❌ Server failed to become ready"
     exit 1
 fi
 
@@ -85,7 +76,7 @@ echo ""
 echo "🧪 Test 1: Health Endpoint"
 echo "-------------------------"
 echo "🔍 Testing GET /health..."
-HEALTH_RESPONSE=$(curl -s --max-time $TEST_TIMEOUT http://localhost:3101/health 2>/dev/null)
+HEALTH_RESPONSE=$(curl -s --max-time $TEST_TIMEOUT http://localhost:$TEST_PORT/health 2>/dev/null)
 HEALTH_EXIT_CODE=$?
 
 if [ $HEALTH_EXIT_CODE -eq 0 ] && [ -n "$HEALTH_RESPONSE" ]; then
@@ -102,7 +93,7 @@ echo ""
 echo "🧪 Test 2: Metrics Endpoint"
 echo "---------------------------"
 echo "🔍 Testing GET /metrics..."
-METRICS_RESPONSE=$(curl -s --max-time $TEST_TIMEOUT http://localhost:3101/metrics 2>/dev/null)
+METRICS_RESPONSE=$(curl -s --max-time $TEST_TIMEOUT http://localhost:$TEST_PORT/metrics 2>/dev/null)
 METRICS_EXIT_CODE=$?
 
 if [ $METRICS_EXIT_CODE -eq 0 ] && [ -n "$METRICS_RESPONSE" ]; then
@@ -118,11 +109,13 @@ fi
 echo ""
 echo "🧪 Test 3: Feed Values Endpoint"
 echo "-------------------------------"
+echo "⏳ Waiting for data sources to initialize..."
+sleep 10  # Allow time for data sources to connect and provide initial data
 echo "🔍 Testing POST /feed-values..."
 FEED_RESPONSE=$(curl -s --max-time $TEST_TIMEOUT -X POST \
     -H "Content-Type: application/json" \
     -d '{"feeds": [{"category": 1, "name": "BTC/USD"}, {"category": 1, "name": "ETH/USD"}]}' \
-    http://localhost:3101/feed-values 2>/dev/null)
+    http://localhost:$TEST_PORT/feed-values 2>/dev/null)
 FEED_EXIT_CODE=$?
 
 if [ $FEED_EXIT_CODE -eq 0 ] && [ -n "$FEED_RESPONSE" ]; then

@@ -27,6 +27,7 @@ run_test_script() {
     local script_name=$1
     local description=$2
     local timeout_seconds=${3:-300}  # Default 5 minutes
+    local script_args=${4:-""}  # Optional arguments for the script
     
     echo "🔄 Running $description..."
     echo "⏰ Timeout: ${timeout_seconds}s"
@@ -40,7 +41,11 @@ run_test_script() {
         local base_name=$(basename "$script_name" .sh)
         
         # Run the script in background to allow proper signal handling
-        ./scripts/$script_name &
+        if [ -n "$script_args" ]; then
+            ./scripts/$script_name $script_args &
+        else
+            ./scripts/$script_name &
+        fi
         local test_pid=$!
         
         # Wait for completion with timeout
@@ -90,24 +95,47 @@ echo "========================================"
 run_test_script "test/server.sh" "Server Functionality Test" 120
 if [ $? -eq 130 ]; then exit 130; fi
 
+echo ""
 echo "🔒 Phase 2: Security Testing"
 echo "============================"
 run_test_script "test/security.sh" "Security & Rate Limiting Test" 180
 if [ $? -eq 130 ]; then exit 130; fi
 
+echo ""
 echo "🚀 Phase 3: Load Testing"
 echo "========================"
 run_test_script "test/load.sh" "Load & Stress Testing" 300
 if [ $? -eq 130 ]; then exit 130; fi
 
-echo "🛑 Phase 4: Graceful Shutdown Testing"
+echo ""
+
+echo "🔍 Phase 4: System Readiness Testing"
+echo "===================================="
+run_test_script "test/readiness.sh" "System Readiness Test" 300
+if [ $? -eq 130 ]; then exit 130; fi
+
+echo ""
+echo "📊 Phase 5: Feeds Validation Testing"
+echo "===================================="
+run_test_script "test/feeds.sh" "Comprehensive Feeds Test" 300
+if [ $? -eq 130 ]; then exit 130; fi
+
+echo ""
+echo "🌊 Phase 6: Data Flow Testing"
+echo "============================="
+run_test_script "test/data-flow.sh" "Data Flow Verification Test" 180
+if [ $? -eq 130 ]; then exit 130; fi
+
+echo ""
+echo "🛑 Phase 7: Graceful Shutdown Testing"
 echo "====================================="
 run_test_script "test/shutdown.sh" "Graceful Shutdown Test" 60
 if [ $? -eq 130 ]; then exit 130; fi
 
-echo "🔬 Phase 5: Comprehensive Test Suite"
+echo ""
+echo "🔬 Phase 8: Comprehensive Test Suite"
 echo "========================================="
-run_test_script "test/runner.sh all" "Comprehensive Test Suite" 600
+run_test_script "test/runner.sh" "Comprehensive Test Suite" 600 "all"
 if [ $? -eq 130 ]; then exit 130; fi
 
 # Generate comprehensive test summary report
@@ -127,69 +155,106 @@ This report provides a comprehensive testing analysis of the FTSO Feed Value Pro
 - ✅ Server Functionality
 - ✅ Security & Rate Limiting
 - ✅ Load & Stress Testing
-- ✅ Test Suite Validation
+- ✅ Feeds Validation
 - ✅ Graceful Shutdown
+- ✅ Data Flow Verification
+- ✅ Comprehensive Test Suite
 
 ### Key Findings
 
 EOF
 
 # Analyze each component and add to summary
-if [ -f "$SESSION_DIR/server_output.log" ]; then
+if [ -f "$TEST_DIR/server_output.log" ]; then
     echo "#### Server Functionality Testing" >> "$SUMMARY_FILE"
     
     # Extract key metrics from server test log
-    SERVER_READY=$(grep -c "Server is ready" "$SESSION_DIR/server_output.log" || echo "0")
-    ENDPOINTS_TESTED=$(grep -c "Testing.*endpoint" "$SESSION_DIR/server_output.log" || echo "0")
+    SERVER_READY=$(grep -c "Server is ready" "$TEST_DIR/server_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    ENDPOINTS_TESTED=$(grep -c "Testing.*endpoint" "$TEST_DIR/server_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
     
-    echo "- **Server Readiness:** $([ $SERVER_READY -gt 0 ] && echo "✅ Ready" || echo "❌ Not Ready")" >> "$SUMMARY_FILE"
+    # Ensure variables are clean integers
+    SERVER_READY=${SERVER_READY:-0}
+    ENDPOINTS_TESTED=${ENDPOINTS_TESTED:-0}
+    
+    echo "- **Server Readiness:** $([ "${SERVER_READY:-0}" -gt 0 ] && echo "✅ Ready" || echo "❌ Not Ready")" >> "$SUMMARY_FILE"
     echo "- **Endpoints Tested:** $ENDPOINTS_TESTED" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 
-if [ -f "$SESSION_DIR/security_output.log" ]; then
+if [ -f "$TEST_DIR/security_output.log" ]; then
     echo "#### Security Testing" >> "$SUMMARY_FILE"
     
     # Extract security metrics
-    TESTS_PASSED=$(grep -c "Tests passed:" "$SESSION_DIR/security_output.log" | head -1 || echo "0")
-    SECURITY_ISSUES=$(grep -c "Security issues:" "$SESSION_DIR/security_output.log" | head -1 || echo "0")
+    TESTS_PASSED=$(grep -c "Tests passed:" "$TEST_DIR/security_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    SECURITY_ISSUES=$(grep -c "Security issues:" "$TEST_DIR/security_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    
+    # Ensure variables are clean integers
+    TESTS_PASSED=${TESTS_PASSED:-0}
+    SECURITY_ISSUES=${SECURITY_ISSUES:-0}
     
     echo "- **Security Tests Passed:** $TESTS_PASSED" >> "$SUMMARY_FILE"
     echo "- **Security Issues Found:** $SECURITY_ISSUES" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 
-if [ -f "$SESSION_DIR/load_output.log" ]; then
+if [ -f "$TEST_DIR/load_output.log" ]; then
     echo "#### Load Testing" >> "$SUMMARY_FILE"
     
     # Extract load test metrics
-    LOAD_TESTS=$(grep -c "Load Test:" "$SESSION_DIR/load_output.log" || echo "0")
-    STRESS_TESTS=$(grep -c "Stress Test" "$SESSION_DIR/load_output.log" || echo "0")
+    LOAD_TESTS=$(grep -c "Load Test:" "$TEST_DIR/load_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    STRESS_TESTS=$(grep -c "Stress Test" "$TEST_DIR/load_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    
+    # Ensure variables are clean integers
+    LOAD_TESTS=${LOAD_TESTS:-0}
+    STRESS_TESTS=${STRESS_TESTS:-0}
     
     echo "- **Load Tests Executed:** $LOAD_TESTS" >> "$SUMMARY_FILE"
     echo "- **Stress Tests Executed:** $STRESS_TESTS" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 
-if [ -f "$SESSION_DIR/validation_output.log" ]; then
+if [ -f "$TEST_DIR/data-flow_output.log" ]; then
+    echo "#### Data Flow Testing" >> "$SUMMARY_FILE"
+    
+    # Extract data flow metrics
+    FLOW_TESTS=$(grep -c "Flow test:" "$TEST_DIR/data-flow_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    DATA_VALIDATION=$(grep -c "Data validation" "$TEST_DIR/data-flow_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    
+    # Ensure variables are clean integers
+    FLOW_TESTS=${FLOW_TESTS:-0}
+    DATA_VALIDATION=${DATA_VALIDATION:-0}
+    
+    echo "- **Flow Tests Executed:** $FLOW_TESTS" >> "$SUMMARY_FILE"
+    echo "- **Data Validations:** $DATA_VALIDATION" >> "$SUMMARY_FILE"
+    echo "" >> "$SUMMARY_FILE"
+fi
+
+if [ -f "$TEST_DIR/runner_output.log" ]; then
     echo "#### Test Suite Validation" >> "$SUMMARY_FILE"
     
     # Extract validation metrics
-    VALIDATION_RUNS=$(grep -c "Run.*:" "$SESSION_DIR/validation_output.log" || echo "0")
-    FLAKY_TESTS=$(grep -c "FLAKY" "$SESSION_DIR/validation_output.log" || echo "0")
+    VALIDATION_RUNS=$(grep -c "Run.*:" "$TEST_DIR/runner_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    FLAKY_TESTS=$(grep -c "FLAKY" "$TEST_DIR/runner_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    
+    # Ensure variables are clean integers
+    VALIDATION_RUNS=${VALIDATION_RUNS:-0}
+    FLAKY_TESTS=${FLAKY_TESTS:-0}
     
     echo "- **Validation Runs:** $VALIDATION_RUNS" >> "$SUMMARY_FILE"
     echo "- **Flaky Tests Detected:** $FLAKY_TESTS" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 
-if [ -f "$SESSION_DIR/shutdown_output.log" ]; then
+if [ -f "$TEST_DIR/shutdown_output.log" ]; then
     echo "#### Graceful Shutdown Testing" >> "$SUMMARY_FILE"
     
     # Extract shutdown metrics
-    SHUTDOWN_SUCCESS=$(grep -c "graceful.*shutdown.*success" "$SESSION_DIR/shutdown_output.log" || echo "0")
+    SHUTDOWN_SUCCESS=$(grep -c "graceful.*shutdown.*success" "$TEST_DIR/shutdown_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
     
-    echo "- **Graceful Shutdown:** $([ $SHUTDOWN_SUCCESS -gt 0 ] && echo "✅ Successful" || echo "❌ Issues Detected")" >> "$SUMMARY_FILE"
+    # Ensure variable is clean integer
+    SHUTDOWN_SUCCESS=${SHUTDOWN_SUCCESS:-0}
+    
+    echo "- **Graceful Shutdown:** $([ "${SHUTDOWN_SUCCESS:-0}" -gt 0 ] && echo "✅ Successful" || echo "❌ Issues Detected")" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 

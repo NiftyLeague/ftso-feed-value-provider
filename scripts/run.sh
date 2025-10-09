@@ -38,8 +38,9 @@ show_usage() {
     echo "  $0 debug feeds         # Check feed data quality"
     echo "  $0 debug errors        # Analyze error patterns"
     echo ""
+    echo "  $0 test readiness      # Test system readiness (production-grade)"
     echo "  $0 test server         # Test server functionality"
-    echo "  $0 test all            # Run all test scripts (server, security, load, etc.)"
+    echo "  $0 test all            # Run all test scripts (readiness, server, security, load, etc.)"
     echo "  $0 test jest           # Run all Jest tests"
     echo "  $0 test unit           # Run Jest unit tests"
     echo "  $0 test integration    # Run Jest integration tests"
@@ -52,9 +53,12 @@ show_usage() {
     echo "  $0 utils audit help    # Show audit system options"
     echo "  $0 utils audit analyze # Analyze existing logs"
     echo "  $0 utils audit status  # Show system status"
+    echo "  $0 utils tickers       # Generate feeds from exchange tickers"
+    echo "  $0 utils tickers --feeds-only # Generate feeds only (skip exchange fetch)"
     echo ""
     echo "Examples:"
     echo "  $0 debug all                    # Complete system analysis"
+    echo "  $0 test readiness               # Test system readiness (production-grade)"
     echo "  $0 test server                  # Test server endpoints"
     echo "  $0 test all                     # Run all test scripts"
     echo "  $0 test jest                    # Run all Jest tests"
@@ -62,6 +66,8 @@ show_usage() {
     echo "  $0 test accuracy                # Run Jest accuracy tests"
     echo "  $0 test performance             # Run Jest performance tests"
     echo "  $0 utils audit clean           # Clean old audit files"
+    echo "  $0 utils tickers                # Generate feeds from exchange tickers"
+    echo "  $0 utils tickers --feeds-only   # Generate feeds only (skip exchange fetch)"
     echo ""
     echo "For detailed help on any script, run it directly:"
     echo "  ./scripts/debug/startup.sh"
@@ -104,6 +110,13 @@ case $SCRIPT in
         if [ "$CATEGORY" = "utils" ]; then
             # Pass all remaining arguments to the audit script
             exec ./scripts/utils/audit.sh "$@"
+        fi
+        ;;
+    tickers)
+        # For utils tickers, we need to handle the subcommand
+        if [ "$CATEGORY" = "utils" ]; then
+            # Pass all remaining arguments to the new tickers generation script
+            exec ./scripts/tickers/generate.sh "$@"
         fi
         ;;
     # Handle Jest test runner commands

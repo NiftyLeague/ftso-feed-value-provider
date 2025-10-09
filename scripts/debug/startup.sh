@@ -14,8 +14,7 @@ setup_cleanup_handlers
 echo "🚀 Starting FTSO Feed Value Provider in debug mode..."
 echo "📊 Monitoring startup performance and identifying issues..."
 
-# Set timeout for startup monitoring (60 seconds)
-TIMEOUT=60
+# Configuration
 
 # Initial cleanup
 cleanup_ftso_ports
@@ -28,16 +27,26 @@ LOG_FILE="$DEBUG_LOG_FILE"
 start_app_with_cleanup "npm run start:dev" 3101 "$LOG_FILE"
 # Get the last registered PID safely
 if [ ${#TRACKED_PIDS[@]} -gt 0 ]; then
-    APP_PID="${TRACKED_PIDS[-1]}"
+    # Get the last element of the array more safely
+    last_index=$((${#TRACKED_PIDS[@]} - 1))
+    APP_PID="${TRACKED_PIDS[$last_index]}"
 else
     echo "❌ Failed to get application PID"
     exit 1
 fi
 
-echo "⏱️  Monitoring for $TIMEOUT seconds..."
 
-# Monitor for the specified timeout
-sleep $TIMEOUT
+
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    # Service is ready, proceed with startup analysis
+    :
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Check if process is still running
 if kill -0 $APP_PID 2>/dev/null; then

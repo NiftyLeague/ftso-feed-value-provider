@@ -17,7 +17,7 @@ echo "=========================="
 # Ensure logs directory exists
 
 # Configuration
-TIMEOUT=120
+MONITOR_DURATION=60  # Monitor for 60 seconds after readiness
 
 # Set up logging using common utility
 echo "📝 Starting performance monitoring..."
@@ -35,7 +35,17 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring performance for $TIMEOUT seconds..."
+
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    # Service is ready, proceed with performance monitoring
+    :
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Initialize metrics log
 echo "timestamp,cpu_percent,memory_mb,memory_percent,response_time_ms" > "$METRICS_FILE"
@@ -44,7 +54,7 @@ echo "timestamp,cpu_percent,memory_mb,memory_percent,response_time_ms" > "$METRI
 MONITOR_INTERVAL=10
 ELAPSED=0
 
-while [ $ELAPSED -lt $TIMEOUT ]; do
+while [ $ELAPSED -lt $MONITOR_DURATION ]; do
     if ! kill -0 $APP_PID 2>/dev/null; then
         echo "❌ Application stopped unexpectedly"
         break
@@ -75,7 +85,10 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     
     echo "📊 CPU: ${CPU_PERCENT}% | Memory: ${MEMORY_MB}MB (${MEMORY_PERCENT}%) | Response: ${RESPONSE_TIME}ms"
     
-    sleep $MONITOR_INTERVAL
+    # Use health check as monitoring interval
+    if ! wait_for_service_health "http://localhost:3101" 1 $((MONITOR_INTERVAL * 1000)) $((MONITOR_INTERVAL * 1000)); then
+        echo "⚠️  Service health degraded during performance monitoring"
+    fi
     ELAPSED=$((ELAPSED + MONITOR_INTERVAL))
 done
 

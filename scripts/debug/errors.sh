@@ -28,10 +28,9 @@ if [ ! -z "$PORT_PID" ]; then
 fi
 
 # Configuration
-TIMEOUT=90
 
 # Set up logging using common utility
-echo "📝 Starting error analysis..."
+
 setup_debug_logging "error-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 
@@ -48,10 +47,20 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring for errors and circuit breaker events for $TIMEOUT seconds..."
 
-# Monitor for the specified timeout
-sleep $TIMEOUT
+# Monitor for the specified timeout using health checks
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    echo "🔍 Analyzing error patterns and running for 30 seconds to collect data..."
+    
+    # Let the service run for a bit to collect error data
+    sleep 30
+    echo "✅ Data collection completed"
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Stop the application
 if kill -0 $APP_PID 2>/dev/null; then
@@ -81,11 +90,33 @@ if [ -f "$LOG_FILE" ]; then
     echo "❌ Errors: $ERROR_LOGS"
     echo "⚠️  Warnings: $WARNINGS"
     
+    # Categorize warnings for better analysis
+    RATE_LIMIT_WARNINGS=$(grep -c "WARN.*Rate limited.*retrying" "$LOG_FILE")
+    STALE_DATA_WARNINGS=$(grep -c "WARN.*Stale price update" "$LOG_FILE")
+    CACHE_WARNINGS=$(grep -c "WARN.*Cache.*degraded\|WARN.*Cache.*performance" "$LOG_FILE")
+    
+    # Calculate other warnings more safely
+    CATEGORIZED_TOTAL=$((RATE_LIMIT_WARNINGS + STALE_DATA_WARNINGS + CACHE_WARNINGS))
+    if [ $CATEGORIZED_TOTAL -le $WARNINGS ]; then
+        OTHER_WARNINGS=$((WARNINGS - CATEGORIZED_TOTAL))
+    else
+        OTHER_WARNINGS=0
+    fi
+    
+    echo "   📊 Rate limiting: $RATE_LIMIT_WARNINGS (expected operational behavior)"
+    echo "   📈 Stale data: $STALE_DATA_WARNINGS (data quality alerts)"
+    echo "   💾 Cache issues: $CACHE_WARNINGS (performance concerns)"
+    echo "   ❓ Other: $OTHER_WARNINGS"
+    
     # Log to summary
     echo "Error Statistics:" >> "$ERROR_SUMMARY"
     echo "- Fatal errors: $FATAL_ERRORS" >> "$ERROR_SUMMARY"
     echo "- Errors: $ERROR_LOGS" >> "$ERROR_SUMMARY"
     echo "- Warnings: $WARNINGS" >> "$ERROR_SUMMARY"
+    echo "  - Rate limiting: $RATE_LIMIT_WARNINGS (operational)" >> "$ERROR_SUMMARY"
+    echo "  - Stale data: $STALE_DATA_WARNINGS (data quality)" >> "$ERROR_SUMMARY"
+    echo "  - Cache issues: $CACHE_WARNINGS (performance)" >> "$ERROR_SUMMARY"
+    echo "  - Other: $OTHER_WARNINGS" >> "$ERROR_SUMMARY"
     echo "" >> "$ERROR_SUMMARY"
     
     echo ""
@@ -268,6 +299,27 @@ if [ -f "$LOG_FILE" ]; then
         echo "   - Increase timeout configurations"
         echo "   - Check network latency"
         echo "   - Review service performance"
+    fi
+    
+    if [ $RATE_LIMIT_WARNINGS -gt 10 ]; then
+        echo "📊 High Rate Limiting:"
+        echo "   - Consider increasing API rate limits"
+        echo "   - Review request patterns for optimization"
+        echo "   - Monitor exchange API health"
+    fi
+    
+    if [ $STALE_DATA_WARNINGS -gt 5 ]; then
+        echo "📈 Stale Data Concerns:"
+        echo "   - Check exchange connection stability"
+        echo "   - Review data freshness thresholds"
+        echo "   - Monitor WebSocket connection health"
+    fi
+    
+    if [ $CACHE_WARNINGS -gt 0 ]; then
+        echo "💾 Cache Performance Issues:"
+        echo "   - Monitor memory usage patterns"
+        echo "   - Review cache configuration"
+        echo "   - Consider cache optimization"
     fi
     
     if [ $((FATAL_ERRORS + ERROR_LOGS + WARNINGS)) -eq 0 ]; then

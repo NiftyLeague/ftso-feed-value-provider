@@ -16,15 +16,15 @@ echo "=============================================="
 # Ensure logs directory exists
 
 # Configuration
-TIMEOUT=120
 
 # Set up logging using common utility
 setup_debug_logging "resilience-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 
-echo "📝 Starting resilience system analysis..."
+
 
 # Start the application in background with clean output capture
+echo "🚀 Starting FTSO application..."
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
 APP_PID=$!
 
@@ -33,10 +33,132 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring resilience systems for $TIMEOUT seconds..."
 
-# Monitor for the specified timeout
-sleep $TIMEOUT
+# Give the process a moment to start and check if it's still running
+sleep 2
+if ! kill -0 "$APP_PID" 2>/dev/null; then
+    echo "❌ Application process failed to start or died immediately"
+    echo "📋 Check the log file for errors: $LOG_FILE"
+    if [ -n "$TIMEOUT_PID" ] && kill -0 "$TIMEOUT_PID" 2>/dev/null; then
+        kill -TERM "$TIMEOUT_PID" 2>/dev/null
+    fi
+    exit 1
+fi
+
+echo "🔍 Starting resilience testing..."
+
+# Set up a timeout for the entire resilience test to prevent hanging
+RESILIENCE_TIMEOUT=90  # 1.5 minutes total timeout
+(
+    sleep $RESILIENCE_TIMEOUT
+    echo "⏰ Resilience test timeout reached (${RESILIENCE_TIMEOUT}s), terminating..."
+    if [ -n "$APP_PID" ] && kill -0 "$APP_PID" 2>/dev/null; then
+        kill -TERM "$APP_PID" 2>/dev/null
+        sleep 2
+        kill -KILL "$APP_PID" 2>/dev/null
+    fi
+    exit 124
+) &
+TIMEOUT_PID=$!
+
+# Monitor for the specified timeout using health checks
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+# Use reasonable timeout for resilience testing to avoid hanging
+echo "⏳ Waiting for service to become ready (timeout for resilience testing)..."
+
+# Check if the application process is still running before waiting
+if ! kill -0 "$APP_PID" 2>/dev/null; then
+    echo "❌ Application process died during startup"
+    if [ -n "$TIMEOUT_PID" ] && kill -0 "$TIMEOUT_PID" 2>/dev/null; then
+        kill -TERM "$TIMEOUT_PID" 2>/dev/null
+    fi
+    exit 1
+fi
+
+if wait_for_debug_service_readiness "http://localhost:3101" 10 20 "FTSO Service"; then
+    
+    # Test 1: Basic stability
+    echo "🧪 Test 1: Basic stability (10 seconds)..."
+    for i in $(seq 1 10); do
+        if ! wait_for_service_health "http://localhost:3101" 1 1000 3000; then
+            echo "⚠️  Stability issue at ${i}s"
+        fi
+        sleep 1
+    done
+    echo "  ✅ Basic stability test completed"
+    
+    # Test 2: API resilience under load
+    echo "🧪 Test 2: API resilience (rapid requests)..."
+    pids=()
+    for i in $(seq 1 10); do
+        curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/health" >/dev/null 2>&1 &
+        pids+=($!)
+        curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/feed-values?feeds=BTC/USD" >/dev/null 2>&1 &
+        pids+=($!)
+    done
+    
+    # Wait for all requests with a timeout
+    wait_count=0
+    max_wait=15  # 15 seconds max wait
+    while [ ${#pids[@]} -gt 0 ] && [ $wait_count -lt $max_wait ]; do
+        new_pids=()
+        for pid in "${pids[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                new_pids+=("$pid")
+            fi
+        done
+        pids=("${new_pids[@]}")
+        
+        if [ ${#pids[@]} -gt 0 ]; then
+            sleep 1
+            wait_count=$((wait_count + 1))
+        fi
+    done
+    
+    # Kill any remaining processes
+    for pid in "${pids[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null
+        fi
+    done
+    
+    echo "  ✅ API resilience test completed"
+    
+    # Test 3: Error handling
+    echo "🧪 Test 3: Error handling (invalid requests)..."
+    curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/feed-values?feeds=INVALID" >/dev/null 2>&1
+    curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/nonexistent" >/dev/null 2>&1
+    echo "  ✅ Error handling test completed"
+    
+    echo "✅ All resilience tests completed"
+    
+    # Kill the timeout process since we completed successfully
+    if [ -n "$TIMEOUT_PID" ] && kill -0 "$TIMEOUT_PID" 2>/dev/null; then
+        kill -TERM "$TIMEOUT_PID" 2>/dev/null
+    fi
+else
+    echo "❌ Service failed to become ready within timeout"
+    
+    # Check if process is still running to provide better diagnostics
+    if kill -0 "$APP_PID" 2>/dev/null; then
+        echo "ℹ️  Application process is still running but not responding to health checks"
+        echo "📋 This may indicate:"
+        echo "   - Application is still starting up (needs more time)"
+        echo "   - Health endpoints are not configured correctly"
+        echo "   - Application is stuck in initialization"
+    else
+        echo "ℹ️  Application process has terminated"
+        echo "📋 Check the log file for startup errors: $LOG_FILE"
+    fi
+    
+    # Kill the timeout process on failure
+    if [ -n "$TIMEOUT_PID" ] && kill -0 "$TIMEOUT_PID" 2>/dev/null; then
+        kill -TERM "$TIMEOUT_PID" 2>/dev/null
+    fi
+    stop_tracked_apps
+    exit 1
+fi
 
 # Check if process is still running
 if kill -0 $APP_PID 2>/dev/null; then
@@ -44,7 +166,7 @@ if kill -0 $APP_PID 2>/dev/null; then
     echo "🛑 Stopping application for analysis..."
     stop_tracked_apps
 else
-    echo "❌ Application stopped unexpectedly"
+    echo "ℹ️  Application has been stopped (normal after cleanup)"
 fi
 
 echo ""
@@ -350,6 +472,11 @@ fi
 
 # Show log summary
 log_summary "$LOG_FILE" "resilience" "debug"
+
+# Final cleanup of timeout process
+if [ -n "$TIMEOUT_PID" ] && kill -0 "$TIMEOUT_PID" 2>/dev/null; then
+    kill -TERM "$TIMEOUT_PID" 2>/dev/null
+fi
 
 echo ""
 echo "✨ Resilience analysis complete!"

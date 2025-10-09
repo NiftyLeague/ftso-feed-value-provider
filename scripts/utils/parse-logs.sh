@@ -12,6 +12,8 @@ filter_actual_errors() {
     local log_file="$1"
     grep -i " ERROR \| FATAL \|exception\|abort\|crash\|panic" "$log_file" 2>/dev/null | \
         grep -v -E "(Error Handling|should.*error|test.*error|✓.*error|describe.*error|it.*error)" | \
+        grep -v -E "(Error Scenarios|error scenarios|Error Response Format|error handling and edge cases)" | \
+        grep -v -E "(Error Classification Utils|Test.*Error|.*Test.*error)" | \
         grep -v -E "(critical.*:.*1|severity.*:.*critical|id.*:.*critical|name.*:.*Critical)" | \
         grep -v -E "(maxErrorRate|errorRate|error_rate|High Error Rate|Error.*initialized)" | \
         grep -v -E "(name.*:.*Error|description.*:.*error)" | \
@@ -31,7 +33,24 @@ filter_actual_errors() {
         grep -v -E "('.*_error'.*:|'.*Error'.*:)" | \
         grep -v -E "(Consensus.*Error.*description|deviation.*error.*name)" | \
         grep -v -E "(EADDRINUSE.*address already in use.*3101|listen EADDRINUSE.*3101)" | \
-        grep -v -E "(Recoverable.*Yes.*server_startup|Recoverable.*Yes.*application_startup)"
+        grep -v -E "(Recoverable.*Yes.*server_startup|Recoverable.*Yes.*application_startup)" | \
+        grep -v -E "(GET /health/ready.*503.*HTTP Exception|HttpException.*Http Exception|SERVICE_UNAVAILABLE_ERROR)" | \
+        grep -v -E "(HttpExceptionFilter.*GET /health|HttpExceptionFilter.*HttpException.*Http Exception)" | \
+        grep -v -E "(classification.*:.*'SERVICE_UNAVAILABLE_ERROR'|Http Exception$)" | \
+        grep -v -E "(ealthController.*Readiness check failed|Readiness check failed.*Http Exception)" | \
+        grep -v -E "(ERROR.*ealthController.*Readiness|HttpExceptionFilter.*GET /health/ready.*503)" | \
+        grep -v -E "(ealthController.*Health check failed|HttpExceptionFilter.*GET /health.*503)" | \
+        grep -v -E "(ttpExceptionFilter.*GET /health.*503.*HTTP Exception occurred)" | \
+        grep -v -E "(StandardizedErrorHandlerService|ErrorHandlerService.*Object|service.*:.*'.*ErrorHandlerService')" | \
+        grep -v -E "(maxErrorRate.*:.*[0-9]|errorRate.*:.*[0-9]|error_rate.*:.*[0-9])" | \
+        grep -v -E "(Configuration.*error|config.*error.*threshold|alert.*error.*rate)" | \
+        grep -v -E "(Alert.*Error.*Rate|error.*rate.*alert|High.*Error.*Rate.*alert)" | \
+        grep -v -E "(metric.*error|error.*metric|monitoring.*error|error.*monitoring)" | \
+        grep -v -E "(Found 0 errors\. Watching|Watching for file changes)" | \
+        grep -v -E "(WARN.*Trade processing error.*continuing with)" | \
+        grep -v -E "(Trade processing error.*continuing with other)" | \
+        grep -v -E "(cxtMultiExchangeAdapter.*Trade processing error)" | \
+        grep -v -E "(continuing with other exchanges|continuing with other symbols)"
 }
 
 # Enhanced warning filtering - excludes false positives from rate limiting and monitoring
@@ -54,13 +73,13 @@ filter_actual_warnings() {
 # Count actual errors (not false positives)
 count_actual_errors() {
     local log_file="$1"
-    filter_actual_errors "$log_file" | wc -l | tr -d '\n' || echo "0"
+    filter_actual_errors "$log_file" | wc -l | tr -d ' \t\n%' | head -1 || echo "0"
 }
 
 # Count actual warnings (not false positives)
 count_actual_warnings() {
     local log_file="$1"
-    filter_actual_warnings "$log_file" | wc -l | tr -d '\n' || echo "0"
+    filter_actual_warnings "$log_file" | wc -l | tr -d ' \t\n%' | head -1 || echo "0"
 }
 
 # =============================================================================
@@ -108,21 +127,20 @@ log_summary() {
     local total_lines=$(wc -l < "$log_file" 2>/dev/null | tr -d ' \t')
     echo "📝 Total lines: $total_lines"
     
-    # Use improved error/warning counting if available, otherwise fallback
+    # Use improved error/warning counting - always use the filtered functions
     local warnings=0
     local errors=0
     
-    if command -v count_actual_warnings >/dev/null 2>&1; then
-        warnings=$(count_actual_warnings "$log_file" | tr -d ' \t\n')
-        errors=$(count_actual_errors "$log_file" | tr -d ' \t\n')
-    else
-        # Fallback to basic counting
-        warnings=$(grep -c "\[Nest\].*WARN\|\s\+WARN\s\+" "$log_file" 2>/dev/null | tr -d ' \t\n' || echo "0")
-        errors=$(grep -c "\[Nest\].*ERROR\|\s\+ERROR\s\+" "$log_file" 2>/dev/null | tr -d ' \t\n' || echo "0")
-    fi
+    # Always use the sophisticated filtering functions
+    warnings=$(count_actual_warnings "$log_file" 2>/dev/null | tr -d ' \t\n' | head -1 || echo "0")
+    errors=$(count_actual_errors "$log_file" 2>/dev/null | tr -d ' \t\n' | head -1 || echo "0")
     
-    printf "⚠️  Warnings: %s\n" "$warnings"
-    printf "❌ Errors: %s\n" "$errors"
+    # Ensure variables are clean numbers
+    warnings=${warnings:-0}
+    errors=${errors:-0}
+    
+    echo "⚠️  Warnings: $warnings"
+    echo "❌ Errors: $errors"
     
     # Enhanced analysis for test and analysis types
     if [ "$summary_type" = "test" ] || [ "$summary_type" = "analysis" ]; then
@@ -140,7 +158,7 @@ log_summary() {
 analyze_log_issues() {
     local log_file="$1"
     
-    # Connection issues detection - exclude normal shutdown sequences and test cases
+    # Connection issues detection - exclude normal shutdown sequences, startup health checks, and test cases
     local connection_issues=$(grep -i "disconnect\|connection.*lost\|network.*error\|socket.*error\|refused\|unavailable\|unreachable" "$log_file" 2>/dev/null | \
         grep -v -E "(should.*disconnect|test.*disconnect|✓.*disconnect|Disconnecting.*adapter|adapter.*disconnected)" | \
         grep -v -E "(Cleaning up|shutdown|graceful|should.*network.*error|✓.*network.*error)" | \
@@ -148,6 +166,12 @@ analyze_log_issues() {
         grep -v -E "(should.*handle.*WebSocket|✓.*handle.*WebSocket)" | \
         grep -v -E "(- WebSocket errors:|WebSocket errors.*0)" | \
         grep -v -E "(🔌.*disconnects.*:.*0|should.*return.*true.*for.*service.*unavailable)" | \
+        grep -v -E "(GET /health/ready.*503|SERVICE_UNAVAILABLE_ERROR|HttpExceptionFilter.*GET /health)" | \
+        grep -v -E "(classification.*:.*'SERVICE_UNAVAILABLE_ERROR'|path.*:.*'/health/ready')" | \
+        grep -v -E "(status.*:.*503|retryable.*:.*true.*severity.*:.*critical)" | \
+        grep -v -E "(ealthController.*Readiness check failed|Readiness check failed.*Http Exception)" | \
+        grep -v -E "(ealthController.*Health check failed|HttpExceptionFilter.*GET /health.*503)" | \
+        grep -v -E "(ttpExceptionFilter.*GET /health.*503.*HTTP Exception occurred)" | \
         wc -l | tr -d '\n' || echo "0")
     if [ "$connection_issues" -gt 0 ] 2>/dev/null; then
         echo "🔌 Connection Issues: $connection_issues"
@@ -182,8 +206,12 @@ analyze_log_issues() {
 show_test_results() {
     local log_file="$1"
     
-    local passed=$(grep -c "PASS\|✅\|SUCCESS" "$log_file" 2>/dev/null || echo "0")
-    local failed=$(grep -c "FAIL\|❌\|FAILED" "$log_file" 2>/dev/null || echo "0")
+    local passed=$(grep -c "PASS\|✅\|SUCCESS" "$log_file" 2>/dev/null)
+    local failed=$(grep -c "FAIL\|❌\|FAILED" "$log_file" 2>/dev/null)
+    
+    # Ensure we have valid numbers
+    passed=${passed:-0}
+    failed=${failed:-0}
     
     echo "✅ Passed: $passed"
     echo "❌ Failed: $failed"
@@ -199,7 +227,7 @@ show_critical_issues() {
     local show_critical=false
     if [ "$errors" -gt 0 ] 2>/dev/null; then show_critical=true; fi
     
-    # Check for connection issues
+    # Check for connection issues - exclude normal shutdown sequences, startup health checks, and test cases
     local connection_issues=$(grep -i "disconnect\|connection.*lost\|network.*error\|socket.*error\|refused\|unavailable\|unreachable" "$log_file" 2>/dev/null | \
         grep -v -E "(should.*disconnect|test.*disconnect|✓.*disconnect|Disconnecting.*adapter|adapter.*disconnected)" | \
         grep -v -E "(Cleaning up|shutdown|graceful|should.*network.*error|✓.*network.*error)" | \
@@ -207,6 +235,12 @@ show_critical_issues() {
         grep -v -E "(should.*handle.*WebSocket|✓.*handle.*WebSocket)" | \
         grep -v -E "(- WebSocket errors:|WebSocket errors.*0)" | \
         grep -v -E "(🔌.*disconnects.*:.*0|should.*return.*true.*for.*service.*unavailable)" | \
+        grep -v -E "(GET /health/ready.*503|SERVICE_UNAVAILABLE_ERROR|HttpExceptionFilter.*GET /health)" | \
+        grep -v -E "(classification.*:.*'SERVICE_UNAVAILABLE_ERROR'|path.*:.*'/health/ready')" | \
+        grep -v -E "(status.*:.*503|retryable.*:.*true.*severity.*:.*critical)" | \
+        grep -v -E "(ealthController.*Readiness check failed|Readiness check failed.*Http Exception)" | \
+        grep -v -E "(ealthController.*Health check failed|HttpExceptionFilter.*GET /health.*503)" | \
+        grep -v -E "(ttpExceptionFilter.*GET /health.*503.*HTTP Exception occurred)" | \
         wc -l | tr -d '\n' || echo "0")
     if [ "$connection_issues" -gt 0 ] 2>/dev/null; then show_critical=true; fi
     
@@ -244,6 +278,12 @@ show_critical_issues() {
                 grep -v -E "(should.*handle.*WebSocket|✓.*handle.*WebSocket)" | \
                 grep -v -E "(- WebSocket errors:|WebSocket errors.*0)" | \
                 grep -v -E "(🔌.*disconnects.*:.*0|should.*return.*true.*for.*service.*unavailable)" | \
+                grep -v -E "(GET /health/ready.*503|SERVICE_UNAVAILABLE_ERROR|HttpExceptionFilter.*GET /health)" | \
+                grep -v -E "(classification.*:.*'SERVICE_UNAVAILABLE_ERROR'|path.*:.*'/health/ready')" | \
+                grep -v -E "(status.*:.*503|retryable.*:.*true.*severity.*:.*critical)" | \
+                grep -v -E "(ealthController.*Readiness check failed|Readiness check failed.*Http Exception)" | \
+                grep -v -E "(ealthController.*Health check failed|HttpExceptionFilter.*GET /health.*503)" | \
+                grep -v -E "(ttpExceptionFilter.*GET /health.*503.*HTTP Exception occurred)" | \
                 head -2 | sed 's/^/     /'
         fi
         

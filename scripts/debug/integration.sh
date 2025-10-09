@@ -16,13 +16,12 @@ echo "============================================"
 # Ensure logs directory exists
 
 # Configuration
-TIMEOUT=90
 
 # Set up logging using common utility
 setup_debug_logging "integration-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 
-echo "📝 Starting integration system analysis..."
+
 
 # Start the application in background with clean output capture
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
@@ -33,34 +32,56 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring integration systems for $TIMEOUT seconds..."
 
 # Monitor for the specified timeout and trigger some service interactions
 echo "🔄 Triggering service interactions during monitoring..."
 
-# Wait for application to fully start (server takes ~30 seconds to be ready)
-sleep 35
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    # Service is ready, proceed with integration testing
+    :
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Make some health check calls to trigger service interactions
 for i in {1..3}; do
     echo "📡 Making health check call $i/3..."
     curl -s -X GET "http://localhost:3101/health" > /dev/null 2>&1 || true
-    sleep 5
+    # Check service health between calls
+    if ! wait_for_service_health "http://localhost:3101" 1 5000 5000; then
+        echo "⚠️  Service health degraded after health check call"
+    fi
     
     echo "📊 Making detailed health check call $i/3..."
     curl -s -X GET "http://localhost:3101/health/detailed" > /dev/null 2>&1 || true
-    sleep 5
+    # Check service health between calls
+    if ! wait_for_service_health "http://localhost:3101" 1 5000 5000; then
+        echo "⚠️  Service health degraded after detailed health check call"
+    fi
     
     echo "🏥 Making readiness check call $i/3..."
     curl -s -X GET "http://localhost:3101/health/ready" > /dev/null 2>&1 || true
-    sleep 5
+    # Check service health between calls
+    if ! wait_for_service_health "http://localhost:3101" 1 5000 5000; then
+        echo "⚠️  Service health degraded after readiness check call"
+    fi
 done
 
 # Continue monitoring for remaining time
 remaining_time=$((TIMEOUT - 60))  # 60 seconds used for health checks
 if [ $remaining_time -gt 0 ]; then
-    echo "⏱️  Continuing monitoring for remaining $remaining_time seconds..."
-    sleep $remaining_time
+    echo "⏱️  Continuing integration analysis..."
+    # Monitor service health during remaining time
+    monitor_count=0
+    while [ $monitor_count -lt $remaining_time ]; do
+        # Just sleep, no need for health checks during monitoring
+        sleep 1
+        monitor_count=$((monitor_count + 1))
+    done
 fi
 
 # Check if process is still running
@@ -258,18 +279,26 @@ if [ -f "$LOG_FILE" ]; then
     INIT_FAILURES=$(grep -c "initialization.*failed\|Initialization.*failed" "$LOG_FILE")
     echo "❌ Initialization failures: $INIT_FAILURES"
     
-    # Connection failures
-    CONNECTION_FAILURES=$(grep -c "connection.*failed\|Connection.*failed" "$LOG_FILE")
+    # Connection failures (exclude expected WebSocket fallbacks)
+    CONNECTION_FAILURES=$(grep -c "connection.*failed\|Connection.*failed" "$LOG_FILE" | grep -v "fallbackReason.*WebSocket.*connection.*failed" || echo "0")
+    WEBSOCKET_FALLBACKS=$(grep -c "fallbackReason.*WebSocket.*connection.*failed" "$LOG_FILE")
     echo "❌ Connection failures: $CONNECTION_FAILURES"
+    if [ $WEBSOCKET_FALLBACKS -gt 0 ]; then
+        echo "ℹ️  WebSocket fallbacks (expected): $WEBSOCKET_FALLBACKS"
+    fi
     
     # Wiring failures
     WIRING_FAILURES=$(grep -c "wiring.*failed\|Wiring.*failed" "$LOG_FILE")
     echo "❌ Wiring failures: $WIRING_FAILURES"
     
-    if [ $((INTEGRATION_ERRORS + INIT_FAILURES + CONNECTION_FAILURES + WIRING_FAILURES)) -gt 0 ]; then
+    # Show actual connection failures (excluding expected WebSocket fallbacks)
+    ACTUAL_ISSUES=$((INTEGRATION_ERRORS + INIT_FAILURES + ACTUAL_CONNECTION_FAILURES + WIRING_FAILURES))
+    if [ $ACTUAL_ISSUES -gt 0 ]; then
         echo ""
         echo "Recent integration issues:"
-        grep -E "(integration.*error|initialization.*failed|connection.*failed|wiring.*failed)" "$LOG_FILE" | tail -5
+        grep -E "(integration.*error|initialization.*failed|wiring.*failed)" "$LOG_FILE" | tail -5
+        # Show actual connection failures (not WebSocket fallbacks)
+        grep -E "connection.*failed|Connection.*failed" "$LOG_FILE" | grep -v "fallbackReason.*WebSocket.*connection.*failed" | tail -3
     fi
     
     echo ""
@@ -359,7 +388,9 @@ if [ -f "$LOG_FILE" ]; then
         integration_score=$((integration_score - 20))
     fi
     
-    if [ $CONNECTION_FAILURES -gt 0 ]; then
+    # Only penalize actual connection failures, not expected WebSocket fallbacks
+    ACTUAL_CONNECTION_FAILURES=$(grep -E "connection.*failed|Connection.*failed" "$LOG_FILE" | grep -v "fallbackReason.*WebSocket.*connection.*failed" | wc -l)
+    if [ $ACTUAL_CONNECTION_FAILURES -gt 0 ]; then
         integration_score=$((integration_score - 15))
     fi
     

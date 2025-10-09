@@ -1,155 +1,70 @@
 #!/bin/bash
 
 # Port Manager Utility
-# Handles port conflicts and provides port management functionality
+# Provides dynamic port allocation for test scripts
 
-# Function to check if a port is in use
-is_port_in_use() {
-    local port=$1
-    lsof -ti:$port >/dev/null 2>&1
+# Get an available port
+get_available_port() {
+    local port
+    port=$(node -e "
+        const net = require('net');
+        const server = net.createServer();
+        server.listen(0, () => {
+            const port = server.address().port;
+            server.close(() => console.log(port));
+        });
+    " 2>/dev/null)
+    
+    if [ -z "$port" ] || [ "$port" = "null" ]; then
+        # Fallback to random port in safe range
+        port=$((3200 + RANDOM % 800))
+    fi
+    
+    echo "$port"
 }
 
-# Function to kill process using a port
-kill_port_process() {
-    local port=$1
-    local force=${2:-false}
+# Set up dynamic port for current test session
+setup_test_port() {
+    local port
+    port=$(get_available_port)
     
-    if is_port_in_use $port; then
-        local pid=$(lsof -ti:$port)
-        echo "🔍 Found process $pid using port $port"
-        
-        if [ "$force" = "true" ]; then
-            echo "💀 Force killing process $pid on port $port"
-            kill -9 $pid 2>/dev/null
-        else
-            echo "🛑 Gracefully stopping process $pid on port $port"
-            kill -TERM $pid 2>/dev/null
-            
-            # Wait up to 5 seconds for graceful shutdown
-            for i in {1..5}; do
-                if ! is_port_in_use $port; then
-                    echo "✅ Process stopped gracefully"
-                    return 0
-                fi
-                sleep 1
-            done
-            
-            # Force kill if still running
-            if is_port_in_use $port; then
-                echo "⚠️  Graceful shutdown failed, force killing..."
-                kill -9 $pid 2>/dev/null
-            fi
-        fi
-        
-        # Verify port is free
+    # Export for current session
+    export TEST_PORT="$port"
+    export APP_PORT="$port"
+    export VALUE_PROVIDER_CLIENT_PORT="$port"
+    
+    echo "$port"
+}
+
+# Check if port is available
+is_port_available() {
+    local port="$1"
+    ! lsof -ti:"$port" > /dev/null 2>&1
+}
+
+# Kill processes on specific port
+kill_port_processes() {
+    local port="$1"
+    local pids
+    pids=$(lsof -ti:"$port" 2>/dev/null)
+    
+    if [ -n "$pids" ]; then
+        echo "🛑 Killing processes on port $port: $pids"
+        echo "$pids" | xargs kill -9 2>/dev/null || true
         sleep 1
-        if is_port_in_use $port; then
-            echo "❌ Failed to free port $port"
-            return 1
-        else
-            echo "✅ Port $port is now free"
-            return 0
-        fi
-    else
-        echo "✅ Port $port is already free"
-        return 0
     fi
 }
 
-# Function to find next available port
-find_available_port() {
-    local start_port=$1
-    local max_attempts=${2:-10}
+# Wait for port to be available
+wait_for_port_available() {
+    local port="$1"
+    local timeout="${2:-30}"
+    local count=0
     
-    for ((i=0; i<max_attempts; i++)); do
-        local port=$((start_port + i))
-        if ! is_port_in_use $port; then
-            echo $port
-            return 0
-        fi
+    while ! is_port_available "$port" && [ $count -lt $timeout ]; do
+        sleep 1
+        count=$((count + 1))
     done
     
-    return 1
+    is_port_available "$port"
 }
-
-# Function to cleanup all FTSO-related processes
-cleanup_ftso_processes() {
-    echo "🧹 Cleaning up FTSO-related processes..."
-    
-    # Kill processes by name pattern
-    pkill -f "ftso-feed-value-provider" 2>/dev/null || true
-    pkill -f "nest start" 2>/dev/null || true
-    
-    # Kill processes on common FTSO ports
-    for port in 3101 3102 3103 9090; do
-        if is_port_in_use $port; then
-            echo "🔍 Checking port $port..."
-            kill_port_process $port true
-        fi
-    done
-    
-    echo "✅ Cleanup completed"
-}
-
-# Main function
-main() {
-    local command=${1:-"help"}
-    local port=${2:-3101}
-    
-    case $command in
-        "check")
-            if is_port_in_use $port; then
-                echo "❌ Port $port is in use"
-                lsof -i:$port
-                exit 1
-            else
-                echo "✅ Port $port is available"
-                exit 0
-            fi
-            ;;
-        "kill")
-            kill_port_process $port false
-            ;;
-        "force-kill")
-            kill_port_process $port true
-            ;;
-        "find")
-            available_port=$(find_available_port $port)
-            if [ $? -eq 0 ]; then
-                echo "✅ Available port: $available_port"
-                exit 0
-            else
-                echo "❌ No available ports found starting from $port"
-                exit 1
-            fi
-            ;;
-        "cleanup")
-            cleanup_ftso_processes
-            ;;
-        "help"|*)
-            echo "Port Manager Utility"
-            echo "===================="
-            echo ""
-            echo "Usage: $0 <command> [port]"
-            echo ""
-            echo "Commands:"
-            echo "  check [port]      - Check if port is available (default: 3101)"
-            echo "  kill [port]       - Gracefully kill process using port"
-            echo "  force-kill [port] - Force kill process using port"
-            echo "  find [port]       - Find next available port starting from given port"
-            echo "  cleanup           - Cleanup all FTSO-related processes"
-            echo "  help              - Show this help message"
-            echo ""
-            echo "Examples:"
-            echo "  $0 check 3101"
-            echo "  $0 kill 3101"
-            echo "  $0 find 3101"
-            echo "  $0 cleanup"
-            ;;
-    esac
-}
-
-# Run main function if script is executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi

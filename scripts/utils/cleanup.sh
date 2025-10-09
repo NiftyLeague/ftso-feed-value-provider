@@ -7,6 +7,12 @@
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 source "$SCRIPT_DIR/port-manager.sh"
 
+# Function to check if port is in use
+is_port_in_use() {
+    local port="$1"
+    lsof -ti:"$port" > /dev/null 2>&1
+}
+
 # Global variables to track processes and resources
 declare -a TRACKED_PIDS=()
 declare -a TRACKED_PORTS=()
@@ -79,7 +85,7 @@ cleanup_tracked_ports() {
     
     for port in "${TRACKED_PORTS[@]}"; do
         if is_port_in_use "$port"; then
-            kill_port_process "$port" true  # Force kill for cleanup
+            kill_port_processes "$port" true  # Force kill for cleanup
         fi
     done
     
@@ -136,7 +142,7 @@ cleanup_ftso_ports() {
     
     for port in "${ports[@]}"; do
         if is_port_in_use "$port"; then
-            kill_port_process "$port" true
+            kill_port_processes "$port" true
         fi
     done
 }
@@ -239,7 +245,7 @@ start_app_with_cleanup() {
 # Function to wait for application to be ready with cleanup on failure
 wait_for_app_ready() {
     local port="${1:-3101}"
-    local timeout="${2:-120}"
+    local timeout="${2:-60}"  # Reduced from 120s based on startup timing tests
     local health_endpoints=("health/live" "health" "health/ready")
     
     echo "⏳ Waiting for application to be ready on port $port..."

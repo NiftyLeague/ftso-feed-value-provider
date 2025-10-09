@@ -16,7 +16,7 @@ DEBUG_DIR="logs/debug"
 mkdir -p "$DEBUG_DIR"
 
 echo "📁 Debug directory: $DEBUG_DIR"
-echo "⏱️  Starting comprehensive analysis..."
+
 echo ""
 
 # Function to run a debug script

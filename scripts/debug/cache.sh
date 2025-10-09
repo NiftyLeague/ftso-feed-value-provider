@@ -15,10 +15,9 @@ echo "💾 FTSO Cache System Debugger"
 echo "============================="
 
 # Configuration
-TIMEOUT=90
 
 # Set up logging using common utility
-echo "📝 Starting cache system analysis..."
+
 setup_debug_logging "cache-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 
@@ -32,45 +31,108 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring cache system for $TIMEOUT seconds..."
 
-# Wait for application to start up and be ready
-echo "⏳ Waiting for application startup..."
-sleep 15
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
 
-# Wait for application to be ready by checking health endpoint
-echo "🔍 Checking application readiness..."
-for attempt in {1..10}; do
-    if curl -X GET http://localhost:3101/health --max-time 3 --silent > /dev/null 2>&1; then
-        echo "✅ Application is ready after $((15 + attempt * 3)) seconds"
-        break
-    else
-        echo "⏳ Application not ready yet, waiting... (attempt $attempt/10)"
-        sleep 3
-    fi
-done
+if wait_for_debug_service_readiness; then
+    # Service is ready, proceed with cache testing
+    :
+else
+    stop_tracked_apps
+    exit 1
+fi
 
-# Make some test requests to generate cache activity
-echo "🧪 Generating cache activity with test requests..."
-for i in {1..5}; do
-    echo "Making test request $i..."
+# Make comprehensive test requests to generate cache activity
+echo "🧪 Generating cache activity with comprehensive test requests..."
+
+# Test 1: Initial requests (cache misses expected)
+echo "📊 Phase 1: Initial requests (cache misses expected)"
+for i in {1..3}; do
+    echo "Making initial request $i..."
     if curl -X POST http://localhost:3101/feed-values \
          -H "Content-Type: application/json" \
          -d '{"feeds":[{"category":1,"name":"BTC/USD"},{"category":1,"name":"ETH/USD"}]}' \
          --max-time 10 --silent > /dev/null 2>&1; then
-        echo "✅ Request $i succeeded"
+        echo "✅ Initial request $i succeeded"
     else
-        echo "❌ Request $i failed"
+        echo "❌ Initial request $i failed"
     fi
-    sleep 2
+    # Brief pause between requests
+    sleep 0.5
 done
+
+# Test 2: Rapid repeated requests (cache hits expected)
+echo "📊 Phase 2: Rapid repeated requests (cache hits expected)"
+for i in {1..5}; do
+    echo "Making rapid request $i..."
+    if curl -X POST http://localhost:3101/feed-values \
+         -H "Content-Type: application/json" \
+         -d '{"feeds":[{"category":1,"name":"BTC/USD"},{"category":1,"name":"ETH/USD"}]}' \
+         --max-time 10 --silent > /dev/null 2>&1; then
+        echo "✅ Rapid request $i succeeded"
+    else
+        echo "❌ Rapid request $i failed"
+    fi
+    # Very short delay to test cache hits - use minimal wait
+    if ! wait_for_service_health "http://localhost:3101" 1 500 500; then
+        echo "⚠️  Service health check failed during rapid requests"
+    fi
+done
+
+# Test 3: Different feeds (new cache entries)
+echo "📊 Phase 3: Different feeds (new cache entries)"
+for i in {1..2}; do
+    echo "Making different feeds request $i..."
+    if curl -X POST http://localhost:3101/feed-values \
+         -H "Content-Type: application/json" \
+         -d '{"feeds":[{"category":1,"name":"ADA/USD"},{"category":1,"name":"DOT/USD"}]}' \
+         --max-time 10 --silent > /dev/null 2>&1; then
+        echo "✅ Different feeds request $i succeeded"
+    else
+        echo "❌ Different feeds request $i failed"
+    fi
+    # Brief pause between different feed requests
+    sleep 0.5
+done
+
+# Test 4: Cache expiration test
+echo "📊 Phase 4: Cache expiration test (wait for TTL)"
+echo "Waiting for cache TTL to expire..."
+# Wait for cache to expire by checking if responses change
+wait_count=0
+max_wait=8
+while [ $wait_count -lt $max_wait ]; do
+    if check_service_json_response "http://localhost:3101/metrics" 1000; then
+        echo "Cache should have expired after ${wait_count} seconds"
+        break
+    fi
+    sleep 1
+    wait_count=$((wait_count + 1))
+done
+
+echo "Making post-expiration request..."
+if curl -X POST http://localhost:3101/feed-values \
+     -H "Content-Type: application/json" \
+     -d '{"feeds":[{"category":1,"name":"BTC/USD"},{"category":1,"name":"ETH/USD"}]}' \
+     --max-time 10 --silent > /dev/null 2>&1; then
+    echo "✅ Post-expiration request succeeded"
+else
+    echo "❌ Post-expiration request failed"
+fi
 
 # Continue monitoring for remaining time
 STARTUP_TIME=45  # 15 initial + up to 30 for readiness check + 10 for requests
 REMAINING_TIME=$((TIMEOUT - STARTUP_TIME))
 if [ $REMAINING_TIME -gt 0 ]; then
-    echo "⏱️  Continuing monitoring for $REMAINING_TIME more seconds..."
-    sleep $REMAINING_TIME
+    echo "⏱️  Continuing cache analysis..."
+    # Monitor service health during remaining time
+    monitor_count=0
+    while [ $monitor_count -lt $REMAINING_TIME ]; do
+        # Just sleep, no need for health checks during monitoring
+        sleep 1
+        monitor_count=$((monitor_count + 1))
+    done
 fi
 
 # Check if process is still running
@@ -104,16 +166,18 @@ if [ -f "$LOG_FILE" ]; then
     echo "📊 Cache Performance Metrics:"
     echo "-----------------------------"
     
-    # Cache hit rates - look for debug messages and cache activity
-    CACHE_HITS=$(grep -c "Cache hit for\|cache hit\|Cache.*hit" "$LOG_FILE")
-    CACHE_MISSES=$(grep -c "cache miss\|Cache.*miss\|fresh aggregated price\|Aggregated price for" "$LOG_FILE")
-    CACHE_REQUESTS=$(grep -c "feed-values\|POST.*feed" "$LOG_FILE")
+    # Cache hit rates - look for actual cache operations and API activity
+    CACHE_HITS=$(grep -c "Cache hit for\|cache hit\|Cache.*hit\|source.*cache" "$LOG_FILE")
+    CACHE_MISSES=$(grep -c "cache miss\|Cache.*miss\|fresh aggregated price\|Aggregated price for\|source.*aggregated\|source.*fallback" "$LOG_FILE")
+    API_REQUESTS=$(grep -c "POST.*feed-values\|feed-values.*POST\|getCurrentFeedValues\|Processing.*feeds" "$LOG_FILE")
+    FEED_PROCESSING=$(grep -c "Processed.*feeds\|feed.*succeeded\|feed.*failed" "$LOG_FILE")
     TOTAL_CACHE_REQUESTS=$((CACHE_HITS + CACHE_MISSES))
     
     echo "🎯 Cache hits: $CACHE_HITS"
     echo "❌ Cache misses: $CACHE_MISSES"
     echo "📊 Total cache operations: $TOTAL_CACHE_REQUESTS"
-    echo "🌐 API requests processed: $CACHE_REQUESTS"
+    echo "🌐 API requests processed: $API_REQUESTS"
+    echo "🔄 Feed processing events: $FEED_PROCESSING"
     
     # Initialize HIT_RATE to avoid unary operator errors
     HIT_RATE=0

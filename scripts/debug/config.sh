@@ -15,14 +15,13 @@ echo "⚙️  FTSO Configuration & Environment Debugger"
 echo "============================================="
 
 # Configuration
-TIMEOUT=60
 
 # Set up logging using common utility
 setup_debug_logging "config-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 CONFIG_REPORT="$DEBUG_LOG_DIR/config-report.log"
 
-echo "📝 Starting configuration analysis..."
+
 
 # Initialize config report
 echo "FTSO Configuration Analysis Report - $(date)" > "$CONFIG_REPORT"
@@ -38,10 +37,17 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring configuration for $TIMEOUT seconds..."
 
-# Monitor for the specified timeout
-sleep $TIMEOUT
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    # Service is ready, proceed with configuration analysis
+    :
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Check if process is still running
 if kill -0 $APP_PID 2>/dev/null; then

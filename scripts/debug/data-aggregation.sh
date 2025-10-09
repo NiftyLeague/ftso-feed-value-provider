@@ -16,13 +16,12 @@ echo "============================================="
 
 
 # Configuration
-TIMEOUT=90
 
 # Set up logging using common utility
 setup_debug_logging "data-aggregation"
 LOG_FILE="$DEBUG_LOG_FILE"
 
-echo "📝 Starting aggregation system analysis..."
+
 
 # Start the application in background with clean output capture
 pnpm start:dev 2>&1 | strip_ansi > "$LOG_FILE" &
@@ -33,10 +32,39 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring aggregation systems for $TIMEOUT seconds..."
 
-# Monitor for the specified timeout
-sleep $TIMEOUT
+# Monitor for the specified timeout using health checks
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    
+    # Test actual data aggregation endpoints
+    echo "🧪 Testing feed values endpoint..."
+    if curl -s "http://localhost:3101/feed-values?feeds=BTC/USD,ETH/USD" | jq . >/dev/null 2>&1; then
+        echo "  ✅ Feed values endpoint working"
+    else
+        echo "  ❌ Feed values endpoint failed"
+    fi
+    
+    echo "🧪 Testing metrics endpoint..."
+    if curl -s "http://localhost:3101/metrics" | jq . >/dev/null 2>&1; then
+        echo "  ✅ Metrics endpoint working"
+    else
+        echo "  ❌ Metrics endpoint failed"
+    fi
+    
+    echo "🧪 Testing volume data endpoint..."
+    if curl -s "http://localhost:3101/feed-volumes?feeds=BTC/USD&window=3600" | jq . >/dev/null 2>&1; then
+        echo "  ✅ Volume data endpoint working"
+    else
+        echo "  ❌ Volume data endpoint failed"
+    fi
+    
+    echo "✅ Data aggregation functionality tests completed"
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Check if process is still running
 if kill -0 $APP_PID 2>/dev/null; then
@@ -76,7 +104,7 @@ if [ -f "$LOG_FILE" ]; then
     echo "⚖️  Exchange weight systems initialized: $WEIGHT_INIT"
     
     # Weight updates
-    WEIGHT_UPDATES=$(grep -c "weight.*update\|Weight.*update\|weights.*updated" "$LOG_FILE")
+    WEIGHT_UPDATES=$(grep -c "weight.*update\|Weight.*update\|weights.*updated\|TrustScoreAdjustment\|WeightOptimization\|trust.*score.*optimization\|Updated trust score\|Trust score optimization" "$LOG_FILE")
     echo "🔄 Weight updates: $WEIGHT_UPDATES"
     
     # Show weight configurations
@@ -85,8 +113,8 @@ if [ -f "$LOG_FILE" ]; then
     grep -E "(weight.*exchange|Exchange.*weight|tierWeights)" "$LOG_FILE" | head -5
     
     # Tier-based weighting
-    TIER1_WEIGHTS=$(grep -c "tier.*1.*weight\|Tier.*1.*weight" "$LOG_FILE")
-    TIER2_WEIGHTS=$(grep -c "tier.*2.*weight\|Tier.*2.*weight" "$LOG_FILE")
+    TIER1_WEIGHTS=$(grep -c "tier.*1.*weight\|Tier.*1.*weight\|tier.*1\|\"tier\":.*1" "$LOG_FILE")
+    TIER2_WEIGHTS=$(grep -c "tier.*2.*weight\|Tier.*2.*weight\|tier.*2\|\"tier\":.*2" "$LOG_FILE")
     
     echo ""
     echo "📊 Tier-based weighting:"
