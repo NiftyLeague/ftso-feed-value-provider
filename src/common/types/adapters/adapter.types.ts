@@ -2,7 +2,7 @@
  * Adapter type definitions
  */
 
-import { PriceUpdate } from "../core/data-source.types";
+// PriceUpdate import removed - no longer needed after removing AdapterWithRestFallback
 import { FeedCategory } from "../core/feed.types";
 import { IExchangeAdapter, ExchangeCapabilities } from "./exchange.types";
 
@@ -91,13 +91,12 @@ export interface AdapterWithReconnection {
   attemptReconnection(): Promise<boolean>;
 }
 
-export interface AdapterWithRestFallback {
-  fetchPriceViaREST(symbol: string): Promise<PriceUpdate | null>;
-}
+// REST fallback is now handled by DataSourceFactory's AdapterDataSource
+// Adapters only need to implement fetchTickerREST
 
 export interface AdapterWithHealthCheck {
   performHealthCheck(): Promise<boolean>;
   getHealthMetrics(): AdapterHealthMetrics;
 }
 
-export type AdapterCapabilities = AdapterWithReconnection | AdapterWithRestFallback | AdapterWithHealthCheck;
+export type AdapterCapabilities = AdapterWithReconnection | AdapterWithHealthCheck;

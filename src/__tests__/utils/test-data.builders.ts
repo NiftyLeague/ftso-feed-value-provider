@@ -104,7 +104,7 @@ export class TestDataBuilder {
    */
   static createWebSocketMessage(type: string, data: unknown) {
     return {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 11),
       method: type,
       params: data,
       timestamp: Date.now(),

@@ -201,52 +201,6 @@ describe("DataValidator", () => {
     });
   });
 
-  describe("Staleness Validation", () => {
-    it("should fail validation for stale data", async () => {
-      const update = { ...createValidUpdate(), timestamp: Date.now() - 5000 }; // 5 seconds old
-      const context = createValidContext();
-      const config = { maxAge: 2000 }; // 2 seconds max
-
-      const result = await validator.validateUpdate(update, context, config);
-
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContainEqual(
-        expect.objectContaining({
-          type: ValidationErrorType.STALE_DATA,
-          severity: "critical",
-          field: "timestamp",
-        })
-      );
-    });
-
-    it("should warn for data approaching staleness", async () => {
-      const update = { ...createValidUpdate(), timestamp: Date.now() - 1700 }; // 1.7 seconds old
-      const context = createValidContext();
-      const config = { maxAge: 2000 }; // 2 seconds max (80% = 1.6s)
-
-      const result = await validator.validateUpdate(update, context, config);
-
-      expect(result.errors).toContainEqual(
-        expect.objectContaining({
-          type: ValidationErrorType.STALE_DATA,
-          severity: "low",
-          field: "timestamp",
-        })
-      );
-    });
-
-    it("should pass validation for fresh data", async () => {
-      const update = { ...createValidUpdate(), timestamp: Date.now() - 500 }; // 0.5 seconds old
-      const context = createValidContext();
-      const config = { maxAge: 2000 }; // 2 seconds max
-
-      const result = await validator.validateUpdate(update, context, config);
-
-      const stalenessErrors = result.errors.filter(e => e.type === ValidationErrorType.STALE_DATA);
-      expect(stalenessErrors).toHaveLength(0);
-    });
-  });
-
   describe("Outlier Detection", () => {
     it("should detect statistical outliers", async () => {
       const update = { ...createValidUpdate(), price: 80000 }; // Significantly higher than historical

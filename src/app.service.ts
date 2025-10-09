@@ -63,9 +63,21 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
       };
     } catch (error) {
       const responseTime = this.endTimer("getValue");
-      this.logError(error instanceof Error ? error : new Error(String(error)), `getValue-${feed.name}`, {
-        responseTime: responseTime.toFixed(2),
-      });
+
+      // During startup or when data is unavailable, log as warning/debug instead of error to reduce noise
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      if (
+        errorObj.message.includes("system initializing") ||
+        errorObj.message.includes("not yet available") ||
+        errorObj.message.includes("No price data available")
+      ) {
+        // Log data unavailability as debug to reduce noise during normal operation
+        this.logDebug(`[getValue-${feed.name}] ${errorObj.message} (${responseTime.toFixed(2)}ms)`);
+      } else {
+        this.logError(errorObj, `getValue-${feed.name}`, {
+          responseTime: responseTime.toFixed(2),
+        });
+      }
       throw error;
     }
   }

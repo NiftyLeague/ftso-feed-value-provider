@@ -1,16 +1,14 @@
-import { join } from "path";
-import { readFileSync } from "fs";
 import { Injectable } from "@nestjs/common";
 
 import { ENV } from "@/config/environment.constants";
 import { ConfigService } from "@/config/config.service";
-import { StandardService } from "@/common/base/composed.service";
+import { EventDrivenService } from "@/common/base";
 import type { StartupValidationResult } from "@/common/types/services";
 
 import { IntegrationService } from "../integration.service";
 
 @Injectable()
-export class StartupValidationService extends StandardService {
+export class StartupValidationService extends EventDrivenService {
   private validationResult: StartupValidationResult | null = null;
 
   constructor(private readonly integrationService: IntegrationService) {
@@ -74,7 +72,7 @@ export class StartupValidationService extends StandardService {
       this.validateEnvironmentVariables(result);
 
       // Validate system resources
-      this.validateSystemResources(result);
+      await this.validateSystemResources(result);
 
       // Final validation
       result.success = result.errors.length === 0;
@@ -92,15 +90,15 @@ export class StartupValidationService extends StandardService {
 
   private async validateConfiguration(result: StartupValidationResult): Promise<void> {
     try {
-      // Test that feeds.json can be loaded
-      const feedsFilePath = join(process.cwd(), "src", "config", "feeds.json");
-      const feedsData = readFileSync(feedsFilePath, "utf8");
-      const feedsJson = JSON.parse(feedsData);
+      // Use ConfigService to validate feeds.json can be loaded consistently
+      const configService = new ConfigService();
 
-      if (!feedsJson || !Array.isArray(feedsJson) || feedsJson.length === 0) {
+      const feedsCount = configService.getFeedsCount();
+
+      if (feedsCount === 0) {
         result.warnings.push("No feed configurations found - system may not provide data");
       } else {
-        this.logger.debug(`Found ${feedsJson.length} feed configurations`);
+        this.logger.debug(`Found ${feedsCount} feed configurations`);
       }
 
       result.validatedServices.push("FeedConfiguration");
@@ -186,19 +184,21 @@ export class StartupValidationService extends StandardService {
             resolve();
           });
 
-          // Poll every 500ms to check initialization status
-          const pollInterval = setInterval(() => {
-            if (this.integrationService.isServiceInitialized()) {
-              clearTimeout(timeout);
-              clearInterval(pollInterval);
-              resolve();
-            }
-          }, 500);
-
-          // Clear interval on timeout
-          setTimeout(() => {
-            clearInterval(pollInterval);
-          }, timeoutMs);
+          // ✅ Use waitForCondition instead of polling
+          this.waitForCondition(() => this.integrationService.isServiceInitialized(), {
+            maxAttempts: Math.ceil(timeoutMs / 500),
+            checkInterval: 500,
+            timeout: timeoutMs,
+          })
+            .then(success => {
+              if (success) {
+                clearTimeout(timeout);
+                resolve();
+              }
+            })
+            .catch(() => {
+              // Condition checking failed, but timeout will handle it
+            });
         });
 
         // Add warning if timed out, but don't fail startup
@@ -250,11 +250,11 @@ export class StartupValidationService extends StandardService {
     result.validatedServices.push("Environment Variables");
   }
 
-  private validateSystemResources(result: StartupValidationResult): void {
+  private async validateSystemResources(result: StartupValidationResult): Promise<void> {
     try {
       // Check memory usage against heap size limit, not current heap total
       const memUsage = process.memoryUsage();
-      const v8 = require("v8");
+      const v8 = await import("v8");
       const heapStats = v8.getHeapStatistics();
 
       // Calculate percentage against heap size limit for more accurate assessment
@@ -277,7 +277,7 @@ export class StartupValidationService extends StandardService {
       }
 
       // Check available memory
-      const os = require("os");
+      const os = await import("os");
       const freeMemory = os.freemem();
       const totalMemory = os.totalmem();
       const freeMemoryPercent = (freeMemory / totalMemory) * 100;

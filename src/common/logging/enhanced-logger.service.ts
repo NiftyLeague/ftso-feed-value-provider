@@ -252,7 +252,7 @@ export class EnhancedLoggerService implements ILogger {
       },
     };
 
-    this.log(`Data flow: ${count} ${dataType} records from ${source} to ${destination}`, context);
+    this.debug(`Data flow: ${count} ${dataType} records from ${source} to ${destination}`, context);
   }
 
   /**
@@ -302,7 +302,7 @@ export class EnhancedLoggerService implements ILogger {
       },
     };
 
-    this.log(
+    this.debug(
       `Price aggregated: ${symbol} = ${finalPrice} (${sourceCount} sources, confidence: ${confidence})`,
       context
     );

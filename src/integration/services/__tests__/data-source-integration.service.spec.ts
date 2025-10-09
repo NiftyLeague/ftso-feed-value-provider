@@ -23,6 +23,7 @@ describe("DataSourceIntegrationService", () => {
 
   beforeEach(async () => {
     const mockDataManager = {
+      initialize: jest.fn().mockResolvedValue(undefined),
       subscribeToFeed: jest.fn(),
       getConnectionHealth: jest.fn(),
       getConnectedSources: jest.fn(),
@@ -118,6 +119,7 @@ describe("DataSourceIntegrationService", () => {
             subscribeToFeed: jest.fn(),
             reconnectExchange: jest.fn(),
             cleanup: jest.fn(),
+            on: jest.fn(),
           },
         },
       ],
@@ -289,6 +291,7 @@ describe("DataSourceIntegrationService", () => {
         subscribeToFeed: jest.fn(),
         reconnectExchange: jest.fn(),
         cleanup: jest.fn(),
+        on: jest.fn(),
       } as any;
 
       const uninitializedService = new DataSourceIntegrationService(

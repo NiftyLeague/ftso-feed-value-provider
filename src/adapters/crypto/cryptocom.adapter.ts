@@ -69,6 +69,21 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     return feedSymbol.replace("/", "_");
   }
 
+  // override getSymbolMapping(feedSymbol: string): string {
+  //   // For Crypto.com, replace "/" with "_"
+  //   // Prioritize USDT pairs over USD pairs for better reliability
+  //   let mappedSymbol = feedSymbol.replace("/", "_");
+
+  //   // If it's a USD pair, try USDT first as it's more reliable on Crypto.com
+  //   if (feedSymbol.endsWith("/USD")) {
+  //     const usdtVersion = feedSymbol.replace("/USD", "/USDT").replace("/", "_");
+  //     // Return USDT version for better reliability
+  //     mappedSymbol = usdtVersion;
+  //   }
+
+  //   return mappedSymbol;
+  // }
+
   protected async doConnect(): Promise<void> {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://stream.crypto.com/v2/market";
@@ -84,7 +99,7 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   protected override handleWebSocketClose(): boolean {
     // Only log if not shutting down to reduce noise
     if (!this.isShuttingDown) {
-      this.logger.warn(`Crypto.com WebSocket connection closed`);
+      this.logger.debug(`Crypto.com WebSocket connection closed - will reconnect`);
       return true; // We handled the logging
     }
     return super.handleWebSocketClose();
@@ -93,24 +108,46 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
     try {
-      const message = typeof data === "string" ? JSON.parse(data) : data;
+      const message = this.parseWebSocketData(data);
+      if (!message) return;
+
+      this.logger.debug(`Crypto.com WebSocket message received: ${JSON.stringify(message)}`);
 
       // Handle heartbeat response
-      if (message?.method === "public/heartbeat") {
+      if (
+        message &&
+        typeof message === "object" &&
+        "method" in message &&
+        (message as any).method === "public/heartbeat"
+      ) {
         this.onPongReceived();
         return;
       }
 
       // Handle subscription confirmation
-      if (message?.method === "subscribe" && message?.result) {
-        this.logger.debug(`Subscribed to ${message.result.channel}`);
+      if (
+        message &&
+        typeof message === "object" &&
+        "method" in message &&
+        (message as any).method === "subscribe" &&
+        "result" in message
+      ) {
+        this.logger.debug(`Subscribed to ${(message as any).result.channel}`);
         return;
       }
 
       // Handle ticker data
-      if (message?.method === "ticker" && message?.result?.data) {
-        const tickerData = message.result.data[0];
+      if (
+        message &&
+        typeof message === "object" &&
+        "method" in message &&
+        (message as any).method === "ticker" &&
+        "result" in message &&
+        (message as any).result?.data
+      ) {
+        const tickerData = (message as any).result.data[0];
         if (this.validateResponse(tickerData)) {
+          this.logger.log(`Processing Crypto.com ticker data for ${tickerData.i}: ${tickerData.a}`);
           const priceUpdate = this.normalizePriceData(tickerData);
           this.onPriceUpdateCallback?.(priceUpdate);
         } else {

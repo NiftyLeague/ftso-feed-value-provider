@@ -12,6 +12,15 @@ export interface LifecycleCapabilities {
   createInterval(callback: () => void, delay: number): NodeJS.Timeout;
   clearTimer(timer: NodeJS.Timeout): void;
   clearInterval(interval: NodeJS.Timeout): void;
+  createEventDrivenScheduler(callback: () => void, batchDelay?: number): () => void;
+  waitForCondition(
+    condition: () => boolean | Promise<boolean>,
+    options?: {
+      maxAttempts?: number;
+      checkInterval?: number;
+      timeout?: number;
+    }
+  ): Promise<boolean>;
   initialize?(): Promise<void>;
   cleanup?(): Promise<void>;
 }
@@ -81,6 +90,71 @@ export function WithLifecycle<TBase extends Constructor | AbstractConstructor>(B
       const interval = setInterval(callback, delay);
       this.managedIntervals.add(interval);
       return interval;
+    }
+
+    /**
+     * Create an event-driven scheduler that batches multiple events
+     * This replaces fixed intervals with event-driven scheduling
+     */
+    createEventDrivenScheduler(callback: () => void, batchDelay = 100): () => void {
+      let scheduled = false;
+
+      return () => {
+        if (scheduled) return;
+
+        scheduled = true;
+        const timer = setTimeout(() => {
+          scheduled = false;
+          if (!this.isDestroyed) {
+            callback();
+          }
+        }, batchDelay);
+
+        this.managedTimers.add(timer);
+      };
+    }
+
+    /**
+     * Wait for a condition to be true instead of using fixed delays
+     */
+    async waitForCondition(
+      condition: () => boolean | Promise<boolean>,
+      options: {
+        maxAttempts?: number;
+        checkInterval?: number;
+        timeout?: number;
+      } = {}
+    ): Promise<boolean> {
+      const { maxAttempts = 60, checkInterval = 1000, timeout } = options;
+      const startTime = Date.now();
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (this.isDestroyed) {
+          return false;
+        }
+
+        // Check timeout
+        if (timeout && Date.now() - startTime > timeout) {
+          return false;
+        }
+
+        try {
+          const result = await condition();
+          if (result) {
+            return true;
+          }
+        } catch {
+          // Continue checking on errors
+        }
+
+        // Wait before next check
+        await new Promise(resolve => {
+          const timer = setTimeout(resolve, checkInterval);
+          this.managedTimers.add(timer);
+        });
+      }
+
+      return false;
     }
 
     clearTimer(timer: NodeJS.Timeout): void {

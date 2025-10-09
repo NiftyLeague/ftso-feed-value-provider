@@ -173,10 +173,16 @@ export class SystemHealthService extends EventDrivenService {
       // Update aggregation error metrics
       this.updateAggregationMetrics(false, error);
 
-      // Send error alert
-      this.sendErrorAlert(error);
+      // Only send alerts and log as error if not a known initialization issue
+      const isInitializationError =
+        error.message.includes("system initializing") || error.message.includes("not yet available");
 
-      this.logger.error("Recorded aggregation error:", error);
+      if (!isInitializationError) {
+        this.sendErrorAlert(error);
+        this.logger.error("Recorded aggregation error:", error);
+      } else {
+        this.logger.warn("Aggregation error during initialization (expected):", error.message);
+      }
     } catch (handlingError) {
       this.logger.error("Error recording aggregation error:", handlingError);
     }
@@ -389,7 +395,7 @@ export class SystemHealthService extends EventDrivenService {
   private sendAlert(alert: HealthAlert): void {
     try {
       // Generate unique alert ID to prevent duplicates
-      const alertId = `health_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const alertId = `health_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
       // Map HealthAlert to generic Alert for delivery service
       const mapped: Alert = {

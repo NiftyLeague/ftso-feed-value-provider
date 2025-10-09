@@ -61,6 +61,8 @@ class MockDataSource implements DataSource {
     this.connectionChangeCallback = callback;
   }
 
+  // REST fallback is now handled by DataSourceFactory, not by individual data sources
+
   // Test helper methods
   simulateConnection(connected: boolean): void {
     this.connected = connected;
@@ -560,7 +562,7 @@ describe("FailoverManager", () => {
       const config = (defaultManager as any).config;
 
       expect(config.maxFailoverTime).toBe(100);
-      expect(config.healthCheckInterval).toBe(10000);
+      expect(config.healthCheckInterval).toBe(30000);
       expect(config.failureThreshold).toBe(3);
       expect(config.recoveryThreshold).toBe(5);
 
@@ -579,7 +581,7 @@ describe("FailoverManager", () => {
       const config = (customManager as any).config;
 
       expect(config.maxFailoverTime).toBe(50);
-      expect(config.healthCheckInterval).toBe(10000); // Should use default
+      expect(config.healthCheckInterval).toBe(30000); // Should use default
 
       customManager.destroy();
     });

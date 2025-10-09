@@ -82,6 +82,16 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
   describe("Cache Integration Across Services", () => {
     beforeEach(async () => {
       await coordinatorService.initialize();
+
+      // Simulate receiving initial data to make the service ready
+      const initialPriceUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "test",
+        confidence: 0.95,
+      };
+      coordinatorService.handlePriceUpdate(initialPriceUpdate);
     });
 
     afterEach(async () => {
@@ -342,6 +352,16 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
   describe("Error Handling in Cache Integration", () => {
     beforeEach(async () => {
       await coordinatorService.initialize();
+
+      // Simulate receiving initial data to make the service ready
+      const initialPriceUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "test",
+        confidence: 0.95,
+      };
+      coordinatorService.handlePriceUpdate(initialPriceUpdate);
     });
 
     afterEach(async () => {
@@ -390,6 +410,16 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
   describe("Performance and Consistency Requirements", () => {
     beforeEach(async () => {
       await coordinatorService.initialize();
+
+      // Simulate receiving initial data to make the service ready
+      const initialPriceUpdate: PriceUpdate = {
+        symbol: "BTC/USD",
+        price: 50000,
+        timestamp: Date.now(),
+        source: "test",
+        confidence: 0.95,
+      };
+      coordinatorService.handlePriceUpdate(initialPriceUpdate);
     });
 
     afterEach(async () => {

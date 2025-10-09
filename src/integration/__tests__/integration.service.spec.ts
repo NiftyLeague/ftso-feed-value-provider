@@ -21,6 +21,7 @@ describe("IntegrationService", () => {
       subscribeToFeed: jest.fn(),
       on: jest.fn(),
       emit: jest.fn(),
+      isInitialized: true,
     };
 
     const mockPriceAggregationCoordinator = {
@@ -31,6 +32,7 @@ describe("IntegrationService", () => {
       configureFeed: jest.fn(),
       on: jest.fn(),
       emit: jest.fn(),
+      isInitialized: true,
     };
 
     const mockSystemHealth = {
@@ -42,6 +44,7 @@ describe("IntegrationService", () => {
       recordAggregationError: jest.fn(),
       on: jest.fn(),
       emit: jest.fn(),
+      isInitialized: true,
     };
 
     const mockConfigService = {
@@ -90,7 +93,7 @@ describe("IntegrationService", () => {
       configService.getFeedConfigurations.mockReturnValue([]);
 
       // Act
-      await service.onModuleInit();
+      await service.performInitialization();
 
       // Assert
       expect(dataSourceIntegration.initialize).toHaveBeenCalled();
@@ -106,7 +109,7 @@ describe("IntegrationService", () => {
       configService.getFeedConfigurations.mockReturnValue([]);
 
       // Act
-      await service.onModuleInit();
+      await service.performInitialization();
 
       // Assert
       expect(dataSourceIntegration.on).toHaveBeenCalledWith("priceUpdate", expect.any(Function));
@@ -130,7 +133,7 @@ describe("IntegrationService", () => {
       priceAggregationCoordinator.configureFeed.mockResolvedValue(undefined);
 
       // Act
-      await service.onModuleInit();
+      await service.performInitialization();
 
       // Assert
       expect(dataSourceIntegration.subscribeToFeed).toHaveBeenCalledWith(mockFeedConfig.feed);
@@ -147,7 +150,7 @@ describe("IntegrationService", () => {
       const emitSpy = jest.spyOn(service, "emit");
 
       // Act
-      await service.onModuleInit();
+      await service.performInitialization();
 
       // Assert
       expect(emitSpy).toHaveBeenCalledWith("initialized");
@@ -158,8 +161,8 @@ describe("IntegrationService", () => {
       const error = new Error("Initialization failed");
       dataSourceIntegration.initialize.mockRejectedValue(error);
 
-      // Act & Assert
-      await expect(service.onModuleInit()).rejects.toThrow("Initialization failed");
+      // Act & Assert - Call performInitialization directly since onModuleInit catches errors
+      await expect(service.performInitialization()).rejects.toThrow("Initialization failed");
     });
   });
 
@@ -198,7 +201,7 @@ describe("IntegrationService", () => {
       priceAggregationCoordinator.initialize.mockResolvedValue(undefined);
       systemHealth.initialize.mockResolvedValue(undefined);
       configService.getFeedConfigurations.mockReturnValue([]);
-      await service.onModuleInit();
+      await service.performInitialization();
 
       priceAggregationCoordinator.getCurrentPrice.mockResolvedValue(mockPrice);
 
@@ -250,7 +253,7 @@ describe("IntegrationService", () => {
       priceAggregationCoordinator.initialize.mockResolvedValue(undefined);
       systemHealth.initialize.mockResolvedValue(undefined);
       configService.getFeedConfigurations.mockReturnValue([]);
-      await service.onModuleInit();
+      await service.performInitialization();
 
       priceAggregationCoordinator.getCurrentPrices.mockResolvedValue(mockPrices);
 
@@ -280,7 +283,7 @@ describe("IntegrationService", () => {
       priceAggregationCoordinator.initialize.mockResolvedValue(undefined);
       systemHealth.initialize.mockResolvedValue(undefined);
       configService.getFeedConfigurations.mockReturnValue([]);
-      await service.onModuleInit();
+      await service.performInitialization();
 
       systemHealth.getOverallHealth.mockReturnValue(mockHealth);
 

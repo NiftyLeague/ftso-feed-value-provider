@@ -1,11 +1,11 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { StandardService } from "@/common/base/composed.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import type { RealTimeCache, CacheEntry, CacheStats, CacheConfig, CacheItem } from "@/common/types/cache";
 import type { CoreFeedId } from "@/common/types/core";
 import { ENV } from "@/config/environment.constants";
 
 @Injectable()
-export class RealTimeCacheService extends StandardService implements RealTimeCache, OnModuleDestroy {
+export class RealTimeCacheService extends EventDrivenService implements RealTimeCache, OnModuleDestroy {
   private readonly cache = new Map<string, CacheItem>();
 
   // Cleanup interval is now managed by lifecycle mixin
@@ -100,6 +100,9 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
 
     this.cache.set(key, cacheItem);
 
+    // Emit cache write event
+    this.emit("cacheWrite", { key, ttl: effectiveTTL });
+
     // Performance tracking
     const setTime = performance.now() - startTime;
     this.recordPerformanceMetric(setTime);
@@ -114,6 +117,7 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
 
     if (!item) {
       this.trackRequest(false);
+      this.emit("cacheMiss", { key });
       const getTime = performance.now() - startTime;
       this.stats.averageGetTime = (this.stats.averageGetTime + getTime) / 2;
       return null;
@@ -125,6 +129,7 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
     if (now > item.expiresAt) {
       this.cache.delete(key);
       this.trackRequest(false);
+      this.emit("cacheMiss", { key, reason: "expired" });
 
       // Trigger batch cleanup if we're finding many expired items
       if (Math.random() < ENV.PERFORMANCE.CLEANUP_TRIGGER_PROBABILITY) {
@@ -146,6 +151,7 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
     }
 
     this.trackRequest(true);
+    this.emit("cacheHit", { key, accessCount: item.accessCount });
 
     const getTime = performance.now() - startTime;
     this.stats.averageGetTime = (this.stats.averageGetTime + getTime) / 2;
@@ -372,6 +378,7 @@ export class RealTimeCacheService extends StandardService implements RealTimeCac
       const { key } = scoredEntries[i];
       this.cache.delete(key);
       this.stats.evictions++;
+      this.emit("cacheEviction", { key, reason: "intelligent_eviction" });
     }
 
     this.logger.debug(`Intelligent eviction removed ${evictionCount} entries`);

@@ -50,20 +50,24 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   }
 
   override getSymbolMapping(feedSymbol: string): string {
-    // For WebSocket, remove the slash
-    return feedSymbol.replace("/", "");
+    // Kraken expects symbols with "/" separator, not concatenated
+    // For example: "ADA/USD" stays as "ADA/USD", not "ADAUSD"
+    return feedSymbol;
   }
 
   protected async doConnect(): Promise<void> {
     const config = this.getConfig();
     const wsUrl = config?.websocketUrl || "wss://ws.kraken.com";
 
-    // Kraken-specific configuration with longer timeouts for stability
+    // Kraken-specific configuration with enhanced stability settings
+    // Kraken has a 60-second inactivity timeout, so we need to be more aggressive with pings
     await this.connectWebSocket(
       this.createWebSocketConfig(wsUrl, {
-        pingInterval: 45000, // Increased ping interval for Kraken stability
-        pongTimeout: 35000, // Increased pong timeout to match Kraken's response times
+        pingInterval: 20000, // More frequent pings (20s) to stay well under Kraken's 60s timeout
+        pongTimeout: 30000, // Shorter pong timeout to detect issues faster
         connectionTimeout: 60000, // Longer connection timeout for initial connection
+        maxReconnectAttempts: 10, // More reconnection attempts
+        reconnectDelay: 5000, // Initial reconnect delay
       })
     );
   }
@@ -78,22 +82,22 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     if (!this.isShuttingDown) {
       // Provide more context about the close reason and reduce log level for expected disconnections
       if (code === 1006) {
-        // 1006 is common for network issues, log as warning but with context
-        this.logger.warn(`Kraken WebSocket closed abnormally (${code}) - connection lost`, {
+        // 1006 is common for network issues, log as debug to reduce noise during normal operations
+        this.logger.debug(`Kraken WebSocket closed abnormally (${code}) - connection lost, will reconnect`, {
           component: "KrakenAdapter",
           operation: "handleWebSocketClose",
           code,
           reason: reason || "connection lost",
-          severity: "medium",
+          severity: "low",
           retryable: true,
         });
       } else if (code === 1001) {
-        this.logger.warn(`Kraken WebSocket closed due to pong timeout (${code})`, {
+        this.logger.debug(`Kraken WebSocket closed due to pong timeout (${code}), will reconnect`, {
           component: "KrakenAdapter",
           operation: "handleWebSocketClose",
           code,
           reason: "pong timeout",
-          severity: "medium",
+          severity: "low",
           retryable: true,
         });
       } else if (code === 1000) {
@@ -114,12 +118,12 @@ export class KrakenAdapter extends BaseExchangeAdapter {
           severity: "low",
         });
       } else {
-        this.logger.warn(`Kraken WebSocket closed with code ${code}: ${reason || "unknown reason"}`, {
+        this.logger.debug(`Kraken WebSocket closed with code ${code}: ${reason || "unknown reason"}`, {
           component: "KrakenAdapter",
           operation: "handleWebSocketClose",
           code,
           reason: reason || "unknown",
-          severity: "medium",
+          severity: "low",
         });
       }
       // Return true to indicate we handled the logging
@@ -169,17 +173,13 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   protected override handleWebSocketMessage(data: unknown): void {
     try {
       // Handle different data types that might come from WebSocket
-      let parsed: unknown;
-
-      if (typeof data === "string") {
-        parsed = JSON.parse(data);
-      } else if (typeof data === "object" && data !== null) {
-        // Data is already parsed (from WebSocket)
-        parsed = data;
-      } else {
+      const parsed = this.parseWebSocketData(data);
+      if (!parsed) {
         this.logger.debug("Received non-parseable WebSocket data:", typeof data);
         return;
       }
+
+      this.logger.debug(`Kraken WebSocket message parsed: ${JSON.stringify(parsed)}`);
 
       // Handle different message types
       if (Array.isArray(parsed)) {
@@ -193,6 +193,7 @@ export class KrakenAdapter extends BaseExchangeAdapter {
           };
 
           if (this.validateResponse(tickerData)) {
+            this.logger.log(`Processing Kraken ticker data for ${tickerData.pair}: ${JSON.stringify(tickerData.data)}`);
             const priceUpdate = this.normalizePriceData(tickerData);
             this.onPriceUpdateCallback?.(priceUpdate);
           }
@@ -207,10 +208,43 @@ export class KrakenAdapter extends BaseExchangeAdapter {
           if (parsedObj.status === "subscribed") {
             this.logger.debug("Kraken subscription confirmed:", parsedObj.pair);
           } else if (parsedObj.status === "error") {
-            this.logger.warn("Kraken subscription error:", parsedObj.errorMessage);
+            // Handle rate limiting errors more gracefully
+            if (parsedObj.errorMessage && parsedObj.errorMessage.includes("msg rate")) {
+              this.logger.debug("Kraken rate limit warning (non-critical):", parsedObj.errorMessage);
+            } else {
+              this.logger.warn("Kraken subscription error:", parsedObj.errorMessage);
+            }
           }
         } else if (parsedObj.event === "pong") {
           this.onPongReceived();
+          this.logger.debug("✅ Received pong from Kraken WebSocket");
+          return;
+        } else if (parsedObj.event === "subscriptionStatus") {
+          // Handle subscription confirmations and errors
+          const subscriptionObj = parsedObj as {
+            status?: string;
+            pair?: string;
+            subscription?: { name?: string };
+            errorMessage?: string;
+          };
+          if (subscriptionObj.status === "subscribed") {
+            this.logger.debug(
+              `✅ Kraken subscription confirmed for ${subscriptionObj.pair || "unknown"}: ${subscriptionObj.subscription?.name || "ticker"}`
+            );
+          } else if (subscriptionObj.status === "error") {
+            // Handle rate limiting errors more gracefully
+            const errorMsg = subscriptionObj.errorMessage || "unknown error";
+            if (errorMsg.includes("msg rate")) {
+              this.logger.debug(`Kraken rate limit warning for ${subscriptionObj.pair || "unknown"}: ${errorMsg}`);
+            } else {
+              this.logger.warn(`❌ Kraken subscription error for ${subscriptionObj.pair || "unknown"}: ${errorMsg}`);
+            }
+          }
+          return;
+        } else if (parsedObj.event === "systemStatus") {
+          // Handle system status messages
+          const statusObj = parsedObj as { status?: string; version?: string };
+          this.logger.debug(`Kraken system status: ${statusObj.status} - ${statusObj.version || "unknown version"}`);
           return;
         }
         // System messages are valid and expected
@@ -302,19 +336,35 @@ export class KrakenAdapter extends BaseExchangeAdapter {
   protected async doSubscribe(symbols: string[]): Promise<void> {
     const krakenSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
-    const subscribeMessage = {
-      event: "subscribe",
-      pair: krakenSymbols,
-      subscription: {
-        name: "ticker",
-      },
-    };
+    // Subscribe to symbols in smaller batches to avoid overwhelming Kraken
+    // Kraken has strict rate limits, so we use smaller batches and longer delays
+    const batchSize = 5; // Reduced from 10 to 5 to be more conservative
+    for (let i = 0; i < krakenSymbols.length; i += batchSize) {
+      const batch = krakenSymbols.slice(i, i + batchSize);
 
-    try {
-      await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
-      this.logger.log(`Subscribed to Kraken symbols: ${krakenSymbols.join(", ")}`);
-    } catch (error) {
-      this.logger.warn(`Kraken subscription error:`, error);
+      const subscribeMessage = {
+        event: "subscribe",
+        pair: batch,
+        subscription: {
+          name: "ticker",
+        },
+      };
+
+      try {
+        await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
+        this.logger.log(`Subscribed to Kraken symbols (batch ${Math.floor(i / batchSize) + 1}): ${batch.join(", ")}`);
+
+        // Wait longer between batches to avoid rate limiting
+        if (i + batchSize < krakenSymbols.length) {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay between batches
+        }
+      } catch (error) {
+        this.logger.warn(`Kraken subscription error for batch ${Math.floor(i / batchSize) + 1}:`, error);
+        // If we get an error, wait even longer before the next batch
+        if (i + batchSize < krakenSymbols.length) {
+          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay after error
+        }
+      }
     }
   }
 
@@ -344,36 +394,45 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     const baseUrl = config?.restApiUrl || "https://api.kraken.com";
     const url = `${baseUrl}/0/public/Ticker?pair=${krakenSymbol}`;
 
-    const response = await this.fetchRestApi(url, `Failed to fetch Kraken ticker for ${symbol}`);
-    const result = await response.json();
+    try {
+      const response = await this.fetchRestApi(url, `Failed to fetch Kraken ticker for ${symbol}`);
+      const result = await response.json();
 
-    this.handleRestApiError(result, "Kraken");
+      // Enhanced Kraken-specific error handling
+      this.handleKrakenApiError(result, symbol, krakenSymbol);
 
-    const data: KrakenRestTickerData = result.result;
-    const pairData = Object.values(data)[0]; // Get first (and should be only) pair data
+      const data: KrakenRestTickerData = result.result;
+      const pairData = Object.values(data)[0]; // Get first (and should be only) pair data
 
-    if (!pairData) {
-      throw new Error(`No data returned for symbol ${symbol}`);
+      if (!pairData) {
+        throw new Error(`No data returned for symbol ${symbol} (mapped to ${krakenSymbol})`);
+      }
+
+      // Calculate spread for confidence
+      const price = this.parseNumber(pairData.c[0]);
+      const bid = this.parseNumber(pairData.b[0]);
+      const ask = this.parseNumber(pairData.a[0]);
+      const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
+
+      return {
+        symbol: this.normalizeSymbolFromExchange(krakenSymbol),
+        price,
+        timestamp: Date.now(), // Kraken REST doesn't provide timestamp
+        source: this.exchangeName,
+        volume: this.parseNumber(pairData.v[1]), // 24h volume
+        confidence: this.calculateConfidence(pairData, {
+          latency: 0, // REST call, no latency penalty
+          volume: this.parseNumber(pairData.v[1]),
+          spread: spreadPercent,
+        }),
+      };
+    } catch (error) {
+      // Log the specific error for debugging but don't throw to avoid breaking the entire system
+      this.logger.debug(
+        `Kraken REST API error for ${symbol} (${krakenSymbol}): ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
     }
-
-    // Calculate spread for confidence
-    const price = this.parseNumber(pairData.c[0]);
-    const bid = this.parseNumber(pairData.b[0]);
-    const ask = this.parseNumber(pairData.a[0]);
-    const spreadPercent = this.calculateSpreadPercent(bid, ask, price);
-
-    return {
-      symbol: this.normalizeSymbolFromExchange(krakenSymbol),
-      price,
-      timestamp: Date.now(), // Kraken REST doesn't provide timestamp
-      source: this.exchangeName,
-      volume: this.parseNumber(pairData.v[1]), // 24h volume
-      confidence: this.calculateConfidence(pairData, {
-        latency: 0, // REST call, no latency penalty
-        volume: this.parseNumber(pairData.v[1]),
-        spread: spreadPercent,
-      }),
-    };
   }
 
   // Override symbol normalization for Kraken format
@@ -394,6 +453,41 @@ export class KrakenAdapter extends BaseExchangeAdapter {
       }
     } else {
       this.logger.warn("⚠️  Cannot send ping to Kraken - WebSocket not connected");
+    }
+  }
+
+  /**
+   * Enhanced Kraken-specific error handling
+   */
+  private handleKrakenApiError(result: unknown, originalSymbol: string, krakenSymbol: string): void {
+    const apiResult = result as {
+      error?: string[];
+      result?: unknown;
+    };
+
+    // Check for Kraken-specific error format
+    if (apiResult?.error && Array.isArray(apiResult.error) && apiResult.error.length > 0) {
+      const errorMessages = apiResult.error.join(", ");
+
+      // Handle specific Kraken error codes
+      if (errorMessages.includes("EQuery:Unknown asset pair")) {
+        throw new Error(
+          `Kraken API error: Unknown asset pair '${krakenSymbol}' for symbol '${originalSymbol}'. This symbol may not be available on Kraken.`
+        );
+      } else if (errorMessages.includes("EService:Unavailable")) {
+        throw new Error(`Kraken API error: Service temporarily unavailable. Will retry later.`);
+      } else if (errorMessages.includes("EAPI:Rate limit exceeded")) {
+        throw new Error(`Kraken API error: Rate limit exceeded. Reducing request frequency.`);
+      } else {
+        throw new Error(`Kraken API error: ${errorMessages}`);
+      }
+    }
+
+    // Check if result is missing (another form of error)
+    if (!apiResult?.result) {
+      throw new Error(
+        `Kraken API error: No result data returned for symbol '${originalSymbol}' (mapped to '${krakenSymbol}')`
+      );
     }
   }
 

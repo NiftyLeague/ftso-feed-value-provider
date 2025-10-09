@@ -35,4 +35,6 @@ export interface DataSource {
   onPriceUpdate(callback: (update: PriceUpdate) => void): void;
   onConnectionChange(callback: (connected: boolean) => void): void;
   onError?(callback: (error: Error) => void): void;
+  // REST fallback method - optional, implemented by AdapterDataSource
+  fetchPriceViaREST?(symbol: string): Promise<PriceUpdate | null>;
 }

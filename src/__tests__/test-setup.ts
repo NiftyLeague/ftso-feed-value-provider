@@ -5,9 +5,24 @@
  */
 
 import type { GlobalTestLogging, ConsoleOverride } from "./utils/test-logging.types";
+import { setupTestPort } from "./utils/port-utils";
 
 // Set NODE_ENV to test
 process.env.NODE_ENV = "test";
+
+// Set up dynamic port allocation to prevent EADDRINUSE errors
+beforeAll(async () => {
+  try {
+    const testPort = await setupTestPort();
+    console.log(`Test environment using port: ${testPort}`);
+  } catch (error) {
+    console.error("Failed to setup test port:", error);
+    // Fall back to default port with random offset
+    const fallbackPort = 3101 + Math.floor(Math.random() * 1000);
+    process.env.APP_PORT = fallbackPort.toString();
+    process.env.VALUE_PROVIDER_CLIENT_PORT = fallbackPort.toString();
+  }
+});
 
 // Global log suppression for cleaner test output
 const originalConsole: ConsoleOverride = {

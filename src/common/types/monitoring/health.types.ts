@@ -51,9 +51,7 @@ export interface HealthStatus {
   startup?: {
     initialized: boolean;
     startTime: number;
-    startupTime?: number;
     readyTime?: number;
-    timeSinceStartup?: number;
   };
 }
 
@@ -78,7 +76,6 @@ export interface DetailedHealthResponse {
   startup?: {
     initialized: boolean;
     startTime: number;
-    startupTime?: number;
     readyTime?: number;
   };
 }
@@ -91,12 +88,11 @@ export interface ReadinessResponse {
   checks: {
     integration: { ready: boolean; status: string; error: string | null };
     provider: { ready: boolean; status: string; error: string | null };
-    startup: { ready: boolean; timeSinceStartup: number };
+    startup: { ready: boolean };
   };
   startup: {
-    startupTime: number;
+    startTime: number;
     readyTime: number | null;
-    timeSinceStartup: number;
   };
 }
 

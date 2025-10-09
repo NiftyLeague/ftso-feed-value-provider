@@ -59,6 +59,23 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
         // Step 2: Initialize WebSocket orchestrator (handles connections centrally)
         await this.wsOrchestrator.initialize();
+
+        // Wire WebSocket orchestrator events
+        this.wsOrchestrator.on(
+          "subscriptionsCompleted",
+          (data: {
+            totalSubscriptions: number;
+            successfulSubscriptions: number;
+            failedSubscriptions: number;
+            timestamp: number;
+          }) => {
+            this.logger.log(
+              `WebSocket subscription phase completed: ${data.successfulSubscriptions}/${data.totalSubscriptions} symbols subscribed`
+            );
+            this.logDebug(`WebSocket subscriptions completed: ${JSON.stringify(data)}`, "subscriptionsCompleted");
+          }
+        );
+
         this.triggerGarbageCollection("after_orchestrator_init");
 
         // Step 3: Initialize error handling
@@ -72,6 +89,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
         // Step 5: Wire data flow connections
         await this.wireDataFlow();
         this.triggerGarbageCollection("after_data_flow_wiring");
+
+        // Initialize the ProductionDataManagerService using standard pattern
+        await this.dataManager.initialize();
 
         this.isInitialized = true;
 
@@ -362,8 +382,14 @@ export class DataSourceIntegrationService extends EventDrivenService {
             );
           }
 
-          // Small delay between registrations to prevent overwhelming the system
-          await new Promise(resolve => setTimeout(resolve, 50));
+          // Wait for previous registration to be stable before next one
+          await this.waitForCondition(
+            () => {
+              // Check if the just-registered adapter is stable
+              return adapter.isConnected();
+            },
+            { maxAttempts: 5, checkInterval: 20, timeout: 1000 }
+          );
         } catch (error) {
           this.logger.error(`Failed to register data source ${adapter.exchangeName}:`, error);
 
@@ -397,7 +423,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
   }
 
   private async wireDataFlow(): Promise<void> {
-    this.logger.log("Wiring data flow connections...");
+    this.logger.debug("Wiring data flow connections...");
 
     try {
       // Connect data manager to emit price updates
@@ -405,7 +431,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
         await this.handlePriceUpdate(update);
       });
 
-      this.logger.log("Data flow connections established");
+      this.logger.debug("Data flow connections established");
     } catch (error) {
       this.logger.error("Failed to wire data flow:", error);
       throw error;
@@ -589,7 +615,15 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
   private handleCircuitBreakerEvent(eventType: string, sourceId: string): void {
     try {
-      this.logger.log(`Circuit breaker event: ${eventType} for ${sourceId}`);
+      // Only log circuit breaker events at debug level to reduce noise
+      // and only for significant state changes
+      if (eventType === "circuitOpened") {
+        this.logger.warn(`Circuit breaker opened for ${sourceId}`);
+      } else if (eventType === "circuitClosed") {
+        this.logger.log(`Circuit breaker closed for ${sourceId}`);
+      }
+      // Don't log circuitHalfOpen events as they are too verbose
+
       this.emit("circuitBreakerEvent", eventType, sourceId);
     } catch (error) {
       this.logger.error(`Error handling circuit breaker event ${eventType} for ${sourceId}:`, error);

@@ -19,6 +19,7 @@ import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 let app: INestApplication | null = null;
 let logger: FilteredLogger | null = null;
 let enhancedLogger: EnhancedLoggerService | null = null;
+let memoryMonitoringInterval: NodeJS.Timeout | null = null;
 
 async function bootstrap() {
   const operationId = `bootstrap_${Date.now()}`;
@@ -43,7 +44,7 @@ async function bootstrap() {
     enhancedLogger.startPerformanceTimer(operationId, "application_bootstrap", "Bootstrap");
 
     // Log heap size configuration for verification
-    const v8 = require("v8");
+    const v8 = await import("v8");
     const heapStats = v8.getHeapStatistics();
     const heapSizeMB = Math.round(heapStats.heap_size_limit / 1024 / 1024);
 
@@ -142,7 +143,7 @@ async function bootstrap() {
             },
           },
           timestamp: Date.now(),
-          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          requestId: `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           retryable: false,
         });
         return;
@@ -172,7 +173,7 @@ async function bootstrap() {
               },
             },
             timestamp: Date.now(),
-            requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            requestId: `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
             retryable: false,
           });
           return;
@@ -531,10 +532,20 @@ async function gracefulShutdown(): Promise<void> {
     // Log shutdown start time
     const shutdownStartTime = Date.now();
 
+    // Clear memory monitoring interval
+    if (memoryMonitoringInterval) {
+      clearInterval(memoryMonitoringInterval);
+      memoryMonitoringInterval = null;
+      if (logger) {
+        logger.log("Memory monitoring interval cleared");
+      }
+    }
+
     // Close the NestJS application (this will trigger OnModuleDestroy hooks)
     if (logger) {
       logger.log("Closing NestJS application...");
     }
+
     await app.close();
 
     // Clear the app reference
@@ -610,9 +621,9 @@ function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
   const memoryWarningThreshold = ENV.SYSTEM.MEMORY_WARNING_THRESHOLD;
   const memoryCriticalThreshold = ENV.SYSTEM.MEMORY_CRITICAL_THRESHOLD;
 
-  setInterval(() => {
+  memoryMonitoringInterval = setInterval(async () => {
     const memUsage = process.memoryUsage();
-    const v8 = require("v8");
+    const v8 = await import("v8");
     const heapStats = v8.getHeapStatistics();
 
     const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);

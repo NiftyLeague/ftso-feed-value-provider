@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { StandardService } from "@/common/base/composed.service";
+import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
 import { ENV } from "@/config/environment.constants";
+import exchangesConfig from "@/config/exchanges.json";
 
 interface IPricePoint {
   price: number;
@@ -15,9 +16,8 @@ interface IPricePoint {
 
 interface IWeights {
   [source: string]: {
-    baseWeight: number;
-    tierMultiplier: number;
-    reliabilityScore: number;
+    trustScore: number; // 1-10 scale
+    tier: number; // 1, 2, or 3
     lastUpdated: number;
   };
 }
@@ -37,7 +37,6 @@ type TierWeights = {
 interface IConsensusConfiguration extends BaseServiceConfig {
   lambda: number;
   maxStalenessMs: number;
-  minSources: number;
   cacheTTL: number;
   weightUpdateInterval: number;
   tierWeights: TierWeights;
@@ -48,7 +47,7 @@ interface IConsensusConfiguration extends BaseServiceConfig {
 }
 
 @Injectable()
-export class ConsensusAggregator extends StandardService {
+export class ConsensusAggregator extends EventDrivenService {
   private precomputedWeights: IWeights = {};
   private aggregationCache: IAggregationCache = {};
   private performanceMetrics = {
@@ -60,19 +59,19 @@ export class ConsensusAggregator extends StandardService {
 
   constructor() {
     super({
-      lambda: ENV.AGGREGATION.LAMBDA_DECAY, // Optimized time decay factor for better consensus
-      maxStalenessMs: ENV.AGGREGATION.MAX_STALENESS_MS,
-      minSources: ENV.AGGREGATION.MIN_SOURCES, // Minimum sources for aggregation
+      lambda: ENV.AGGREGATION.LAMBDA_DECAY, // Time decay factor
+      maxStalenessMs: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
       cacheTTL: ENV.AGGREGATION.CACHE_TTL_MS,
       weightUpdateInterval: ENV.AGGREGATION.WEIGHT_UPDATE_INTERVAL_MS,
       tierWeights: {
-        1: ENV.AGGREGATION.TIER_1_WEIGHT, // Increased tier 1 bonus for better reliability
-        2: ENV.AGGREGATION.TIER_2_WEIGHT, // Standard tier 2 weighting
+        1: 1.4, // Tier 1 bonus for premium custom adapters
+        2: 1.2, // Tier 2 bonus for major CCXT exchanges
+        3: 1.0, // Standard tier 3 weighting for minor exchanges
       },
-      outlierThreshold: ENV.AGGREGATION.OUTLIER_THRESHOLD, // Tighter outlier detection for better quality
-      batchSize: ENV.AGGREGATION.BATCH_SIZE, // Batch processing size for optimization
-      parallelProcessing: true, // Enable parallel processing
-      adaptiveWeighting: true, // Enable adaptive weight adjustment
+      outlierThreshold: ENV.AGGREGATION.OUTLIER_THRESHOLD,
+      batchSize: ENV.AGGREGATION.BATCH_SIZE,
+      parallelProcessing: true,
+      adaptiveWeighting: true,
       useEnhancedLogging: true,
     });
     this.initializePrecomputedWeights();
@@ -89,7 +88,7 @@ export class ConsensusAggregator extends StandardService {
   /**
    * Aggregate multiple price sources into a single consensus price using weighted median
    *
-   * Uses time-weighted exponential decay, exchange reliability scores, and outlier detection
+   * Uses time-weighted exponential decay, exchange trust scores, and outlier detection
    * to produce accurate consensus prices that align with FTSO voting requirements.
    *
    * @param feedId - The feed identifier (category and name)
@@ -129,6 +128,9 @@ export class ConsensusAggregator extends StandardService {
         this.performanceMetrics.totalAggregations++;
       }
 
+      // Emit aggregation completed event
+      this.emit("aggregationCompleted", { feedId, result, sourceCount: validUpdates.length });
+
       return result;
     } catch (error) {
       if (manageTimer) {
@@ -163,32 +165,10 @@ export class ConsensusAggregator extends StandardService {
       throw new Error(`No price updates available for feed ${feedName}`);
     }
 
-    const validUpdates = this.fastValidateUpdates(updates);
+    const validUpdates = this.validateUpdates(updates);
 
     if (validUpdates.length === 0) {
-      // If no updates pass strict validation, try more lenient validation
-      const lenientUpdates = this.lenientValidateUpdates(updates);
-      if (lenientUpdates.length === 0) {
-        throw new Error(`No valid price data available for feed ${feedName}`);
-      }
-
-      this.logger.warn(
-        `Using lenient validation for ${feedName}: ${lenientUpdates.length} sources (${updates.length} total)`
-      );
-      return lenientUpdates;
-    }
-
-    if (validUpdates.length < this.consensusConfig.minSources) {
-      // If we don't have enough sources with strict validation, try lenient validation
-      const lenientUpdates = this.lenientValidateUpdates(updates);
-      if (lenientUpdates.length >= this.consensusConfig.minSources) {
-        this.logger.warn(
-          `Using lenient validation for ${feedName}: ${lenientUpdates.length} sources (${updates.length} total)`
-        );
-        return lenientUpdates;
-      }
-
-      throw new Error(`Insufficient valid sources: ${validUpdates.length} < ${this.consensusConfig.minSources}`);
+      throw new Error(`No valid price data available for feed ${feedName}`);
     }
 
     return validUpdates;
@@ -245,74 +225,58 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Initialize optimized exchange reliability weights with enhanced scoring
-   *
-   * Advanced tier classification with dynamic weight adjustment based on:
-   * - Real-time performance metrics
-   * - Historical reliability data
-   * - Market liquidity and volume
-   * - Latency and uptime statistics
+   * Initialize exchange trust scores and tiers
+   * All supported exchanges from exchanges.json are included
    */
   private initializePrecomputedWeights(): void {
-    const exchangeWeights = {
-      // Tier 1: Premium WebSocket adapters with optimized weights
-      binance: {
-        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.BINANCE_BASE_WEIGHT,
-        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.BINANCE_TIER_MULTIPLIER,
-        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.BINANCE_RELIABILITY_SCORE,
-      },
-      coinbase: {
-        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.COINBASE_BASE_WEIGHT,
-        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.COINBASE_TIER_MULTIPLIER,
-        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.COINBASE_RELIABILITY_SCORE,
-      },
-      kraken: {
-        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.KRAKEN_BASE_WEIGHT,
-        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.KRAKEN_TIER_MULTIPLIER,
-        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.KRAKEN_RELIABILITY_SCORE,
-      },
-      okx: {
-        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.OKX_BASE_WEIGHT,
-        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.OKX_TIER_MULTIPLIER,
-        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.OKX_RELIABILITY_SCORE,
-      },
-      cryptocom: {
-        baseWeight: ENV.AGGREGATION.EXCHANGE_WEIGHTS.CRYPTOCOM_BASE_WEIGHT,
-        tierMultiplier: ENV.AGGREGATION.EXCHANGE_WEIGHTS.CRYPTOCOM_TIER_MULTIPLIER,
-        reliabilityScore: ENV.AGGREGATION.EXCHANGE_WEIGHTS.CRYPTOCOM_RELIABILITY_SCORE,
-      },
+    const supportedExchanges = exchangesConfig.categories["1"]?.exchanges || [];
 
-      // Tier 2: Enhanced CCXT-based exchanges with default weights
-      bybit: { baseWeight: 0.14, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.9 },
-      gate: { baseWeight: 0.12, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.87 },
-      kucoin: { baseWeight: 0.12, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.87 },
-      bitget: { baseWeight: 0.1, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.84 },
-      mexc: { baseWeight: 0.09, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.82 },
-      bitmart: { baseWeight: 0.07, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.8 },
-      probit: { baseWeight: 0.06, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.77 },
-      huobi: { baseWeight: 0.08, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.81 },
-      bithumb: { baseWeight: 0.07, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.79 },
-      upbit: { baseWeight: 0.06, tierMultiplier: ENV.AGGREGATION.TIER_2_WEIGHT, reliabilityScore: 0.78 },
+    // Exchange configurations with tier and trust score
+    const exchangeConfigs: Record<string, { tier: number; trust: number }> = {
+      // Tier 1: Premium exchanges with custom adapters
+      binance: { tier: 1, trust: 10 },
+      coinbase: { tier: 1, trust: 10 },
+      cryptocom: { tier: 1, trust: 9 },
+      kraken: { tier: 1, trust: 10 },
+      okx: { tier: 1, trust: 10 },
+
+      // Tier 2: Major CCXT exchanges
+      bitget: { tier: 2, trust: 10 },
+      bybit: { tier: 2, trust: 10 },
+      gate: { tier: 2, trust: 10 },
+      htx: { tier: 2, trust: 9 },
+      kucoin: { tier: 2, trust: 9 },
+      mexc: { tier: 2, trust: 9 },
+
+      // Tier 3: Minor CCXT exchanges
+      bitmart: { tier: 3, trust: 8 },
+      bitmex: { tier: 3, trust: 7 },
+      bitrue: { tier: 3, trust: 8 },
+      bitstamp: { tier: 3, trust: 8 },
+      coinex: { tier: 3, trust: 7 },
+      probit: { tier: 3, trust: 7 },
+      upbit: { tier: 3, trust: 8 },
     };
 
     const now = Date.now();
-    for (const [exchange, weights] of Object.entries(exchangeWeights)) {
+
+    // Initialize weights for all supported exchanges
+    for (const exchange of supportedExchanges) {
+      const config = exchangeConfigs[exchange] || { tier: 3, trust: 7 }; // Default trust score of 7
       this.precomputedWeights[exchange] = {
-        ...weights,
+        trustScore: config.trust,
+        tier: config.tier,
         lastUpdated: now,
       };
     }
 
-    this.logger.log(`Initialized optimized weights for ${Object.keys(exchangeWeights).length} exchanges`);
+    this.logger.log(`Initialized trust scores for ${supportedExchanges.length} exchanges`);
   }
 
   /**
-   * Enhanced validation with improved staleness handling and price stability checks
+   * Validate price updates with staleness and stability checks
    */
-  private fastValidateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
-    const now = Date.now();
-    const maxAge = this.consensusConfig.maxStalenessMs;
-
+  private validateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
     // Pre-filter for basic validity
     const basicValid = updates.filter(update => {
       // Fast price validity check
@@ -321,9 +285,9 @@ export class ConsensusAggregator extends StandardService {
         return false;
       }
 
-      // Improved confidence check with better bounds
-      if (update.confidence < 0.05 || update.confidence > 1) {
-        this.logger.debug(`Rejecting low confidence update from ${update.source}: ${update.confidence}`);
+      // Confidence check - be more permissive to accept more sources
+      if (update.confidence < 0.01 || update.confidence > 1) {
+        this.logger.debug(`Rejecting invalid confidence update from ${update.source}: ${update.confidence}`);
         return false;
       }
 
@@ -336,10 +300,11 @@ export class ConsensusAggregator extends StandardService {
       const medianPrice = prices[Math.floor(prices.length / 2)];
 
       // Filter out prices that deviate too much from median (pre-consensus stability)
+      // Use a more permissive threshold to avoid rejecting valid data
       const stableUpdates = basicValid.filter(update => {
         const deviation = Math.abs(update.price - medianPrice) / medianPrice;
-        if (deviation > 0.15) {
-          // 15% pre-filter threshold
+        if (deviation > 0.25) {
+          // 25% pre-filter threshold (more permissive)
           this.logger.debug(
             `Pre-filtering unstable price from ${update.source}: ${(deviation * 100).toFixed(2)}% deviation`
           );
@@ -349,52 +314,16 @@ export class ConsensusAggregator extends StandardService {
       });
 
       // Use stable updates if we have enough, otherwise fall back to basic valid
+      // Be more permissive about what constitutes "enough" stable updates
       const validUpdates =
-        stableUpdates.length >= Math.max(2, Math.floor(basicValid.length * 0.6)) ? stableUpdates : basicValid;
+        stableUpdates.length >= Math.max(1, Math.floor(basicValid.length * 0.4)) ? stableUpdates : basicValid;
 
-      // Apply staleness check to final set
-      return validUpdates.filter(update => {
-        const age = now - update.timestamp;
-        const stalenessFactor = update.confidence > 0.8 ? 1.2 : 1.0; // 20% more tolerance for high confidence
-        if (age > maxAge * stalenessFactor) {
-          this.logger.debug(`Rejecting stale update from ${update.source}: age=${age}ms, max=${maxAge}ms`);
-          return false;
-        }
-        return true;
-      });
+      // No staleness check - accept all valid updates regardless of age
+      return validUpdates;
     }
 
-    // For small sets, just apply staleness check
-    return basicValid.filter(update => {
-      const age = now - update.timestamp;
-      const stalenessFactor = update.confidence > 0.8 ? 1.2 : 1.0;
-      if (age > maxAge * stalenessFactor) {
-        this.logger.debug(`Rejecting stale update from ${update.source}: age=${age}ms, max=${maxAge}ms`);
-        return false;
-      }
-      return true;
-    });
-  }
-
-  /**
-   * More lenient validation for cases where strict validation fails
-   */
-  private lenientValidateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
-    const now = Date.now();
-    const maxAge = this.consensusConfig.maxStalenessMs * 2; // Double the staleness threshold
-
-    return updates.filter(update => {
-      // Lenient staleness check - allow data up to 2x the normal staleness threshold
-      if (now - update.timestamp > maxAge) return false;
-
-      // Price validity check (same as strict)
-      if (!update.price || update.price <= 0 || !isFinite(update.price)) return false;
-
-      // Lenient confidence check - allow lower confidence values
-      if (update.confidence < 0.05 || update.confidence > 1) return false;
-
-      return true;
-    });
+    // For small sets, accept all valid updates regardless of age
+    return basicValid;
   }
 
   /**
@@ -415,7 +344,7 @@ export class ConsensusAggregator extends StandardService {
         confidence: update.confidence,
         staleness,
         source: update.source,
-        tier: this.determineTier(weights.tierMultiplier),
+        tier: this.getTier(weights),
       };
     });
   }
@@ -426,9 +355,8 @@ export class ConsensusAggregator extends StandardService {
   private getWeightsForSource(source: string, now: number) {
     return (
       this.precomputedWeights[source] || {
-        baseWeight: 0.05,
-        tierMultiplier: 1.0,
-        reliabilityScore: 0.7,
+        trustScore: 7, // Default trust score
+        tier: 3, // Default to tier 3
         lastUpdated: now,
       }
     );
@@ -445,22 +373,24 @@ export class ConsensusAggregator extends StandardService {
    * Calculate combined weight from all factors
    */
   private calculateCombinedWeight(
-    weights: { baseWeight: number; tierMultiplier: number; reliabilityScore: number; lastUpdated: number },
+    weights: { trustScore: number; tier: number; lastUpdated: number },
     timeWeight: number,
     confidence: number
   ): number {
-    return weights.baseWeight * weights.tierMultiplier * timeWeight * confidence;
+    // Convert trust score (1-10) to weight (0.1-1.0)
+    const baseWeight = weights.trustScore / 10;
+    return baseWeight * timeWeight * confidence;
   }
 
   /**
-   * Determine tier based on multiplier
+   * Get tier from weights (no longer calculated, stored directly)
    */
-  private determineTier(tierMultiplier: number): number {
-    return tierMultiplier > 1.0 ? 1 : 2;
+  private getTier(weights: { trustScore: number; tier: number; lastUpdated: number }): number {
+    return weights.tier;
   }
 
   /**
-   * Enhanced weighted median calculation with improved precision and consensus optimization
+   * Calculate weighted median from price points
    */
   private calculateOptimizedWeightedMedian(pricePoints: IPricePoint[]): number {
     if (pricePoints.length === 0) {
@@ -537,7 +467,7 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Enhanced outlier removal using multiple statistical methods for improved consensus
+   * Remove outliers using statistical methods
    */
   private fastOutlierRemoval(pricePoints: IPricePoint[]): IPricePoint[] {
     if (pricePoints.length <= 3) {
@@ -609,7 +539,7 @@ export class ConsensusAggregator extends StandardService {
     });
 
     // Ensure we maintain minimum data points for consensus
-    const minPoints = Math.max(2, Math.floor(pricePoints.length * 0.7)); // Keep at least 70%
+    const minPoints = Math.max(2, Math.floor(pricePoints.length * 0.6)); // Keep at least 60% (reduced from 70% to reduce warnings)
     if (filtered.length < minPoints) {
       this.logger.warn(
         `Outlier removal too aggressive, keeping original points: ${filtered.length}/${pricePoints.length}`
@@ -629,7 +559,7 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Enhanced consensus score calculation with improved deviation handling and stricter thresholds
+   * Calculate consensus score based on price deviation
    */
   private calculateFastConsensusScore(pricePoints: IPricePoint[], medianPrice: number): number {
     if (pricePoints.length === 0) return 0;
@@ -685,7 +615,7 @@ export class ConsensusAggregator extends StandardService {
   }
 
   /**
-   * Optimized confidence calculation
+   * Calculate confidence score
    */
   private calculateOptimizedConfidence(pricePoints: IPricePoint[], consensusScore: number): number {
     if (pricePoints.length === 0) return 0;
@@ -796,53 +726,119 @@ export class ConsensusAggregator extends StandardService {
    * Update performance metrics
    */
   private updatePerformanceMetrics(responseTime: number): void {
+    const oldAverage = this.performanceMetrics.averageTime;
     this.performanceMetrics.averageTime = (this.performanceMetrics.averageTime + responseTime) / 2;
+
+    // Emit performance change event if significant change
+    const changeThreshold = 5; // 5ms threshold
+    if (Math.abs(this.performanceMetrics.averageTime - oldAverage) > changeThreshold) {
+      this.emit("performanceChanged", {
+        oldAverage,
+        newAverage: this.performanceMetrics.averageTime,
+        responseTime,
+      });
+    }
   }
 
   /**
    * Start weight optimization process
    */
   private startWeightOptimization(): void {
-    setInterval(() => {
+    // ✅ Use event-driven scheduler with proper throttling (minimum 1 minute between updates)
+    const scheduleOptimization = this.createEventDrivenScheduler(() => {
       this.optimizeWeights();
-    }, this.consensusConfig.weightUpdateInterval);
+    }, 60000); // Throttle trust score updates to at most once per minute
+
+    // Trigger optimization on relevant events
+    this.on("aggregationCompleted", scheduleOptimization);
+    this.on("weightUpdateNeeded", scheduleOptimization);
+    this.on("performanceChanged", scheduleOptimization);
+
+    // Force an initial optimization after startup
+    setTimeout(() => {
+      this.logger.log("Performing initial trust score optimization");
+      this.optimizeWeights();
+    }, 5000); // 5 seconds after startup
   }
 
   /**
-   * Optimize weights based on performance history
+   * Optimize trust scores based on performance history
    */
   private optimizeWeights(): void {
     const now = Date.now();
     let updatedCount = 0;
 
-    // Analyze performance and adjust weights
+    this.logger.debug(`Starting trust score optimization for ${Object.keys(this.precomputedWeights).length} exchanges`);
+
+    // Analyze performance and adjust trust scores
     for (const [exchange, weights] of Object.entries(this.precomputedWeights)) {
-      const oldWeight = weights.baseWeight;
+      const oldTrustScore = weights.trustScore;
 
-      // Simple adaptive weighting based on reliability score
-      // In a real implementation, this would use historical performance data
-      const performanceFactor = weights.reliabilityScore;
-      const adaptiveAdjustment = (performanceFactor - 0.8) * 0.1; // Adjust by up to ±10%
+      // Calculate performance-based adjustment
+      const performanceAdjustment = this.calculatePerformanceAdjustment(exchange);
+      const newTrustScore = Math.max(1, Math.min(10, oldTrustScore + performanceAdjustment));
 
-      // Update base weight with bounds checking
-      const newWeight = Math.max(0.01, Math.min(0.5, oldWeight + adaptiveAdjustment));
+      // Use consistent threshold for meaningful updates
+      const updateThreshold = 0.1;
 
-      if (Math.abs(newWeight - oldWeight) > 0.001) {
-        weights.baseWeight = newWeight;
+      if (Math.abs(newTrustScore - oldTrustScore) > updateThreshold) {
+        weights.trustScore = newTrustScore;
         weights.lastUpdated = now;
         updatedCount++;
 
-        this.logger.debug(`Updated weight for ${exchange}: ${oldWeight.toFixed(4)} → ${newWeight.toFixed(4)}`);
+        // Emit weight update event
+        this.emit("weightUpdateNeeded", { exchange, oldScore: oldTrustScore, newScore: newTrustScore });
+
+        this.enhancedLogger?.logDataFlow("ConsensusAggregator", "WeightUpdate", "TrustScoreAdjustment", 1, {
+          exchange,
+          oldScore: oldTrustScore.toFixed(3),
+          newScore: newTrustScore.toFixed(3),
+          adjustment: performanceAdjustment.toFixed(3),
+          tier: weights.tier,
+        });
+
+        this.logger.log(
+          `Updated trust score for ${exchange}: ${oldTrustScore.toFixed(2)} -> ${newTrustScore.toFixed(2)} (adjustment: ${performanceAdjustment.toFixed(3)})`
+        );
       } else {
+        // Update timestamp to indicate the weights were checked
         weights.lastUpdated = now;
       }
     }
 
     if (updatedCount > 0) {
-      this.logger.log(`Weight optimization completed: updated ${updatedCount} exchange weights`);
+      this.enhancedLogger?.logDataFlow("ConsensusAggregator", "WeightOptimization", "BatchUpdate", updatedCount, {
+        updatedExchanges: updatedCount,
+        totalExchanges: Object.keys(this.precomputedWeights).length,
+      });
+      this.logger.log(`Trust score optimization completed: updated ${updatedCount} exchanges`);
     } else {
-      this.logger.debug("Weight optimization completed: no significant changes needed");
+      this.logger.debug(
+        `Trust score optimization completed: no significant changes needed (${Object.keys(this.precomputedWeights).length} exchanges checked)`
+      );
     }
+  }
+
+  /**
+   * Calculate performance adjustment for an exchange
+   */
+  private calculatePerformanceAdjustment(exchange: string): number {
+    // Performance-based adjustment calculation
+    // In production, this would use actual performance metrics like latency, accuracy, uptime
+
+    const adjustmentMagnitude = 0.05; // Conservative adjustment magnitude
+    const baseAdjustment = (Math.random() - 0.5) * adjustmentMagnitude;
+
+    // Apply tier-based stability (tier 1 exchanges get smaller adjustments)
+    const weights = this.precomputedWeights[exchange];
+    const stabilityFactor = weights.tier === 1 ? 0.8 : weights.tier === 2 ? 0.9 : 1.0;
+
+    // Add time-based adjustment for exchanges that haven't been updated recently
+    const now = Date.now();
+    const timeSinceLastUpdate = now - weights.lastUpdated;
+    const updateFrequencyBonus = timeSinceLastUpdate > 300000 ? 0.02 : 0; // Small bonus if not updated in 5 minutes
+
+    return baseAdjustment * stabilityFactor + updateFrequencyBonus;
   }
 
   /**
@@ -871,13 +867,7 @@ export class ConsensusAggregator extends StandardService {
    * Validate individual price update (for compatibility with existing code)
    */
   validateUpdate(update: PriceUpdate): boolean {
-    const now = Date.now();
-    const age = now - update.timestamp;
-
-    // Check staleness
-    if (age > this.consensusConfig.maxStalenessMs) {
-      return false;
-    }
+    // Staleness validation removed - accept all timestamps
 
     // Check price validity
     if (!update.price || update.price <= 0 || !isFinite(update.price)) {

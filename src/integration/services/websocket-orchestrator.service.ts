@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
@@ -22,7 +22,7 @@ interface ExchangeConnectionState {
  * 4. Handles both custom adapters and CCXT adapter properly
  */
 @Injectable()
-export class WebSocketOrchestratorService extends EventDrivenService {
+export class WebSocketOrchestratorService extends EventDrivenService implements OnModuleDestroy {
   private exchangeStates = new Map<string, ExchangeConnectionState>();
   private feedToExchangeMap = new Map<string, Array<{ exchange: string; symbol: string }>>();
   public override isInitialized = false;
@@ -157,16 +157,25 @@ export class WebSocketOrchestratorService extends EventDrivenService {
 
       if (ccxtAdapter) {
         try {
-          await ccxtAdapter.subscribe(Array.from(ccxtSymbols));
-          // Update all CCXT exchange states
-          for (const state of this.exchangeStates.values()) {
-            if (state.adapter.exchangeName === "ccxt-multi-exchange") {
-              ccxtSymbols.forEach(symbol => state.subscribedSymbols.add(symbol));
+          // Check if CCXT adapter is connected before attempting subscription
+          if (!ccxtAdapter.isConnected()) {
+            this.logger.debug(
+              `Skipping CCXT subscription for feed ${feedKey} - not connected (will retry when connected)`
+            );
+          } else {
+            await ccxtAdapter.subscribe(Array.from(ccxtSymbols));
+            // Update all CCXT exchange states
+            for (const state of this.exchangeStates.values()) {
+              if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+                ccxtSymbols.forEach(symbol => state.subscribedSymbols.add(symbol));
+              }
             }
+            this.logger.debug(`Subscribed CCXT adapter to ${ccxtSymbols.size} symbols for feed ${feedKey}`);
           }
-          this.logger.debug(`Subscribed CCXT adapter to ${ccxtSymbols.size} symbols for feed ${feedKey}`);
         } catch (error) {
-          this.logger.error(`Failed to subscribe CCXT adapter to symbols for feed ${feedKey}:`, error);
+          // Log as debug during startup, warn during normal operation
+          const logLevel = this.isInitialized ? "warn" : "debug";
+          this.logger[logLevel](`Failed to subscribe CCXT adapter to symbols for feed ${feedKey}:`, error);
         }
       } else {
         this.logger.warn(`CCXT adapter not found for feed ${feedKey}`);
@@ -176,6 +185,14 @@ export class WebSocketOrchestratorService extends EventDrivenService {
     // Subscribe to custom adapters individually
     for (const [adapter, symbols] of customAdapterSubscriptions) {
       try {
+        // Check if adapter is connected before attempting subscription
+        if (!adapter.isConnected()) {
+          this.logger.debug(
+            `Skipping subscription for ${adapter.exchangeName} - not connected (will retry when connected)`
+          );
+          continue;
+        }
+
         await adapter.subscribe(Array.from(symbols));
         // Update the corresponding exchange state
         for (const state of this.exchangeStates.values()) {
@@ -185,7 +202,9 @@ export class WebSocketOrchestratorService extends EventDrivenService {
         }
         this.logger.debug(`Subscribed ${adapter.exchangeName} to ${symbols.size} symbols for feed ${feedKey}`);
       } catch (error) {
-        this.logger.error(`Failed to subscribe ${adapter.exchangeName} to symbols for feed ${feedKey}:`, error);
+        // Log as debug during startup, warn during normal operation
+        const logLevel = this.isInitialized ? "warn" : "debug";
+        this.logger[logLevel](`Failed to subscribe ${adapter.exchangeName} to symbols for feed ${feedKey}:`, error);
       }
     }
   }
@@ -412,6 +431,9 @@ export class WebSocketOrchestratorService extends EventDrivenService {
   private async subscribeToRequiredSymbols(): Promise<void> {
     this.logger.log("Subscribing to required symbols based on feeds.json...");
 
+    let totalSubscriptions = 0;
+    let successfulSubscriptions = 0;
+
     for (const [exchangeName, state] of this.exchangeStates) {
       if (!state.isConnected) {
         this.logger.warn(`Skipping subscription for disconnected exchange: ${exchangeName}`);
@@ -425,24 +447,37 @@ export class WebSocketOrchestratorService extends EventDrivenService {
 
       try {
         const symbolsArray = Array.from(state.requiredSymbols);
+        totalSubscriptions += symbolsArray.length;
 
-        // For CCXT adapter, we need to handle per-exchange subscriptions differently
+        // For CCXT adapter, use the standard subscription method which handles multi-exchange internally
         if (state.adapter.exchangeName === "ccxt-multi-exchange") {
-          // CCXT adapter handles multiple exchanges, so we need to pass exchange context
-          // This would require modifications to the CCXT adapter to accept exchange-specific subscriptions
+          // CCXT adapter handles multiple exchanges internally via doSubscribe method
           this.logger.debug(`CCXT adapter subscription for ${exchangeName} with symbols: ${symbolsArray.join(", ")}`);
-          // TODO: Implement CCXT-specific subscription logic
+          await state.adapter.subscribe(symbolsArray);
+          symbolsArray.forEach(symbol => state.subscribedSymbols.add(symbol));
+          successfulSubscriptions += symbolsArray.length;
         } else {
           // Custom adapter - direct subscription
           await state.adapter.subscribe(symbolsArray);
           symbolsArray.forEach(symbol => state.subscribedSymbols.add(symbol));
+          successfulSubscriptions += symbolsArray.length;
         }
 
         this.logger.log(`Subscribed ${exchangeName} to ${symbolsArray.length} symbols`);
       } catch (error) {
         this.logger.error(`Failed to subscribe to symbols for exchange ${exchangeName}:`, error);
+        // Don't count failed subscriptions as successful
+        // The symbolsArray.length is already added to totalSubscriptions, so failedSubscriptions will be calculated correctly
       }
     }
+
+    // Emit subscription completion event
+    this.emit("subscriptionsCompleted", {
+      totalSubscriptions,
+      successfulSubscriptions,
+      failedSubscriptions: totalSubscriptions - successfulSubscriptions,
+      timestamp: Date.now(),
+    });
   }
 
   private async resubscribeExchange(exchangeName: string): Promise<void> {
@@ -462,6 +497,10 @@ export class WebSocketOrchestratorService extends EventDrivenService {
     } catch (error) {
       this.logger.error(`Failed to re-subscribe symbols for exchange ${exchangeName}:`, error);
     }
+  }
+
+  override async onModuleDestroy(): Promise<void> {
+    await this.cleanup();
   }
 
   override async cleanup(): Promise<void> {

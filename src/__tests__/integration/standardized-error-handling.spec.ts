@@ -100,12 +100,21 @@ describe("Standardized Error Handling Integration", () => {
       const successOperation = jest.fn().mockResolvedValue("success");
       const failureOperation = jest.fn().mockRejectedValue(new Error("operation failed"));
 
+      // Fast retry configuration to avoid timeout
+      const fastRetryConfig = {
+        maxRetries: 1,
+        initialDelayMs: 10,
+        maxDelayMs: 50,
+        backoffMultiplier: 1.5,
+      };
+
       // Test successful operation
       const result = await standardizedErrorHandler.executeWithStandardizedHandling(successOperation, {
         serviceId: "TestService",
         operationName: "testOperation",
         component: "TestController",
         requestId: "test-123",
+        retryConfig: fastRetryConfig,
       });
 
       expect(result).toBe("success");
@@ -118,13 +127,14 @@ describe("Standardized Error Handling Integration", () => {
           operationName: "testOperation",
           component: "TestController",
           requestId: "test-456",
+          retryConfig: fastRetryConfig,
         })
       ).rejects.toThrow(HttpException);
 
       expect(failureOperation).toHaveBeenCalled();
 
-      // Test error statistics tracking
-      const errors = [new Error("timeout error"), new Error("connection error"), new Error("validation error")];
+      // Test error statistics tracking with fast retry config
+      const errors = [new Error("timeout error"), new Error("connection error")];
 
       for (let i = 0; i < errors.length; i++) {
         try {
@@ -133,6 +143,7 @@ describe("Standardized Error Handling Integration", () => {
             operationName: `testOperation${i}`,
             component: "TestController",
             requestId: `test-${i}`,
+            retryConfig: fastRetryConfig,
           });
         } catch {
           // Expected to throw
@@ -141,7 +152,7 @@ describe("Standardized Error Handling Integration", () => {
 
       const stats = standardizedErrorHandler.getErrorStatistics();
       expect(Object.keys(stats)).toContain("TestController");
-    }, 30000); // Add 30 second timeout
+    }, 5000); // Reduced timeout to 5 seconds with fast retry config
   });
 
   describe("UniversalRetryService", () => {

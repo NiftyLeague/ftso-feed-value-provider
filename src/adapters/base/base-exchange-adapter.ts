@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import { OnModuleDestroy } from "@nestjs/common";
 import { DataProviderService } from "@/common/base/composed.service";
 import { FeedCategory } from "@/common/types/core";
 import type { BaseServiceConfig } from "@/common/types/services";
@@ -24,7 +25,7 @@ export interface IExchangeAdapterConfig extends BaseServiceConfig {
  * Base exchange adapter class that eliminates adapter boilerplate
  * Includes integrated WebSocket functionality and data provider capabilities
  */
-export abstract class BaseExchangeAdapter extends DataProviderService implements IExchangeAdapter {
+export abstract class BaseExchangeAdapter extends DataProviderService implements IExchangeAdapter, OnModuleDestroy {
   protected subscriptions = new Set<string>();
   protected connectionRetryCount = 0;
   protected maxRetries = 3;
@@ -48,6 +49,12 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   protected wsConfig?: WSConnectionConfig;
   private reconnectAttempts = 0;
   private reconnectTimer?: NodeJS.Timeout;
+
+  // Connection health tracking
+  private connectionHealthScore = 100; // 0-100, 100 = perfect
+  private recentDisconnections: number[] = []; // Timestamps of recent disconnections
+  private readonly HEALTH_WINDOW_MS = 300000; // 5 minutes
+  private readonly MAX_DISCONNECTIONS_PER_WINDOW = 3;
   private pingTimer?: NodeJS.Timeout;
   private pongTimer?: NodeJS.Timeout;
   private maxReconnectAttempts = ENV.WEBSOCKET.MAX_RECONNECT_ATTEMPTS;
@@ -130,7 +137,11 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
             this.warningLastLogged.set(warningKey, now);
           }
 
-          await this.sleep(delay);
+          // Use waitForCondition instead of sleep
+          await this.waitForCondition(
+            () => !this.isDestroyed, // Don't continue if adapter is being destroyed
+            { maxAttempts: 1, checkInterval: delay, timeout: delay }
+          );
         }
       }
     }
@@ -199,6 +210,13 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
+   * NestJS lifecycle hook for graceful shutdown
+   */
+  override async onModuleDestroy(): Promise<void> {
+    await this.cleanup();
+  }
+
+  /**
    * Cleanup method to prevent memory leaks
    */
   override async cleanup(): Promise<void> {
@@ -210,10 +228,22 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       await this.disconnect();
     }
 
-    // Close WebSocket connection if it exists
+    // Close WebSocket connection if it exists and is in a valid state
     if (this.ws) {
-      this.ws.close();
-      this.ws = undefined;
+      try {
+        // Only close if WebSocket is in a state that allows closing
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+        }
+      } catch (error) {
+        // Silently ignore errors during cleanup - WebSocket may already be closed
+        // This is expected during shutdown and doesn't indicate a problem
+        if (!this.isShuttingDown) {
+          this.logger.debug(`WebSocket close error during cleanup:`, error);
+        }
+      } finally {
+        this.ws = undefined;
+      }
     }
 
     // Clear timers
@@ -493,11 +523,33 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
-   * Helper method for REST API calls with standardized error handling
+   * Helper method for REST API calls with standardized error handling and rate limiting
    */
-  protected async fetchRestApi(url: string, errorContext: string): Promise<Response> {
+  protected async fetchRestApi(url: string, errorContext: string, retryCount = 0): Promise<Response> {
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second base delay
+
     try {
       const response = await fetch(url);
+
+      // Handle rate limiting (429) with exponential backoff
+      if (response.status === 429) {
+        if (retryCount < maxRetries) {
+          const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
+          this.logger.warn(
+            `Rate limited by ${this.exchangeName}, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries + 1})`
+          );
+
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.fetchRestApi(url, errorContext, retryCount + 1);
+        } else {
+          this.logger.warn(
+            `Rate limit exceeded for ${this.exchangeName} after ${maxRetries + 1} attempts, skipping request`
+          );
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -620,6 +672,15 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       const errorMsg = Array.isArray(apiResult.error)
         ? apiResult.error.join(", ")
         : apiResult.error || apiResult.errors;
+
+      // Handle empty error messages
+      const errorMsgStr = typeof errorMsg === "string" ? errorMsg : String(errorMsg);
+      if (!errorMsg || errorMsgStr.trim() === "") {
+        throw new Error(
+          `${exchangeName} API error: Empty error message returned (possible rate limiting or service issue)`
+        );
+      }
+
       throw new Error(`${exchangeName} API error: ${errorMsg}`);
     }
 
@@ -705,20 +766,28 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           headers: config.headers,
         });
 
-        // Set up connection timeout
-        const connectionTimeout = setTimeout(() => {
-          if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+        // Use condition-based connection waiting instead of timeout
+        const connectionTimeout = config.connectionTimeout || 10000;
+        void this.waitForCondition(() => this.ws?.readyState === WebSocket.OPEN, {
+          maxAttempts: connectionTimeout / 100,
+          checkInterval: 100,
+          timeout: connectionTimeout,
+        }).then(connected => {
+          if (!connected && this.ws?.readyState === WebSocket.CONNECTING) {
             this.ws.terminate();
             this.logger.warn(`WebSocket connection timeout for ${this.exchangeName}, falling back to REST API`);
             resolve(); // Always resolve to allow REST-only mode
           }
-        }, config.connectionTimeout || 10000); // 10 second default timeout
+        });
 
         // Set up event handlers
         this.ws.on("open", () => {
-          clearTimeout(connectionTimeout);
+          // Connection successful, no need to clear timeout as waitForCondition handles it
           this.logger.log(`WebSocket connected for ${this.exchangeName}`);
           this.reconnectAttempts = 0;
+
+          // Reset health score on successful connection
+          this.connectionHealthScore = Math.min(100, this.connectionHealthScore + 10);
 
           // Set up ping timer if configured
           if (config.pingInterval) {
@@ -729,12 +798,16 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         });
 
         this.ws.on("message", (data: WebSocket.Data) => {
+          this.logger.debug(`[DEBUG] ${this.exchangeName} received WebSocket message of type: ${typeof data}`);
           this.lastMessageReceived = Date.now();
           this.handleWebSocketMessage(data);
         });
 
         this.ws.on("close", (code: number, reason: string) => {
           clearTimeout(connectionTimeout);
+
+          // Track disconnection for health monitoring
+          this.trackDisconnection();
 
           // Let child classes handle specific logging first
           const handled = this.handleWebSocketClose(code, reason);
@@ -755,15 +828,34 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
 
           // Auto-reconnect if configured and not a normal closure during shutdown
           if (config.reconnectInterval && this.reconnectAttempts < this.maxReconnectAttempts && !this.isShuttingDown) {
-            // For abnormal closures (1006), add a longer delay to prevent rapid reconnection attempts
-            const reconnectDelay =
-              code === 1006 ? Math.max(config.reconnectInterval * 2, 5000) : config.reconnectInterval;
+            let reconnectDelay = config.reconnectInterval;
+
+            // For abnormal closures (1006), add a longer delay
+            if (code === 1006) {
+              reconnectDelay = Math.max(config.reconnectInterval * 2, 5000);
+            }
+
+            // If connection is unstable, use exponential backoff
+            if (this.isConnectionUnstable()) {
+              const backoffMultiplier = Math.min(Math.pow(2, this.reconnectAttempts), 8); // Cap at 8x
+              reconnectDelay = Math.min(reconnectDelay * backoffMultiplier, 60000); // Cap at 1 minute
+              this.logger.warn(
+                `Connection unstable for ${this.exchangeName}, using exponential backoff: ${reconnectDelay}ms`
+              );
+            }
+
             this.scheduleReconnect(reconnectDelay);
           }
         });
 
         this.ws.on("error", (error: Error) => {
           clearTimeout(connectionTimeout);
+
+          // During shutdown, suppress WebSocket connection errors as they're expected
+          if (this.isShuttingDown) {
+            resolve(); // Allow graceful shutdown without error logging
+            return;
+          }
 
           // Use centralized error categorization to determine if error is recoverable
           const errorCategory = categorizeConnectionError(error);
@@ -886,8 +978,10 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       clearInterval(this.pingTimer);
     }
 
-    this.logger.debug(`Setting up ping timer for ${this.exchangeName} with ${interval}ms interval`);
-    this.pingTimer = setInterval(() => {
+    this.logger.debug(`Setting up event-driven ping for ${this.exchangeName} with ${interval}ms interval`);
+
+    // Use recursive timeout instead of setInterval for better control
+    const schedulePing = () => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         // Check if we received a pong for the last ping (if pong timeout is configured)
         const pongTimeout = this.wsConfig?.pongTimeout;
@@ -922,7 +1016,13 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           `Ping timer fired but WebSocket not ready for ${this.exchangeName} (state: ${this.ws?.readyState})`
         );
       }
-    }, interval);
+
+      // Schedule next ping
+      this.pingTimer = this.createTimeout(schedulePing, interval);
+    };
+
+    // Start ping cycle
+    schedulePing();
   }
 
   /**
@@ -933,9 +1033,11 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       clearTimeout(this.pongTimer);
     }
 
-    // Add 50% buffer to timeout to reduce false positives
+    // Use condition-based waiting for pong timeout
     const adjustedTimeout = timeout * 1.5;
-    this.pongTimer = setTimeout(() => {
+
+    // Store the timeout promise for cleanup
+    this.pongTimer = this.createTimeout(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         // Check if we've received recent data (which might indicate connection is healthy)
         const timeSinceLastMessage = Date.now() - (this.lastMessageReceived || 0);
@@ -976,6 +1078,43 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
+   * Track connection disconnection for health monitoring
+   */
+  private trackDisconnection(): void {
+    const now = Date.now();
+    this.recentDisconnections.push(now);
+
+    // Clean old disconnections outside the window
+    this.recentDisconnections = this.recentDisconnections.filter(timestamp => now - timestamp < this.HEALTH_WINDOW_MS);
+
+    // Update health score based on recent disconnections
+    const disconnectionCount = this.recentDisconnections.length;
+    if (disconnectionCount >= this.MAX_DISCONNECTIONS_PER_WINDOW) {
+      this.connectionHealthScore = Math.max(0, this.connectionHealthScore - 20);
+      this.logger.warn(
+        `Connection health degraded for ${this.exchangeName}: ${disconnectionCount} disconnections in ${this.HEALTH_WINDOW_MS / 1000}s (health: ${this.connectionHealthScore}%)`
+      );
+    } else {
+      // Gradually recover health score
+      this.connectionHealthScore = Math.min(100, this.connectionHealthScore + 5);
+    }
+  }
+
+  /**
+   * Get connection health score (0-100)
+   */
+  public getConnectionHealth(): number {
+    return this.connectionHealthScore;
+  }
+
+  /**
+   * Check if connection should be considered unstable
+   */
+  private isConnectionUnstable(): boolean {
+    return this.connectionHealthScore < 50 || this.recentDisconnections.length >= this.MAX_DISCONNECTIONS_PER_WINDOW;
+  }
+
+  /**
    * Schedule reconnection attempt
    */
   private scheduleReconnect(delay: number): void {
@@ -986,7 +1125,8 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     this.reconnectAttempts++;
     this.logger.log(`Scheduling reconnection attempt ${this.reconnectAttempts} for ${this.exchangeName} in ${delay}ms`);
 
-    this.reconnectTimer = setTimeout(async () => {
+    // Use managed timeout for reconnection
+    this.reconnectTimer = this.createTimeout(async () => {
       if (this.wsConfig) {
         try {
           await this.connectWebSocket(this.wsConfig);
@@ -1000,7 +1140,122 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   // Optional WebSocket event handlers (adapters can override these)
   protected handleWebSocketMessage(data: unknown): void {
     // Default implementation - adapters should override this
-    this.logger.debug(`Received WebSocket message: ${JSON.stringify(data)}`);
+    this.logger.debug(`[DEBUG] ${this.exchangeName} handleWebSocketMessage called with type: ${typeof data}`);
+  }
+
+  /**
+   * Check if a string message is a common WebSocket control message
+   * @param message String message to check
+   * @returns True if it's a control message
+   */
+  protected isControlMessage(message: string): boolean {
+    const controlMessages = ["pong", "ping", "heartbeat", "keepalive"];
+    return controlMessages.includes(message.toLowerCase());
+  }
+
+  /**
+   * Safely parse WebSocket data, handling Buffer objects and various data types
+   * @param data Raw WebSocket data
+   * @returns Parsed message object or null if parsing fails
+   */
+  protected parseWebSocketData(data: unknown): unknown | null {
+    try {
+      // Handle Buffer data from WebSocket (with type and data properties)
+      if (data && typeof data === "object" && "type" in data && "data" in data) {
+        const bufferData = data as { type: string; data: number[] };
+        if (bufferData.type === "Buffer") {
+          const buffer = Buffer.from(bufferData.data);
+          const jsonString = buffer.toString("utf8");
+
+          // Check if it's a control message before JSON parsing
+          if (this.isControlMessage(jsonString)) {
+            return jsonString;
+          }
+
+          try {
+            const parsed = JSON.parse(jsonString);
+            return parsed;
+          } catch {
+            // If JSON parsing fails, log and return the string as-is
+            this.logger.debug(`Received non-JSON buffer data: ${jsonString}`);
+            return jsonString;
+          }
+        }
+      }
+
+      // Handle raw array data (likely Uint8Array or similar from WebSocket)
+      if (data && typeof data === "object" && Array.isArray(data)) {
+        const buffer = Buffer.from(data);
+        const jsonString = buffer.toString("utf8");
+
+        // Check if it's a control message before JSON parsing
+        if (this.isControlMessage(jsonString)) {
+          return jsonString;
+        }
+
+        try {
+          const parsed = JSON.parse(jsonString);
+          return parsed;
+        } catch {
+          // If JSON parsing fails, log and return the string as-is
+          this.logger.debug(`Received non-JSON array message: ${jsonString}`);
+          return jsonString;
+        }
+      }
+
+      // Handle array-like object with numeric keys (Uint8Array, etc.)
+      if (data && typeof data === "object" && !Array.isArray(data) && data !== null) {
+        const keys = Object.keys(data);
+        // Check if it looks like a byte array (all numeric keys)
+        if (keys.length > 0 && keys.every(key => /^\d+$/.test(key))) {
+          const byteArray = keys.map(key => (data as Record<string, number>)[key]);
+          const buffer = Buffer.from(byteArray);
+          const jsonString = buffer.toString("utf8");
+
+          // Check if it's a control message before JSON parsing
+          if (this.isControlMessage(jsonString)) {
+            return jsonString;
+          }
+
+          try {
+            const parsed = JSON.parse(jsonString);
+            return parsed;
+          } catch {
+            // If JSON parsing fails, log and return the string as-is
+            this.logger.debug(`Received non-JSON buffer message: ${jsonString}`);
+            return jsonString;
+          }
+        }
+      }
+
+      // Handle string data
+      if (typeof data === "string") {
+        // Check if it's a common WebSocket control message before trying JSON parsing
+        if (this.isControlMessage(data)) {
+          return data; // Return as-is for control messages
+        }
+
+        try {
+          return JSON.parse(data);
+        } catch {
+          // If JSON parsing fails, log and return the string as-is
+          // This allows adapters to handle non-JSON string messages
+          this.logger.debug(`Received non-JSON string message: ${data}`);
+          return data;
+        }
+      }
+
+      // Handle already parsed object data
+      if (typeof data === "object" && data !== null) {
+        return data;
+      }
+
+      // Handle other types (numbers, booleans, etc.)
+      return data;
+    } catch (error) {
+      this.logger.error(`Error parsing WebSocket data:`, error);
+      return null;
+    }
   }
 
   protected handleWebSocketClose(_code?: number, _reason?: string): boolean {
@@ -1013,6 +1268,11 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   protected handleWebSocketError(error: Error): void {
+    // During shutdown, suppress error handling as errors are expected
+    if (this.isShuttingDown) {
+      return;
+    }
+
     // Use centralized error categorization
     const category = categorizeConnectionError(error);
     const statusCode = extractStatusCode(error.message);
@@ -1045,6 +1305,42 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     });
 
     this.onErrorCallback?.(error);
+  }
+
+  /**
+   * Public health check method for data manager compatibility
+   * This method is used by the data manager to determine if the adapter is healthy
+   */
+  async performHealthCheck(): Promise<boolean> {
+    try {
+      // For adapters that are receiving data recently, consider them healthy
+      // even if the REST health check fails (network issues are common)
+      const now = Date.now();
+      const timeSinceLastMessage = now - this.lastMessageReceived;
+
+      // If we've received data in the last 5 minutes, consider the adapter healthy
+      if (this.lastMessageReceived > 0 && timeSinceLastMessage < 300000) {
+        return true;
+      }
+
+      // If no recent data, check basic connectivity using the adapter-specific health check
+      const basicHealth = await this.doHealthCheck();
+      if (!basicHealth) {
+        return false;
+      }
+
+      // Check if we're receiving reasonably fresh data
+      // Allow up to 15 minutes of stale data before marking as unhealthy (increased tolerance)
+      if (this.lastMessageReceived > 0 && timeSinceLastMessage > 900000) {
+        this.logger.debug(`${this.exchangeName} health check failed: no fresh data for ${timeSinceLastMessage}ms`);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      this.logger.debug(`${this.exchangeName} health check failed:`, error);
+      return false;
+    }
   }
 
   // Abstract methods that must be implemented by concrete adapters

@@ -388,8 +388,8 @@ export class CircuitBreakerService extends EventDrivenService {
     }
 
     if (config) {
-      // Schedule transition to half-open
-      const timer = setTimeout(() => {
+      // ✅ Use managed timeout for circuit breaker recovery
+      const timer = this.createTimeout(() => {
         this.transitionToHalfOpen(serviceId);
       }, config.recoveryTimeout);
 

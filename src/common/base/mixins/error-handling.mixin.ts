@@ -108,6 +108,7 @@ export function WithErrorHandling<TBase extends Constructor | AbstractConstructo
                 error: lastError.message,
               }
             );
+            // Use sleep for retry delay (this mixin doesn't have waitForCondition)
             await this.sleep(retryDelay);
           }
         }

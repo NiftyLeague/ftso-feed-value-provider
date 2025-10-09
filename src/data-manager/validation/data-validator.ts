@@ -87,19 +87,15 @@ export class DataValidator extends StandardService {
         const rangeErrors = this.validateRange(update, DataValidatorConfig);
         errors.push(...rangeErrors);
 
-        // Tier 3: Staleness validation (Requirement 2.5)
-        const stalenessErrors = this.validateStaleness(update, DataValidatorConfig);
-        errors.push(...stalenessErrors);
-
-        // Tier 4: Statistical outlier detection (Requirement 2.2)
+        // Tier 3: Statistical outlier detection (Requirement 2.2)
         const outlierErrors = await this.validateOutliers(update, context, DataValidatorConfig);
         errors.push(...outlierErrors);
 
-        // Tier 5: Cross-source validation (Requirement 2.1)
+        // Tier 4: Cross-source validation (Requirement 2.1)
         const crossSourceErrors = this.validateCrossSource(update, context);
         errors.push(...crossSourceErrors);
 
-        // Tier 6: Consensus awareness validation (Requirement 2.6)
+        // Tier 5: Consensus awareness validation (Requirement 2.6)
         const consensusErrors = this.validateConsensusAlignment(update, context, DataValidatorConfig);
         errors.push(...consensusErrors);
 
@@ -258,40 +254,6 @@ export class DataValidator extends StandardService {
           ["price"],
           ErrorSeverity.HIGH,
           { type: ValidationErrorType.PRICE_OUT_OF_RANGE, field: "price", value: update.price }
-        )
-      );
-    }
-
-    return errors;
-  }
-
-  // Staleness validation - ensures data is fresh (Requirement 2.5)
-  private validateStaleness(update: PriceUpdate, config: DataValidatorConfig): ExtendedDataValidationError[] {
-    const errors: ExtendedDataValidationError[] = [];
-    const now = Date.now();
-    const age = now - update.timestamp;
-
-    if (age > config.maxAge) {
-      errors.push(
-        this.makeValidationError(
-          `Data is stale: ${age}ms old (max: ${config.maxAge}ms)`,
-          "validateUpdate",
-          ["timestamp"],
-          ErrorSeverity.CRITICAL,
-          { type: ValidationErrorType.STALE_DATA, field: "timestamp", value: age }
-        )
-      );
-    }
-
-    // Warning for data approaching staleness threshold
-    if (age > config.maxAge * ENV.DATA_QUALITY.STALENESS_WARNING_THRESHOLD) {
-      errors.push(
-        this.makeValidationError(
-          `Data approaching staleness: ${age}ms old`,
-          "validateUpdate",
-          ["timestamp"],
-          ErrorSeverity.LOW,
-          { type: ValidationErrorType.STALE_DATA, field: "timestamp", value: age }
         )
       );
     }

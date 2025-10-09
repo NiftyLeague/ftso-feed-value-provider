@@ -35,6 +35,7 @@ Thumbs.db
 # Generated files
 *.d.ts
 !src/**/*.d.ts
+scripts/tickers/generated/
 
 # Package manager files
 package-lock.json

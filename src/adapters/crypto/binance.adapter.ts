@@ -76,7 +76,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   protected async doConnect(): Promise<void> {
     const config = this.getConfig();
     // Use the all-ticker stream URL to get all symbols at once
-    // This is more efficient than individual subscriptions
+    // This is more efficient than individual subscriptions and reduces rate limiting
     const wsUrl = config?.websocketUrl || "wss://stream.binance.com:9443/ws/!ticker@arr";
 
     await this.connectWebSocket(
@@ -84,6 +84,8 @@ export class BinanceAdapter extends BaseExchangeAdapter {
         // Binance doesn't require custom ping/pong, disable them
         pingInterval: 0,
         pongTimeout: 0,
+        // Increase connection timeout for better stability
+        connectionTimeout: 30000,
       })
     );
   }
@@ -214,23 +216,23 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
     try {
-      let parsed: unknown;
-
-      if (typeof data === "string") {
-        parsed = JSON.parse(data);
-      } else if (typeof data === "object" && data !== null) {
-        parsed = data;
-      } else {
+      const parsed = this.parseWebSocketData(data);
+      if (!parsed) {
         this.logger.debug("Received non-parseable WebSocket data:", typeof data);
         return;
       }
+
+      this.logger.debug(`Binance WebSocket message parsed: ${JSON.stringify(parsed)}`);
 
       // Handle stream format: { "stream": "!ticker@arr", "data": [...] }
       if (typeof parsed === "object" && parsed !== null) {
         const streamData = parsed as { stream?: string; data?: unknown };
         if (streamData.stream === "!ticker@arr" && Array.isArray(streamData.data)) {
+          this.logger.debug(`Processing Binance ticker array with ${streamData.data.length} tickers`);
           streamData.data.forEach(ticker => {
             if (this.validateResponse(ticker)) {
+              const tickerData = ticker as BinanceTickerData;
+              this.logger.log(`Processing Binance ticker data for ${tickerData.s}: ${tickerData.c}`);
               const priceUpdate = this.normalizePriceData(ticker);
               this.onPriceUpdateCallback?.(priceUpdate);
             }

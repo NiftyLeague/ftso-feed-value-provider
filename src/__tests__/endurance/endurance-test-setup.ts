@@ -8,18 +8,30 @@
 import type { GlobalTestLogging } from "../utils/test-logging.types";
 
 // Enable garbage collection for endurance tests
-if (typeof global.gc === "undefined") {
-  // Try to enable garbage collection
-  try {
-    require("v8").setFlagsFromString("--expose_gc");
-    global.gc = require("vm").runInNewContext("gc");
-  } catch {
-    // Garbage collection not available - create a no-op function
-    (global as typeof globalThis).gc = async () => {
-      // No-op if gc is not available
-    };
+async function setupGarbageCollection() {
+  if (typeof global.gc === "undefined") {
+    // Try to enable garbage collection
+    try {
+      const v8 = await import("v8");
+      const vm = await import("vm");
+      v8.setFlagsFromString("--expose_gc");
+      global.gc = vm.runInNewContext("gc");
+    } catch {
+      // Garbage collection not available - create a no-op function
+      (global as typeof globalThis).gc = async () => {
+        // No-op if gc is not available
+      };
+    }
   }
 }
+
+// Initialize garbage collection setup
+setupGarbageCollection().catch(() => {
+  // Fallback if setup fails
+  (global as typeof globalThis).gc = async () => {
+    // No-op if gc is not available
+  };
+});
 
 // Resource cleanup utilities
 let resourceCleanupInterval: NodeJS.Timeout | null = null;

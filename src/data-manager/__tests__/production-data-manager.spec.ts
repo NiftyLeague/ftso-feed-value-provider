@@ -281,7 +281,7 @@ describe("ProductionDataManagerService", () => {
 
   describe("Error Handling", () => {
     it("should handle getCurrentPrice with no data available", async () => {
-      await expect(dataManager.getCurrentPrice(mockFeedId)).rejects.toThrow("No data available for feed BTC/USD");
+      await expect(dataManager.getCurrentPrice(mockFeedId)).rejects.toThrow("No price data available for feed BTC/USD");
     });
 
     it("should handle getCurrentPrices with no data available", async () => {

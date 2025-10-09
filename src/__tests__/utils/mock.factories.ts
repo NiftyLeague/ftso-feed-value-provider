@@ -301,6 +301,7 @@ export class MockFactory {
       getMetrics: jest.fn().mockReturnValue({}),
       initialize: jest.fn(),
       subscribeToFeed: jest.fn(),
+      isServiceInitialized: jest.fn().mockReturnValue(true),
     };
   }
 

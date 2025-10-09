@@ -134,8 +134,8 @@ describe("CachePerformanceMonitorService", () => {
     });
 
     it("should detect poor hit rate", () => {
-      // Create poor hit rate scenario
-      for (let i = 0; i < 10; i++) {
+      // Create poor hit rate scenario - need at least 50 requests to trigger threshold
+      for (let i = 0; i < 60; i++) {
         cacheService.get(`nonexistent${i}`); // All misses
       }
 
@@ -145,9 +145,9 @@ describe("CachePerformanceMonitorService", () => {
     });
 
     it("should detect slow response times", () => {
-      // Create slow response time scenario with actual cache requests
-      for (let i = 0; i < 10; i++) {
-        // Make actual cache requests to ensure totalRequests > 5
+      // Create slow response time scenario with actual cache requests - need at least 25 requests
+      for (let i = 0; i < 30; i++) {
+        // Make actual cache requests to ensure totalRequests > 25
         const cacheEntry = {
           value: i,
           timestamp: Date.now(),
@@ -156,7 +156,7 @@ describe("CachePerformanceMonitorService", () => {
         };
         cacheService.set(`key${i}`, cacheEntry, 1000);
         cacheService.get(`key${i}`);
-        performanceMonitor.recordResponseTime(600); // Slow response times (above 500ms threshold)
+        performanceMonitor.recordResponseTime(600); // Slow response times (above 300ms threshold)
       }
 
       const health = performanceMonitor.checkPerformanceThresholds();
@@ -195,10 +195,10 @@ describe("CachePerformanceMonitorService", () => {
     });
 
     it("should show warnings for poor performance", () => {
-      // Create poor performance
-      for (let i = 0; i < 10; i++) {
+      // Create poor performance - need enough requests to trigger thresholds
+      for (let i = 0; i < 60; i++) {
         cacheService.get(`nonexistent${i}`); // All misses
-        performanceMonitor.recordResponseTime(50); // Slow responses
+        performanceMonitor.recordResponseTime(600); // Slow responses (above 300ms threshold)
       }
 
       const report = performanceMonitor.generatePerformanceReport();
@@ -219,15 +219,18 @@ describe("CachePerformanceMonitorService", () => {
     it("should log warnings for poor performance", async () => {
       const logSpy = jest.spyOn(performanceMonitor["logger"], "warn").mockImplementation();
 
-      // Create poor performance scenario
-      for (let i = 0; i < 10; i++) {
+      // Mock the service as initialized to enable warnings
+      (performanceMonitor as any).isInitialized = true;
+
+      // Create poor performance scenario with significant activity (>1000 requests)
+      for (let i = 0; i < 1100; i++) {
         cacheService.get(`nonexistent${i}`); // All misses
       }
 
       // Trigger metrics collection to check performance
       performanceMonitor.triggerCollection();
 
-      expect(logSpy).toHaveBeenCalledWith("Cache performance degraded", expect.any(Object));
+      expect(logSpy).toHaveBeenCalledWith("Cache performance consistently degraded", expect.any(Object));
 
       logSpy.mockRestore();
     });

@@ -62,7 +62,6 @@ import { AggregatorsModule } from "@/aggregators/aggregators.module";
             },
             performance: {
               maxResponseLatency: ENV.MONITORING.MAX_RESPONSE_LATENCY_MS,
-              maxDataAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
               minThroughput: ENV.MONITORING.MIN_THROUGHPUT,
               minCacheHitRate: ENV.MONITORING.MIN_CACHE_HIT_RATE,
             },
@@ -132,7 +131,7 @@ import { AggregatorsModule } from "@/aggregators/aggregators.module";
                 name: "Stale Data Alert",
                 description: "Data age exceeds 2 second freshness requirement",
                 metric: "data_freshness",
-                threshold: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+                threshold: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS, // 5 minutes - for warning only, not rejection
                 operator: "gt",
                 severity: "error" as AlertSeverity,
                 duration: 0,

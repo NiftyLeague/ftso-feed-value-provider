@@ -1,11 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { StandardService } from "../base";
+import { EventDrivenService } from "../base";
 import type { RateLimitInfo, ClientRecord, RateLimitMetrics, RateLimitConfig } from "../types/utils";
 
 @Injectable()
-export class RateLimiterService extends StandardService {
+export class RateLimiterService extends EventDrivenService {
   private readonly clients = new Map<string, ClientRecord>();
-  private cleanupInterval: NodeJS.Timeout;
 
   constructor(config?: Partial<RateLimitConfig>) {
     super({
@@ -17,10 +16,21 @@ export class RateLimiterService extends StandardService {
       ...config,
     });
 
-    // Clean up old records every minute
-    this.cleanupInterval = setInterval(() => {
+    // Use event-driven cleanup instead of fixed intervals
+    const scheduleCleanup = this.createEventDrivenScheduler(() => {
       void this.cleanup();
-    }, 60000);
+    }, 30000); // Batch cleanup events within 30 seconds
+
+    // Trigger cleanup when rate limit events occur
+    this.on("rateLimitHit", scheduleCleanup);
+    this.on("rateLimitReset", scheduleCleanup);
+
+    // Also schedule periodic cleanup (but less frequent)
+    const periodicCleanup = () => {
+      scheduleCleanup();
+      this.createTimeout(periodicCleanup, 60000); // Every minute
+    };
+    periodicCleanup();
 
     this.logger.log(
       `Rate limiter initialized: ${this.rateLimitConfig.maxRequests} requests per ${this.rateLimitConfig.windowMs}ms`
@@ -204,9 +214,7 @@ export class RateLimiterService extends StandardService {
    * Destroy the service and clean up resources
    */
   destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
+    // Managed intervals are automatically cleaned up by lifecycle mixin
     this.clients.clear();
     this.logger.log("Rate limiter service destroyed");
   }

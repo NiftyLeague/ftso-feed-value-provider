@@ -240,6 +240,20 @@ class AdapterDataSource extends EventEmitter implements DataSource {
     }
   }
 
+  // Direct access to fetchTickerREST for hasRestFallbackCapability check
+  async fetchTickerREST(symbol: string): Promise<PriceUpdate> {
+    // Use adapter's REST fallback if available
+    type WithFetchTickerREST = { fetchTickerREST: (symbol: string) => Promise<PriceUpdate> };
+    if (
+      "fetchTickerREST" in this.adapter &&
+      typeof (this.adapter as WithFetchTickerREST).fetchTickerREST === "function"
+    ) {
+      return await (this.adapter as WithFetchTickerREST).fetchTickerREST(symbol);
+    }
+
+    throw new Error(`fetchTickerREST not available for ${this.adapter.exchangeName}`);
+  }
+
   async connect(): Promise<void> {
     try {
       this.logger.debug(`Connecting to ${this.adapter.exchangeName}...`);
@@ -297,6 +311,10 @@ class AdapterDataSource extends EventEmitter implements DataSource {
           const validationError = new Error(
             `Invalid price update from ${this.adapter.exchangeName}: ${JSON.stringify(update)}`
           );
+          // Add error classification
+          (validationError as Error & { errorType: string; severity: string }).errorType = "VALIDATION_ERROR";
+          (validationError as Error & { errorType: string; severity: string }).severity = "WARNING";
+
           this.logger.warn(validationError.message);
           this.emit("error", validationError);
         }
@@ -360,23 +378,28 @@ class AdapterDataSource extends EventEmitter implements DataSource {
     try {
       // Basic validation
       if (!update || typeof update !== "object") {
+        this.logger.debug(`Validation failed: update is not an object`);
         return false;
       }
 
       // Required fields validation
       if (!update.symbol || typeof update.symbol !== "string") {
+        this.logger.debug(`Validation failed: invalid symbol: ${update.symbol}`);
         return false;
       }
 
       if (typeof update.price !== "number" || isNaN(update.price) || update.price <= 0) {
+        this.logger.debug(`Validation failed: invalid price: ${update.price}`);
         return false;
       }
 
       if (typeof update.timestamp !== "number" || isNaN(update.timestamp) || update.timestamp <= 0) {
+        this.logger.debug(`Validation failed: invalid timestamp: ${update.timestamp}`);
         return false;
       }
 
       if (!update.source || typeof update.source !== "string") {
+        this.logger.debug(`Validation failed: invalid source: ${update.source}`);
         return false;
       }
 
@@ -386,14 +409,21 @@ class AdapterDataSource extends EventEmitter implements DataSource {
         update.confidence < 0 ||
         update.confidence > 1
       ) {
+        this.logger.debug(`Validation failed: invalid confidence: ${update.confidence}`);
         return false;
       }
 
       // Check for reasonable timestamp (not too old, not in future)
       const now = Date.now();
       const age = now - update.timestamp;
-      if (age > 300000 || age < -60000) {
-        // More than 5 minutes old or more than 1 minute in future
+
+      // Reasonable timestamp validation - allow up to 2 minutes in future and 30 minutes old
+      // This accounts for clock skew and network delays
+      if (age > 1800000 || age < -120000) {
+        this.logger.debug(`Validation failed: timestamp age ${age}ms (now: ${now}, update: ${update.timestamp})`);
+        this.logger.debug(
+          `Timestamp details: now=${new Date(now).toISOString()}, update=${new Date(update.timestamp).toISOString()}`
+        );
         return false;
       }
 

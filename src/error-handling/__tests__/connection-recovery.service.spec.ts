@@ -62,6 +62,8 @@ class MockDataSource implements DataSource {
     this.connectionChangeCallback = callback;
   }
 
+  // REST fallback is now handled by DataSourceFactory, not by individual data sources
+
   // Test helper methods
   simulateConnection(): void {
     this.connected = true;

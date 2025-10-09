@@ -619,7 +619,6 @@ export class ValidationUtils {
     }
 
     // Fallback to basic validation if no configured feeds provided
-    // This maintains backward compatibility for tests and other use cases
     return this.validateFeedNameBasic(trimmedName, fieldName);
   }
 

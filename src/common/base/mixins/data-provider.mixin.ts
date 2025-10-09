@@ -84,9 +84,17 @@ export function WithDataProvider<TBase extends Constructor | AbstractConstructor
     }
 
     _scheduleRateLimitReset(): void {
-      this._resetInterval = setInterval(() => {
-        this.resetRateLimitCounters();
-      }, this._rateLimitConfig.windowMs);
+      // Use managed timeout for rate limit reset
+      const scheduleNextReset = () => {
+        const timer = (
+          this as unknown as { createTimeout: (cb: () => void, delay: number) => NodeJS.Timeout }
+        ).createTimeout(() => {
+          this.resetRateLimitCounters();
+          scheduleNextReset(); // Schedule next reset
+        }, this._rateLimitConfig.windowMs);
+        this._resetInterval = timer;
+      };
+      scheduleNextReset();
     }
 
     public getConnectionStatus(): ServiceStatus {
@@ -111,7 +119,7 @@ export function WithDataProvider<TBase extends Constructor | AbstractConstructor
 
       // Reset interval with new window
       if (this._resetInterval) {
-        clearInterval(this._resetInterval);
+        (this as unknown as { clearTimer: (timer: NodeJS.Timeout) => void }).clearTimer(this._resetInterval);
       }
       this._scheduleRateLimitReset();
     }

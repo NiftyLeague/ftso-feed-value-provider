@@ -144,9 +144,9 @@ export class OkxAdapter extends BaseExchangeAdapter {
       this.createWebSocketConfig(wsUrl, {
         // OKX has its own 30s timeout mechanism and doesn't respond to pings
         // Send pings more frequently to keep connection alive
-        pingInterval: 25000, // 25 seconds - just before OKX's 30s timeout
-        pongTimeout: 35000, // 35 seconds - allow for OKX's timeout behavior
-        connectionTimeout: 45000, // Longer connection timeout
+        pingInterval: 20000, // 20 seconds - well before OKX's 30s timeout
+        pongTimeout: 40000, // 40 seconds - allow for OKX's timeout behavior
+        connectionTimeout: 60000, // Longer connection timeout for stability
       })
     );
   }
@@ -204,31 +204,23 @@ export class OkxAdapter extends BaseExchangeAdapter {
   // Override WebSocket event handlers from BaseExchangeAdapter
   protected override handleWebSocketMessage(data: unknown): void {
     try {
-      let message: unknown;
-      let rawString: string;
+      const message = this.parseWebSocketData(data);
+      if (!message) return;
 
-      // Convert to string first to check for simple pong responses
-      if (typeof data === "string") {
-        rawString = data;
-      } else if (Buffer.isBuffer(data)) {
-        rawString = data.toString("utf8");
-      } else {
-        rawString = String(data);
-      }
-
-      // Handle simple pong responses before JSON parsing
-      if (rawString === "pong") {
+      // Handle simple pong responses
+      if (message === "pong") {
         this.onPongReceived();
         return;
       }
 
-      // Parse the message as JSON
-      try {
-        message = JSON.parse(rawString);
-      } catch {
-        this.logger.debug(`Received non-JSON message from OKX: ${rawString}`);
+      // Handle ping responses
+      if (message === "ping") {
+        // OKX sometimes sends ping messages, just acknowledge them
+        this.logger.debug("Received ping from OKX WebSocket");
         return;
       }
+
+      this.logger.debug(`OKX WebSocket message parsed: ${JSON.stringify(message)}`);
 
       // Handle ping/pong in JSON format
       if (isOkxPongMessage(message)) {
@@ -242,9 +234,17 @@ export class OkxAdapter extends BaseExchangeAdapter {
         return;
       }
 
-      // Handle errors
+      // Handle errors with improved error handling
       if (isOkxErrorMessage(message)) {
-        this.logger.warn("OKX WebSocket error:", message);
+        const errorMsg = message.msg || "Unknown error";
+        const errorCode = message.code || "unknown";
+
+        // Log server errors as warnings but don't treat as critical
+        if (errorCode === "520" || errorMsg.includes("520")) {
+          this.logger.warn(`OKX server error (${errorCode}): ${errorMsg} - will retry connection`);
+        } else {
+          this.logger.warn("OKX WebSocket error:", message);
+        }
         return;
       }
 
@@ -253,6 +253,7 @@ export class OkxAdapter extends BaseExchangeAdapter {
         this.logger.debug(`OKX ticker data received for ${message.data.length} symbols`);
         message.data.forEach((ticker: OkxTickerData) => {
           if (this.validateResponse(ticker)) {
+            this.logger.log(`Processing OKX ticker data for ${ticker.instId}: ${ticker.last}`);
             const priceUpdate = this.normalizePriceData(ticker);
             this.onPriceUpdateCallback?.(priceUpdate);
           } else {
@@ -261,8 +262,13 @@ export class OkxAdapter extends BaseExchangeAdapter {
         });
       }
     } catch (error) {
-      this.logger.error("Error processing OKX WebSocket message:", error);
-      this.onErrorCallback?.(error as Error);
+      // Don't treat connection errors as critical during normal operation
+      if (error instanceof Error && error.message.includes("520")) {
+        this.logger.warn("OKX connection error (520) - will retry:", error.message);
+      } else {
+        this.logger.error("Error processing OKX WebSocket message:", error);
+        this.onErrorCallback?.(error as Error);
+      }
     }
   }
 
@@ -322,19 +328,17 @@ export class OkxAdapter extends BaseExchangeAdapter {
     const okxSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     try {
-      for (const symbol of okxSymbols) {
-        const subscribeMessage = {
-          op: "subscribe",
-          args: [
-            {
-              channel: "tickers",
-              instId: symbol,
-            },
-          ],
-        };
+      // OKX supports multiple symbols in a single subscription message
+      // This matches the efficient pattern used by other adapters like Crypto.com
+      const subscribeMessage = {
+        op: "subscribe",
+        args: okxSymbols.map(symbol => ({
+          channel: "tickers",
+          instId: symbol,
+        })),
+      };
 
-        await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
-      }
+      await this.sendWebSocketMessage(JSON.stringify(subscribeMessage));
       this.logger.log(`Subscribed to OKX symbols: ${okxSymbols.join(", ")}`);
     } catch (error) {
       this.logger.warn(`OKX subscription error:`, error);
@@ -345,19 +349,17 @@ export class OkxAdapter extends BaseExchangeAdapter {
     const okxSymbols = symbols.map(symbol => this.getSymbolMapping(symbol));
 
     try {
-      for (const symbol of okxSymbols) {
-        const unsubscribeMessage = {
-          op: "unsubscribe",
-          args: [
-            {
-              channel: "tickers",
-              instId: symbol,
-            },
-          ],
-        };
+      // OKX supports multiple symbols in a single unsubscription message
+      // This matches the efficient pattern used by other adapters
+      const unsubscribeMessage = {
+        op: "unsubscribe",
+        args: okxSymbols.map(symbol => ({
+          channel: "tickers",
+          instId: symbol,
+        })),
+      };
 
-        await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
-      }
+      await this.sendWebSocketMessage(JSON.stringify(unsubscribeMessage));
       this.logger.log(`Unsubscribed from OKX symbols: ${okxSymbols.join(", ")}`);
     } catch (error) {
       this.logger.warn(`OKX unsubscription error:`, error);

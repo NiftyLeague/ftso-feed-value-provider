@@ -188,7 +188,11 @@ export class UniversalRetryService extends EventDrivenService {
             ? adaptiveDelay * (ENV.PERFORMANCE.JITTER_MIN_FACTOR + Math.random() * ENV.PERFORMANCE.JITTER_MAX_FACTOR)
             : adaptiveDelay;
 
-          await new Promise(resolve => setTimeout(resolve, actualDelay));
+          // Use waitForCondition for more responsive retry delays
+          await this.waitForCondition(
+            () => false, // Always wait the full delay
+            { maxAttempts: 1, checkInterval: actualDelay, timeout: actualDelay }
+          );
 
           // Calculate next delay with backoff
           delayMs = Math.min(delayMs * config.backoffMultiplier, config.maxDelayMs);

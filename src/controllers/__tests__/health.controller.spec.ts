@@ -262,14 +262,16 @@ describe("HealthController - Health Check Endpoints", () => {
       integrationService.getSystemHealth.mockResolvedValue({
         status: "healthy",
         timestamp: Date.now(),
-        sources: [],
+        sources: [
+          { sourceId: "test-source", status: "healthy", lastUpdate: Date.now(), errorCount: 0, recoveryCount: 1 },
+        ],
         aggregation: { successRate: 1, errorCount: 0 },
         performance: { averageResponseTime: 100, errorRate: 0.01 },
         accuracy: { averageConfidence: 0.99, outlierRate: 0.01 },
       });
 
-      // Mock the startup time to be older than 5 seconds
-      (controller as any).startupTime = Date.now() - 6000;
+      // Mock the startup time to be older than 15 seconds (past minStartupTime)
+      (controller as any).startupTime = Date.now() - 20000;
 
       const result = await controller.getReadiness();
 

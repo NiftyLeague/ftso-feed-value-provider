@@ -2,9 +2,9 @@
  * Data manager connection type definitions
  */
 
-import { CoreFeedId } from "../core";
+import { CoreFeedId, PriceUpdate } from "../core";
 
-import { AdapterWithReconnection, AdapterWithRestFallback, AdapterWithHealthCheck } from "../adapters";
+import { AdapterWithReconnection, AdapterWithHealthCheck } from "../adapters";
 
 export interface EnhancedDataSource {
   type: "websocket" | "rest" | "hybrid";
@@ -17,8 +17,11 @@ export function hasReconnectionCapability(source: unknown): source is AdapterWit
   return typeof source === "object" && source !== null && "attemptReconnection" in source;
 }
 
-export function hasRestFallbackCapability(source: unknown): source is AdapterWithRestFallback {
-  return typeof source === "object" && source !== null && "fetchPriceViaREST" in source;
+// REST fallback capability is now determined by checking for fetchTickerREST
+export function hasRestFallbackCapability(
+  source: unknown
+): source is { fetchTickerREST(symbol: string): Promise<PriceUpdate> } {
+  return typeof source === "object" && source !== null && "fetchTickerREST" in source;
 }
 
 export function hasHealthCheckCapability(source: unknown): source is AdapterWithHealthCheck {

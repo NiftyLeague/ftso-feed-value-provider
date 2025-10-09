@@ -2,14 +2,14 @@ import axios from "axios";
 import * as nodemailer from "nodemailer";
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 
-import { StandardService } from "@/common/base/composed.service";
+import { EventDrivenService } from "@/common/base/composed.service";
 import { AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import type { Alert, AlertRule, AlertingConfig } from "@/common/types/monitoring";
 import type { LogLevel } from "@/common/types/logging";
 import { ENV } from "@/config/environment.constants";
 
 @Injectable()
-export class AlertingService extends StandardService implements OnModuleDestroy {
+export class AlertingService extends EventDrivenService implements OnModuleDestroy {
   private alerts: Map<string, Alert> = new Map();
   private activeAlerts: Map<string, Alert> = new Map();
   private alertCounts: Map<string, number> = new Map();
@@ -62,11 +62,22 @@ export class AlertingService extends StandardService implements OnModuleDestroy 
    * Start the alert cleanup interval
    */
   private startAlertCleanup(): void {
-    const cleanupIntervalMs = ENV.MONITORING.ALERT_RETENTION_DAYS * 24 * 60 * 60 * 1000; // Convert days to ms
-    this.cleanupInterval = setInterval(() => {
+    // Use event-driven cleanup instead of fixed intervals
+    const scheduleCleanup = this.createEventDrivenScheduler(() => {
       this.cleanupOldAlerts();
       this.resetHourlyAlertCounts();
-    }, cleanupIntervalMs);
+    }, 60000); // Batch cleanup events within 1 minute
+
+    // Trigger cleanup on alert-related events
+    this.on("alertCreated", scheduleCleanup);
+    this.on("alertResolved", scheduleCleanup);
+
+    // Also schedule periodic cleanup (but less frequent)
+    const periodicCleanup = () => {
+      scheduleCleanup();
+      this.createTimeout(periodicCleanup, 24 * 60 * 60 * 1000); // Daily
+    };
+    periodicCleanup();
   }
 
   /**

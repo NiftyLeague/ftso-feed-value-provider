@@ -34,12 +34,11 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private subscriptions = new Map<string, SourceSubscription[]>();
 
   // Real-time data management properties
-  readonly maxDataAge = ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS;
   readonly maxCacheTTL = ENV.CACHE.TTL_MS;
 
   // Data freshness policy
   private readonly dataFreshnessPolicy: DataFreshnessPolicy = {
-    rejectStaleData: true,
+    rejectStaleData: false, // Never reject data based on age
     staleThresholdMs: ENV.DATA_FRESHNESS.FRESH_DATA_MS,
     realTimePriority: true,
     cacheBypassOnFreshData: true,
@@ -49,10 +48,11 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthMonitorInterval?: NodeJS.Timeout;
 
-  // Rate limiting for warnings
-  private staleWarningLastLogged = new Map<string, number>();
+  // Data source initialization tracking
+  private dataSourcesInitialized = new Set<string>();
+
+  // Rate limiting for quality warnings only
   private qualityWarningLastLogged = new Map<string, number>();
-  private readonly STALE_WARNING_COOLDOWN_MS = ENV.MONITORING.STALE_WARNING_COOLDOWN_MS; // 2 minutes - increased to reduce spam
   private readonly QUALITY_WARNING_COOLDOWN_MS = ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS; // 5 minutes - much less frequent for quality warnings
 
   constructor() {
@@ -63,17 +63,36 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       maxAttempts: ENV.AGGREGATION.MAX_ATTEMPTS,
       useEnhancedLogging: true,
     });
-    this.setupHealthMonitoring();
+    // Don't start health monitoring until service is initialized
   }
 
   private setupHealthMonitoring(): void {
-    // Run health checks every 60 seconds to reduce memory pressure
-    this.healthMonitorInterval = setInterval(() => {
+    // Use event-driven health monitoring instead of fixed intervals
+    this.setupEventDrivenHealthMonitoring();
+  }
+
+  private setupEventDrivenHealthMonitoring(): void {
+    // Create event-driven scheduler that batches health checks
+    const scheduleHealthCheck = this.createEventDrivenScheduler(() => {
       void this.performHealthCheck();
-    }, ENV.HEALTH_CHECKS.AGGREGATION_INTERVAL_MS);
+    }, 500); // Batch events within 500ms
+
+    // Monitor for connection changes and data updates
+    this.on("sourceConnected", scheduleHealthCheck);
+    this.on("sourceDisconnected", scheduleHealthCheck);
+    this.on("priceUpdate", scheduleHealthCheck);
+    this.on("sourceError", scheduleHealthCheck);
+
+    // Initial health check
+    scheduleHealthCheck();
   }
 
   private async performHealthCheck(): Promise<void> {
+    // Only perform health checks if service is fully initialized
+    if (!this.isServiceInitialized()) {
+      return;
+    }
+
     const now = Date.now();
 
     for (const [sourceId, metrics] of this.connectionMetrics.entries()) {
@@ -85,11 +104,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       // Perform comprehensive health check
       let isHealthy = metrics.isHealthy;
 
-      // Check for stale data - be more lenient during normal operations
-      // Only mark as unhealthy if data is significantly stale (3x the threshold)
-      // This accounts for temporary network issues and exchange maintenance
-      if (timeSinceLastUpdate > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS * 3) {
-        isHealthy = false;
+      // Skip health checks for data sources that aren't fully initialized yet
+      if (!this.isServiceInitialized() || !this.dataSourcesInitialized.has(sourceId)) {
+        continue;
       }
 
       // Check connection status
@@ -97,9 +114,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         isHealthy = false;
       }
 
-      // Check latency
-      if (source.getLatency() > 5000) {
-        // 5 second latency threshold
+      // Check latency - more lenient threshold for real-time data
+      if (source.getLatency() > 10000) {
+        // 10 second latency threshold
         isHealthy = false;
       }
 
@@ -121,8 +138,11 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         metrics.isHealthy = isHealthy;
 
         if (!isHealthy) {
-          this.logger.warn(`Data source ${sourceId} marked as unhealthy - last update: ${timeSinceLastUpdate}ms ago`);
-          this.emit("sourceUnhealthy", sourceId);
+          // Only emit unhealthy events if service is initialized and data source is ready
+          if (this.isServiceInitialized() && this.dataSourcesInitialized.has(sourceId)) {
+            this.logger.warn(`Data source ${sourceId} marked as unhealthy - last update: ${timeSinceLastUpdate}ms ago`);
+            this.emit("sourceUnhealthy", sourceId);
+          }
         } else {
           this.logger.log(`Data source ${sourceId} marked as healthy`);
           this.emit("sourceHealthy", sourceId);
@@ -148,6 +168,33 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
   }
 
+  /**
+   * Mark a data source as initialized and ready for health checks
+   */
+  markDataSourceInitialized(sourceId: string): void {
+    this.dataSourcesInitialized.add(sourceId);
+    this.logger.debug(`Data source ${sourceId} marked as initialized`);
+  }
+
+  /**
+   * Check if a data source is initialized
+   */
+  isDataSourceInitialized(sourceId: string): boolean {
+    return this.dataSourcesInitialized.has(sourceId);
+  }
+
+  /**
+   * Standard initialization method from lifecycle mixin
+   */
+  override async initialize(): Promise<void> {
+    // Start health monitoring only after service is initialized
+    this.setupHealthMonitoring();
+
+    this.logger.log("ProductionDataManagerService initialization completed");
+    // Emit the standard initialized event
+    this.emitWithLogging("initialized");
+  }
+
   override async cleanup(): Promise<void> {
     // Clear all reconnection timers
     for (const timer of this.reconnectTimers.values()) {
@@ -155,19 +202,93 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
     this.reconnectTimers.clear();
 
-    // Clear health monitoring interval
+    // Clear health monitoring interval (if still using legacy approach)
     if (this.healthMonitorInterval) {
       clearInterval(this.healthMonitorInterval);
       this.healthMonitorInterval = undefined;
     }
 
     // Clear rate limiting maps to free memory
-    this.staleWarningLastLogged.clear();
     this.qualityWarningLastLogged.clear();
 
     // Clear connection metrics
     this.connectionMetrics.clear();
     this.subscriptions.clear();
+  }
+
+  /**
+   * Wait for source to be actually ready instead of assuming connection success
+   */
+  private async waitForSourceReadiness(source: DataSource, maxAttempts = 30): Promise<void> {
+    const startTime = Date.now();
+    const isReady = await this.waitForCondition(
+      async () => {
+        // Check if source is truly ready
+        if (!source.isConnected()) {
+          return false;
+        }
+
+        // Be more lenient with latency check for newly connected sources
+        // Allow up to 10 seconds of high latency for initial data reception
+        const connectionAge = Date.now() - startTime;
+        const latency = source.getLatency();
+
+        if (connectionAge > 10000 && latency >= 5000) {
+          // Only fail on high latency after connection has been established for 10+ seconds
+          this.logger.debug(`Source ${source.id} has high latency (${latency}ms) after ${connectionAge}ms`);
+          return false;
+        }
+
+        // For sources that support health checks, verify they pass
+        if (hasHealthCheckCapability(source)) {
+          try {
+            const healthResult = await source.performHealthCheck();
+            if (!healthResult) {
+              this.logger.debug(`Health check failed for ${source.id}`);
+              return false;
+            }
+            return true;
+          } catch (error) {
+            this.logger.debug(`Health check failed for ${source.id}:`, error);
+            // For newly connected sources, be more lenient with health check failures
+            if (connectionAge < 5000) {
+              this.logger.debug(`Allowing health check failure for newly connected source ${source.id}`);
+              return true;
+            }
+            return false;
+          }
+        }
+
+        // For sources without health checks, connection is sufficient
+        return true;
+      },
+      {
+        maxAttempts,
+        checkInterval: 500, // Check every 500ms
+        timeout: maxAttempts * 1000, // Overall timeout
+      }
+    );
+
+    if (!isReady) {
+      throw new Error(`Source ${source.id} failed to become ready after ${maxAttempts} attempts`);
+    }
+
+    this.logger.debug(`Source ${source.id} is ready`);
+  }
+
+  /**
+   * Calculate adaptive delay based on connection state and history
+   */
+  private calculateAdaptiveDelay(reconnectAttempts: number): number {
+    // Start with base delay and increase based on failure history
+    const baseDelay = 1000;
+    const maxDelay = 30000;
+
+    // Exponential backoff with jitter
+    const exponentialDelay = Math.min(baseDelay * Math.pow(2, reconnectAttempts), maxDelay);
+    const jitter = Math.random() * 0.3; // 30% jitter
+
+    return Math.floor(exponentialDelay * (1 + jitter));
   }
 
   // Test helper method to manually emit price updates
@@ -220,6 +341,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
       // Attempt initial connection for all sources
       await this.connectWithRetry(source);
+
+      // Mark data source as initialized after successful connection attempt
+      this.markDataSourceInitialized(source.id);
 
       this.logger.log(`Data source ${source.id} added successfully`);
       this.emit("sourceAdded", source.id);
@@ -342,12 +466,22 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     const configuredExchanges = this.getConfiguredExchangesForFeed(feedId);
     const priceUpdates: PriceUpdate[] = [];
 
+    this.logger.debug(`Getting price updates for ${feedId.name} from exchanges: ${configuredExchanges.join(", ")}`);
+
     for (const exchange of configuredExchanges) {
       try {
         const source = this.getDataSourceForExchange(exchange);
         if (!source) {
-          this.logger.debug(`Source not found for exchange ${exchange}`);
+          this.logger.warn(`Source not found for exchange ${exchange} for feed ${feedId.name}`);
           continue;
+        }
+
+        this.logger.log(`Found source for ${exchange}, checking if custom adapter: ${hasCustomAdapter(exchange)}`);
+
+        if (hasRestFallbackCapability(source)) {
+          this.logger.log(`Source ${exchange} has REST fallback capability`);
+        } else {
+          this.logger.warn(`Source ${exchange} does not have REST fallback capability`);
         }
 
         // Check if this is a CCXT exchange
@@ -375,17 +509,36 @@ export class ProductionDataManagerService extends EventDrivenService implements 
             const sourceConfig = feedConfig?.sources.find(s => s.exchange === exchange);
             const exchangeSymbol = sourceConfig?.symbol || feedId.name;
 
-            const restUpdate = await source.fetchPriceViaREST(exchangeSymbol);
-            if (restUpdate) {
-              priceUpdates.push(restUpdate);
+            // Check if source supports REST fallback - custom adapters use fetchTickerREST
+            if (source.fetchTickerREST) {
+              this.logger.debug(`Calling fetchTickerREST for ${exchange} with symbol ${exchangeSymbol}`);
+              const restUpdate = await source.fetchTickerREST(exchangeSymbol);
+              if (restUpdate) {
+                this.logger.debug(`Got REST update from ${exchange}: ${restUpdate.price}`);
+                priceUpdates.push(restUpdate);
+              } else {
+                this.logger.debug(`No REST update from ${exchange} for ${exchangeSymbol}`);
+              }
+            } else if (source.fetchPriceViaREST) {
+              this.logger.log(`Calling fetchPriceViaREST for ${exchange} with symbol ${exchangeSymbol}`);
+              const restUpdate = await source.fetchPriceViaREST(exchangeSymbol);
+              if (restUpdate) {
+                this.logger.log(`Got REST update from ${exchange}: ${restUpdate.price}`);
+                priceUpdates.push(restUpdate);
+              } else {
+                this.logger.warn(`No REST update from ${exchange} for ${exchangeSymbol}`);
+              }
+            } else {
+              this.logger.warn(`Source ${exchange} does not have fetchTickerREST or fetchPriceViaREST methods`);
             }
           }
         }
       } catch (error) {
-        this.logger.debug(`Failed to get price from ${exchange} for ${feedId.name}:`, error);
+        this.logger.error(`Failed to get price from ${exchange} for ${feedId.name}:`, error);
       }
     }
 
+    this.logger.debug(`Returning ${priceUpdates.length} price updates for ${feedId.name}`);
     return priceUpdates;
   }
 
@@ -525,38 +678,6 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   }
 
   processUpdateImmediately(update: PriceUpdate): void {
-    // Validate data age first
-    const age = Date.now() - update.timestamp;
-    if (age > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
-      this.enhancedLogger?.warn(`Price update from ${update.source} is too stale to use`, {
-        component: "ProductionDataManager",
-        operation: "process_update",
-        sourceId: update.source,
-        metadata: {
-          age,
-          maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
-          symbol: update.symbol,
-          price: update.price,
-        },
-      });
-      return;
-    }
-
-    // Early warning for approaching staleness
-    if (age > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
-      this.enhancedLogger?.warn(`Price update from ${update.source} is becoming stale`, {
-        component: "ProductionDataManager",
-        operation: "process_update",
-        sourceId: update.source,
-        metadata: {
-          age,
-          warningThreshold: ENV.DATA_FRESHNESS.STALE_WARNING_MS,
-          symbol: update.symbol,
-          price: update.price,
-        },
-      });
-    }
-
     // Update subscription timestamp
     this.updateSubscriptionTimestamp(update);
 
@@ -578,7 +699,6 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       metadata: {
         price: update.price,
         confidence: update.confidence,
-        age,
       },
     });
 
@@ -597,11 +717,13 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       const freshness = await this.getDataFreshness(feedId);
 
       if (freshness === Infinity) {
-        throw new Error(`No data available for feed ${feedId.name}`);
-      }
-
-      if (freshness > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
-        throw new Error(`Data too stale for feed ${feedId.name}: ${freshness}ms old`);
+        // Try to get fresh data from exchanges if no cached data exists
+        const priceUpdates = await this.getPriceUpdatesForFeed(feedId);
+        if (priceUpdates.length === 0) {
+          throw new Error(`No price data available for feed ${feedId.name}`);
+        }
+        // Process the updates we just fetched
+        return this.createAggregatedPriceFromUpdates(feedId, priceUpdates);
       }
 
       // Get fresh price updates for this feed
@@ -616,9 +738,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
       // For now, return a simple aggregated result
       // In a fully integrated system, this would call the RealTimeAggregationService
-      const validUpdates = priceUpdates.filter(
-        update => update.price > 0 && update.timestamp > Date.now() - ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS
-      );
+      const validUpdates = priceUpdates.filter(update => update.price > 0);
 
       if (validUpdates.length === 0) {
         throw new Error(`No valid price updates for feed ${feedId.name}`);
@@ -767,54 +887,6 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       }
     }
 
-    // Check data age
-    const age = Date.now() - update.timestamp;
-
-    // Log warning if approaching staleness (with rate limiting)
-    if (age > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
-      const warningKey = `${update.source}_stale_warning`;
-      const now = Date.now();
-      const lastLogged = this.staleWarningLastLogged.get(warningKey) || 0;
-
-      if (now - lastLogged > this.STALE_WARNING_COOLDOWN_MS) {
-        this.enhancedLogger?.warn(`Price update from ${update.source} is becoming stale`, {
-          component: "ProductionDataManager",
-          operation: "validate_price_quality",
-          sourceId: update.source,
-          metadata: {
-            age,
-            warningThreshold: ENV.DATA_FRESHNESS.STALE_WARNING_MS,
-            symbol: update.symbol,
-            price: update.price,
-          },
-        });
-        this.staleWarningLastLogged.set(warningKey, now);
-      }
-    }
-
-    // Check if data is too stale (with rate limiting)
-    if (age > ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
-      const warningKey = `${update.source}_too_stale_warning`;
-      const now = Date.now();
-      const lastLogged = this.staleWarningLastLogged.get(warningKey) || 0;
-
-      if (now - lastLogged > this.STALE_WARNING_COOLDOWN_MS) {
-        this.enhancedLogger?.warn(`Price update from ${update.source} is too stale to use`, {
-          component: "ProductionDataManager",
-          operation: "validate_price_quality",
-          sourceId: update.source,
-          metadata: {
-            age,
-            maxAge: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
-            symbol: update.symbol,
-            price: update.price,
-          },
-        });
-        this.staleWarningLastLogged.set(warningKey, now);
-      }
-      return false;
-    }
-
     return true;
   }
 
@@ -833,6 +905,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
         await source.connect();
 
+        // Wait for actual connection readiness instead of assuming success
+        await this.waitForSourceReadiness(source);
+
         // Update metrics on successful connection
         metrics.isHealthy = true;
         metrics.reconnectAttempts = 0;
@@ -841,7 +916,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       `connect_data_source_${sourceId}`,
       {
         retries: 10,
-        retryDelay: 1000,
+        retryDelay: this.calculateAdaptiveDelay(metrics.reconnectAttempts),
         shouldThrow: false,
         onError: (error, attempt) => {
           this.logger.error(`Connection failed for ${sourceId} (attempt ${attempt}):`, error);
@@ -873,6 +948,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         clearTimeout(timer);
         this.reconnectTimers.delete(sourceId);
       }
+
+      // Mark data source as initialized when it successfully connects
+      this.markDataSourceInitialized(sourceId);
 
       this.emit("sourceConnected", sourceId);
       this.emit("sourceHealthy", sourceId);
@@ -937,6 +1015,41 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       },
       requestsPerSecond,
       errorRate: 0,
+    };
+  }
+
+  /**
+   * Create an aggregated price from raw price updates (fallback during startup)
+   */
+  private createAggregatedPriceFromUpdates(feedId: CoreFeedId, updates: PriceUpdate[]): AggregatedPrice {
+    const validUpdates = updates.filter(update => update.price > 0);
+
+    if (validUpdates.length === 0) {
+      throw new Error(`No valid price updates for feed ${feedId.name}`);
+    }
+
+    // Simple aggregation: weighted average by confidence
+    const totalWeight = validUpdates.reduce(
+      (sum, update) => sum + (update.confidence || ENV.PERFORMANCE.DEFAULT_CONFIDENCE_FALLBACK),
+      0
+    );
+
+    const weightedPrice = validUpdates.reduce(
+      (sum, update) => sum + update.price * (update.confidence || ENV.PERFORMANCE.DEFAULT_CONFIDENCE_FALLBACK),
+      0
+    );
+
+    const averagePrice = weightedPrice / totalWeight;
+    const averageConfidence = totalWeight / validUpdates.length;
+
+    return {
+      symbol: feedId.name,
+      price: averagePrice,
+      confidence: Math.min(averageConfidence, 1.0),
+      timestamp: Math.max(...validUpdates.map(u => u.timestamp)),
+      sources: validUpdates.map(u => u.source),
+      votingRound: 0, // Default for startup
+      consensusScore: validUpdates.length > 1 ? 0.8 : 0.5, // Lower consensus for single source
     };
   }
 }

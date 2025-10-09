@@ -159,6 +159,8 @@ export class IntegrationService
 
   // Lifecycle methods
   override async onModuleInit(): Promise<void> {
+    // Perform initialization synchronously to ensure service is ready for health checks
+    // This ensures health endpoints return accurate status immediately
     await this.performInitialization();
   }
 
@@ -217,27 +219,40 @@ export class IntegrationService
 
     const feedConfigs = this.configService.getFeedConfigurations();
 
-    for (const config of feedConfigs) {
-      await this.executeWithErrorHandling(
-        async () => {
-          // Subscribe through data source integration
-          await this.dataSourceIntegration.subscribeToFeed(config.feed);
+    // Process feeds in parallel batches to speed up initialization
+    const batchSize = 10; // Process 10 feeds at a time
+    const batches: (typeof feedConfigs)[] = [];
 
-          // Configure aggregation for the feed
-          await this.priceAggregationCoordinator.configureFeed(config);
-
-          this.logDebug(`Subscribed to feed: ${config.feed.name}`, "subscribeToFeeds");
-        },
-        `subscribeToFeed_${config.feed.name}`,
-        {
-          shouldThrow: false, // Continue with other feeds even if one fails
-          retries: 2,
-          retryDelay: 1000,
-        }
-      );
+    for (let i = 0; i < feedConfigs.length; i += batchSize) {
+      batches.push(feedConfigs.slice(i, i + batchSize));
     }
 
-    this.logDebug(`Processed ${feedConfigs.length} feed configurations`, "subscribeToFeeds");
+    for (const batch of batches) {
+      const promises = batch.map(config =>
+        this.executeWithErrorHandling(
+          async () => {
+            // Subscribe through data source integration
+            await this.dataSourceIntegration.subscribeToFeed(config.feed);
+
+            // Configure aggregation for the feed
+            await this.priceAggregationCoordinator.configureFeed(config);
+
+            this.logDebug(`Subscribed to feed: ${config.feed.name}`, "subscribeToFeeds");
+          },
+          `subscribeToFeed_${config.feed.name}`,
+          {
+            shouldThrow: false, // Continue with other feeds even if one fails
+            retries: 1, // Reduce retries for faster initialization
+            retryDelay: 500, // Reduce retry delay
+          }
+        )
+      );
+
+      // Wait for the current batch to complete before starting the next
+      await Promise.all(promises);
+    }
+
+    this.logDebug(`Processed ${feedConfigs.length} feed configurations in batches`, "subscribeToFeeds");
   }
 
   // IntegrationServiceInterface implementation

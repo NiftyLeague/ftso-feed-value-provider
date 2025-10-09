@@ -51,7 +51,7 @@ export function WithMonitoring<TBase extends Constructor | AbstractConstructor>(
     endTimer(operationName: string): number {
       const startTime = this.serviceOperationTimers.get(operationName);
       if (!startTime) {
-        (this as unknown as IBaseService).logWarning(`Timer not found for operation: ${operationName}`);
+        // Don't log warning for missing timers - this can happen in normal error flows
         return 0;
       }
 
@@ -59,6 +59,15 @@ export function WithMonitoring<TBase extends Constructor | AbstractConstructor>(
       this.serviceOperationTimers.delete(operationName);
       this.recordMetric(`${operationName}_duration_ms`, duration);
       return duration;
+    }
+
+    safeEndTimer(operationName: string): number {
+      // Same as endTimer but explicitly designed for error handling scenarios
+      return this.endTimer(operationName);
+    }
+
+    hasTimer(operationName: string): boolean {
+      return this.serviceOperationTimers.has(operationName);
     }
 
     setHealthStatus(status: "healthy" | "unhealthy" | "degraded"): void {

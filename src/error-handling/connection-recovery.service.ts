@@ -63,7 +63,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
   ) {
     super({
       maxFailoverTime: ENV.CONNECTION_RECOVERY.MAX_FAILOVER_TIME_MS,
-      healthCheckInterval: ENV.HEALTH_CHECKS.CONNECTION_RECOVERY_INTERVAL_MS,
+      healthCheckInterval: ENV.INTERVALS.SYSTEM_CHECK_MS,
       reconnectDelay: ENV.CONNECTION_RECOVERY.RECONNECT_DELAY_MS,
       maxReconnectDelay: ENV.CONNECTION_RECOVERY.MAX_RECONNECT_DELAY_MS,
       backoffMultiplier: ENV.PERFORMANCE.COMMON_BACKOFF_MULTIPLIER,
@@ -489,7 +489,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
       return;
     }
 
-    const delay = this.calculateReconnectDelay(health.reconnectAttempts, errorType);
+    const delay = this.calculateReconnectDelay(health.reconnectAttempts);
     health.reconnectAttempts++;
     this.lastReconnectAttempt.set(sourceId, now);
 
@@ -498,7 +498,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
       `Scheduling reconnection for ${sourceId} in ${delay}ms (attempt ${health.reconnectAttempts})${errorTypeMsg}`
     );
 
-    const timer = setTimeout(async () => {
+    // ✅ Use managed timeout for reconnection scheduling
+    const timer = this.createTimeout(async () => {
       await this.attemptReconnection(sourceId);
     }, delay);
 
@@ -532,7 +533,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
     }
   }
 
-  private calculateReconnectDelay(attemptNumber: number, errorType?: string, lastError?: Error): number {
+  private calculateReconnectDelay(attemptNumber: number, lastError?: Error): number {
     let baseDelay = this.recoveryConfig.reconnectDelay;
     let multiplier = this.recoveryConfig.backoffMultiplier;
 
@@ -541,12 +542,6 @@ export class ConnectionRecoveryService extends EventDrivenService {
       const backoffParams = getBackoffParameters(lastError);
       baseDelay = Math.max(baseDelay, backoffParams.minDelay);
       multiplier = Math.max(multiplier, backoffParams.multiplier);
-    } else if (errorType) {
-      // Fallback to error type-based logic for backward compatibility
-      if (errorType === "service_unavailable" || errorType === "server_error") {
-        baseDelay = Math.max(baseDelay, 30000); // Minimum 30 seconds for server errors
-        multiplier = Math.max(multiplier, 2.5); // More aggressive backoff
-      }
     }
 
     const delay = Math.min(baseDelay * Math.pow(multiplier, attemptNumber), this.recoveryConfig.maxReconnectDelay);
@@ -614,7 +609,19 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private startHealthMonitoring(): void {
-    this.healthCheckTimer = setInterval(() => {
+    // ✅ Use event-driven scheduler for health monitoring
+    const scheduleHealthCheck = this.createEventDrivenScheduler(() => {
+      this.performHealthCheck();
+    }, 1000); // Batch health check events within 1 second
+
+    // Trigger health checks on relevant events
+    this.on("connectionChanged", scheduleHealthCheck);
+    this.on("sourceAdded", scheduleHealthCheck);
+    this.on("sourceRemoved", scheduleHealthCheck);
+    this.on("recoveryAttempted", scheduleHealthCheck);
+
+    // Fallback periodic health check for cases with no events
+    this.healthCheckTimer = this.createInterval(() => {
       this.performHealthCheck();
     }, this.recoveryConfig.healthCheckInterval);
   }
@@ -636,8 +643,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
       health.averageLatency = source.getLatency();
 
       // Check for stale connections
-      if (health.lastConnected && now - health.lastConnected > 300000) {
-        // No activity for 5 minutes
+      if (health.lastConnected && now - health.lastConnected > 600000) {
+        // No activity for 10 minutes
         if (health.isHealthy) {
           this.logger.warn(`Source ${sourceId} marked as unhealthy due to inactivity`);
           health.isHealthy = false;

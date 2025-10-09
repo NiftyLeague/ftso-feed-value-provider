@@ -133,7 +133,7 @@ describe("BaseService", () => {
 
       service.testLogError(testError, "test-context");
 
-      expect(errorSpy).toHaveBeenCalledWith("[test-context] Test error", testError.stack, undefined);
+      expect(errorSpy).toHaveBeenCalledWith("[test-context] Test error", testError.stack);
     });
 
     it("should log error without context", () => {
@@ -142,7 +142,7 @@ describe("BaseService", () => {
 
       service.testLogError(testError);
 
-      expect(errorSpy).toHaveBeenCalledWith("Test error", testError.stack, undefined);
+      expect(errorSpy).toHaveBeenCalledWith("Test error", testError.stack);
     });
   });
 
@@ -152,7 +152,7 @@ describe("BaseService", () => {
 
       service.testLogWarning("Test warning", "test-context");
 
-      expect(warnSpy).toHaveBeenCalledWith("[test-context] Test warning", undefined);
+      expect(warnSpy).toHaveBeenCalledWith("[test-context] Test warning");
     });
   });
 
@@ -162,7 +162,7 @@ describe("BaseService", () => {
 
       service.testLogDebug("Test debug", "test-context");
 
-      expect(debugSpy).toHaveBeenCalledWith("[test-context] Test debug", undefined);
+      expect(debugSpy).toHaveBeenCalledWith("[test-context] Test debug");
     });
   });
 });

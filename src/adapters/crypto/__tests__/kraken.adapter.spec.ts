@@ -1,6 +1,6 @@
 // Mock ws module before any imports
 jest.mock("ws", () => {
-  const { MockFactory } = require("@/__tests__/utils");
+  const { MockFactory } = jest.requireActual("@/__tests__/utils");
   const MockWebSocket = jest.fn().mockImplementation(() => MockFactory.createWebSocket());
   return MockWebSocket;
 });
@@ -50,13 +50,13 @@ describe("KrakenAdapter", () => {
 
   describe("symbol mapping", () => {
     it("should map BTC symbols correctly", () => {
-      expect(adapter.getSymbolMapping("BTC/USD")).toBe("BTCUSD");
-      expect(adapter.getSymbolMapping("BTC/EUR")).toBe("BTCEUR");
+      expect(adapter.getSymbolMapping("BTC/USD")).toBe("BTC/USD");
+      expect(adapter.getSymbolMapping("BTC/EUR")).toBe("BTC/EUR");
     });
 
     it("should map other symbols correctly", () => {
-      expect(adapter.getSymbolMapping("ETH/USD")).toBe("ETHUSD");
-      expect(adapter.getSymbolMapping("LTC/USD")).toBe("LTCUSD");
+      expect(adapter.getSymbolMapping("ETH/USD")).toBe("ETH/USD");
+      expect(adapter.getSymbolMapping("LTC/USD")).toBe("LTC/USD");
     });
 
     it("should validate symbols correctly", () => {
@@ -371,8 +371,8 @@ describe("KrakenAdapter", () => {
       await adapter.subscribe(["BTC/USD", "ETH/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).toContain("BTCUSD");
-      expect(subscriptions).toContain("ETHUSD");
+      expect(subscriptions).toContain("BTC/USD");
+      expect(subscriptions).toContain("ETH/USD");
     });
 
     it("should handle unsubscribe", async () => {
@@ -381,8 +381,8 @@ describe("KrakenAdapter", () => {
       await adapter.unsubscribe(["BTC/USD"]);
 
       const subscriptions = adapter.getSubscriptions();
-      expect(subscriptions).not.toContain("BTCUSD");
-      expect(subscriptions).toContain("ETHUSD");
+      expect(subscriptions).not.toContain("BTC/USD");
+      expect(subscriptions).toContain("ETH/USD");
     });
   });
 });

@@ -1,12 +1,12 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { StandardService } from "@/common/base/composed.service";
+import { EventDrivenService } from "@/common/base";
 import type { CachePerformanceMetrics, ResponseTimeMetric, MemoryUsageMetric } from "@/common/types/cache";
 import { ENV } from "@/config/environment.constants";
 
 import { RealTimeCacheService } from "./real-time-cache.service";
 
 @Injectable()
-export class CachePerformanceMonitorService extends StandardService implements OnModuleDestroy {
+export class CachePerformanceMonitorService extends EventDrivenService implements OnModuleDestroy {
   private readonly responseTimes: ResponseTimeMetric[] = [];
   private readonly memoryUsageHistory: MemoryUsageMetric[] = [];
   private readonly maxHistorySize = 1000; // Keep last 1000 measurements
@@ -149,12 +149,27 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
 
   // Start continuous monitoring
   private startMonitoring(): void {
-    this.monitoringInterval = setInterval(() => {
+    // ✅ Use event-driven scheduler for cache monitoring
+    const scheduleMetricsCollection = this.createEventDrivenScheduler(() => {
+      this.logger.debug(`Collecting cache performance metrics at ${new Date().toISOString()}`);
+      this.collectMetrics();
+    }, 2000); // Batch metrics collection events within 2 seconds
+
+    // Trigger metrics collection on relevant events
+    this.on("cacheHit", scheduleMetricsCollection);
+    this.on("cacheMiss", scheduleMetricsCollection);
+    this.on("cacheEviction", scheduleMetricsCollection);
+    this.on("cacheWrite", scheduleMetricsCollection);
+
+    // Fallback periodic monitoring for cases with no cache activity
+    this.monitoringInterval = this.createInterval(() => {
       this.logger.debug(`Collecting cache performance metrics at ${new Date().toISOString()}`);
       this.collectMetrics();
     }, this.monitoringIntervalMs);
 
-    this.logger.debug(`Started cache performance monitoring with ${this.monitoringIntervalMs}ms interval`);
+    this.logger.debug(
+      `Started event-driven cache performance monitoring with ${this.monitoringIntervalMs}ms fallback interval`
+    );
   }
 
   override async cleanup(): Promise<void> {
@@ -191,10 +206,14 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
     const now = Date.now();
     const timeSinceLastWarning = now - this.lastWarningTime;
 
-    // Only warn if we have actual activity and performance is poor
-    if (!health.overallHealthy && cacheStats.totalRequests > 5) {
+    // Only warn if we have significant activity and performance is consistently poor
+    // Only warn if we have significant activity and service is initialized
+    const significantActivity = cacheStats.totalRequests > 1000; // Increased threshold
+    const isServiceReady = this.isInitialized; // Use service state instead of time
+
+    if (!health.overallHealthy && significantActivity && isServiceReady) {
       if (timeSinceLastWarning > this.warningCooldownMs) {
-        this.logger.warn("Cache performance degraded", {
+        this.logger.warn("Cache performance consistently degraded", {
           hitRate: cacheStats.hitRate,
           memoryUsage: cacheStats.memoryUsage,
           responseTime: this.calculateAverageResponseTime(),
@@ -207,6 +226,11 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
           `Cache performance warning suppressed (cooldown: ${Math.round((this.warningCooldownMs - timeSinceLastWarning) / 1000)}s remaining)`
         );
       }
+    } else if (!health.overallHealthy) {
+      // Log as debug during startup or low activity periods
+      this.logger.debug(
+        `Cache performance below target (startup/low-activity): hit rate ${(cacheStats.hitRate * 100).toFixed(1)}%, requests: ${cacheStats.totalRequests}`
+      );
     } else if (cacheStats.totalRequests <= 5) {
       this.logger.debug("Cache performance monitoring: insufficient activity for meaningful metrics", {
         totalRequests: cacheStats.totalRequests,

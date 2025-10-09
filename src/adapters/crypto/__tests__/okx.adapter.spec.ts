@@ -1,6 +1,6 @@
 // Mock WebSocket module
 jest.mock("ws", () => {
-  const { MockFactory } = require("@/__tests__/utils");
+  const { MockFactory } = jest.requireActual("@/__tests__/utils");
   const MockWebSocket = jest.fn().mockImplementation(() => MockFactory.createWebSocket());
   return MockWebSocket;
 });

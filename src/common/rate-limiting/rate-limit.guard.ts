@@ -3,6 +3,7 @@ import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus, L
 import { ApiErrorCodes } from "@/common/types/error-handling";
 import { ClientIdentificationUtils } from "../utils/client-identification.utils";
 import { RateLimiterService } from "./rate-limiter.service";
+import { ENV } from "@/config/environment.constants";
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -13,6 +14,12 @@ export class RateLimitGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
+
+    // Bypass rate limiting in development environment for testing
+    if (ENV.APPLICATION.NODE_ENV === "development") {
+      response.setHeader("X-RateLimit-Bypassed", "development");
+      return true;
+    }
 
     // Get client identifier (IP address or API key)
     const clientInfo = ClientIdentificationUtils.getClientInfo(request);
@@ -37,7 +44,7 @@ export class RateLimitGuard implements CanActivate {
       const retryAfterSeconds = Math.ceil(rateLimitInfo.msBeforeNext / 1000);
       response.setHeader("Retry-After", retryAfterSeconds);
 
-      const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
       // Enhanced rate limit error with more context
       const rateLimitError = new HttpException(

@@ -9,13 +9,12 @@ export class FailoverManager extends EventDrivenService {
   private dataSources = new Map<string, DataSource>();
   private sourceHealth = new Map<string, SourceHealth>();
   private failoverGroups = new Map<string, FailoverGroup>();
-  private healthCheckTimer?: NodeJS.Timeout;
   private sourceFailoverCooldowns = new Map<string, number>();
 
   constructor() {
     super({
       maxFailoverTime: ENV.FAILOVER.MAX_FAILOVER_TIME_MS,
-      healthCheckInterval: ENV.HEALTH_CHECKS.FAILOVER_INTERVAL_MS,
+      healthCheckInterval: ENV.INTERVALS.SYSTEM_CHECK_MS,
       failureThreshold: ENV.FAILOVER.FAILURE_THRESHOLD,
       recoveryThreshold: ENV.FAILOVER.RECOVERY_THRESHOLD,
       minFailureInterval: ENV.FAILOVER.MIN_FAILURE_INTERVAL_MS,
@@ -257,12 +256,22 @@ export class FailoverManager extends EventDrivenService {
               continue;
             }
 
-            await Promise.race([
-              source.subscribe([group.feedId.name]),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Subscription timeout")), ENV.FAILOVER.SUBSCRIPTION_TIMEOUT_MS)
-              ),
-            ]);
+            // Use condition-based waiting instead of timeout race
+            await this.waitForCondition(
+              async () => {
+                try {
+                  await source.subscribe([group.feedId.name]);
+                  return true;
+                } catch {
+                  return false;
+                }
+              },
+              {
+                maxAttempts: 10,
+                checkInterval: ENV.FAILOVER.SUBSCRIPTION_TIMEOUT_MS / 10,
+                timeout: ENV.FAILOVER.SUBSCRIPTION_TIMEOUT_MS,
+              }
+            );
 
             group.activeSources.push(sourceId);
             successfullyActivated.push(sourceId);
@@ -436,9 +445,19 @@ export class FailoverManager extends EventDrivenService {
   }
 
   private startHealthMonitoring(): void {
-    this.healthCheckTimer = setInterval(() => {
+    // Use event-driven health monitoring instead of fixed intervals
+    const scheduleHealthCheck = this.createEventDrivenScheduler(() => {
       this.performHealthChecks();
-    }, this.failoverConfig.healthCheckInterval);
+    }, 1000); // Batch health checks within 1 second
+
+    // Monitor for events that should trigger health checks
+    this.on("sourceAdded", scheduleHealthCheck);
+    this.on("sourceRemoved", scheduleHealthCheck);
+    this.on("failoverTriggered", scheduleHealthCheck);
+    this.on("sourceRecovered", scheduleHealthCheck);
+
+    // Initial health check
+    scheduleHealthCheck();
   }
 
   private performHealthChecks(): void {
@@ -470,10 +489,7 @@ export class FailoverManager extends EventDrivenService {
 
   // Cleanup method
   destroy(): void {
-    if (this.healthCheckTimer) {
-      clearInterval(this.healthCheckTimer);
-      this.healthCheckTimer = undefined;
-    }
+    // Managed intervals are automatically cleaned up by lifecycle mixin
 
     // Clear all data structures to prevent memory leaks
     this.dataSources.clear();
