@@ -2,9 +2,10 @@
 
 ## Overview
 
-The test suite now includes a comprehensive logging control system that
-suppresses all console output by default, providing clean test output while
-allowing specific tests to enable logging when needed.
+The fully modernized test suite includes intelligent logging control that
+provides clean, focused test output by default while allowing selective logging
+for debugging and troubleshooting specific test scenarios. The logging control
+system has been optimized for the modernized architecture and unified patterns.
 
 ## Default Behavior
 
@@ -204,17 +205,14 @@ it("should complete within time limit", async () => {
 });
 ```
 
-## Migration Guide
+## Integration with CI/CD
 
-If you have existing tests that need logging:
+The test logging system is optimized for continuous integration:
 
-1. **Identify tests that need logging** - Look for tests that currently show
-   important output
-2. **Wrap with logging control** - Use `withLogging()` or `withLoggingAsync()`
-3. **Remove manual log suppression** - No need for complex log filtering
-   patterns
-4. **Test the changes** - Ensure logs appear when expected and are suppressed
-   otherwise
+1. **Clean CI Output** - Suppressed logs by default for clean build logs
+2. **Selective Debugging** - Enable logging for specific failing tests
+3. **Performance Optimization** - Reduced I/O overhead when logs are suppressed
+4. **Consistent Behavior** - Same behavior across local and CI environments
 
 ## Benefits
 

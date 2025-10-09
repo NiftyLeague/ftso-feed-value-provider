@@ -1,25 +1,32 @@
-# Comprehensive Logging and Debugging Guide
+# Logging and Debugging
 
 ## Overview
 
-The FTSO Feed Value Provider implements comprehensive logging and debugging
-capabilities to support production operations, troubleshooting, and performance
-monitoring. This document describes the logging architecture, configuration
-options, and debugging procedures.
+The fully modernized FTSO Feed Value Provider implements enterprise-grade
+logging and debugging capabilities with enhanced performance tracking,
+standardized error handling, and comprehensive system monitoring. The logging
+system has been completely unified to eliminate duplication and provide
+consistent patterns across all components.
 
-## Logging Architecture
+## Modernized Logging Architecture
 
-### Enhanced Logger Service
+### Enhanced Logging System
 
-The system uses an `EnhancedLoggerService` that extends the standard NestJS
-logger with:
+The fully modernized system provides:
 
-- **Structured logging** with contextual information
-- **Performance tracking** with operation timers
-- **Error classification** and severity determination
-- **File-based logging** with rotation and retention
-- **Audit logging** for critical operations
-- **Debug logging** with detailed system behavior
+- **Structured JSON Logging**: Consistent, parseable log format across all
+  components
+- **Performance Monitoring**: Automatic timing and metrics collection through
+  WithMonitoring mixin
+- **Standardized Error Classification**: Intelligent error categorization and
+  severity analysis via StandardizedErrorHandlerService
+- **File Rotation**: Automatic log rotation with configurable retention policies
+- **Comprehensive Audit Trails**: Complete audit logging for compliance and
+  debugging
+- **Component-Specific Levels**: Fine-grained log level control per service with
+  unified configuration
+- **Zero Logging Duplication**: Eliminated duplicate logging patterns and
+  consolidated all logging functionality
 
 ### Log Levels and Categories
 
@@ -48,30 +55,12 @@ logger with:
 # File Logging
 ENABLE_FILE_LOGGING=true
 LOG_DIRECTORY=./logs
-MAX_LOG_FILE_SIZE=10MB
-MAX_LOG_FILES=5
 
 # Performance Logging
 ENABLE_PERFORMANCE_LOGGING=true
-PERFORMANCE_LOG_THRESHOLD=100
 
 # Debug Logging
 ENABLE_DEBUG_LOGGING=false
-DEBUG_LOG_LEVEL=debug
-
-# Error Logging
-ERROR_LOG_RETENTION_DAYS=30
-MAX_ERROR_HISTORY_SIZE=1000
-
-# Audit Logging
-ENABLE_AUDIT_LOGGING=true
-AUDIT_LOG_CRITICAL_OPERATIONS=true
-
-# Log Formatting
-LOG_FORMAT=json
-INCLUDE_TIMESTAMP=true
-INCLUDE_CONTEXT=true
-INCLUDE_STACK_TRACE=true
 
 # Component-Specific Log Levels
 LOG_LEVEL_PRODUCTION_INTEGRATION=log
@@ -336,31 +325,34 @@ grep "threshold exceeded" logs/application.log
 
 ### High Memory Usage
 
-1. Check error history size: `MAX_ERROR_HISTORY_SIZE`
-2. Review performance timer cleanup
-3. Examine log file sizes and rotation
-4. Monitor cache entry counts
+1. Check error history and memory usage patterns
+2. Review performance timer cleanup and automatic cleanup intervals
+3. Examine log file sizes and rotation policies
+4. Monitor cache entry counts and TTL settings
+5. Verify proper service cleanup in lifecycle hooks
 
 ### Performance Degradation
 
 1. Enable performance logging: `ENABLE_PERFORMANCE_LOGGING=true`
-2. Lower performance threshold: `PERFORMANCE_LOG_THRESHOLD=50`
-3. Check operation timing patterns
-4. Analyze resource utilization logs
+2. Check operation timing patterns and identify bottlenecks
+3. Analyze resource utilization logs and system metrics
+4. Review circuit breaker status and retry patterns
 
 ### Missing Log Entries
 
-1. Verify log level configuration
-2. Check file permissions and disk space
-3. Review component-specific log levels
-4. Ensure logger initialization
+1. Verify log level configuration for specific components
+2. Check file permissions and available disk space
+3. Review component-specific log levels and inheritance
+4. Ensure proper logger initialization in service constructors
+5. Validate log directory creation and write permissions
 
 ### Log File Growth
 
-1. Adjust log rotation settings
-2. Reduce debug logging verbosity
-3. Implement log filtering
-4. Monitor disk space usage
+1. Adjust log rotation settings and retention policies
+2. Reduce debug logging verbosity for production
+3. Implement intelligent log filtering based on severity
+4. Monitor disk space usage and set up alerts
+5. Configure automatic log cleanup and archiving
 
 ## Best Practices
 

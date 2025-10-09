@@ -1,8 +1,8 @@
-# Exchange Adapter Base Classes and Interfaces
+# Modernized Exchange Adapter Architecture
 
-This directory contains all exchange adapter related base classes, interfaces,
-and utilities consolidated in one location for better organization and
-maintainability.
+This directory contains the fully modernized exchange adapter architecture with
+consolidated base classes, interfaces, and utilities. All adapters now follow
+unified patterns and have been optimized for performance and maintainability.
 
 ## Files Overview
 
@@ -62,14 +62,16 @@ export class MyExchangeAdapter extends BaseExchangeAdapter {
   readonly exchangeName = "my-exchange";
   readonly category = FeedCategory.Crypto;
 
-  // Implement required abstract methods
+  // Implement required abstract methods with standardized error handling
   protected async doConnect(): Promise<void> {
-    /* ... */
+    // Connection logic with automatic retry and circuit breaker protection
   }
+
   protected async doDisconnect(): Promise<void> {
-    /* ... */
+    // Disconnection logic with proper cleanup
   }
-  // ... other required methods
+
+  // All adapters now include unified monitoring and error handling
 }
 ```
 

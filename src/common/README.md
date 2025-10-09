@@ -1,118 +1,127 @@
-# Common Modules
+# Modernized Common Modules
 
-This directory contains shared modules, utilities, and base classes used
-throughout the FTSO Feed Value Provider system. It centralizes reusable code to
-eliminate duplication and standardize patterns.
+This directory contains the fully modernized shared modules, utilities, and base
+classes used throughout the FTSO Feed Value Provider system. The architecture
+has been completely unified to eliminate all code duplication and provide
+consistent, standardized patterns across every component.
 
-## Structure
+## Fully Modernized Architecture
 
 ```
 src/common/
-├── base/           # Base classes for services and event handling
-├── dto/            # Data Transfer Objects used across the app
-├── errors/         # Error handling utilities and builders
-├── interceptors/   # Shared NestJS interceptors
-├── interfaces/     # Shared TypeScript interfaces (organized by domain)
-├── logging/        # Consolidated logging services and types
-├── rate-limiting/  # Consolidated rate limiting functionality
-├── types/          # Shared type definitions
-├── utils/          # Utility functions and services (consolidated)
-└── validation/     # Validation utilities
+├── base/           # Unified mixin-based service architecture (BaseService, StandardService, EventDrivenService)
+├── errors/         # Standardized error handling and response builders (ErrorResponseBuilder)
+├── filters/        # HTTP exception filters with unified error handling
+├── interceptors/   # Performance monitoring and response time tracking
+├── logging/        # Enhanced logging with performance tracking and audit capabilities
+├── rate-limiting/  # Production-grade rate limiting system with comprehensive client tracking
+├── types/          # Comprehensive type definitions organized by domain with full TypeScript support
+├── utils/          # Consolidated utility functions and helpers (ValidationUtils, ClientIdentificationUtils)
+└── debug/          # Debug utilities for development and troubleshooting
 ```
 
-## Base Classes
+## Modernized Base Architecture
 
-### BaseService
+### Clean Mixin-Based Services
 
-Provides common logging functionality for all services.
+The base service architecture has been completely modernized using composable
+mixins instead of deep inheritance chains:
 
 ```typescript
-import { BaseService } from "@/common/base/base.service";
+import {
+  BaseService,
+  StandardService,
+  EventDrivenService,
+} from "@/common/base";
 
+// Simple service with just logging
 @Injectable()
-export class MyService extends BaseService {
+export class SimpleService extends BaseService {
   constructor() {
-    super("MyService", true); // Enable enhanced logging
+    super("SimpleService");
+  }
+}
+
+// Standard service with lifecycle, monitoring, and error handling
+@Injectable()
+export class ProductionService extends StandardService {
+  constructor() {
+    super("ProductionService");
   }
 
-  async doSomething(): Promise<void> {
-    const startTime = performance.now();
+  protected async initialize() {
+    // Custom initialization logic
+  }
+
+  async performOperation() {
+    this.ensureInitialized();
+    this.startTimer("operation");
 
     try {
-      // Business logic here
-
-      const duration = performance.now() - startTime;
-      this.logPerformance("doSomething", duration);
-    } catch (error) {
-      this.logError(error as Error, "doSomething");
-      throw error;
+      // Business logic
+      this.incrementCounter("operations_completed");
+    } finally {
+      this.endTimer("operation");
     }
   }
 }
-```
 
-**Features:**
-
-- Standardized logging methods with context and performance tracking
-- Optional enhanced logging integration
-- Consistent initialization and shutdown logging
-
-### BaseEventService
-
-Standardizes EventEmitter patterns with automatic tracking and logging.
-
-```typescript
-import { BaseEventService } from "@/common/base/base-event.service";
-
+// Event-driven service with full capabilities
 @Injectable()
-export class MyEventService extends BaseEventService {
+export class EventService extends EventDrivenService {
   constructor() {
-    super("MyEventService");
+    super("EventService");
   }
 
-  publishData(data: any): void {
-    // Automatic event logging and listener tracking
-    this.emitWithLogging("data", data);
+  protected async initialize() {
+    this.on("data", this.handleData.bind(this));
   }
 
-  onData(callback: (data: any) => void): void {
-    // Automatic listener tracking and memory leak prevention
-    this.addListenerWithTracking("data", callback);
-  }
-
-  cleanup(): void {
-    // Standardized cleanup with logging
-    this.cleanup();
+  private handleData(data: any) {
+    this.emitWithLogging("processed", data);
   }
 }
 ```
 
-**Features:**
+**Available Mixins:**
 
-- Automatic event listener tracking and memory leak prevention
-- Built-in error handling for EventEmitter errors
-- Event statistics and debugging capabilities
+- `WithLifecycle`: NestJS lifecycle hooks with proper cleanup
+- `WithMonitoring`: Metrics, counters, timers, and health status
+- `WithErrorHandling`: Retry logic, error tracking, and fallbacks
+- `WithEvents`: EventEmitter with logging and tracking
+- `WithConfiguration`: Typed configuration management with validation
 
-### ClientIdentificationUtils
+### Modernized Utilities
 
-Provides standardized client identification and sanitization across guards and
-interceptors.
+#### Standardized Error Handling
+
+```typescript
+import { ErrorResponseBuilder } from "@/common/errors/error-response.builder";
+
+// Standardized error responses across all controllers
+throw ErrorResponseBuilder.createValidationError("Invalid feed ID");
+throw ErrorResponseBuilder.createRateLimitError();
+throw ErrorResponseBuilder.createFromUnknownError(error);
+```
+
+#### Client Identification
 
 ```typescript
 import { ClientIdentificationUtils } from "@/common/utils/client-identification.utils";
 
-// Get comprehensive client information
 const clientInfo = ClientIdentificationUtils.getClientInfo(request);
-console.log(clientInfo.id); // Full client ID
-console.log(clientInfo.type); // 'api', 'bearer', 'client', or 'ip'
-console.log(clientInfo.sanitized); // Sanitized for logging
+// Unified identification across API keys, bearer tokens, and IP addresses
 ```
 
-**Features:**
+#### Performance Monitoring
 
-- Unified client identification from API keys, bearer tokens, client IDs, and IP
-  addresses
-- Automatic sanitization for secure logging
+```typescript
+import { ResponseTimeInterceptor } from "@/common/interceptors/response-time.interceptor";
+
+// Automatic response time monitoring with <100ms target warnings
+@UseInterceptors(ResponseTimeInterceptor)
+export class MyController {}
+```
 
 ## Rate Limiting Services
 
@@ -277,10 +286,19 @@ pnpm test -- src/common/__tests__/base.service.spec.ts
 
 ## Best Practices
 
-1. **Always extend base classes** for new services that fit the patterns
-2. **Use ValidationUtils** for all request validation in controllers
-3. **Use ErrorResponseBuilder** for all error responses
-4. **Enable enhanced logging** for critical services
-5. **Call cleanup methods** in service destruction hooks
-6. **Use performance logging** for operations that might be slow
-7. **Add context** to error and warning logs for better debugging
+1. **Use appropriate base classes** - Choose the right service base class for
+   your needs (BaseService, StandardService, EventDrivenService)
+2. **Leverage ValidationUtils** - Use standardized validation for all request
+   processing in controllers
+3. **Implement StandardizedErrorHandlerService** - Use consistent error handling
+   patterns across all controllers
+4. **Enable comprehensive logging** - Use enhanced logging for all critical
+   services and operations
+5. **Implement proper lifecycle management** - Use lifecycle hooks for proper
+   initialization and cleanup
+6. **Monitor performance** - Use built-in performance logging for all
+   potentially slow operations
+7. **Provide rich context** - Include comprehensive context in all error and
+   warning logs for effective debugging
+8. **Use dependency injection** - Leverage NestJS DI for all service
+   dependencies with proper typing

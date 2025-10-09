@@ -1,8 +1,9 @@
 # FTSO Debug & Test Scripts
 
 This directory contains comprehensive debugging, testing, and monitoring scripts
-for the FTSO Feed Value Provider system, organized into logical subfolders for
-better maintainability.
+for the fully modernized FTSO Feed Value Provider system, organized into logical
+subfolders for better maintainability. All scripts have been updated to work
+with the unified architecture and modernized components.
 
 ## 📁 Directory Structure
 
@@ -58,18 +59,22 @@ For easier access to scripts, use the convenience runner:
 | `server.sh`     | Test server functionality and endpoints             | `./scripts/test/server.sh`     |
 | `validation.sh` | Test suite reliability and performance validation   | `./scripts/test/validation.sh` |
 
-### ⚡ Test Hanging Issues - Fixed
+### ⚡ Optimized Test Performance
 
-The test scripts have been optimized to prevent hanging issues:
+The test scripts have been optimized for reliability and performance:
 
-- **Timeout Protection**: All tests now have configurable timeouts (default: 2-5
-  minutes per test)
+- **Timeout Protection**: Configurable timeouts with intelligent defaults (2-5
+  minutes per test category)
 - **Process Cleanup**: Automatic cleanup of hanging processes and port conflicts
-- **Reduced Load**: Load tests use reasonable concurrent user counts (10-20 vs
-  50-100)
-- **Jest Optimization**: Disabled `detectOpenHandles` and reduced `maxWorkers`
-  to prevent resource contention
-- **Signal Handlers**: Proper cleanup on script interruption (Ctrl+C)
+  with proper resource management
+- **Load Balancing**: Optimized concurrent user counts for realistic load
+  testing scenarios
+- **Jest Optimization**: Optimized worker configuration and resource management
+  to prevent contention
+- **Signal Handlers**: Comprehensive cleanup on script interruption with proper
+  resource deallocation
+- **Performance Monitoring**: Built-in performance tracking and bottleneck
+  identification
 
 **Usage with timeout protection:**
 

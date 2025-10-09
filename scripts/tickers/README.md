@@ -1,6 +1,8 @@
 # Ticker Management Scripts
 
-This directory contains scripts for managing ticker data and feed generation.
+This directory contains modernized scripts for managing ticker data and feed
+generation, updated to work with the unified architecture and standardized
+patterns.
 
 ## Overview
 

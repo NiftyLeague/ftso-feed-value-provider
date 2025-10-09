@@ -1,19 +1,30 @@
-# Service Base Classes - Clean Mixin Architecture
+# Unified Service Base Classes
 
-This directory provides a clean, composable architecture for building services
-with exactly the capabilities you need.
+This directory provides the completely unified, clean mixin-based architecture
+for building services with exactly the capabilities you need. All legacy
+inheritance patterns have been eliminated in favor of composable mixins that
+provide consistent functionality across the entire system.
 
-## Overview
+## Architecture Philosophy
 
-Instead of deep inheritance chains, we use **mixins** to compose services with
-specific capabilities:
+The unified architecture uses **composable mixins** that completely replace all
+inheritance hierarchies:
 
-- **Logging** (BaseService) - Always included
-- **Configuration** - Manage typed configuration with validation
-- **Lifecycle** - NestJS lifecycle hooks with proper cleanup
-- **Monitoring** - Metrics, counters, timers, and health status
-- **Error Handling** - Retry logic, error tracking, and fallbacks
-- **Events** - EventEmitter with logging and tracking
+- **BaseService** - Core logging functionality (always included, fully
+  modernized)
+- **WithLifecycle** - NestJS lifecycle hooks with proper cleanup and resource
+  management
+- **WithMonitoring** - Performance metrics, counters, timers, and health status
+  tracking
+- **WithErrorHandling** - Standardized retry logic, error tracking, and
+  intelligent fallbacks
+- **WithEvents** - EventEmitter with automatic logging and comprehensive
+  tracking
+- **WithConfiguration** - Typed configuration management with validation and
+  runtime updates
+
+All services now use these unified patterns, eliminating code duplication and
+ensuring consistency.
 
 ## Quick Start
 
@@ -204,14 +215,15 @@ For common combinations, use these ready-made classes:
    operations that might fail
 7. **Monitor Performance** - Use timers and metrics for important operations
 
-## Migration from Old Architecture
+## Architecture Benefits
 
-The old `UnifiedService`, `ConfigurableService`, and `BaseEventService` have
-been removed and replaced with the new mixin architecture:
+The modernized mixin-based architecture provides:
 
-1. **UnifiedService** → `StandardService` or `EventDrivenService`
-2. **BaseEventService** → Use `WithEvents` mixin or `EventService`
-3. **Custom combinations** → Use manual composition
+1. **Composability** - Mix and match only the capabilities you need
+2. **Type Safety** - Full TypeScript support with proper type inference
+3. **Performance** - No overhead from unused capabilities
+4. **Maintainability** - Clear separation of concerns and responsibilities
+5. **Testability** - Easy to mock and test individual capabilities
 
 ## Examples
 

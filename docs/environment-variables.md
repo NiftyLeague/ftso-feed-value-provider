@@ -1,21 +1,27 @@
-# Environment Variables Documentation
+# Environment Variables
 
-This document describes all environment variables used by the FTSO Feed Value
-Provider system.
+This document describes the environment variables used by the modernized FTSO
+Feed Value Provider system.
 
-## Configuration Management
+## Configuration Architecture
 
-All environment variables are centrally managed through the `ConfigService` and
-validated by the `ConfigValidationService`. The configuration system provides:
+The fully modernized configuration system provides:
 
-- **Centralized parsing**: All environment variables are parsed in one place
-- **Type safety**: Configuration is strongly typed with TypeScript interfaces
-- **Validation**: Environment variables are validated with proper error handling
-- **Hot reload**: Configuration can be reloaded without restarting the
-  application
+- **Centralized Management**: All configuration through the enhanced
+  ConfigService with comprehensive validation and type safety
+- **Runtime Validation**: Detailed validation with clear error messages and
+  startup failure prevention
+- **Type Safety**: Strongly typed configuration interfaces with compile-time
+  checking and IntelliSense support
+- **Environment-Specific**: Support for development, production, and test
+  configurations with intelligent defaults
+- **Performance Monitoring**: Built-in configuration performance tracking and
+  optimization
+- **Zero Configuration Drift**: Consistent configuration patterns across all
+  services and components
 
-The configuration is accessible throughout the application via dependency
-injection of the `ConfigService`.
+Configuration is injected throughout the application using NestJS dependency
+injection with proper error handling, validation, and comprehensive logging.
 
 ## Core Application Settings
 
@@ -47,22 +53,6 @@ injection of the `ConfigService`.
 - **Example**: `LOG_DIRECTORY=/var/log/ftso-provider`
 - **Required**: No
 
-### MAX_LOG_FILE_SIZE
-
-- **Description**: Maximum size per log file before rotation
-- **Type**: String
-- **Default**: `10MB`
-- **Example**: `MAX_LOG_FILE_SIZE=50MB`
-- **Required**: No
-
-### MAX_LOG_FILES
-
-- **Description**: Number of rotated log files to retain
-- **Type**: Integer
-- **Default**: `5`
-- **Example**: `MAX_LOG_FILES=10`
-- **Required**: No
-
 ### ENABLE_PERFORMANCE_LOGGING
 
 - **Description**: Enable performance tracking and timing logs
@@ -70,14 +60,6 @@ injection of the `ConfigService`.
 - **Default**: `true`
 - **Valid Values**: `true`, `false`
 - **Example**: `ENABLE_PERFORMANCE_LOGGING=true`
-- **Required**: No
-
-### PERFORMANCE_LOG_THRESHOLD
-
-- **Description**: Log operations slower than this threshold (milliseconds)
-- **Type**: Integer
-- **Default**: `100`
-- **Example**: `PERFORMANCE_LOG_THRESHOLD=50`
 - **Required**: No
 
 ### ENABLE_DEBUG_LOGGING
@@ -89,40 +71,6 @@ injection of the `ConfigService`.
 - **Example**: `ENABLE_DEBUG_LOGGING=true`
 - **Required**: No
 
-### DEBUG_LOG_LEVEL
-
-- **Description**: Debug logging verbosity level
-- **Type**: String
-- **Default**: `debug`
-- **Valid Values**: `verbose`, `debug`, `log`
-- **Example**: `DEBUG_LOG_LEVEL=verbose`
-- **Required**: No
-
-### ERROR_LOG_RETENTION_DAYS
-
-- **Description**: Number of days to retain error logs
-- **Type**: Integer
-- **Default**: `30`
-- **Example**: `ERROR_LOG_RETENTION_DAYS=90`
-- **Required**: No
-
-### MAX_ERROR_HISTORY_SIZE
-
-- **Description**: Maximum number of error entries to keep in memory
-- **Type**: Integer
-- **Default**: `1000`
-- **Example**: `MAX_ERROR_HISTORY_SIZE=5000`
-- **Required**: No
-
-### ENABLE_AUDIT_LOGGING
-
-- **Description**: Enable audit trail logging for critical operations
-- **Type**: Boolean
-- **Default**: `true`
-- **Valid Values**: `true`, `false`
-- **Example**: `ENABLE_AUDIT_LOGGING=true`
-- **Required**: No
-
 ### AUDIT_LOG_CRITICAL_OPERATIONS
 
 - **Description**: Log all critical system operations to audit trail
@@ -130,42 +78,6 @@ injection of the `ConfigService`.
 - **Default**: `true`
 - **Valid Values**: `true`, `false`
 - **Example**: `AUDIT_LOG_CRITICAL_OPERATIONS=true`
-- **Required**: No
-
-### LOG_FORMAT
-
-- **Description**: Format for log output
-- **Type**: String
-- **Default**: `json`
-- **Valid Values**: `json`, `text`
-- **Example**: `LOG_FORMAT=json`
-- **Required**: No
-
-### INCLUDE_TIMESTAMP
-
-- **Description**: Include timestamps in log entries
-- **Type**: Boolean
-- **Default**: `true`
-- **Valid Values**: `true`, `false`
-- **Example**: `INCLUDE_TIMESTAMP=true`
-- **Required**: No
-
-### INCLUDE_CONTEXT
-
-- **Description**: Include contextual information in log entries
-- **Type**: Boolean
-- **Default**: `true`
-- **Valid Values**: `true`, `false`
-- **Example**: `INCLUDE_CONTEXT=true`
-- **Required**: No
-
-### INCLUDE_STACK_TRACE
-
-- **Description**: Include stack traces in error log entries
-- **Type**: Boolean
-- **Default**: `true`
-- **Valid Values**: `true`, `false`
-- **Example**: `INCLUDE_STACK_TRACE=true`
 - **Required**: No
 
 ## Component-Specific Log Levels
@@ -411,14 +323,6 @@ injection of the `ConfigService`.
 - **Example**: `CACHE_MAX_ENTRIES=50000`
 - **Required**: No
 
-### CACHE_WARMUP_INTERVAL_MS
-
-- **Description**: Interval for cache warmup operations in milliseconds
-- **Type**: Integer
-- **Default**: `30000`
-- **Example**: `CACHE_WARMUP_INTERVAL_MS=60000`
-- **Required**: No
-
 ## Monitoring Configuration
 
 ### MONITORING_ENABLED
@@ -437,14 +341,6 @@ injection of the `ConfigService`.
 - **Default**: `9090`
 - **Valid Range**: 1-65535 (must be different from main port)
 - **Example**: `MONITORING_METRICS_PORT=9090`
-- **Required**: No
-
-### MONITORING_HEALTH_CHECK_INTERVAL_MS
-
-- **Description**: Interval for health check operations in milliseconds
-- **Type**: Integer
-- **Default**: `5000`
-- **Example**: `MONITORING_HEALTH_CHECK_INTERVAL_MS=10000`
 - **Required**: No
 
 ## Error Handling Configuration
@@ -497,13 +393,7 @@ CACHE_TTL_MS=1000
 ENABLE_FILE_LOGGING=true
 LOG_DIRECTORY=./logs
 ENABLE_PERFORMANCE_LOGGING=true
-PERFORMANCE_LOG_THRESHOLD=50
 ENABLE_DEBUG_LOGGING=true
-DEBUG_LOG_LEVEL=verbose
-ENABLE_AUDIT_LOGGING=true
-LOG_FORMAT=json
-INCLUDE_CONTEXT=true
-INCLUDE_STACK_TRACE=true
 
 # Component-specific debug levels
 LOG_LEVEL_PRODUCTION_INTEGRATION=debug
@@ -523,19 +413,8 @@ NODE_ENV=production
 # Enhanced Logging for Production
 ENABLE_FILE_LOGGING=true
 LOG_DIRECTORY=/var/log/ftso-provider
-MAX_LOG_FILE_SIZE=50MB
-MAX_LOG_FILES=10
 ENABLE_PERFORMANCE_LOGGING=true
-PERFORMANCE_LOG_THRESHOLD=100
 ENABLE_DEBUG_LOGGING=false
-ERROR_LOG_RETENTION_DAYS=90
-MAX_ERROR_HISTORY_SIZE=5000
-ENABLE_AUDIT_LOGGING=true
-AUDIT_LOG_CRITICAL_OPERATIONS=true
-LOG_FORMAT=json
-INCLUDE_TIMESTAMP=true
-INCLUDE_CONTEXT=true
-INCLUDE_STACK_TRACE=true
 
 # Alerting
 ALERT_EMAIL_ENABLED=true
@@ -555,7 +434,6 @@ COINBASE_SECRET=your-coinbase-secret
 # Monitoring
 MONITORING_ENABLED=true
 MONITORING_METRICS_PORT=9090
-MONITORING_HEALTH_CHECK_INTERVAL_MS=5000
 
 # Cache
 CACHE_TTL_MS=1000

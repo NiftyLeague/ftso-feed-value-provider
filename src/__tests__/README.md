@@ -1,14 +1,19 @@
-# FTSO Provider Test Suite
+# Unified FTSO Provider Test Suite
 
-This directory contains the comprehensive test suite for the FTSO (Flare Time
-Series Oracle) Provider, designed to validate accuracy, performance, and
-reliability requirements for production deployment.
+This directory contains the comprehensive, fully unified test suite for the FTSO
+(Flare Time Series Oracle) Provider. The test suite has been completely
+modernized for reliability, performance, and maintainability with intelligent
+log suppression, enhanced test utilities, and unified testing patterns that
+match the modernized codebase architecture.
 
 ## Test Categories
 
 ### 1. Unit Tests (`src/adapters/**/*.spec.ts`, `src/aggregators/**/*.spec.ts`, etc.)
 
-**Purpose**: Test individual components in isolation **Coverage**:
+**Purpose**: Test individual components in isolation with comprehensive mocking
+and validation
+
+**Coverage**:
 
 - Exchange adapter implementations (Binance, Coinbase, Crypto.com, Kraken, OKX)
 - Data normalization and validation logic
@@ -258,11 +263,13 @@ node --inspect --expose-gc pnpm test:endurance
 
 When adding new tests:
 
-1. Follow existing naming conventions
-2. Include proper timeout configurations
-3. Add comprehensive assertions
-4. Document performance expectations
-5. Update this README with new test descriptions
+1. Follow existing naming conventions and file organization patterns
+2. Include proper timeout configurations for different test categories
+3. Add comprehensive assertions with clear failure messages
+4. Document performance expectations and thresholds
+5. Use appropriate logging control for clean test output
+6. Implement proper cleanup in test teardown methods
+7. Update this README with new test descriptions and requirements coverage
 
 ## Requirements Traceability
 

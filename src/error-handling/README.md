@@ -1,10 +1,13 @@
-# Error Handling System
+# Unified Error Handling System
 
 ## Overview
 
-This directory contains the comprehensive error handling system for the FTSO
-Feed Value Provider. The system has been enhanced with standardized error
-handling, retry mechanisms, and circuit breaker patterns.
+This directory contains the completely unified error handling system for the
+FTSO Feed Value Provider. The system provides standardized error handling
+through StandardizedErrorHandlerService, intelligent retry mechanisms via
+UniversalRetryService, circuit breaker patterns through CircuitBreakerService,
+and comprehensive error tracking across all components. All legacy error
+handling patterns have been eliminated.
 
 ## Architecture
 
@@ -41,45 +44,50 @@ handling, retry mechanisms, and circuit breaker patterns.
 
 ## Usage Examples
 
-### New Standardized Approach
+### Unified Error Handling Approach
+
+All controllers now use the standardized error handling pattern:
 
 ```typescript
 @Controller()
-export class MyController extends BaseController {
+export class ModernController {
   constructor(
     private readonly standardizedErrorHandler: StandardizedErrorHandlerService,
     private readonly universalRetryService: UniversalRetryService
-  ) {
-    super("MyController");
-    this.standardizedErrorHandler = standardizedErrorHandler;
-    this.universalRetryService = universalRetryService;
-  }
+  ) {}
 
   @Post()
   async myEndpoint(@Body() body: any) {
-    return this.handleControllerOperation(
+    return this.standardizedErrorHandler.executeWithStandardizedHandling(
       async () => {
-        // Your business logic here
-        return await this.executeWithRetry(
+        // Business logic with automatic retry and circuit breaker protection
+        return await this.universalRetryService.executeWithRetry(
           () => this.externalService.call(body),
           {
             operationName: "externalServiceCall",
             serviceType: "external-api",
-            endpoint: "/api/endpoint",
+            maxRetries: 3,
+            backoffMultiplier: 2,
           }
         );
       },
-      "myEndpoint",
-      "POST",
-      "/my-endpoint",
       {
-        body,
-        useStandardizedErrorHandling: true,
+        operationName: "myEndpoint",
+        context: { endpoint: "/my-endpoint", method: "POST" },
+        errorClassification: true,
       }
     );
   }
 }
 ```
+
+This unified approach eliminates all previous error handling patterns and
+provides:
+
+- Automatic error classification and severity analysis
+- Consistent retry logic with exponential backoff
+- Circuit breaker protection for external services
+- Comprehensive error logging and tracking
 
 ### Error Handling Patterns
 
@@ -136,14 +144,20 @@ const retryStats = universalRetryService.getRetryStatistics();
 
 ## Best Practices
 
-1. **Always use standardized error handling** for new code
-2. **Configure service-specific retry settings** based on service
-   characteristics
-3. **Use appropriate error classifications** for consistent handling
-4. **Include comprehensive context** in error metadata
-5. **Monitor error statistics** for system health
-6. **Test error scenarios** thoroughly including retry and circuit breaker
-   behavior
+1. **Always use standardized error handling** - Implement
+   `StandardizedErrorHandlerService` for all new controllers and services
+2. **Configure service-specific retry settings** - Customize retry behavior
+   based on service characteristics and failure patterns
+3. **Use appropriate error classifications** - Leverage built-in error
+   classification for consistent handling across the system
+4. **Include comprehensive context** - Provide detailed error metadata for
+   effective debugging and monitoring
+5. **Monitor error statistics** - Regularly review error rates and patterns for
+   system health assessment
+6. **Test error scenarios comprehensively** - Include retry logic, circuit
+   breaker behavior, and error recovery in test suites
+7. **Implement proper circuit breaker configuration** - Set appropriate
+   thresholds and timeouts for different service types
 
 ## Troubleshooting
 
