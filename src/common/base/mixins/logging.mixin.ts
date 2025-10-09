@@ -62,22 +62,38 @@ export function WithLogging<TBase extends Constructor | AbstractConstructor>(Bas
 
     logError(error: Error, context?: string, additionalData?: Record<string, unknown>): void {
       const contextMessage = context ? `[${context}] ` : "";
-      this.logger.error(`${contextMessage}${error.message}`, error.stack, additionalData);
+      if (additionalData) {
+        this.logger.error(`${contextMessage}${error.message}`, error.stack, additionalData);
+      } else {
+        this.logger.error(`${contextMessage}${error.message}`, error.stack);
+      }
     }
 
     logWarning(message: string, context?: string, additionalData?: Record<string, unknown>): void {
       const contextMessage = context ? `[${context}] ` : "";
-      this.logger.warn(`${contextMessage}${message}`, additionalData);
+      if (additionalData) {
+        this.logger.warn(`${contextMessage}${message}`, additionalData);
+      } else {
+        this.logger.warn(`${contextMessage}${message}`);
+      }
     }
 
     logDebug(message: string, context?: string, additionalData?: unknown): void {
       const contextMessage = context ? `[${context}] ` : "";
-      this.logger.debug(`${contextMessage}${message}`, additionalData);
+      if (additionalData !== undefined) {
+        this.logger.debug(`${contextMessage}${message}`, additionalData);
+      } else {
+        this.logger.debug(`${contextMessage}${message}`);
+      }
     }
 
     logFatal(message: string, context?: string, additionalData?: Record<string, unknown>): void {
       const contextMessage = context ? `[${context}] ` : "";
-      this.logger.fatal(`${contextMessage}${message}`, additionalData);
+      if (additionalData) {
+        this.logger.fatal(`${contextMessage}${message}`, additionalData);
+      } else {
+        this.logger.fatal(`${contextMessage}${message}`);
+      }
     }
 
     logCriticalOperation(operation: string, details: Record<string, unknown>, success = true): void {

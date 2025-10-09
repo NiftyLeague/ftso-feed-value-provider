@@ -16,7 +16,7 @@ export class ErrorResponseBuilder {
   static generateRequestId(): string {
     const timestamp = Date.now();
     const counter = ++this.requestIdCounter;
-    const random = Math.random().toString(36).substr(2, 6);
+    const random = Math.random().toString(36).substring(2, 8);
     return `req_${timestamp}_${counter}_${random}`;
   }
 

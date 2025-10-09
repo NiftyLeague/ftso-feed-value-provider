@@ -3,6 +3,7 @@
 source "$(dirname "$0")/../utils/debug-common.sh"
 source "$(dirname "$0")/../utils/parse-logs.sh"
 source "$(dirname "$0")/../utils/cleanup.sh"
+source "$(dirname "$0")/../utils/websocket-detection.sh"
 
 # Set up cleanup handlers
 setup_cleanup_handlers
@@ -16,10 +17,9 @@ echo "=========================="
 # Ensure logs directory exists
 
 # Configuration
-TIMEOUT=90  # Reduced timeout to prevent memory issues
 
 # Set up logging using common utility
-echo "📝 Starting feed data analysis..."
+
 setup_debug_logging "feeds-debug"
 LOG_FILE="$DEBUG_LOG_FILE"
 
@@ -33,27 +33,22 @@ register_pid "$APP_PID"
 register_port 3101
 
 echo "🚀 Application started with PID: $APP_PID"
-echo "⏱️  Monitoring feed data for $TIMEOUT seconds..."
 
-# Wait for application to initialize with proper health checks
-echo "⏳ Waiting for server to be ready..."
-READY=false
-WEBSOCKETS_READY=false
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
 
-# First wait for basic server health
-for i in {1..30}; do
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200"; then
-        echo "✅ Server health endpoint ready after ${i} seconds"
-        READY=true
-        break
-    fi
-    sleep 2
-done
+if wait_for_debug_service_readiness; then
+    echo "✅ Server is ready, proceeding with feed endpoint tests..."
+    READY=true
+else
+    echo "⚠️  Server not ready, continuing with monitoring only..."
+    READY=false
+    stop_tracked_apps
+    exit 1
+fi
 
-# Test feed endpoints immediately after server is ready
 if [ "$READY" = true ]; then
     echo "🧪 Testing feed endpoints..."
-    echo "✅ Server is ready, testing feed endpoints..."
     
     # Test feed values endpoint
     echo "📊 Testing feed values..."

@@ -32,10 +32,10 @@ import type {
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
+import { ENV } from "@/config/environment.constants";
 import { StandardizedErrorHandlerService } from "../error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "../error-handling/universal-retry.service";
 import { ApiMonitorService } from "../monitoring/api-monitor.service";
-
 @ApiTags("FTSO Feed Values")
 @Controller()
 @UseGuards(RateLimitGuard)
@@ -320,10 +320,22 @@ export class FeedController extends BaseController {
         }
       } catch (error) {
         const responseTime = this.endTimer(`feed_${feed.name}`);
-        this.logger.error(
-          `Error getting real-time value for feed ${JSON.stringify(feed)} (${responseTime.toFixed(2)}ms):`,
-          error
-        );
+
+        // Handle data unavailability more gracefully
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        if (
+          errorObj.message.includes("No price data available") ||
+          errorObj.message.includes("system initializing") ||
+          errorObj.message.includes("not yet available")
+        ) {
+          // Log data unavailability as debug to reduce noise
+          this.logger.debug(`Price data temporarily unavailable for feed ${feed.name} (${responseTime.toFixed(2)}ms)`);
+        } else {
+          this.logger.error(
+            `Error getting real-time value for feed ${JSON.stringify(feed)} (${responseTime.toFixed(2)}ms):`,
+            error
+          );
+        }
 
         // Fallback to provider service
         try {
@@ -341,7 +353,19 @@ export class FeedController extends BaseController {
             confidence: 0.6, // Even lower confidence for error fallback
           };
         } catch (fallbackError) {
-          this.logger.error(`Fallback also failed for feed ${JSON.stringify(feed)}:`, fallbackError);
+          // Check if this is a data unavailability issue vs a system error
+          const isDataUnavailable =
+            fallbackError instanceof Error &&
+            (fallbackError.message.includes("No price data available") ||
+              fallbackError.message.includes("data not yet available"));
+
+          if (isDataUnavailable) {
+            // Log data unavailability as debug to reduce noise during load testing
+            this.logger.debug(`Fallback data unavailable for feed ${feed.name}: ${fallbackError.message}`);
+          } else {
+            // Log actual system errors as warnings (not errors) to reduce noise
+            this.logger.warn(`Fallback also failed for feed ${JSON.stringify(feed)}:`, fallbackError);
+          }
 
           // Return error result instead of throwing to allow partial success
           return {
@@ -356,6 +380,7 @@ export class FeedController extends BaseController {
       }
     });
 
+    let totalResponseTime = 0;
     try {
       const feedResults = await Promise.allSettled(feedPromises);
 
@@ -386,7 +411,7 @@ export class FeedController extends BaseController {
       });
 
       // Log performance metrics
-      const totalResponseTime = this.endTimer("getRealTimeFeedValues");
+      totalResponseTime = this.endTimer("getRealTimeFeedValues");
       this.logger.log(
         `Processed ${feeds.length} feeds in ${totalResponseTime.toFixed(2)}ms (${successfulResults.length} successful, ${failedFeeds.length} failed)`
       );
@@ -415,7 +440,10 @@ export class FeedController extends BaseController {
 
       return successfulResults;
     } catch (error) {
-      const totalResponseTime = this.endTimer("getRealTimeFeedValues");
+      // Only end timer if it hasn't been ended yet
+      if (totalResponseTime === 0) {
+        totalResponseTime = this.endTimer("getRealTimeFeedValues");
+      }
       this.logger.error(`Critical error processing feeds (${totalResponseTime.toFixed(2)}ms):`, error);
 
       if (error instanceof HttpException) {
@@ -606,7 +634,7 @@ export class FeedController extends BaseController {
 
   private isFreshData(timestamp: number): boolean {
     const age = Date.now() - timestamp;
-    return age <= 2000; // 2-second freshness requirement
+    return age <= ENV.DATA_FRESHNESS.FRESH_DATA_MS; // Use configured freshness threshold
   }
 
   // Override logApiResponse to include API monitoring

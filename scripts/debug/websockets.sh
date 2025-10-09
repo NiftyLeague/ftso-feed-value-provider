@@ -104,8 +104,16 @@ register_port 3101
 echo "📝 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for initialization (15 seconds)..."
 
-# Wait for application to start
-sleep 15
+# Wait for service to become ready
+source "$(dirname "$0")/../utils/readiness-utils.sh"
+
+if wait_for_debug_service_readiness; then
+    # Service is ready, proceed with WebSocket testing
+    :
+else
+    stop_tracked_apps
+    exit 1
+fi
 
 # Check if application is running
 if ! kill -0 "$APP_PID" 2>/dev/null; then
@@ -116,7 +124,6 @@ if ! kill -0 "$APP_PID" 2>/dev/null; then
 fi
 
 echo "✅ Application is running"
-echo "🔍 Starting real-time monitoring for $TEST_DURATION seconds..."
 echo ""
 
 # Real-time monitoring with progress updates
@@ -175,13 +182,14 @@ while [ $(date +%s) -lt $MONITOR_END ]; do
             fi
         fi
         
-        # Check for errors
-        if echo "$RECENT_LOGS" | grep -q "WebSocket.*error.*$exchange\|Connection.*failed.*$exchange"; then
-            echo "❌ $exchange: error detected at $(date '+%H:%M:%S')"
+        # Check for actual WebSocket connection errors (not just the word "error" in logs)
+        if echo "$RECENT_LOGS" | grep -q "WebSocket connection failed.*$exchange\|WebSocket error.*$exchange\|Connection timeout.*$exchange\|Authentication failed.*$exchange"; then
+            echo "❌ $exchange: connection error detected at $(date '+%H:%M:%S')"
         fi
     done
     
-    sleep 5
+    # Brief sleep to avoid excessive CPU usage during monitoring
+    sleep 1
 done
 
 echo ""
@@ -230,7 +238,7 @@ if [ -f "$LOG_FILE" ]; then
         CONNECTIONS=$(grep -c "Connected to $exchange\|WebSocket connected for $exchange" "$LOG_FILE" 2>/dev/null || echo 0)
         DISCONNECTS=$(grep -c "WebSocket closed.*$exchange\|WebSocket connection closed.*$exchange" "$LOG_FILE" 2>/dev/null || echo 0)
         RECONNECTS=$(grep -c "Successfully reconnected.*$exchange\|Connection restored.*$exchange" "$LOG_FILE" 2>/dev/null || echo 0)
-        ERRORS=$(grep -c "WebSocket.*error.*$exchange\|Connection.*failed.*$exchange" "$LOG_FILE" 2>/dev/null || echo 0)
+        ERRORS=$(grep -c "WebSocket connection failed.*$exchange\|WebSocket error.*$exchange\|Connection timeout.*$exchange\|Authentication failed.*$exchange" "$LOG_FILE" 2>/dev/null || echo 0)
         
         # Ensure variables are numeric and handle any non-numeric values
         CONNECTIONS=$(echo "$CONNECTIONS" | head -1 | grep -E '^[0-9]+$' || echo 0)
@@ -277,29 +285,41 @@ if [ -f "$LOG_FILE" ]; then
     
     # WebSocket close codes
     echo "📋 WebSocket Close Codes:"
-    CLOSE_CODES=$(grep -E "WebSocket closed.*code.*[0-9]{4}" "$LOG_FILE" | tail -5)
-    if [ -n "$CLOSE_CODES" ]; then
-        echo "$CLOSE_CODES"
+    if [ -f "$LOG_FILE" ]; then
+        CLOSE_CODES=$(grep -E "WebSocket closed.*code" "$LOG_FILE" 2>/dev/null | tail -5 || echo "")
+        if [ -n "$CLOSE_CODES" ]; then
+            echo "$CLOSE_CODES"
+        else
+            echo "   No specific close codes found"
+        fi
     else
-        echo "   No specific close codes found"
+        echo "   Log file not accessible"
     fi
     
     echo ""
     echo "📋 Critical Errors:"
-    CRITICAL_ERRORS=$(grep -iE "(timeout|econnreset|enotfound|network.*error)" "$LOG_FILE" | tail -3)
-    if [ -n "$CRITICAL_ERRORS" ]; then
-        echo "$CRITICAL_ERRORS"
+    if [ -f "$LOG_FILE" ]; then
+        CRITICAL_ERRORS=$(grep -i "timeout\|econnreset\|enotfound\|network.*error" "$LOG_FILE" 2>/dev/null | tail -3 || echo "")
+        if [ -n "$CRITICAL_ERRORS" ]; then
+            echo "$CRITICAL_ERRORS"
+        else
+            echo "   No critical network errors found"
+        fi
     else
-        echo "   No critical network errors found"
+        echo "   Log file not accessible"
     fi
     
     echo ""
     echo "📋 Authentication Issues:"
-    AUTH_ISSUES=$(grep -iE "(auth.*error|unauthorized|forbidden|api.*key)" "$LOG_FILE" | tail -3)
-    if [ -n "$AUTH_ISSUES" ]; then
-        echo "$AUTH_ISSUES"
+    if [ -f "$LOG_FILE" ]; then
+        AUTH_ISSUES=$(grep -i "auth.*error\|unauthorized\|forbidden\|api.*key" "$LOG_FILE" 2>/dev/null | tail -3 || echo "")
+        if [ -n "$AUTH_ISSUES" ]; then
+            echo "$AUTH_ISSUES"
+        else
+            echo "   No authentication issues found"
+        fi
     else
-        echo "   No authentication issues found"
+        echo "   Log file not accessible"
     fi
     
     echo ""
@@ -318,8 +338,12 @@ if [ -f "$LOG_FILE" ]; then
     fi
     
     # Heartbeat analysis
-    HEARTBEAT_COUNT=$(grep -c "ping\|heartbeat\|pong" "$LOG_FILE" || echo 0)
-    echo "💓 Heartbeat messages: $HEARTBEAT_COUNT"
+    if [ -f "$LOG_FILE" ]; then
+        HEARTBEAT_COUNT=$(grep -c "ping\|heartbeat\|pong" "$LOG_FILE" 2>/dev/null || echo 0)
+        echo "💓 Heartbeat messages: $HEARTBEAT_COUNT"
+    else
+        echo "💓 Heartbeat messages: N/A (log file not accessible)"
+    fi
     
     echo ""
     echo "🏁 Final Test Assessment:"

@@ -24,6 +24,21 @@ import {
 export class ConfigService extends StandardService implements IConfigurationService {
   constructor() {
     super({ useEnhancedLogging: true });
+
+    // Log feed count at startup to verify correct loading
+    this.logFeedCountAtStartup();
+  }
+
+  /**
+   * Log feed count at startup for verification
+   */
+  private logFeedCountAtStartup(): void {
+    try {
+      const count = this.getFeedsCount();
+      this.logger.log(`✅ Feeds configuration loaded successfully: ${count} feeds from feeds.json`);
+    } catch (error) {
+      this.logger.error("❌ Failed to load feeds configuration at startup:", error);
+    }
   }
 
   // Core feed methods (actually used) - delegate to utilities
@@ -33,6 +48,52 @@ export class ConfigService extends StandardService implements IConfigurationServ
 
   getFeedConfiguration(feedId: CoreFeedId): FeedConfiguration | undefined {
     return getFeedConfigUtil(feedId);
+  }
+
+  /**
+   * Get the total count of feeds from feeds.json
+   * @returns number of feeds configured
+   */
+  getFeedsCount(): number {
+    try {
+      const feeds = this.getFeedConfigurations();
+      const count = feeds.length;
+      this.logger.debug(`Loaded feeds count: ${count} from feeds.json`);
+      return count;
+    } catch (error) {
+      this.logger.error("Failed to load feeds count from configuration:", error);
+      throw new Error(`Failed to get feeds count: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Get feeds count with fallback to known value
+   * @param fallbackCount - fallback count if loading fails (default: 64)
+   * @returns number of feeds
+   */
+  getFeedsCountWithFallback(fallbackCount: number = 64): number {
+    try {
+      return this.getFeedsCount();
+    } catch (error) {
+      this.logger.warn(`Failed to load feeds count, using fallback: ${fallbackCount}`, error);
+      return fallbackCount;
+    }
+  }
+
+  /**
+   * Get all feed symbols from feeds.json
+   * @returns array of feed symbols (e.g., ["BTC/USD", "ETH/USD", ...])
+   */
+  getAllFeedSymbols(): string[] {
+    try {
+      const feeds = this.getFeedConfigurations();
+      const symbols = feeds.map(config => config.feed.name);
+      this.logger.debug(`Loaded ${symbols.length} feed symbols from feeds.json`);
+      return symbols;
+    } catch (error) {
+      this.logger.error("Failed to load feed symbols from configuration:", error);
+      throw new Error(`Failed to get feed symbols: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   }
 
   // Core adapter method (actually used) - delegate to utility

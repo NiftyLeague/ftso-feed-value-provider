@@ -2,6 +2,7 @@ import { Controller, Get } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ConfigService } from "./config.service";
 import { ENV } from "./environment.constants";
+import * as exchangesConfig from "./exchanges.json";
 
 @ApiTags("Configuration")
 @Controller("config")
@@ -104,21 +105,7 @@ export class ConfigController {
       ),
       hybridSummary: {
         customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
-        ccxtExchanges: [
-          "binanceus",
-          "bingx",
-          "bitfinex",
-          "bitget",
-          "bitmart",
-          "bitrue",
-          "bitstamp",
-          "bybit",
-          "gate",
-          "htx",
-          "kucoin",
-          "mexc",
-          "probit",
-        ],
+        ccxtExchanges: this.getCcxtExchanges(),
         ccxtParameters: {
           lambda: 0.00005,
           tradesLimit: 1000,
@@ -132,40 +119,13 @@ export class ConfigController {
   @ApiOperation({ summary: "Get adapter configuration information" })
   @ApiResponse({ status: 200, description: "Adapter configuration retrieved" })
   getAdapterConfiguration() {
+    const ccxtExchanges = this.getCcxtExchanges();
     return {
       customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
-      ccxtExchanges: [
-        "binanceus",
-        "bingx",
-        "bitfinex",
-        "bitget",
-        "bitmart",
-        "bitrue",
-        "bitstamp",
-        "bybit",
-        "gate",
-        "htx",
-        "kucoin",
-        "mexc",
-        "probit",
-      ],
+      ccxtExchanges,
       hybridProviderConfig: {
         customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
-        ccxtExchanges: [
-          "binanceus",
-          "bingx",
-          "bitfinex",
-          "bitget",
-          "bitmart",
-          "bitrue",
-          "bitstamp",
-          "bybit",
-          "gate",
-          "htx",
-          "kucoin",
-          "mexc",
-          "probit",
-        ],
+        ccxtExchanges,
         ccxtParameters: {
           lambda: 0.00005,
           tradesLimit: 1000,
@@ -173,5 +133,16 @@ export class ConfigController {
         },
       },
     };
+  }
+
+  /**
+   * Get CCXT exchanges from the exchanges configuration
+   * Filters out custom adapter exchanges from the crypto category
+   */
+  private getCcxtExchanges(): string[] {
+    const customAdapterExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
+    const cryptoExchanges = exchangesConfig.categories["1"]?.exchanges || [];
+
+    return cryptoExchanges.filter(exchange => !customAdapterExchanges.includes(exchange));
   }
 }
