@@ -11,12 +11,12 @@ import { CacheModule } from "@/cache/cache.module";
 import { AggregatorsModule } from "@/aggregators/aggregators.module";
 import { MonitoringModule } from "@/monitoring/monitoring.module";
 import { ConfigModule } from "@/config/config.module";
+import { DataManagerModule } from "@/data-manager/data-manager.module";
 
 // Core services
-import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
+// ProductionDataManagerService is now provided by DataManagerModule
 
 // Error handling services
-import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { CircuitBreakerService } from "@/error-handling/circuit-breaker.service";
 import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.service";
@@ -24,9 +24,7 @@ import { ConnectionRecoveryService } from "@/error-handling/connection-recovery.
 // Import adapters module for registry initialization
 import { AdaptersModule } from "@/adapters/adapters.module";
 
-// Validation services
-import { ValidationService } from "@/data-manager/validation/validation.service";
-import { DataValidator } from "@/data-manager/validation/data-validator";
+// Validation services are now provided by DataManagerModule
 
 // WebSocket connection management is now handled directly by adapters
 
@@ -42,7 +40,7 @@ import { StartupValidationService } from "./services/startup-validation.service"
 import { WebSocketOrchestratorService } from "./services/websocket-orchestrator.service";
 
 @Module({
-  imports: [CacheModule, AggregatorsModule, MonitoringModule, AdaptersModule, ConfigModule],
+  imports: [CacheModule, AggregatorsModule, MonitoringModule, AdaptersModule, ConfigModule, DataManagerModule],
   controllers: [],
   providers: [
     // Decomposed integration services
@@ -77,33 +75,16 @@ import { WebSocketOrchestratorService } from "./services/websocket-orchestrator.
       scope: 1, // Make it a singleton
     },
 
-    // Data management
-    ProductionDataManagerService,
-
+    // Data management (ProductionDataManagerService is provided by DataManagerModule)
     // Data source factory
     DataSourceFactory,
 
-    // Error handling
-    StandardizedErrorHandlerService,
+    // Error handling (StandardizedErrorHandlerService is provided by ErrorHandlingModule)
     UniversalRetryService,
     CircuitBreakerService,
     ConnectionRecoveryService,
 
-    // Validation
-    {
-      provide: DataValidator,
-      useFactory: (universalRetryService: UniversalRetryService) => {
-        return new DataValidator(universalRetryService);
-      },
-      inject: [UniversalRetryService],
-    },
-    {
-      provide: ValidationService,
-      useFactory: (dataValidator: DataValidator, universalRetryService: UniversalRetryService) => {
-        return new ValidationService(dataValidator, universalRetryService);
-      },
-      inject: [DataValidator, UniversalRetryService],
-    },
+    // Validation (ValidationService and DataValidator are provided by DataManagerModule)
 
     // Factory for creating the integrated FTSO provider service
     {
@@ -132,7 +113,6 @@ import { WebSocketOrchestratorService } from "./services/websocket-orchestrator.
     SystemHealthService,
 
     // Core services
-    ProductionDataManagerService,
     StartupValidationService,
     WebSocketOrchestratorService,
 

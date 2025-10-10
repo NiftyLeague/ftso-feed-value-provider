@@ -106,7 +106,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
         (message as { type: string }).type === "ticker"
       ) {
         const ticker = message as CoinbaseTickerData;
-        this.logger.log(`Processing ticker data for ${ticker.product_id}: ${ticker.price}`);
+        this.logger.debug(`Processing ticker data for ${ticker.product_id}: ${ticker.price}`);
         this.processTickerData(ticker);
       } else if (
         message &&
@@ -347,7 +347,11 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
     if (this.isWebSocketConnected()) {
       try {
         void this.sendWebSocketMessage(JSON.stringify({ type: "ping" }));
-        this.logger.log("✅ Sent ping to Coinbase WebSocket");
+        // Reduce logging frequency - only log every 10th ping
+        if (Math.random() < 0.1) {
+          // 10% chance to log
+          this.logger.log("✅ Sent ping to Coinbase WebSocket");
+        }
       } catch (error) {
         this.logger.warn("❌ Failed to send ping to Coinbase WebSocket:", error);
         this.handleWebSocketError(error as Error);

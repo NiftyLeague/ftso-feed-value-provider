@@ -1,7 +1,7 @@
 {
   "exchange": "bitstamp",
-  "timestamp": 1759447597819,
-  "count": 247,
+  "timestamp": 1760037320760,
+  "count": 249,
   "symbols": [
     "1INCH/EUR",
     "1INCH/USD",
@@ -195,6 +195,8 @@
     "SYRUP/USD",
     "TAI/EUR",
     "TAI/USD",
+    "TON/EUR",
+    "TON/USD",
     "TRAC/EUR",
     "TRAC/USD",
     "TRUF/EUR",
@@ -6288,7 +6290,7 @@
         "instant_order_counter_decimals": 5,
         "minimum_order": "10.00000 EUR",
         "trading": "Enabled",
-        "instant_and_market_orders": "Disabled",
+        "instant_and_market_orders": "Enabled",
         "description": "Polygon Ecosystem Token / Euro"
       }
     },
@@ -6328,7 +6330,7 @@
         "instant_order_counter_decimals": 5,
         "minimum_order": "10.00000 USD",
         "trading": "Enabled",
-        "instant_and_market_orders": "Disabled",
+        "instant_and_market_orders": "Enabled",
         "description": "Polygon Ecosystem Token / U.S. dollar"
       }
     },
@@ -7932,6 +7934,86 @@
         "description": "TARS AI / U.S. dollar"
       }
     },
+    "TON/EUR": {
+      "id": "toneur",
+      "symbol": "TON/EUR",
+      "base": "TON",
+      "quote": "EUR",
+      "baseId": "ton",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "TON/EUR",
+        "url_symbol": "toneur",
+        "base_decimals": 3,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Toncoin / Euro"
+      }
+    },
+    "TON/USD": {
+      "id": "tonusd",
+      "symbol": "TON/USD",
+      "base": "TON",
+      "quote": "USD",
+      "baseId": "ton",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "TON/USD",
+        "url_symbol": "tonusd",
+        "base_decimals": 3,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Toncoin / U.S. dollar"
+      }
+    },
     "TRAC/EUR": {
       "id": "traceur",
       "symbol": "TRAC/EUR",
@@ -9248,7 +9330,7 @@
         "instant_order_counter_decimals": 6,
         "minimum_order": "10.000000 EUR",
         "trading": "Enabled",
-        "instant_and_market_orders": "Disabled",
+        "instant_and_market_orders": "Enabled",
         "description": "Onyxcoin / Euro"
       }
     },
@@ -9288,7 +9370,7 @@
         "instant_order_counter_decimals": 6,
         "minimum_order": "10.000000 USD",
         "trading": "Enabled",
-        "instant_and_market_orders": "Disabled",
+        "instant_and_market_orders": "Enabled",
         "description": "Onyxcoin / U.S. dollar"
       }
     },

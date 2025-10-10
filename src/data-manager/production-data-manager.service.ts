@@ -476,10 +476,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
           continue;
         }
 
-        this.logger.log(`Found source for ${exchange}, checking if custom adapter: ${hasCustomAdapter(exchange)}`);
-
         if (hasRestFallbackCapability(source)) {
-          this.logger.log(`Source ${exchange} has REST fallback capability`);
+          this.logger.debug(`Source ${exchange} has REST fallback capability`);
         } else {
           this.logger.warn(`Source ${exchange} does not have REST fallback capability`);
         }

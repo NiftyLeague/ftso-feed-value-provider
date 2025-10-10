@@ -1,7 +1,7 @@
 {
   "exchange": "kraken",
-  "timestamp": 1759447623271,
-  "count": 1240,
+  "timestamp": 1760037345455,
+  "count": 1254,
   "symbols": [
     "0G/EUR",
     "0G/USD",
@@ -76,6 +76,8 @@
     "ALPHA/USD",
     "ALT/EUR",
     "ALT/USD",
+    "ALTHEA/EUR",
+    "ALTHEA/USD",
     "ANKR/BTC",
     "ANKR/EUR",
     "ANKR/USD",
@@ -140,6 +142,8 @@
     "AVNT/USD",
     "AXS/EUR",
     "AXS/USD",
+    "B2/EUR",
+    "B2/USD",
     "B3/EUR",
     "B3/USD",
     "BABY/EUR",
@@ -177,6 +181,8 @@
     "BICO/USD",
     "BIGTIME/EUR",
     "BIGTIME/USD",
+    "BILLY/EUR",
+    "BILLY/USD",
     "BIO/EUR",
     "BIO/USD",
     "BIT/EUR",
@@ -244,6 +250,8 @@
     "CELO/USD",
     "CELR/EUR",
     "CELR/USD",
+    "CFG/EUR",
+    "CFG/USD",
     "CHEEMS/EUR",
     "CHEEMS/USD",
     "CHEX/EUR",
@@ -667,6 +675,8 @@
     "METIS/USD",
     "MEW/EUR",
     "MEW/USD",
+    "MF/EUR",
+    "MF/USD",
     "MICHI/EUR",
     "MICHI/USD",
     "MIM/EUR",
@@ -698,8 +708,6 @@
     "MOON/USD",
     "MORPHO/EUR",
     "MORPHO/USD",
-    "MOVE/EUR",
-    "MOVE/USD",
     "MOVR/EUR",
     "MOVR/USD",
     "MSOL/EUR",
@@ -791,6 +799,8 @@
     "PERP/USD",
     "PHA/EUR",
     "PHA/USD",
+    "PIPE/EUR",
+    "PIPE/USD",
     "PLAY/EUR",
     "PLAY/USD",
     "PLUME/EUR",
@@ -989,6 +999,8 @@
     "SUI/EUR",
     "SUI/GBP",
     "SUI/USD",
+    "SUKU/EUR",
+    "SUKU/USD",
     "SUN/EUR",
     "SUN/USD",
     "SUNDOG/EUR",
@@ -1189,6 +1201,8 @@
     "XLM/EUR",
     "XLM/GBP",
     "XLM/USD",
+    "XMN/EUR",
+    "XMN/USD",
     "XMR/BTC",
     "XMR/EUR",
     "XMR/USD",
@@ -4765,8 +4779,8 @@
         "costmin": "0.00002",
         "tick_size": "0.00000001",
         "status": "online",
-        "long_position_limit": "340000",
-        "short_position_limit": "230000"
+        "long_position_limit": "380000",
+        "short_position_limit": "260000"
       }
     },
     "ADA/ETH": {
@@ -4913,7 +4927,7 @@
         "costmin": "0.0002",
         "tick_size": "0.0000001",
         "status": "online",
-        "long_position_limit": "140000",
+        "long_position_limit": "120000",
         "short_position_limit": "110000"
       }
     },
@@ -5075,8 +5089,8 @@
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "3100000",
-        "short_position_limit": "1900000"
+        "long_position_limit": "3500000",
+        "short_position_limit": "2500000"
       }
     },
     "ADA/GBP": {
@@ -5701,8 +5715,8 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "500000",
-        "short_position_limit": "500000"
+        "long_position_limit": "640000",
+        "short_position_limit": "640000"
       }
     },
     "ADX/EUR": {
@@ -6856,7 +6870,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -6964,7 +6978,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5",
+        "ordermin": "55",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -6996,7 +7010,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -7104,7 +7118,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5",
+        "ordermin": "55",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -7136,7 +7150,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -7244,7 +7258,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5",
+        "ordermin": "55",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -7276,7 +7290,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -7384,7 +7398,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5",
+        "ordermin": "55",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -8536,7 +8550,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10000
+          "min": 3400
         },
         "price": {},
         "cost": {
@@ -8644,7 +8658,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10000",
+        "ordermin": "3400",
         "costmin": "0.5",
         "tick_size": "0.0000001",
         "status": "online"
@@ -11608,6 +11622,286 @@
         "status": "online"
       }
     },
+    "ALTHEA/EUR": {
+      "id": "ALTHEAEUR",
+      "symbol": "ALTHEA/EUR",
+      "base": "ALTHEA",
+      "quote": "EUR",
+      "baseId": "ALTHEA",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 1
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "ALTHEAEUR",
+        "wsname": "ALTHEA/EUR",
+        "aclass_base": "currency",
+        "base": "ALTHEA",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "3",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "1",
+        "costmin": "0.45",
+        "tick_size": "0.001",
+        "status": "online"
+      }
+    },
+    "ALTHEA/USD": {
+      "id": "ALTHEAUSD",
+      "symbol": "ALTHEA/USD",
+      "base": "ALTHEA",
+      "quote": "USD",
+      "baseId": "ALTHEA",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 1
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "ALTHEAUSD",
+        "wsname": "ALTHEA/USD",
+        "aclass_base": "currency",
+        "base": "ALTHEA",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "3",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "1",
+        "costmin": "0.5",
+        "tick_size": "0.001",
+        "status": "online"
+      }
+    },
     "ANKR/BTC": {
       "id": "ANKRXBT",
       "symbol": "ANKR/BTC",
@@ -12880,8 +13174,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "200000",
-        "short_position_limit": "140000"
+        "long_position_limit": "230000",
+        "short_position_limit": "160000"
       }
     },
     "APE/USDC": {
@@ -14018,8 +14312,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "75000",
-        "short_position_limit": "72000"
+        "long_position_limit": "67000",
+        "short_position_limit": "54000"
       }
     },
     "APU/EUR": {
@@ -14048,7 +14342,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3500
+          "min": 35000
         },
         "price": {},
         "cost": {
@@ -14156,7 +14450,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3500",
+        "ordermin": "35000",
         "costmin": "0.45",
         "tick_size": "0.0000001",
         "status": "online"
@@ -14188,7 +14482,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3500
+          "min": 35000
         },
         "price": {},
         "cost": {
@@ -14296,7 +14590,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3500",
+        "ordermin": "35000",
         "costmin": "0.5",
         "tick_size": "0.0000001",
         "status": "online"
@@ -14726,8 +15020,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "380000",
-        "short_position_limit": "260000"
+        "long_position_limit": "340000",
+        "short_position_limit": "230000"
       }
     },
     "ARB/USD": {
@@ -15744,7 +16038,7 @@
           "max": 1
         },
         "amount": {
-          "min": 50
+          "min": 545
         },
         "price": {},
         "cost": {
@@ -15852,7 +16146,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "50",
+        "ordermin": "545",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -15884,7 +16178,7 @@
           "max": 1
         },
         "amount": {
-          "min": 50
+          "min": 545
         },
         "price": {},
         "cost": {
@@ -15992,7 +16286,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "50",
+        "ordermin": "545",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -17260,7 +17554,7 @@
         "costmin": "0.00002",
         "tick_size": "0.0000001",
         "status": "online",
-        "long_position_limit": "7400",
+        "long_position_limit": "8200",
         "short_position_limit": "7200"
       }
     },
@@ -17833,7 +18127,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "96000",
-        "short_position_limit": "56000"
+        "short_position_limit": "62000"
       }
     },
     "ATOM/USDC": {
@@ -19643,7 +19937,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "33000",
-        "short_position_limit": "36000"
+        "short_position_limit": "32000"
       }
     },
     "AVAX/USD": {
@@ -19805,7 +20099,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "85000",
-        "short_position_limit": "85000"
+        "short_position_limit": "95000"
       }
     },
     "AVAX/USDC": {
@@ -20515,8 +20809,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "25000",
-        "short_position_limit": "14000"
+        "long_position_limit": "22000",
+        "short_position_limit": "12000"
       }
     },
     "AXS/USD": {
@@ -20664,7 +20958,287 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "46000",
-        "short_position_limit": "24000"
+        "short_position_limit": "21000"
+      }
+    },
+    "B2/EUR": {
+      "id": "B2EUR",
+      "symbol": "B2/EUR",
+      "base": "B2",
+      "quote": "EUR",
+      "baseId": "B2",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 4
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "B2EUR",
+        "wsname": "B2/EUR",
+        "aclass_base": "currency",
+        "base": "B2",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "4",
+        "costmin": "0.45",
+        "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
+    "B2/USD": {
+      "id": "B2USD",
+      "symbol": "B2/USD",
+      "base": "B2",
+      "quote": "USD",
+      "baseId": "B2",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 4
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "B2USD",
+        "wsname": "B2/USD",
+        "aclass_base": "currency",
+        "base": "B2",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "4",
+        "costmin": "0.5",
+        "tick_size": "0.0001",
+        "status": "online"
       }
     },
     "B3/EUR": {
@@ -22640,7 +23214,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "1300000",
-        "short_position_limit": "680000"
+        "short_position_limit": "750000"
       }
     },
     "BCH/AUD": {
@@ -22926,7 +23500,7 @@
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "340",
-        "short_position_limit": "330"
+        "short_position_limit": "370"
       }
     },
     "BCH/ETH": {
@@ -23213,8 +23787,8 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "1000",
-        "short_position_limit": "1200"
+        "long_position_limit": "780",
+        "short_position_limit": "1000"
       }
     },
     "BCH/GBP": {
@@ -25071,7 +25645,7 @@
           "max": 1
         },
         "amount": {
-          "min": 81.9672
+          "min": 65
         },
         "price": {},
         "cost": {
@@ -25179,7 +25753,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "81.9672",
+        "ordermin": "65",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -25211,7 +25785,7 @@
           "max": 1
         },
         "amount": {
-          "min": 81.9672
+          "min": 65
         },
         "price": {},
         "cost": {
@@ -25319,7 +25893,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "81.9672",
+        "ordermin": "65",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -25885,6 +26459,286 @@
         "status": "online"
       }
     },
+    "BILLY/EUR": {
+      "id": "BILLYEUR",
+      "symbol": "BILLY/EUR",
+      "base": "BILLY",
+      "quote": "EUR",
+      "baseId": "BILLY",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 500
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "BILLYEUR",
+        "wsname": "BILLY/EUR",
+        "aclass_base": "currency",
+        "base": "BILLY",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "6",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "500",
+        "costmin": "0.45",
+        "tick_size": "0.000001",
+        "status": "online"
+      }
+    },
+    "BILLY/USD": {
+      "id": "BILLYUSD",
+      "symbol": "BILLY/USD",
+      "base": "BILLY",
+      "quote": "USD",
+      "baseId": "BILLY",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.001,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 500
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "BILLYUSD",
+        "wsname": "BILLY/USD",
+        "aclass_base": "currency",
+        "base": "BILLY",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "6",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "500",
+        "costmin": "0.5",
+        "tick_size": "0.000001",
+        "status": "online"
+      }
+    },
     "BIO/EUR": {
       "id": "BIOEUR",
       "symbol": "BIO/EUR",
@@ -26191,7 +27045,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3.7
+          "min": 2.1
         },
         "price": {},
         "cost": {
@@ -26299,7 +27153,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3.7",
+        "ordermin": "2.1",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -26331,7 +27185,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3.7
+          "min": 2.1
         },
         "price": {},
         "cost": {
@@ -26439,7 +27293,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3.7",
+        "ordermin": "2.1",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -26471,7 +27325,7 @@
           "max": 1
         },
         "amount": {
-          "min": 500
+          "min": 80
         },
         "price": {},
         "cost": {
@@ -26579,7 +27433,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "500",
+        "ordermin": "80",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -26730,7 +27584,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "270000",
-        "short_position_limit": "210000"
+        "short_position_limit": "180000"
       }
     },
     "BLUR/USD": {
@@ -26877,7 +27731,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "260000",
+        "long_position_limit": "330000",
         "short_position_limit": "260000"
       }
     },
@@ -26907,7 +27761,7 @@
           "max": 1
         },
         "amount": {
-          "min": 16
+          "min": 160
         },
         "price": {},
         "cost": {
@@ -27015,7 +27869,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "16",
+        "ordermin": "160",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -27047,7 +27901,7 @@
           "max": 1
         },
         "amount": {
-          "min": 16
+          "min": 160
         },
         "price": {},
         "cost": {
@@ -27155,7 +28009,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "16",
+        "ordermin": "160",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -27467,7 +28321,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0065
+          "min": 0.004
         },
         "price": {},
         "cost": {
@@ -27575,7 +28429,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0065",
+        "ordermin": "0.004",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online"
@@ -27607,7 +28461,7 @@
           "max": 3
         },
         "amount": {
-          "min": 0.0065
+          "min": 0.004
         },
         "price": {},
         "cost": {
@@ -27721,12 +28575,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0065",
+        "ordermin": "0.004",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "250",
-        "short_position_limit": "270"
+        "long_position_limit": "410",
+        "short_position_limit": "690"
       }
     },
     "BNB/USDC": {
@@ -27755,7 +28609,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0065
+          "min": 0.004
         },
         "price": {},
         "cost": {
@@ -27863,7 +28717,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0065",
+        "ordermin": "0.004",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -27895,7 +28749,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0065
+          "min": 0.004
         },
         "price": {},
         "cost": {
@@ -28003,7 +28857,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0065",
+        "ordermin": "0.004",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -29693,7 +30547,7 @@
         "costmin": "0.5",
         "tick_size": "0.000000001",
         "status": "online",
-        "long_position_limit": "19000000000",
+        "long_position_limit": "17000000000",
         "short_position_limit": "18000000000"
       }
     },
@@ -30403,7 +31257,7 @@
         "costmin": "1",
         "tick_size": "0.1",
         "status": "online",
-        "long_position_limit": "6",
+        "long_position_limit": "5",
         "short_position_limit": "7"
       }
     },
@@ -30551,7 +31405,7 @@
         "costmin": "1",
         "tick_size": "0.1",
         "status": "online",
-        "long_position_limit": "10",
+        "long_position_limit": "8",
         "short_position_limit": "10"
       }
     },
@@ -30700,7 +31554,7 @@
         "tick_size": "0.1",
         "status": "online",
         "long_position_limit": "9",
-        "short_position_limit": "15"
+        "short_position_limit": "17"
       }
     },
     "BTC/DAI": {
@@ -33487,7 +34341,7 @@
           "max": 1
         },
         "amount": {
-          "min": 2
+          "min": 1
         },
         "price": {},
         "cost": {
@@ -33595,7 +34449,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "2",
+        "ordermin": "1",
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online"
@@ -33627,7 +34481,7 @@
           "max": 1
         },
         "amount": {
-          "min": 2
+          "min": 1
         },
         "price": {},
         "cost": {
@@ -33735,7 +34589,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "2",
+        "ordermin": "1",
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online"
@@ -34047,7 +34901,7 @@
           "max": 1
         },
         "amount": {
-          "min": 25
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -34155,7 +35009,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "25",
+        "ordermin": "20",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -34187,7 +35041,7 @@
           "max": 1
         },
         "amount": {
-          "min": 25
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -34295,7 +35149,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "25",
+        "ordermin": "20",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -34607,7 +35461,7 @@
           "max": 1
         },
         "amount": {
-          "min": 800
+          "min": 300
         },
         "price": {},
         "cost": {
@@ -34715,7 +35569,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "800",
+        "ordermin": "300",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -34747,7 +35601,7 @@
           "max": 1
         },
         "amount": {
-          "min": 800
+          "min": 300
         },
         "price": {},
         "cost": {
@@ -34855,7 +35709,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "800",
+        "ordermin": "300",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -35418,6 +36272,286 @@
         "ordermin": "260",
         "costmin": "0.5",
         "tick_size": "0.000001",
+        "status": "online"
+      }
+    },
+    "CFG/EUR": {
+      "id": "CFGEUR",
+      "symbol": "CFG/EUR",
+      "base": "CFG",
+      "quote": "EUR",
+      "baseId": "CFG",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0025,
+      "precision": {
+        "amount": 1e-8,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 8
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "CFGEUR",
+        "wsname": "CFG/EUR",
+        "aclass_base": "currency",
+        "base": "CFG",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "8",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.25
+          ],
+          [
+            10000,
+            0.2
+          ],
+          [
+            50000,
+            0.14
+          ],
+          [
+            100000,
+            0.12
+          ],
+          [
+            250000,
+            0.1
+          ],
+          [
+            500000,
+            0.08
+          ],
+          [
+            1000000,
+            0.06
+          ],
+          [
+            2500000,
+            0.04
+          ],
+          [
+            5000000,
+            0.02
+          ],
+          [
+            10000000,
+            0
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "8",
+        "costmin": "0.45",
+        "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
+    "CFG/USD": {
+      "id": "CFGUSD",
+      "symbol": "CFG/USD",
+      "base": "CFG",
+      "quote": "USD",
+      "baseId": "CFG",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0025,
+      "precision": {
+        "amount": 1e-8,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 8
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "CFGUSD",
+        "wsname": "CFG/USD",
+        "aclass_base": "currency",
+        "base": "CFG",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "8",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.25
+          ],
+          [
+            10000,
+            0.2
+          ],
+          [
+            50000,
+            0.14
+          ],
+          [
+            100000,
+            0.12
+          ],
+          [
+            250000,
+            0.1
+          ],
+          [
+            500000,
+            0.08
+          ],
+          [
+            1000000,
+            0.06
+          ],
+          [
+            2500000,
+            0.04
+          ],
+          [
+            5000000,
+            0.02
+          ],
+          [
+            10000000,
+            0
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "8",
+        "costmin": "0.5",
+        "tick_size": "0.0001",
         "status": "online"
       }
     },
@@ -36685,8 +37819,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "1700000",
-        "short_position_limit": "1200000"
+        "long_position_limit": "1500000",
+        "short_position_limit": "860000"
       }
     },
     "CHZ/USD": {
@@ -36833,8 +37967,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2300000",
-        "short_position_limit": "1150000"
+        "long_position_limit": "2600000",
+        "short_position_limit": "1600000"
       }
     },
     "CLANKER/EUR": {
@@ -37703,7 +38837,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -37803,7 +38937,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.0002",
         "tick_size": "0.0001",
         "status": "online"
@@ -37835,7 +38969,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -37943,7 +39077,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online"
@@ -38232,7 +39366,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "1800",
-        "short_position_limit": "540"
+        "short_position_limit": "720"
       }
     },
     "COMP/USD": {
@@ -38380,7 +39514,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "4900",
-        "short_position_limit": "1900"
+        "short_position_limit": "2700"
       }
     },
     "COOKIE/EUR": {
@@ -40369,7 +41503,7 @@
           "max": 1
         },
         "amount": {
-          "min": 35
+          "min": 25
         },
         "price": {},
         "cost": {
@@ -40477,7 +41611,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "35",
+        "ordermin": "25",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -40509,7 +41643,7 @@
           "max": 1
         },
         "amount": {
-          "min": 35
+          "min": 25
         },
         "price": {},
         "cost": {
@@ -40617,7 +41751,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "35",
+        "ordermin": "25",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -40649,7 +41783,7 @@
           "max": 1
         },
         "amount": {
-          "min": 35
+          "min": 25
         },
         "price": {},
         "cost": {
@@ -40757,7 +41891,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "35",
+        "ordermin": "25",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -40789,7 +41923,7 @@
           "max": 1
         },
         "amount": {
-          "min": 35
+          "min": 25
         },
         "price": {},
         "cost": {
@@ -40897,7 +42031,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "35",
+        "ordermin": "25",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -43287,8 +44421,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "66000",
-        "short_position_limit": "93000"
+        "long_position_limit": "75000",
+        "short_position_limit": "65000"
       }
     },
     "DAI/USD": {
@@ -43421,8 +44555,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "240000",
-        "short_position_limit": "250000"
+        "long_position_limit": "210000",
+        "short_position_limit": "480000"
       }
     },
     "DAI/USDT": {
@@ -43553,8 +44687,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "79000",
-        "short_position_limit": "2600000"
+        "long_position_limit": "90000",
+        "short_position_limit": "2300000"
       }
     },
     "DASH/EUR": {
@@ -43701,8 +44835,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "2600",
-        "short_position_limit": "520"
+        "long_position_limit": "2200",
+        "short_position_limit": "730"
       }
     },
     "DASH/USD": {
@@ -43850,7 +44984,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "4600",
-        "short_position_limit": "1200"
+        "short_position_limit": "1600"
       }
     },
     "DBR/EUR": {
@@ -45534,7 +46668,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "7100000",
+        "long_position_limit": "8200000",
         "short_position_limit": "0"
       }
     },
@@ -46588,8 +47722,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "6800000",
-        "short_position_limit": "10000000"
+        "long_position_limit": "6100000",
+        "short_position_limit": "8900000"
       }
     },
     "DOGE/USDT": {
@@ -46750,7 +47884,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "3100000",
+        "long_position_limit": "2700000",
         "short_position_limit": "2500000"
       }
     },
@@ -46780,7 +47914,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5000
+          "min": 42000
         },
         "price": {},
         "cost": {
@@ -46888,7 +48022,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5000",
+        "ordermin": "42000",
         "costmin": "0.45",
         "tick_size": "0.0000001",
         "status": "online"
@@ -46920,7 +48054,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5000
+          "min": 42000
         },
         "price": {},
         "cost": {
@@ -47028,7 +48162,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5000",
+        "ordermin": "42000",
         "costmin": "0.5",
         "tick_size": "0.0000001",
         "status": "online"
@@ -47458,8 +48592,8 @@
         "costmin": "0.00002",
         "tick_size": "0.00000001",
         "status": "online",
-        "long_position_limit": "41000",
-        "short_position_limit": "6800"
+        "long_position_limit": "34000",
+        "short_position_limit": "9000"
       }
     },
     "DOT/ETH": {
@@ -47606,8 +48740,8 @@
         "costmin": "0.0002",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "6600",
-        "short_position_limit": "8800"
+        "long_position_limit": "7100",
+        "short_position_limit": "4900"
       }
     },
     "DOT/EUR": {
@@ -47755,7 +48889,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "190000",
-        "short_position_limit": "120000"
+        "short_position_limit": "140000"
       }
     },
     "DOT/GBP": {
@@ -48182,8 +49316,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "390000",
-        "short_position_limit": "350000"
+        "long_position_limit": "290000",
+        "short_position_limit": "260000"
       }
     },
     "DOT/USDC": {
@@ -48330,8 +49464,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "17000",
-        "short_position_limit": "15000"
+        "long_position_limit": "19000",
+        "short_position_limit": "22000"
       }
     },
     "DOT/USDT": {
@@ -48479,7 +49613,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "50000",
-        "short_position_limit": "39000"
+        "short_position_limit": "35000"
       }
     },
     "DRIFT/EUR": {
@@ -49606,8 +50740,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "200000",
-        "short_position_limit": "200000"
+        "long_position_limit": "170000",
+        "short_position_limit": "170000"
       }
     },
     "DYM/EUR": {
@@ -49916,7 +51050,7 @@
           "max": 1
         },
         "amount": {
-          "min": 25
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -50024,7 +51158,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "25",
+        "ordermin": "20",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -50056,7 +51190,7 @@
           "max": 1
         },
         "amount": {
-          "min": 25
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -50164,7 +51298,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "25",
+        "ordermin": "20",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -51871,7 +53005,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "4800",
-        "short_position_limit": "4500"
+        "short_position_limit": "5200"
       }
     },
     "EPT/EUR": {
@@ -53141,7 +54275,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "6400",
-        "short_position_limit": "5100"
+        "short_position_limit": "4400"
       }
     },
     "ETC/USD": {
@@ -53287,7 +54421,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "13000",
-        "short_position_limit": "12000"
+        "short_position_limit": "7900"
       }
     },
     "ETH/AUD": {
@@ -53316,7 +54450,7 @@
           "max": 4
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -53432,12 +54566,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "1",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "130",
-        "short_position_limit": "110"
+        "long_position_limit": "110",
+        "short_position_limit": "96"
       }
     },
     "ETH/BTC": {
@@ -53466,7 +54600,7 @@
           "max": 5
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -53584,7 +54718,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.00002",
         "tick_size": "0.00001",
         "status": "online",
@@ -53618,7 +54752,7 @@
           "max": 3
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -53732,7 +54866,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "1",
         "tick_size": "0.01",
         "status": "online",
@@ -53766,7 +54900,7 @@
           "max": 3
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -53880,11 +55014,11 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "230",
+        "long_position_limit": "200",
         "short_position_limit": "210"
       }
     },
@@ -53914,7 +55048,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54022,7 +55156,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online"
@@ -54054,7 +55188,7 @@
           "max": 10
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54182,7 +55316,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
@@ -54216,7 +55350,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54324,7 +55458,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online"
@@ -54356,7 +55490,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54464,7 +55598,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online"
@@ -54496,7 +55630,7 @@
           "max": 3
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54610,7 +55744,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.43",
         "tick_size": "0.01",
         "status": "online",
@@ -54644,7 +55778,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54752,7 +55886,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "50",
         "tick_size": "1",
         "status": "online"
@@ -54784,7 +55918,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -54892,7 +56026,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -54924,7 +56058,7 @@
           "max": 10
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -55052,7 +56186,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
@@ -55086,7 +56220,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -55194,7 +56328,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -55226,7 +56360,7 @@
           "max": 10
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -55354,12 +56488,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "950",
-        "short_position_limit": "780"
+        "long_position_limit": "810",
+        "short_position_limit": "700"
       }
     },
     "ETH/USDT": {
@@ -55388,7 +56522,7 @@
           "max": 10
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -55516,7 +56650,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
@@ -59112,7 +60246,7 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "130000",
+        "long_position_limit": "150000",
         "short_position_limit": "130000"
       }
     },
@@ -59261,7 +60395,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "1200000",
-        "short_position_limit": "1300000"
+        "short_position_limit": "1100000"
       }
     },
     "FARTCOIN/USDC": {
@@ -59828,8 +60962,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "520000",
-        "short_position_limit": "400000"
+        "long_position_limit": "580000",
+        "short_position_limit": "460000"
       }
     },
     "FF/EUR": {
@@ -59858,7 +60992,7 @@
           "max": 1
         },
         "amount": {
-          "min": 50
+          "min": 30
         },
         "price": {},
         "cost": {
@@ -59966,7 +61100,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "50",
+        "ordermin": "30",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -59998,7 +61132,7 @@
           "max": 1
         },
         "amount": {
-          "min": 50
+          "min": 30
         },
         "price": {},
         "cost": {
@@ -60106,7 +61240,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "50",
+        "ordermin": "30",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -62103,7 +63237,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "76000",
-        "short_position_limit": "50000"
+        "short_position_limit": "63000"
       }
     },
     "FLOW/USD": {
@@ -62251,7 +63385,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "180000",
-        "short_position_limit": "100000"
+        "short_position_limit": "120000"
       }
     },
     "FLR/EUR": {
@@ -64256,7 +65390,7 @@
           "max": 1
         },
         "amount": {
-          "min": 100
+          "min": 65
         },
         "price": {},
         "cost": {
@@ -64364,7 +65498,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "100",
+        "ordermin": "65",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -64396,7 +65530,7 @@
           "max": 1
         },
         "amount": {
-          "min": 100
+          "min": 65
         },
         "price": {},
         "cost": {
@@ -64504,7 +65638,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "100",
+        "ordermin": "65",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -65075,7 +66209,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "15000000",
-        "short_position_limit": "10000000"
+        "short_position_limit": "8900000"
       }
     },
     "GARI/EUR": {
@@ -68006,8 +69140,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "490000",
-        "short_position_limit": "240000"
+        "long_position_limit": "1000000",
+        "short_position_limit": "270000"
       }
     },
     "GOMINING/EUR": {
@@ -69419,7 +70553,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "2200000",
-        "short_position_limit": "1400000"
+        "short_position_limit": "1200000"
       }
     },
     "GST/EUR": {
@@ -71688,7 +72822,7 @@
           "max": 1
         },
         "amount": {
-          "min": 960
+          "min": 8000
         },
         "price": {},
         "cost": {
@@ -71796,7 +72930,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "960",
+        "ordermin": "8000",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -71828,7 +72962,7 @@
           "max": 1
         },
         "amount": {
-          "min": 960
+          "min": 8000
         },
         "price": {},
         "cost": {
@@ -71936,7 +73070,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "960",
+        "ordermin": "8000",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -73486,8 +74620,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "21000",
-        "short_position_limit": "19000"
+        "long_position_limit": "25000",
+        "short_position_limit": "21000"
       }
     },
     "ICP/USD": {
@@ -73634,8 +74768,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "47000",
-        "short_position_limit": "45000"
+        "long_position_limit": "56000",
+        "short_position_limit": "53000"
       }
     },
     "ICX/EUR": {
@@ -74909,7 +76043,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "11000",
-        "short_position_limit": "9500"
+        "short_position_limit": "11000"
       }
     },
     "INJ/USD": {
@@ -75366,7 +76500,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1
+          "min": 0.55
         },
         "price": {},
         "cost": {
@@ -75474,7 +76608,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1",
+        "ordermin": "0.55",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -75506,7 +76640,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1
+          "min": 0.55
         },
         "price": {},
         "cost": {
@@ -75614,7 +76748,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1",
+        "ordermin": "0.55",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -76184,8 +77318,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "8700000",
-        "short_position_limit": "7300000"
+        "long_position_limit": "6500000",
+        "short_position_limit": "6400000"
       }
     },
     "JITOSOL/EUR": {
@@ -76214,7 +77348,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.024
+          "min": 0.02
         },
         "price": {},
         "cost": {
@@ -76322,7 +77456,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.024",
+        "ordermin": "0.02",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online"
@@ -76354,7 +77488,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.024
+          "min": 0.02
         },
         "price": {},
         "cost": {
@@ -76462,7 +77596,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.024",
+        "ordermin": "0.02",
         "costmin": "0.0035",
         "tick_size": "0.0001",
         "status": "online"
@@ -76494,7 +77628,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.024
+          "min": 0.02
         },
         "price": {},
         "cost": {
@@ -76602,7 +77736,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.024",
+        "ordermin": "0.02",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -78868,8 +80002,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2200000",
-        "short_position_limit": "1900000"
+        "long_position_limit": "1900000",
+        "short_position_limit": "2100000"
       }
     },
     "KAS/USDT": {
@@ -79156,7 +80290,7 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "290000",
+        "long_position_limit": "250000",
         "short_position_limit": "210000"
       }
     },
@@ -79304,8 +80438,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "440000",
-        "short_position_limit": "370000"
+        "long_position_limit": "390000",
+        "short_position_limit": "320000"
       }
     },
     "KERNEL/EUR": {
@@ -81302,7 +82436,7 @@
           "max": 1
         },
         "amount": {
-          "min": 250
+          "min": 6000
         },
         "price": {},
         "cost": {
@@ -81410,7 +82544,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "250",
+        "ordermin": "6000",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -81442,7 +82576,7 @@
           "max": 1
         },
         "amount": {
-          "min": 250
+          "min": 6000
         },
         "price": {},
         "cost": {
@@ -81550,7 +82684,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "250",
+        "ordermin": "6000",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -81980,8 +83114,8 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "6900",
-        "short_position_limit": "4600"
+        "long_position_limit": "4900",
+        "short_position_limit": "4100"
       }
     },
     "KSM/GBP": {
@@ -83818,8 +84952,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "71000",
-        "short_position_limit": "58000"
+        "long_position_limit": "79000",
+        "short_position_limit": "65000"
       }
     },
     "LDO/USD": {
@@ -84846,8 +85980,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "30000",
-        "short_position_limit": "39000"
+        "long_position_limit": "43000",
+        "short_position_limit": "52000"
       }
     },
     "LINK/GBP": {
@@ -85450,8 +86584,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "12000",
-        "short_position_limit": "13000"
+        "long_position_limit": "14000",
+        "short_position_limit": "17000"
       }
     },
     "LINK/USDT": {
@@ -85612,7 +86746,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "26000",
+        "long_position_limit": "23000",
         "short_position_limit": "23000"
       }
     },
@@ -87580,8 +88714,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "390000",
-        "short_position_limit": "260000"
+        "long_position_limit": "270000",
+        "short_position_limit": "170000"
       }
     },
     "LRC/USD": {
@@ -87728,8 +88862,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "300000",
-        "short_position_limit": "120000"
+        "long_position_limit": "350000",
+        "short_position_limit": "240000"
       }
     },
     "LSETH/ETH": {
@@ -87758,7 +88892,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0017
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -87850,7 +88984,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0017",
+        "ordermin": "0.001",
         "costmin": "0.0002",
         "tick_size": "0.0001",
         "status": "online"
@@ -87882,7 +89016,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0017
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -87990,7 +89124,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0017",
+        "ordermin": "0.001",
         "costmin": "0.45",
         "tick_size": "0.1",
         "status": "online"
@@ -88022,7 +89156,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0017
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -88130,7 +89264,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0017",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online"
@@ -88442,7 +89576,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.03
+          "min": 0.02
         },
         "price": {},
         "cost": {
@@ -88550,7 +89684,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.03",
+        "ordermin": "0.02",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online"
@@ -88582,7 +89716,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.03
+          "min": 0.02
         },
         "price": {},
         "cost": {
@@ -88690,7 +89824,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.03",
+        "ordermin": "0.02",
         "costmin": "0.0035",
         "tick_size": "0.0001",
         "status": "online"
@@ -88722,7 +89856,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.03
+          "min": 0.02
         },
         "price": {},
         "cost": {
@@ -88830,7 +89964,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.03",
+        "ordermin": "0.02",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -89121,7 +90255,7 @@
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "1700",
-        "short_position_limit": "1500"
+        "short_position_limit": "1300"
       }
     },
     "LTC/ETH": {
@@ -89864,7 +90998,7 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "16000",
+        "long_position_limit": "14000",
         "short_position_limit": "16000"
       }
     },
@@ -90012,8 +91146,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "1000",
-        "short_position_limit": "1800"
+        "long_position_limit": "1200",
+        "short_position_limit": "2000"
       }
     },
     "LTC/USDT": {
@@ -90750,7 +91884,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 2.4
         },
         "price": {},
         "cost": {
@@ -90858,7 +91992,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "2.4",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -90890,7 +92024,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 2.4
         },
         "price": {},
         "cost": {
@@ -90998,7 +92132,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "2.4",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -92038,7 +93172,7 @@
           "max": 1
         },
         "amount": {
-          "min": 12
+          "min": 8
         },
         "price": {},
         "cost": {
@@ -92146,7 +93280,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "12",
+        "ordermin": "8",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -92178,7 +93312,7 @@
           "max": 1
         },
         "amount": {
-          "min": 12
+          "min": 8
         },
         "price": {},
         "cost": {
@@ -92286,7 +93420,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "12",
+        "ordermin": "8",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -93443,7 +94577,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3000
+          "min": 2100
         },
         "price": {},
         "cost": {
@@ -93551,7 +94685,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3000",
+        "ordermin": "2100",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -93583,7 +94717,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3000
+          "min": 2100
         },
         "price": {},
         "cost": {
@@ -93691,7 +94825,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3000",
+        "ordermin": "2100",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -94003,7 +95137,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -94103,7 +95237,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.0002",
         "tick_size": "0.0001",
         "status": "online"
@@ -94135,7 +95269,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.002
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -94243,7 +95377,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.002",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online"
@@ -94814,7 +95948,287 @@
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "12000000",
-        "short_position_limit": "6700000"
+        "short_position_limit": "7400000"
+      }
+    },
+    "MF/EUR": {
+      "id": "MFEUR",
+      "symbol": "MF/EUR",
+      "base": "MF",
+      "quote": "EUR",
+      "baseId": "MF",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 100
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "MFEUR",
+        "wsname": "MF/EUR",
+        "aclass_base": "currency",
+        "base": "MF",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "100",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "MF/USD": {
+      "id": "MFUSD",
+      "symbol": "MF/USD",
+      "base": "MF",
+      "quote": "USD",
+      "baseId": "MF",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 100
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "MFUSD",
+        "wsname": "MF/USD",
+        "aclass_base": "currency",
+        "base": "MF",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "100",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
+        "status": "online"
       }
     },
     "MICHI/EUR": {
@@ -94843,7 +96257,7 @@
           "max": 1
         },
         "amount": {
-          "min": 25
+          "min": 300
         },
         "price": {},
         "cost": {
@@ -94951,7 +96365,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "25",
+        "ordermin": "300",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -94983,7 +96397,7 @@
           "max": 1
         },
         "amount": {
-          "min": 25
+          "min": 300
         },
         "price": {},
         "cost": {
@@ -95091,7 +96505,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "25",
+        "ordermin": "300",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -96263,7 +97677,7 @@
           "max": 1
         },
         "amount": {
-          "min": 12
+          "min": 10
         },
         "price": {},
         "cost": {
@@ -96371,7 +97785,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "12",
+        "ordermin": "10",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -96403,7 +97817,7 @@
           "max": 1
         },
         "amount": {
-          "min": 12
+          "min": 10
         },
         "price": {},
         "cost": {
@@ -96511,7 +97925,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "12",
+        "ordermin": "10",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -97523,7 +98937,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3.5
+          "min": 2
         },
         "price": {},
         "cost": {
@@ -97631,7 +99045,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3.5",
+        "ordermin": "2",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -97663,7 +99077,7 @@
           "max": 1
         },
         "amount": {
-          "min": 3.5
+          "min": 2
         },
         "price": {},
         "cost": {
@@ -97771,7 +99185,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "3.5",
+        "ordermin": "2",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -98342,7 +99756,7 @@
         "tick_size": "0.0000000001",
         "status": "online",
         "long_position_limit": "110000000000",
-        "short_position_limit": "89000000000"
+        "short_position_limit": "98000000000"
       }
     },
     "MOODENG/EUR": {
@@ -99197,288 +100611,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "36000",
-        "short_position_limit": "6600"
-      }
-    },
-    "MOVE/EUR": {
-      "id": "MOVEEUR",
-      "symbol": "MOVE/EUR",
-      "base": "MOVE",
-      "quote": "EUR",
-      "baseId": "MOVE",
-      "quoteId": "ZEUR",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.0023,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 1
-        },
-        "amount": {
-          "min": 6
-        },
-        "price": {},
-        "cost": {
-          "min": 0.45
-        }
-      },
-      "info": {
-        "altname": "MOVEEUR",
-        "wsname": "MOVE/EUR",
-        "aclass_base": "currency",
-        "base": "MOVE",
-        "aclass_quote": "currency",
-        "quote": "ZEUR",
-        "lot": "unit5",
-        "cost_decimals": "5",
-        "pair_decimals": "4",
-        "lot_decimals": "5",
-        "lot_multiplier": "1",
-        "leverage_buy": [],
-        "leverage_sell": [],
-        "fees": [
-          [
-            0,
-            0.4
-          ],
-          [
-            10000,
-            0.35
-          ],
-          [
-            50000,
-            0.24
-          ],
-          [
-            100000,
-            0.22
-          ],
-          [
-            250000,
-            0.2
-          ],
-          [
-            500000,
-            0.18
-          ],
-          [
-            1000000,
-            0.16
-          ],
-          [
-            2500000,
-            0.14
-          ],
-          [
-            5000000,
-            0.12
-          ],
-          [
-            10000000,
-            0.1
-          ]
-        ],
-        "fees_maker": [
-          [
-            0,
-            0.23
-          ],
-          [
-            10000,
-            0.18
-          ],
-          [
-            50000,
-            0.12
-          ],
-          [
-            100000,
-            0.1
-          ],
-          [
-            250000,
-            0.08
-          ],
-          [
-            500000,
-            0.06
-          ],
-          [
-            1000000,
-            0.04
-          ],
-          [
-            2500000,
-            0.02
-          ],
-          [
-            5000000,
-            0
-          ],
-          [
-            10000000,
-            -0.02
-          ]
-        ],
-        "fee_volume_currency": "ZUSD",
-        "margin_call": "80",
-        "margin_stop": "40",
-        "ordermin": "6",
-        "costmin": "0.45",
-        "tick_size": "0.0001",
-        "status": "online"
-      }
-    },
-    "MOVE/USD": {
-      "id": "MOVEUSD",
-      "symbol": "MOVE/USD",
-      "base": "MOVE",
-      "quote": "USD",
-      "baseId": "MOVE",
-      "quoteId": "ZUSD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.0025,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 1
-        },
-        "amount": {
-          "min": 6
-        },
-        "price": {},
-        "cost": {
-          "min": 0.5
-        }
-      },
-      "info": {
-        "altname": "MOVEUSD",
-        "wsname": "MOVE/USD",
-        "aclass_base": "currency",
-        "base": "MOVE",
-        "aclass_quote": "currency",
-        "quote": "ZUSD",
-        "lot": "unit5",
-        "cost_decimals": "5",
-        "pair_decimals": "4",
-        "lot_decimals": "5",
-        "lot_multiplier": "1",
-        "leverage_buy": [],
-        "leverage_sell": [],
-        "fees": [
-          [
-            0,
-            0.4
-          ],
-          [
-            10000,
-            0.35
-          ],
-          [
-            50000,
-            0.24
-          ],
-          [
-            100000,
-            0.22
-          ],
-          [
-            250000,
-            0.2
-          ],
-          [
-            500000,
-            0.18
-          ],
-          [
-            1000000,
-            0.16
-          ],
-          [
-            2500000,
-            0.14
-          ],
-          [
-            5000000,
-            0.12
-          ],
-          [
-            10000000,
-            0.1
-          ]
-        ],
-        "fees_maker": [
-          [
-            0,
-            0.25
-          ],
-          [
-            10000,
-            0.2
-          ],
-          [
-            50000,
-            0.14
-          ],
-          [
-            100000,
-            0.12
-          ],
-          [
-            250000,
-            0.1
-          ],
-          [
-            500000,
-            0.08
-          ],
-          [
-            1000000,
-            0.06
-          ],
-          [
-            2500000,
-            0.04
-          ],
-          [
-            5000000,
-            0.02
-          ],
-          [
-            10000000,
-            0
-          ]
-        ],
-        "fee_volume_currency": "ZUSD",
-        "margin_call": "80",
-        "margin_stop": "40",
-        "ordermin": "6",
-        "costmin": "0.5",
-        "tick_size": "0.0001",
-        "status": "online"
+        "long_position_limit": "32000",
+        "short_position_limit": "11000"
       }
     },
     "MOVR/EUR": {
@@ -99787,7 +100921,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.02
+          "min": 0.017
         },
         "price": {},
         "cost": {
@@ -99895,7 +101029,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.02",
+        "ordermin": "0.017",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online"
@@ -99927,7 +101061,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.02
+          "min": 0.017
         },
         "price": {},
         "cost": {
@@ -100035,7 +101169,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.02",
+        "ordermin": "0.017",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online"
@@ -100907,7 +102041,7 @@
           "max": 1
         },
         "amount": {
-          "min": 300
+          "min": 3100
         },
         "price": {},
         "cost": {
@@ -101015,7 +102149,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "300",
+        "ordermin": "3100",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -101047,7 +102181,7 @@
           "max": 1
         },
         "amount": {
-          "min": 300
+          "min": 3100
         },
         "price": {},
         "cost": {
@@ -101155,7 +102289,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "300",
+        "ordermin": "3100",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -101600,7 +102734,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "75000",
-        "short_position_limit": "52000"
+        "short_position_limit": "58000"
       }
     },
     "NEAR/USD": {
@@ -105820,7 +106954,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "400000",
-        "short_position_limit": "220000"
+        "short_position_limit": "250000"
       }
     },
     "OMG/EUR": {
@@ -105965,8 +107099,8 @@
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "2000",
-        "short_position_limit": "2000"
+        "long_position_limit": "1000",
+        "short_position_limit": "1400"
       }
     },
     "OMG/USD": {
@@ -106111,7 +107245,7 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "16000",
+        "long_position_limit": "14000",
         "short_position_limit": "10000"
       }
     },
@@ -106539,8 +107673,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "160000",
-        "short_position_limit": "140000"
+        "long_position_limit": "140000",
+        "short_position_limit": "120000"
       }
     },
     "ONDO/USD": {
@@ -106974,7 +108108,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "270000",
-        "short_position_limit": "260000"
+        "short_position_limit": "230000"
       }
     },
     "OPEN/EUR": {
@@ -107003,7 +108137,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 8
         },
         "price": {},
         "cost": {
@@ -107111,7 +108245,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "8",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -107143,7 +108277,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 8
         },
         "price": {},
         "cost": {
@@ -107251,7 +108385,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "8",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -107563,7 +108697,7 @@
           "max": 1
         },
         "amount": {
-          "min": 50
+          "min": 14
         },
         "price": {},
         "cost": {
@@ -107671,7 +108805,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "50",
+        "ordermin": "14",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -107703,7 +108837,7 @@
           "max": 1
         },
         "amount": {
-          "min": 50
+          "min": 14
         },
         "price": {},
         "cost": {
@@ -107811,7 +108945,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "50",
+        "ordermin": "14",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -108963,7 +110097,7 @@
           "max": 4
         },
         "amount": {
-          "min": 0.0015
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -109079,12 +110213,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0015",
+        "ordermin": "0.001",
         "costmin": "0.00002",
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "49",
-        "short_position_limit": "47"
+        "short_position_limit": "52"
       }
     },
     "PAXG/ETH": {
@@ -109113,7 +110247,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0015
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -109221,7 +110355,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0015",
+        "ordermin": "0.001",
         "costmin": "0.0002",
         "tick_size": "0.000001",
         "status": "online"
@@ -109253,7 +110387,7 @@
           "max": 3
         },
         "amount": {
-          "min": 0.0015
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -109367,12 +110501,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0015",
+        "ordermin": "0.001",
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "55",
-        "short_position_limit": "61"
+        "long_position_limit": "69",
+        "short_position_limit": "70"
       }
     },
     "PAXG/USD": {
@@ -109401,7 +110535,7 @@
           "max": 3
         },
         "amount": {
-          "min": 0.0015
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -109515,12 +110649,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0015",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "200",
-        "short_position_limit": "170"
+        "short_position_limit": "190"
       }
     },
     "PDA/EUR": {
@@ -110787,7 +111921,7 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "26000000",
+        "long_position_limit": "23000000",
         "short_position_limit": "24000000"
       }
     },
@@ -111496,7 +112630,7 @@
         "tick_size": "0.000000001",
         "status": "online",
         "long_position_limit": "40000000000",
-        "short_position_limit": "34000000000"
+        "short_position_limit": "38000000000"
       }
     },
     "PEPE/GBP": {
@@ -112347,6 +113481,286 @@
         "status": "online"
       }
     },
+    "PIPE/EUR": {
+      "id": "PIPEEUR",
+      "symbol": "PIPE/EUR",
+      "base": "PIPE",
+      "quote": "EUR",
+      "baseId": "PIPE",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 25
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "PIPEEUR",
+        "wsname": "PIPE/EUR",
+        "aclass_base": "currency",
+        "base": "PIPE",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "25",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "PIPE/USD": {
+      "id": "PIPEUSD",
+      "symbol": "PIPE/USD",
+      "base": "PIPE",
+      "quote": "USD",
+      "baseId": "PIPE",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 25
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "PIPEUSD",
+        "wsname": "PIPE/USD",
+        "aclass_base": "currency",
+        "base": "PIPE",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "25",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
     "PLAY/EUR": {
       "id": "PLAYEUR",
       "symbol": "PLAY/EUR",
@@ -112373,7 +113787,7 @@
           "max": 1
         },
         "amount": {
-          "min": 250
+          "min": 100
         },
         "price": {},
         "cost": {
@@ -112481,7 +113895,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "250",
+        "ordermin": "100",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -112513,7 +113927,7 @@
           "max": 1
         },
         "amount": {
-          "min": 250
+          "min": 100
         },
         "price": {},
         "cost": {
@@ -112621,7 +114035,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "250",
+        "ordermin": "100",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -113479,8 +114893,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "1500000",
-        "short_position_limit": "1400000"
+        "long_position_limit": "1300000",
+        "short_position_limit": "1200000"
       }
     },
     "POLIS/EUR": {
@@ -114349,7 +115763,7 @@
           "max": 1
         },
         "amount": {
-          "min": 7
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -114457,7 +115871,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "7",
+        "ordermin": "55",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -114489,7 +115903,7 @@
           "max": 1
         },
         "amount": {
-          "min": 7
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -114597,7 +116011,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "7",
+        "ordermin": "55",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -114629,7 +116043,7 @@
           "max": 1
         },
         "amount": {
-          "min": 2.5
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -114737,7 +116151,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "2.5",
+        "ordermin": "20",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -114769,7 +116183,7 @@
           "max": 1
         },
         "amount": {
-          "min": 2.5
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -114877,7 +116291,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "2.5",
+        "ordermin": "20",
         "costmin": "0.43",
         "tick_size": "0.0001",
         "status": "online"
@@ -114909,7 +116323,7 @@
           "max": 3
         },
         "amount": {
-          "min": 2.5
+          "min": 20
         },
         "price": {},
         "cost": {
@@ -115023,7 +116437,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "2.5",
+        "ordermin": "20",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
@@ -115897,7 +117311,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.28
+          "min": 3.5
         },
         "price": {},
         "cost": {
@@ -116005,7 +117419,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.28",
+        "ordermin": "3.5",
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online"
@@ -116037,7 +117451,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.28
+          "min": 3.5
         },
         "price": {},
         "cost": {
@@ -116145,7 +117559,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.28",
+        "ordermin": "3.5",
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online"
@@ -116177,7 +117591,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 6.5
         },
         "price": {},
         "cost": {
@@ -116285,7 +117699,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "6.5",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -116317,7 +117731,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 6.5
         },
         "price": {},
         "cost": {
@@ -116425,7 +117839,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "6.5",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -117297,7 +118711,7 @@
           "max": 1
         },
         "amount": {
-          "min": 125
+          "min": 85
         },
         "price": {},
         "cost": {
@@ -117405,7 +118819,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "125",
+        "ordermin": "85",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -117437,7 +118851,7 @@
           "max": 1
         },
         "amount": {
-          "min": 125
+          "min": 85
         },
         "price": {},
         "cost": {
@@ -117545,7 +118959,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "125",
+        "ordermin": "85",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -117857,7 +119271,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1000
+          "min": 820
         },
         "price": {},
         "cost": {
@@ -117965,7 +119379,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "820",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -117997,7 +119411,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1000
+          "min": 820
         },
         "price": {},
         "cost": {
@@ -118105,7 +119519,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "820",
         "costmin": "0.0035",
         "tick_size": "0.00000001",
         "status": "online"
@@ -118137,7 +119551,7 @@
           "max": 3
         },
         "amount": {
-          "min": 1000
+          "min": 820
         },
         "price": {},
         "cost": {
@@ -118251,7 +119665,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "820",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
@@ -119101,7 +120515,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1000
+          "min": 130
         },
         "price": {},
         "cost": {
@@ -119209,7 +120623,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "130",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -119241,7 +120655,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1000
+          "min": 130
         },
         "price": {},
         "cost": {
@@ -119349,7 +120763,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "130",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -120509,7 +121923,7 @@
           "max": 1
         },
         "amount": {
-          "min": 14
+          "min": 300
         },
         "price": {},
         "cost": {
@@ -120617,7 +122031,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "14",
+        "ordermin": "300",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -120649,7 +122063,7 @@
           "max": 1
         },
         "amount": {
-          "min": 14
+          "min": 300
         },
         "price": {},
         "cost": {
@@ -120757,7 +122171,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "14",
+        "ordermin": "300",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -121608,7 +123022,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "27000",
-        "short_position_limit": "19000"
+        "short_position_limit": "17000"
       }
     },
     "RBC/EUR": {
@@ -123015,8 +124429,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "54000",
-        "short_position_limit": "39000"
+        "long_position_limit": "60000",
+        "short_position_limit": "44000"
       }
     },
     "REP/EUR": {
@@ -123045,7 +124459,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5.5
+          "min": 4.5
         },
         "price": {},
         "cost": {
@@ -123153,7 +124567,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5.5",
+        "ordermin": "4.5",
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online"
@@ -123185,7 +124599,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5.5
+          "min": 4.5
         },
         "price": {},
         "cost": {
@@ -123293,7 +124707,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5.5",
+        "ordermin": "4.5",
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online"
@@ -126616,7 +128030,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "130000",
-        "short_position_limit": "95000"
+        "short_position_limit": "110000"
       }
     },
     "S/EUR": {
@@ -128053,7 +129467,7 @@
           "max": 1
         },
         "amount": {
-          "min": 350
+          "min": 3500
         },
         "price": {},
         "cost": {
@@ -128161,7 +129575,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "350",
+        "ordermin": "3500",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -128193,7 +129607,7 @@
           "max": 1
         },
         "amount": {
-          "min": 350
+          "min": 3500
         },
         "price": {},
         "cost": {
@@ -128301,7 +129715,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "350",
+        "ordermin": "3500",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -128591,7 +130005,7 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "360000",
+        "long_position_limit": "320000",
         "short_position_limit": "240000"
       }
     },
@@ -128879,8 +130293,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "490000",
-        "short_position_limit": "320000"
+        "long_position_limit": "540000",
+        "short_position_limit": "400000"
       }
     },
     "SAPIEN/EUR": {
@@ -130007,8 +131421,8 @@
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "10000000",
-        "short_position_limit": "11000000"
+        "long_position_limit": "14000000",
+        "short_position_limit": "13000000"
       }
     },
     "SC/USD": {
@@ -130863,8 +132277,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "420000",
-        "short_position_limit": "320000"
+        "long_position_limit": "470000",
+        "short_position_limit": "360000"
       }
     },
     "SEI/USD": {
@@ -131012,7 +132426,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "1300000",
-        "short_position_limit": "900000"
+        "short_position_limit": "1200000"
       }
     },
     "SGB/EUR": {
@@ -132457,7 +133871,7 @@
           "max": 1
         },
         "amount": {
-          "min": 22
+          "min": 200
         },
         "price": {},
         "cost": {
@@ -132565,7 +133979,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "22",
+        "ordermin": "200",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -132597,7 +134011,7 @@
           "max": 1
         },
         "amount": {
-          "min": 22
+          "min": 200
         },
         "price": {},
         "cost": {
@@ -132705,7 +134119,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "22",
+        "ordermin": "200",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -133413,8 +134827,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "100000",
-        "short_position_limit": "79000"
+        "long_position_limit": "78000",
+        "short_position_limit": "60000"
       }
     },
     "SOGNI/EUR": {
@@ -133443,7 +134857,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1500
+          "min": 1100
         },
         "price": {},
         "cost": {
@@ -133551,7 +134965,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1500",
+        "ordermin": "1100",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -133583,7 +134997,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1500
+          "min": 1100
         },
         "price": {},
         "cost": {
@@ -133691,7 +135105,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1500",
+        "ordermin": "1100",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -133983,7 +135397,7 @@
         "costmin": "0.00002",
         "tick_size": "0.0000001",
         "status": "online",
-        "long_position_limit": "3300",
+        "long_position_limit": "2900",
         "short_position_limit": "3000"
       }
     },
@@ -134721,8 +136135,8 @@
         "costmin": "0.43",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "2000",
-        "short_position_limit": "1700"
+        "long_position_limit": "1600",
+        "short_position_limit": "1500"
       }
     },
     "SOL/USD": {
@@ -135185,8 +136599,8 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "12000",
-        "short_position_limit": "12000"
+        "long_position_limit": "9600",
+        "short_position_limit": "9700"
       }
     },
     "SOL/USDT": {
@@ -135347,8 +136761,8 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "8000",
-        "short_position_limit": "8000"
+        "long_position_limit": "9200",
+        "short_position_limit": "9000"
       }
     },
     "SONIC/EUR": {
@@ -135657,7 +137071,7 @@
           "max": 1
         },
         "amount": {
-          "min": 16
+          "min": 6
         },
         "price": {},
         "cost": {
@@ -135765,7 +137179,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "16",
+        "ordermin": "6",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -135797,7 +137211,7 @@
           "max": 1
         },
         "amount": {
-          "min": 16
+          "min": 6
         },
         "price": {},
         "cost": {
@@ -135905,7 +137319,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "16",
+        "ordermin": "6",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -135937,7 +137351,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 6.5
         },
         "price": {},
         "cost": {
@@ -136045,7 +137459,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "6.5",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -136077,7 +137491,7 @@
           "max": 1
         },
         "amount": {
-          "min": 10
+          "min": 6.5
         },
         "price": {},
         "cost": {
@@ -136185,7 +137599,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "10",
+        "ordermin": "6.5",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -137315,8 +138729,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "350000",
-        "short_position_limit": "230000"
+        "long_position_limit": "300000",
+        "short_position_limit": "200000"
       }
     },
     "SRM/EUR": {
@@ -138160,7 +139574,7 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "200000",
+        "long_position_limit": "230000",
         "short_position_limit": "0"
       }
     },
@@ -139030,7 +140444,7 @@
           "max": 1
         },
         "amount": {
-          "min": 6.5
+          "min": 75
         },
         "price": {},
         "cost": {
@@ -139138,7 +140552,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "6.5",
+        "ordermin": "75",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -139170,7 +140584,7 @@
           "max": 1
         },
         "amount": {
-          "min": 6.5
+          "min": 75
         },
         "price": {},
         "cost": {
@@ -139278,7 +140692,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "6.5",
+        "ordermin": "75",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -139428,8 +140842,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "300000",
-        "short_position_limit": "170000"
+        "long_position_limit": "340000",
+        "short_position_limit": "190000"
       }
     },
     "STRK/USD": {
@@ -139576,8 +140990,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "510000",
-        "short_position_limit": "260000"
+        "long_position_limit": "600000",
+        "short_position_limit": "370000"
       }
     },
     "STX/EUR": {
@@ -140027,7 +141441,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "200000",
-        "short_position_limit": "160000"
+        "short_position_limit": "200000"
       }
     },
     "SUI/GBP": {
@@ -140337,7 +141751,287 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "700000",
-        "short_position_limit": "530000"
+        "short_position_limit": "600000"
+      }
+    },
+    "SUKU/EUR": {
+      "id": "SUKUEUR",
+      "symbol": "SUKU/EUR",
+      "base": "SUKU",
+      "quote": "EUR",
+      "baseId": "SUKU",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 180
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "SUKUEUR",
+        "wsname": "SUKU/EUR",
+        "aclass_base": "currency",
+        "base": "SUKU",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "180",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "SUKU/USD": {
+      "id": "SUKUUSD",
+      "symbol": "SUKU/USD",
+      "base": "SUKU",
+      "quote": "USD",
+      "baseId": "SUKU",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 180
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "SUKUUSD",
+        "wsname": "SUKU/USD",
+        "aclass_base": "currency",
+        "base": "SUKU",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "180",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
+        "status": "online"
       }
     },
     "SUN/EUR": {
@@ -143152,8 +144846,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "180000",
-        "short_position_limit": "160000"
+        "long_position_limit": "260000",
+        "short_position_limit": "250000"
       }
     },
     "T/EUR": {
@@ -144289,7 +145983,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "1700",
-        "short_position_limit": "1900"
+        "short_position_limit": "1700"
       }
     },
     "TBTC/BTC": {
@@ -145578,7 +147272,7 @@
           "max": 1
         },
         "amount": {
-          "min": 100
+          "min": 1450
         },
         "price": {},
         "cost": {
@@ -145686,7 +147380,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "100",
+        "ordermin": "1450",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -145718,7 +147412,7 @@
           "max": 1
         },
         "amount": {
-          "min": 100
+          "min": 1450
         },
         "price": {},
         "cost": {
@@ -145826,7 +147520,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "100",
+        "ordermin": "1450",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -147245,7 +148939,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "85000",
-        "short_position_limit": "85000"
+        "short_position_limit": "96000"
       }
     },
     "TON/USDC": {
@@ -149221,7 +150915,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "48000",
-        "short_position_limit": "48000"
+        "short_position_limit": "42000"
       }
     },
     "TRUMP/USDC": {
@@ -149648,7 +151342,7 @@
         "costmin": "0.00002",
         "tick_size": "0.0000000001",
         "status": "online",
-        "long_position_limit": "200000",
+        "long_position_limit": "230000",
         "short_position_limit": "200000"
       }
     },
@@ -152768,7 +154462,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1000
+          "min": 13500
         },
         "price": {},
         "cost": {
@@ -152876,7 +154570,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "13500",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -152908,7 +154602,7 @@
           "max": 1
         },
         "amount": {
-          "min": 1000
+          "min": 13500
         },
         "price": {},
         "cost": {
@@ -153016,7 +154710,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "1000",
+        "ordermin": "13500",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -153770,8 +155464,8 @@
         "costmin": "1",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "490000",
-        "short_position_limit": "250000"
+        "long_position_limit": "420000",
+        "short_position_limit": "280000"
       }
     },
     "USDC/CAD": {
@@ -153904,7 +155598,7 @@
         "costmin": "1",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1300000",
+        "long_position_limit": "1100000",
         "short_position_limit": "800000"
       }
     },
@@ -156712,8 +158406,8 @@
         "costmin": "1",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "620000",
-        "short_position_limit": "590000"
+        "long_position_limit": "550000",
+        "short_position_limit": "660000"
       }
     },
     "USDT/CAD": {
@@ -157246,8 +158940,8 @@
         "costmin": "0.43",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "2200000",
-        "short_position_limit": "2000000"
+        "long_position_limit": "1900000",
+        "short_position_limit": "1700000"
       }
     },
     "USDT/JPY": {
@@ -157379,7 +159073,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "5600",
-        "short_position_limit": "15000"
+        "short_position_limit": "25000"
       }
     },
     "USDT/USD": {
@@ -157538,7 +159232,7 @@
           "max": 1
         },
         "amount": {
-          "min": 200
+          "min": 170
         },
         "price": {},
         "cost": {
@@ -157646,7 +159340,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "200",
+        "ordermin": "170",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -157678,7 +159372,7 @@
           "max": 1
         },
         "amount": {
-          "min": 200
+          "min": 170
         },
         "price": {},
         "cost": {
@@ -157786,7 +159480,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "200",
+        "ordermin": "170",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -157818,7 +159512,7 @@
           "max": 1
         },
         "amount": {
-          "min": 20
+          "min": 14
         },
         "price": {},
         "cost": {
@@ -157926,7 +159620,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "20",
+        "ordermin": "14",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -157958,7 +159652,7 @@
           "max": 1
         },
         "amount": {
-          "min": 20
+          "min": 14
         },
         "price": {},
         "cost": {
@@ -158066,7 +159760,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "20",
+        "ordermin": "14",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -158658,7 +160352,7 @@
           "max": 1
         },
         "amount": {
-          "min": 9
+          "min": 100
         },
         "price": {},
         "cost": {
@@ -158766,7 +160460,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "9",
+        "ordermin": "100",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -158798,7 +160492,7 @@
           "max": 1
         },
         "amount": {
-          "min": 9
+          "min": 100
         },
         "price": {},
         "cost": {
@@ -158906,7 +160600,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "9",
+        "ordermin": "100",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -160316,8 +162010,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "120000",
-        "short_position_limit": "110000"
+        "long_position_limit": "140000",
+        "short_position_limit": "130000"
       }
     },
     "VIRTUAL/USDC": {
@@ -161441,7 +163135,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "2500000",
+        "long_position_limit": "2200000",
         "short_position_limit": "0"
       }
     },
@@ -164553,7 +166247,7 @@
           "max": 1
         },
         "amount": {
-          "min": 30
+          "min": 25
         },
         "price": {},
         "cost": {
@@ -164661,7 +166355,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "30",
+        "ordermin": "25",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -164693,7 +166387,7 @@
           "max": 1
         },
         "amount": {
-          "min": 30
+          "min": 25
         },
         "price": {},
         "cost": {
@@ -164801,7 +166495,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "30",
+        "ordermin": "25",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -165113,7 +166807,7 @@
           "max": 1
         },
         "amount": {
-          "min": 100
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -165221,7 +166915,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "100",
+        "ordermin": "55",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -165253,7 +166947,7 @@
           "max": 1
         },
         "amount": {
-          "min": 100
+          "min": 55
         },
         "price": {},
         "cost": {
@@ -165361,7 +167055,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "100",
+        "ordermin": "55",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -165393,7 +167087,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0015
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -165501,7 +167195,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0015",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online"
@@ -165533,7 +167227,7 @@
           "max": 1
         },
         "amount": {
-          "min": 0.0015
+          "min": 0.001
         },
         "price": {},
         "cost": {
@@ -165641,7 +167335,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.0015",
+        "ordermin": "0.001",
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online"
@@ -165932,7 +167626,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "8000000",
-        "short_position_limit": "6600000"
+        "short_position_limit": "7300000"
       }
     },
     "XDC/CAD": {
@@ -166801,7 +168495,7 @@
           "max": 1
         },
         "amount": {
-          "min": 6400
+          "min": 4500
         },
         "price": {},
         "cost": {
@@ -166909,7 +168603,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "6400",
+        "ordermin": "4500",
         "costmin": "0.45",
         "tick_size": "0.0000001",
         "status": "online"
@@ -166941,7 +168635,7 @@
           "max": 1
         },
         "amount": {
-          "min": 6400
+          "min": 4500
         },
         "price": {},
         "cost": {
@@ -167049,7 +168743,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "6400",
+        "ordermin": "4500",
         "costmin": "0.5",
         "tick_size": "0.0000001",
         "status": "online"
@@ -167198,7 +168892,7 @@
         "tick_size": "0.000000001",
         "status": "online",
         "long_position_limit": "340000",
-        "short_position_limit": "310000"
+        "short_position_limit": "350000"
       }
     },
     "XLM/EUR": {
@@ -167633,6 +169327,286 @@
         "short_position_limit": "2100000"
       }
     },
+    "XMN/EUR": {
+      "id": "XMNEUR",
+      "symbol": "XMN/EUR",
+      "base": "XMN",
+      "quote": "EUR",
+      "baseId": "XMN",
+      "quoteId": "ZEUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 50
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "XMNEUR",
+        "wsname": "XMN/EUR",
+        "aclass_base": "currency",
+        "base": "XMN",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "50",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "XMN/USD": {
+      "id": "XMNUSD",
+      "symbol": "XMN/USD",
+      "base": "XMN",
+      "quote": "USD",
+      "baseId": "XMN",
+      "quoteId": "ZUSD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 50
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "XMNUSD",
+        "wsname": "XMN/USD",
+        "aclass_base": "currency",
+        "base": "XMN",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "50",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
     "XMR/BTC": {
       "id": "XXMRXXBT",
       "symbol": "XMR/BTC",
@@ -167777,8 +169751,8 @@
         "costmin": "0.00002",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "670",
-        "short_position_limit": "470"
+        "long_position_limit": "590",
+        "short_position_limit": "530"
       }
     },
     "XMR/EUR": {
@@ -167924,7 +169898,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "230",
-        "short_position_limit": "290"
+        "short_position_limit": "320"
       }
     },
     "XMR/USD": {
@@ -168069,7 +170043,7 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "760",
+        "long_position_limit": "870",
         "short_position_limit": "870"
       }
     },
@@ -168379,7 +170353,7 @@
           "max": 1
         },
         "amount": {
-          "min": 900
+          "min": 600
         },
         "price": {},
         "cost": {
@@ -168487,7 +170461,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "900",
+        "ordermin": "600",
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online"
@@ -168519,7 +170493,7 @@
           "max": 1
         },
         "amount": {
-          "min": 900
+          "min": 600
         },
         "price": {},
         "cost": {
@@ -168627,7 +170601,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "900",
+        "ordermin": "600",
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online"
@@ -168659,7 +170633,7 @@
           "max": 1
         },
         "amount": {
-          "min": 8
+          "min": 5.5
         },
         "price": {},
         "cost": {
@@ -168767,7 +170741,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "8",
+        "ordermin": "5.5",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -168782,7 +170756,7 @@
       "quoteId": "ZUSD",
       "type": "spot",
       "spot": true,
-      "margin": false,
+      "margin": true,
       "future": false,
       "option": false,
       "active": true,
@@ -168796,10 +170770,10 @@
       "limits": {
         "leverage": {
           "min": 1,
-          "max": 1
+          "max": 3
         },
         "amount": {
-          "min": 8
+          "min": 5.5
         },
         "price": {},
         "cost": {
@@ -168818,8 +170792,14 @@
         "pair_decimals": "4",
         "lot_decimals": "5",
         "lot_multiplier": "1",
-        "leverage_buy": [],
-        "leverage_sell": [],
+        "leverage_buy": [
+          2,
+          3
+        ],
+        "leverage_sell": [
+          2,
+          3
+        ],
         "fees": [
           [
             0,
@@ -168907,10 +170887,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "8",
+        "ordermin": "5.5",
         "costmin": "0.5",
         "tick_size": "0.0001",
-        "status": "online"
+        "status": "online",
+        "long_position_limit": "200000",
+        "short_position_limit": "200000"
       }
     },
     "XRP/AUD": {
@@ -169811,8 +171793,8 @@
         "costmin": "0.43",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "100000",
-        "short_position_limit": "130000"
+        "long_position_limit": "120000",
+        "short_position_limit": "150000"
       }
     },
     "XRP/RLUSD": {
@@ -170275,7 +172257,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "430000",
+        "long_position_limit": "480000",
         "short_position_limit": "490000"
       }
     },
@@ -172142,7 +174124,7 @@
         "tick_size": "1",
         "status": "online",
         "long_position_limit": "20",
-        "short_position_limit": "9"
+        "short_position_limit": "10"
       }
     },
     "YGG/EUR": {
@@ -172451,7 +174433,7 @@
           "max": 2
         },
         "amount": {
-          "min": 0.1
+          "min": 0.04
         },
         "price": {},
         "cost": {
@@ -172563,12 +174545,12 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.1",
+        "ordermin": "0.04",
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "720",
-        "short_position_limit": "580"
+        "long_position_limit": "640",
+        "short_position_limit": "520"
       }
     },
     "ZEC/USD": {
@@ -172597,7 +174579,7 @@
           "max": 2
         },
         "amount": {
-          "min": 0.1
+          "min": 0.04
         },
         "price": {},
         "cost": {
@@ -172709,7 +174691,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "0.1",
+        "ordermin": "0.04",
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
@@ -172743,7 +174725,7 @@
           "max": 1
         },
         "amount": {
-          "min": 20
+          "min": 275
         },
         "price": {},
         "cost": {
@@ -172851,7 +174833,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "20",
+        "ordermin": "275",
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online"
@@ -172883,7 +174865,7 @@
           "max": 1
         },
         "amount": {
-          "min": 20
+          "min": 275
         },
         "price": {},
         "cost": {
@@ -172991,7 +174973,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "20",
+        "ordermin": "275",
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online"
@@ -173303,7 +175285,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5.5
+          "min": 45
         },
         "price": {},
         "cost": {
@@ -173411,7 +175393,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5.5",
+        "ordermin": "45",
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online"
@@ -173443,7 +175425,7 @@
           "max": 1
         },
         "amount": {
-          "min": 5.5
+          "min": 45
         },
         "price": {},
         "cost": {
@@ -173551,7 +175533,7 @@
         "fee_volume_currency": "ZUSD",
         "margin_call": "80",
         "margin_stop": "40",
-        "ordermin": "5.5",
+        "ordermin": "45",
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online"
@@ -174969,7 +176951,7 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "87000",
+        "long_position_limit": "76000",
         "short_position_limit": "52000"
       }
     },
@@ -175398,7 +177380,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "540000",
-        "short_position_limit": "170000"
+        "short_position_limit": "250000"
       }
     }
   }

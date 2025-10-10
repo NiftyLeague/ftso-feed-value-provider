@@ -1,7 +1,7 @@
 {
   "exchange": "upbit",
-  "timestamp": 1759447636853,
-  "count": 627,
+  "timestamp": 1760037359686,
+  "count": 629,
   "symbols": [
     "0G/BTC",
     "0G/KRW",
@@ -172,6 +172,8 @@
     "DOGE/BTC",
     "DOGE/KRW",
     "DOGE/USDT",
+    "DOOD/KRW",
+    "DOOD/USDT",
     "DOT/BTC",
     "DOT/KRW",
     "DRIFT/BTC",
@@ -6038,6 +6040,70 @@
         "market": "USDT-DOGE",
         "korean_name": "도지코인",
         "english_name": "Dogecoin"
+      }
+    },
+    "DOOD/KRW": {
+      "id": "KRW-DOOD",
+      "symbol": "DOOD/KRW",
+      "base": "DOOD",
+      "quote": "KRW",
+      "baseId": "DOOD",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-DOOD",
+        "korean_name": "두들즈",
+        "english_name": "Doodles"
+      }
+    },
+    "DOOD/USDT": {
+      "id": "USDT-DOOD",
+      "symbol": "DOOD/USDT",
+      "base": "DOOD",
+      "quote": "USDT",
+      "baseId": "DOOD",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-DOOD",
+        "korean_name": "두들즈",
+        "english_name": "Doodles"
       }
     },
     "DOT/BTC": {

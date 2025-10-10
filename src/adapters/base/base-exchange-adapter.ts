@@ -54,7 +54,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   private connectionHealthScore = 100; // 0-100, 100 = perfect
   private recentDisconnections: number[] = []; // Timestamps of recent disconnections
   private readonly HEALTH_WINDOW_MS = 300000; // 5 minutes
-  private readonly MAX_DISCONNECTIONS_PER_WINDOW = 3;
+  private readonly MAX_DISCONNECTIONS_PER_WINDOW = 5; // Increased from 3 to 5 to reduce false warnings
   private pingTimer?: NodeJS.Timeout;
   private pongTimer?: NodeJS.Timeout;
   private maxReconnectAttempts = ENV.WEBSOCKET.MAX_RECONNECT_ATTEMPTS;
@@ -526,8 +526,8 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
    * Helper method for REST API calls with standardized error handling and rate limiting
    */
   protected async fetchRestApi(url: string, errorContext: string, retryCount = 0): Promise<Response> {
-    const maxRetries = 3;
-    const baseDelay = 1000; // 1 second base delay
+    const maxRetries = 2; // Reduced from 3 to 2 to be less aggressive
+    const baseDelay = 2000; // Increased from 1s to 2s base delay
 
     try {
       const response = await fetch(url);
@@ -536,7 +536,8 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       if (response.status === 429) {
         if (retryCount < maxRetries) {
           const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
-          this.logger.warn(
+          // Use debug level for rate limiting warnings to reduce log noise
+          this.logger.debug(
             `Rate limited by ${this.exchangeName}, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries + 1})`
           );
 
@@ -1090,10 +1091,19 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     // Update health score based on recent disconnections
     const disconnectionCount = this.recentDisconnections.length;
     if (disconnectionCount >= this.MAX_DISCONNECTIONS_PER_WINDOW) {
-      this.connectionHealthScore = Math.max(0, this.connectionHealthScore - 20);
-      this.logger.warn(
-        `Connection health degraded for ${this.exchangeName}: ${disconnectionCount} disconnections in ${this.HEALTH_WINDOW_MS / 1000}s (health: ${this.connectionHealthScore}%)`
-      );
+      this.connectionHealthScore = Math.max(0, this.connectionHealthScore - 15); // Reduced penalty from 20 to 15
+
+      // Only log warning if health score drops below 60% (was logging at any degradation)
+      if (this.connectionHealthScore < 60) {
+        this.logger.warn(
+          `Connection health degraded for ${this.exchangeName}: ${disconnectionCount} disconnections in ${this.HEALTH_WINDOW_MS / 1000}s (health: ${this.connectionHealthScore}%)`
+        );
+      } else {
+        // Log at debug level for moderate degradation
+        this.logger.debug(
+          `Connection health moderate degradation for ${this.exchangeName}: ${disconnectionCount} disconnections in ${this.HEALTH_WINDOW_MS / 1000}s (health: ${this.connectionHealthScore}%)`
+        );
+      }
     } else {
       // Gradually recover health score
       this.connectionHealthScore = Math.min(100, this.connectionHealthScore + 5);

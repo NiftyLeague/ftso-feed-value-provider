@@ -193,7 +193,9 @@ export class KrakenAdapter extends BaseExchangeAdapter {
           };
 
           if (this.validateResponse(tickerData)) {
-            this.logger.log(`Processing Kraken ticker data for ${tickerData.pair}: ${JSON.stringify(tickerData.data)}`);
+            this.logger.debug(
+              `Processing Kraken ticker data for ${tickerData.pair}: ${JSON.stringify(tickerData.data)}`
+            );
             const priceUpdate = this.normalizePriceData(tickerData);
             this.onPriceUpdateCallback?.(priceUpdate);
           }
@@ -445,7 +447,11 @@ export class KrakenAdapter extends BaseExchangeAdapter {
     if (this.isWebSocketConnected()) {
       try {
         void this.sendWebSocketMessage(JSON.stringify({ event: "ping" }));
-        this.logger.log("✅ Sent ping to Kraken WebSocket");
+        // Reduce logging frequency - only log every 10th ping
+        if (Math.random() < 0.1) {
+          // 10% chance to log
+          this.logger.log("✅ Sent ping to Kraken WebSocket");
+        }
       } catch (error) {
         this.logger.warn("❌ Failed to send ping to Kraken WebSocket:", error);
         // If ping fails, the connection might be stale, trigger reconnection

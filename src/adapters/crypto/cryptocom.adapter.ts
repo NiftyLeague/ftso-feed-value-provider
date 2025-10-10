@@ -26,6 +26,27 @@ export interface ICryptocomWebSocketMessage {
   };
 }
 
+export interface ICryptocomHeartbeatMessage {
+  id?: number;
+  method: "public/heartbeat";
+}
+
+export interface ICryptocomSubscriptionMessage {
+  id?: number;
+  method: "subscribe";
+  result: {
+    channel: string;
+  };
+}
+
+export interface ICryptocomTickerMessage {
+  id?: number;
+  method: "ticker";
+  result: {
+    data: ICryptocomTickerData[];
+  };
+}
+
 export interface ICryptocomRestTickerData {
   i: string; // Instrument name
   b: string; // Best bid price
@@ -114,38 +135,20 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
       this.logger.debug(`Crypto.com WebSocket message received: ${JSON.stringify(message)}`);
 
       // Handle heartbeat response
-      if (
-        message &&
-        typeof message === "object" &&
-        "method" in message &&
-        (message as any).method === "public/heartbeat"
-      ) {
+      if (this.isHeartbeatMessage(message)) {
         this.onPongReceived();
         return;
       }
 
       // Handle subscription confirmation
-      if (
-        message &&
-        typeof message === "object" &&
-        "method" in message &&
-        (message as any).method === "subscribe" &&
-        "result" in message
-      ) {
-        this.logger.debug(`Subscribed to ${(message as any).result.channel}`);
+      if (this.isSubscriptionMessage(message)) {
+        this.logger.debug(`Subscribed to ${message.result.channel}`);
         return;
       }
 
       // Handle ticker data
-      if (
-        message &&
-        typeof message === "object" &&
-        "method" in message &&
-        (message as any).method === "ticker" &&
-        "result" in message &&
-        (message as any).result?.data
-      ) {
-        const tickerData = (message as any).result.data[0];
+      if (this.isTickerMessage(message)) {
+        const tickerData = message.result.data[0];
         if (this.validateResponse(tickerData)) {
           this.logger.log(`Processing Crypto.com ticker data for ${tickerData.i}: ${tickerData.a}`);
           const priceUpdate = this.normalizePriceData(tickerData);
@@ -284,7 +287,10 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
             method: "public/heartbeat",
           })
         );
-        this.logger.log("✅ Sent heartbeat to Crypto.com WebSocket");
+        // Reduce logging frequency - only log every 10th heartbeat
+        if (this.messageId % 10 === 0) {
+          this.logger.log("✅ Sent heartbeat to Crypto.com WebSocket");
+        }
       } catch (error) {
         this.logger.warn("❌ Failed to send heartbeat to Crypto.com WebSocket:", error);
         // If heartbeat fails, the connection might be stale, trigger reconnection
@@ -304,5 +310,36 @@ export class CryptocomAdapter extends BaseExchangeAdapter {
     const config = this.getConfig();
     const baseUrl = config?.restApiUrl || "https://api.crypto.com/v2";
     return this.performStandardHealthCheck(`${baseUrl}/public/get-instruments`);
+  }
+
+  // Type guard methods
+  private isHeartbeatMessage(message: unknown): message is ICryptocomHeartbeatMessage {
+    return (
+      message !== null &&
+      typeof message === "object" &&
+      "method" in message &&
+      (message as ICryptocomHeartbeatMessage).method === "public/heartbeat"
+    );
+  }
+
+  private isSubscriptionMessage(message: unknown): message is ICryptocomSubscriptionMessage {
+    return (
+      message !== null &&
+      typeof message === "object" &&
+      "method" in message &&
+      "result" in message &&
+      (message as ICryptocomSubscriptionMessage).method === "subscribe"
+    );
+  }
+
+  private isTickerMessage(message: unknown): message is ICryptocomTickerMessage {
+    return (
+      message !== null &&
+      typeof message === "object" &&
+      "method" in message &&
+      "result" in message &&
+      (message as ICryptocomTickerMessage).method === "ticker" &&
+      Array.isArray((message as ICryptocomTickerMessage).result?.data)
+    );
   }
 }

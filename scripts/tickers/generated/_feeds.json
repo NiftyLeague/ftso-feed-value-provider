@@ -1103,6 +1103,7 @@
       { "exchange": "bitget", "symbol": "TON/USDT" },
       { "exchange": "bitmart", "symbol": "TON/USDT" },
       { "exchange": "bitrue", "symbol": "TON/USDT" },
+      { "exchange": "bitstamp", "symbol": "TON/USD" },
       { "exchange": "bybit", "symbol": "TON/USDT" },
       { "exchange": "coinex", "symbol": "TON/USDT" },
       { "exchange": "cryptocom", "symbol": "TON/USD" },

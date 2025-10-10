@@ -1,7 +1,7 @@
 {
   "exchange": "bitget",
-  "timestamp": 1759447582662,
-  "count": 1451,
+  "timestamp": 1760037306343,
+  "count": 1455,
   "symbols": [
     "0G/USDT",
     "0G/USDT:USDT",
@@ -67,6 +67,7 @@
     "AI16Z/USDT",
     "AI16Z/USDT:USDT",
     "AIA/USDT",
+    "AIA/USDT:USDT",
     "AIDOGE/USDT",
     "AIN/USDT",
     "AIN/USDT:USDT",
@@ -98,7 +99,6 @@
     "AMP/USDT",
     "AMP/USDT:USDT",
     "AMZN/USDT:USDT",
-    "ANI/USDT",
     "ANIME/USDT",
     "ANIME/USDT:USDT",
     "ANKR/USDT",
@@ -139,6 +139,7 @@
     "ASP/USDT:USDT",
     "ASR/USDT",
     "ASR/USDT:USDT",
+    "ASTER/USDT",
     "ASTER/USDT:USDT",
     "ASTR/USDT",
     "ASTR/USDT:USDT",
@@ -270,7 +271,6 @@
     "BRETT/USDT:USDT",
     "BROCCOLI/USDT",
     "BROCCOLI/USDT:USDT",
-    "BSTR/USDT",
     "BSU/USDT",
     "BSV/USDT",
     "BSV/USDT:USDT",
@@ -329,6 +329,7 @@
     "CLANKER/USDT",
     "COA/USDT",
     "COAI/USDT",
+    "COAI/USDT:USDT",
     "COIN/USDT:USDT",
     "COMP/USDT",
     "COMP/USDT:USDT",
@@ -684,6 +685,8 @@
     "KDA/USDT:USDT",
     "KERNEL/USDT",
     "KERNEL/USDT:USDT",
+    "KGEN/USDT",
+    "KGEN/USDT:USDT",
     "KILO/USDT",
     "KLV/USDT",
     "KMNO/USDT",
@@ -747,6 +750,7 @@
     "LUNA/USDT:USDT",
     "LUNC/USDT",
     "LUNC/USDT:USDT",
+    "LYN/USDT:USDT",
     "M/USDT",
     "M/USDT:USDT",
     "MAGIC/USDT",
@@ -924,6 +928,7 @@
     "OSMO/USDT",
     "OXT/USDT",
     "OXT/USDT:USDT",
+    "P/USDT",
     "PARTI/USDT",
     "PARTI/USDT:USDT",
     "PAXG/USDT",
@@ -1314,7 +1319,6 @@
     "USTC/USDT:USDT",
     "USUAL/USDT",
     "USUAL/USDT:USDT",
-    "UXLINK/USDT",
     "VANA/USDC:USDC",
     "VANA/USDT",
     "VANA/USDT:USDT",
@@ -2590,8 +2594,8 @@
         "quotePrecision": "8",
         "status": "online",
         "minTradeUSDT": "1",
-        "buyLimitPriceRatio": "200",
-        "sellLimitPriceRatio": "0.99",
+        "buyLimitPriceRatio": "0.02",
+        "sellLimitPriceRatio": "0.02",
         "areaSymbol": "no",
         "orderQuantity": "200",
         "openTime": "1759410000000",
@@ -3094,8 +3098,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -3105,7 +3109,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104103901",
+        "openTime": "1759708918067",
         "maxMarketOrderQty": "200",
         "maxOrderQty": "2000"
       }
@@ -5465,7 +5469,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 0.01,
-        "price": 0.0001
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
@@ -5486,9 +5490,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "4",
+        "pricePrecision": "5",
         "quantityPrecision": "2",
-        "quotePrecision": "6",
+        "quotePrecision": "7",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.05",
@@ -5625,6 +5629,82 @@
         "orderQuantity": "200",
         "openTime": "1758189600000",
         "offTime": ""
+      }
+    },
+    "AIA/USDT:USDT": {
+      "id": "AIAUSDT",
+      "symbol": "AIA/USDT:USDT",
+      "base": "AIA",
+      "quote": "USDT",
+      "baseId": "AIA",
+      "quoteId": "USDT",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.0006,
+      "maker": 0.0002,
+      "contractSize": 1,
+      "precision": {
+        "amount": 1,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {
+          "min": 1
+        },
+        "price": {},
+        "cost": {
+          "min": 5
+        }
+      },
+      "info": {
+        "symbol": "AIAUSDT",
+        "baseCoin": "AIA",
+        "quoteCoin": "USDT",
+        "buyLimitPriceRatio": "0.15",
+        "sellLimitPriceRatio": "0.15",
+        "feeRateUpRatio": "0.005",
+        "makerFeeRate": "0.0002",
+        "takerFeeRate": "0.0006",
+        "openCostUpRatio": "0.01",
+        "supportMarginCoins": [
+          "USDT"
+        ],
+        "minTradeNum": "1",
+        "priceEndStep": "1",
+        "volumePlace": "0",
+        "pricePlace": "5",
+        "sizeMultiplier": "1",
+        "symbolType": "perpetual",
+        "minTradeUSDT": "5",
+        "maxSymbolOrderNum": "200",
+        "maxProductOrderNum": "1000",
+        "maxPositionNum": "150",
+        "symbolStatus": "normal",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
+        "deliveryTime": "",
+        "deliveryStartTime": "",
+        "deliveryPeriod": "",
+        "launchTime": "",
+        "fundInterval": "1",
+        "minLever": "1",
+        "maxLever": "50",
+        "posLimit": "0.05",
+        "maintainTime": "",
+        "openTime": "1759646704193",
+        "maxMarketOrderQty": "20000",
+        "maxOrderQty": "150000"
       }
     },
     "AIDOGE/USDT": {
@@ -7555,8 +7635,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -7566,61 +7646,9 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104127304",
+        "openTime": "1759708943038",
         "maxMarketOrderQty": "200",
         "maxOrderQty": "2000"
-      }
-    },
-    "ANI/USDT": {
-      "id": "ANIUSDT",
-      "symbol": "ANI/USDT",
-      "base": "ANI",
-      "quote": "USDT",
-      "baseId": "ANI",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.1,
-        "price": 0.000001
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0,
-          "max": 900000000000000000000
-        },
-        "price": {},
-        "cost": {
-          "min": 1
-        }
-      },
-      "info": {
-        "symbol": "ANIUSDT",
-        "baseCoin": "ANI",
-        "quoteCoin": "USDT",
-        "minTradeAmount": "0",
-        "maxTradeAmount": "900000000000000000000",
-        "takerFeeRate": "0.001",
-        "makerFeeRate": "0.001",
-        "pricePrecision": "6",
-        "quantityPrecision": "1",
-        "quotePrecision": "7",
-        "status": "online",
-        "minTradeUSDT": "1",
-        "buyLimitPriceRatio": "0.05",
-        "sellLimitPriceRatio": "0.05",
-        "areaSymbol": "no",
-        "orderQuantity": "200",
-        "openTime": "1752570000000",
-        "offTime": "1760004000000"
       }
     },
     "ANIME/USDT": {
@@ -8077,7 +8105,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 0.01,
-        "price": 0.001
+        "price": 0.0001
       },
       "limits": {
         "leverage": {},
@@ -8098,9 +8126,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "3",
+        "pricePrecision": "4",
         "quantityPrecision": "2",
-        "quotePrecision": "5",
+        "quotePrecision": "6",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.02",
@@ -8247,8 +8275,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -8258,7 +8286,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104160076",
+        "openTime": "1759709017140",
         "maxMarketOrderQty": "100",
         "maxOrderQty": "800"
       }
@@ -9695,8 +9723,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -9706,7 +9734,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104152170",
+        "openTime": "1759708988570",
         "maxMarketOrderQty": "400",
         "maxOrderQty": "3000"
       }
@@ -9951,8 +9979,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -9962,7 +9990,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104142339",
+        "openTime": "1759708974190",
         "maxMarketOrderQty": "70",
         "maxOrderQty": "600"
       }
@@ -10169,6 +10197,58 @@
         "openTime": "1746519220659",
         "maxMarketOrderQty": "100000",
         "maxOrderQty": "500000"
+      }
+    },
+    "ASTER/USDT": {
+      "id": "ASTERUSDT",
+      "symbol": "ASTER/USDT",
+      "base": "ASTER",
+      "quote": "USDT",
+      "baseId": "ASTER",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": true,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.001,
+      "maker": 0.001,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 0,
+          "max": 900000000000000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 1
+        }
+      },
+      "info": {
+        "symbol": "ASTERUSDT",
+        "baseCoin": "ASTER",
+        "quoteCoin": "USDT",
+        "minTradeAmount": "0",
+        "maxTradeAmount": "900000000000000000000",
+        "takerFeeRate": "0.001",
+        "makerFeeRate": "0.001",
+        "pricePrecision": "4",
+        "quantityPrecision": "2",
+        "quotePrecision": "6",
+        "status": "online",
+        "minTradeUSDT": "1",
+        "buyLimitPriceRatio": "0.02",
+        "sellLimitPriceRatio": "0.02",
+        "areaSymbol": "no",
+        "orderQuantity": "200",
+        "openTime": "1759748400000",
+        "offTime": ""
       }
     },
     "ASTER/USDT:USDT": {
@@ -11083,7 +11163,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 0.001,
-        "price": 0.0001
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
@@ -11104,9 +11184,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "4",
+        "pricePrecision": "5",
         "quantityPrecision": "3",
-        "quotePrecision": "7",
+        "quotePrecision": "8",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.05",
@@ -13009,8 +13089,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -13020,7 +13100,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104084002",
+        "openTime": "1759708955116",
         "maxMarketOrderQty": "40",
         "maxOrderQty": "200"
       }
@@ -18383,58 +18463,6 @@
         "maxOrderQty": "850000"
       }
     },
-    "BSTR/USDT": {
-      "id": "BSTRUSDT",
-      "symbol": "BSTR/USDT",
-      "base": "BSTR",
-      "quote": "USDT",
-      "baseId": "BSTR",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.01,
-        "price": 0.00001
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0,
-          "max": 900000000000000000000
-        },
-        "price": {},
-        "cost": {
-          "min": 1
-        }
-      },
-      "info": {
-        "symbol": "BSTRUSDT",
-        "baseCoin": "BSTR",
-        "quoteCoin": "USDT",
-        "minTradeAmount": "0",
-        "maxTradeAmount": "900000000000000000000",
-        "takerFeeRate": "0.001",
-        "makerFeeRate": "0.001",
-        "pricePrecision": "5",
-        "quantityPrecision": "2",
-        "quotePrecision": "7",
-        "status": "online",
-        "minTradeUSDT": "1",
-        "buyLimitPriceRatio": "0.1",
-        "sellLimitPriceRatio": "0.1",
-        "areaSymbol": "no",
-        "orderQuantity": "200",
-        "openTime": "1755165600000",
-        "offTime": "1760004000000"
-      }
-    },
     "BSU/USDT": {
       "id": "BSUUSDT",
       "symbol": "BSU/USDT",
@@ -18565,7 +18593,7 @@
       "limits": {
         "leverage": {
           "min": 1,
-          "max": 50
+          "max": 75
         },
         "amount": {
           "min": 0.01
@@ -18607,7 +18635,7 @@
         "launchTime": "",
         "fundInterval": "4",
         "minLever": "1",
-        "maxLever": "50",
+        "maxLever": "75",
         "posLimit": "0.05",
         "maintainTime": "",
         "openTime": "",
@@ -22013,6 +22041,82 @@
         "offTime": ""
       }
     },
+    "COAI/USDT:USDT": {
+      "id": "COAIUSDT",
+      "symbol": "COAI/USDT:USDT",
+      "base": "COAI",
+      "quote": "USDT",
+      "baseId": "COAI",
+      "quoteId": "USDT",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.0006,
+      "maker": 0.0002,
+      "contractSize": 1,
+      "precision": {
+        "amount": 1,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {
+          "min": 1
+        },
+        "price": {},
+        "cost": {
+          "min": 5
+        }
+      },
+      "info": {
+        "symbol": "COAIUSDT",
+        "baseCoin": "COAI",
+        "quoteCoin": "USDT",
+        "buyLimitPriceRatio": "0.15",
+        "sellLimitPriceRatio": "0.15",
+        "feeRateUpRatio": "0.005",
+        "makerFeeRate": "0.0002",
+        "takerFeeRate": "0.0006",
+        "openCostUpRatio": "0.01",
+        "supportMarginCoins": [
+          "USDT"
+        ],
+        "minTradeNum": "1",
+        "priceEndStep": "1",
+        "volumePlace": "0",
+        "pricePlace": "4",
+        "sizeMultiplier": "1",
+        "symbolType": "perpetual",
+        "minTradeUSDT": "5",
+        "maxSymbolOrderNum": "200",
+        "maxProductOrderNum": "1000",
+        "maxPositionNum": "150",
+        "symbolStatus": "normal",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
+        "deliveryTime": "",
+        "deliveryStartTime": "",
+        "deliveryPeriod": "",
+        "launchTime": "",
+        "fundInterval": "4",
+        "minLever": "1",
+        "maxLever": "50",
+        "posLimit": "0.05",
+        "maintainTime": "",
+        "openTime": "1758871314287",
+        "maxMarketOrderQty": "",
+        "maxOrderQty": ""
+      }
+    },
     "COIN/USDT:USDT": {
       "id": "COINUSDT",
       "symbol": "COIN/USDT:USDT",
@@ -22073,8 +22177,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -22084,7 +22188,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104136031",
+        "openTime": "1759708979164",
         "maxMarketOrderQty": "25",
         "maxOrderQty": "100"
       }
@@ -22969,8 +23073,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -22980,7 +23084,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104108230",
+        "openTime": "1759708903852",
         "maxMarketOrderQty": "50",
         "maxOrderQty": "200"
       }
@@ -25347,8 +25451,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -25358,7 +25462,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104123923",
+        "openTime": "1759709013750",
         "maxMarketOrderQty": "560",
         "maxOrderQty": "2300"
       }
@@ -26650,7 +26754,7 @@
         "deliveryStartTime": "",
         "deliveryPeriod": "",
         "launchTime": "",
-        "fundInterval": "4",
+        "fundInterval": "1",
         "minLever": "1",
         "maxLever": "50",
         "posLimit": "0.05",
@@ -34365,7 +34469,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 0.01,
-        "price": 0.00001
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
@@ -34386,9 +34490,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "5",
+        "pricePrecision": "6",
         "quantityPrecision": "2",
-        "quotePrecision": "7",
+        "quotePrecision": "8",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.02",
@@ -35073,8 +35177,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -35084,7 +35188,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104153466",
+        "openTime": "1759709009991",
         "maxMarketOrderQty": "200",
         "maxOrderQty": "2000"
       }
@@ -35689,8 +35793,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -35700,7 +35804,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104118004",
+        "openTime": "1759709005234",
         "maxMarketOrderQty": "2000",
         "maxOrderQty": "20000"
       }
@@ -36520,7 +36624,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104111760",
+        "openTime": "1759708932139",
         "maxMarketOrderQty": "300",
         "maxOrderQty": "2000"
       }
@@ -39230,7 +39334,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104133065",
+        "openTime": "1759708967511",
         "maxMarketOrderQty": "105",
         "maxOrderQty": "420"
       }
@@ -40028,7 +40132,7 @@
         "areaSymbol": "no",
         "orderQuantity": "200",
         "openTime": "1712142000000",
-        "offTime": "1760004000000"
+        "offTime": ""
       }
     },
     "IBM/USDT:USDT": {
@@ -40102,7 +40206,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104157636",
+        "openTime": "1759708993489",
         "maxMarketOrderQty": "40",
         "maxOrderQty": "160"
       }
@@ -41175,7 +41279,7 @@
       "maker": 0.002,
       "precision": {
         "amount": 0.0001,
-        "price": 0.001
+        "price": 0.0001
       },
       "limits": {
         "leverage": {},
@@ -41196,9 +41300,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.002",
         "makerFeeRate": "0.002",
-        "pricePrecision": "3",
+        "pricePrecision": "4",
         "quantityPrecision": "4",
-        "quotePrecision": "7",
+        "quotePrecision": "8",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.05",
@@ -41790,7 +41894,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104155038",
+        "openTime": "1759708971962",
         "maxMarketOrderQty": "2000",
         "maxOrderQty": "20000"
       }
@@ -42579,7 +42683,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 0.01,
-        "price": 0.0001
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
@@ -42600,9 +42704,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "4",
+        "pricePrecision": "5",
         "quantityPrecision": "2",
-        "quotePrecision": "6",
+        "quotePrecision": "7",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.1",
@@ -42767,7 +42871,7 @@
       "limits": {
         "leverage": {
           "min": 1,
-          "max": 50
+          "max": 75
         },
         "amount": {
           "min": 1
@@ -42809,7 +42913,7 @@
         "launchTime": "",
         "fundInterval": "8",
         "minLever": "1",
-        "maxLever": "50",
+        "maxLever": "75",
         "posLimit": "0.05",
         "maintainTime": "",
         "openTime": "",
@@ -44401,6 +44505,134 @@
         "openTime": "1744630067427",
         "maxMarketOrderQty": "420000",
         "maxOrderQty": "2100000"
+      }
+    },
+    "KGEN/USDT": {
+      "id": "KGENUSDT",
+      "symbol": "KGEN/USDT",
+      "base": "KGEN",
+      "quote": "USDT",
+      "baseId": "KGEN",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.001,
+      "maker": 0.001,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 0,
+          "max": 900000000000000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 1
+        }
+      },
+      "info": {
+        "symbol": "KGENUSDT",
+        "baseCoin": "KGEN",
+        "quoteCoin": "USDT",
+        "minTradeAmount": "0",
+        "maxTradeAmount": "900000000000000000000",
+        "takerFeeRate": "0.001",
+        "makerFeeRate": "0.001",
+        "pricePrecision": "5",
+        "quantityPrecision": "2",
+        "quotePrecision": "7",
+        "status": "online",
+        "minTradeUSDT": "1",
+        "buyLimitPriceRatio": "0.1",
+        "sellLimitPriceRatio": "0.1",
+        "areaSymbol": "no",
+        "orderQuantity": "200",
+        "openTime": "1759849200000",
+        "offTime": ""
+      }
+    },
+    "KGEN/USDT:USDT": {
+      "id": "KGENUSDT",
+      "symbol": "KGEN/USDT:USDT",
+      "base": "KGEN",
+      "quote": "USDT",
+      "baseId": "KGEN",
+      "quoteId": "USDT",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.0006,
+      "maker": 0.0002,
+      "contractSize": 1,
+      "precision": {
+        "amount": 1,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {
+          "min": 1
+        },
+        "price": {},
+        "cost": {
+          "min": 5
+        }
+      },
+      "info": {
+        "symbol": "KGENUSDT",
+        "baseCoin": "KGEN",
+        "quoteCoin": "USDT",
+        "buyLimitPriceRatio": "0.15",
+        "sellLimitPriceRatio": "0.15",
+        "feeRateUpRatio": "0.005",
+        "makerFeeRate": "0.0002",
+        "takerFeeRate": "0.0006",
+        "openCostUpRatio": "0.01",
+        "supportMarginCoins": [
+          "USDT"
+        ],
+        "minTradeNum": "1",
+        "priceEndStep": "1",
+        "volumePlace": "0",
+        "pricePlace": "5",
+        "sizeMultiplier": "1",
+        "symbolType": "perpetual",
+        "minTradeUSDT": "5",
+        "maxSymbolOrderNum": "200",
+        "maxProductOrderNum": "1000",
+        "maxPositionNum": "150",
+        "symbolStatus": "normal",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
+        "deliveryTime": "",
+        "deliveryStartTime": "",
+        "deliveryPeriod": "",
+        "launchTime": "",
+        "fundInterval": "4",
+        "minLever": "1",
+        "maxLever": "50",
+        "posLimit": "0.05",
+        "maintainTime": "",
+        "openTime": "1759904940236",
+        "maxMarketOrderQty": "50000",
+        "maxOrderQty": "400000"
       }
     },
     "KILO/USDT": {
@@ -48271,6 +48503,82 @@
         "maxOrderQty": "240000000"
       }
     },
+    "LYN/USDT:USDT": {
+      "id": "LYNUSDT",
+      "symbol": "LYN/USDT:USDT",
+      "base": "LYN",
+      "quote": "USDT",
+      "baseId": "LYN",
+      "quoteId": "USDT",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.0006,
+      "maker": 0.0002,
+      "contractSize": 1,
+      "precision": {
+        "amount": 1,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {
+          "min": 1
+        },
+        "price": {},
+        "cost": {
+          "min": 5
+        }
+      },
+      "info": {
+        "symbol": "LYNUSDT",
+        "baseCoin": "LYN",
+        "quoteCoin": "USDT",
+        "buyLimitPriceRatio": "0.15",
+        "sellLimitPriceRatio": "0.15",
+        "feeRateUpRatio": "0.005",
+        "makerFeeRate": "0.0002",
+        "takerFeeRate": "0.0006",
+        "openCostUpRatio": "0.01",
+        "supportMarginCoins": [
+          "USDT"
+        ],
+        "minTradeNum": "1",
+        "priceEndStep": "1",
+        "volumePlace": "0",
+        "pricePlace": "4",
+        "sizeMultiplier": "1",
+        "symbolType": "perpetual",
+        "minTradeUSDT": "5",
+        "maxSymbolOrderNum": "200",
+        "maxProductOrderNum": "1000",
+        "maxPositionNum": "150",
+        "symbolStatus": "normal",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
+        "deliveryTime": "",
+        "deliveryStartTime": "",
+        "deliveryPeriod": "",
+        "launchTime": "",
+        "fundInterval": "1",
+        "minLever": "1",
+        "maxLever": "50",
+        "posLimit": "0.05",
+        "maintainTime": "",
+        "openTime": "1759982060522",
+        "maxMarketOrderQty": "",
+        "maxOrderQty": ""
+      }
+    },
     "M/USDT": {
       "id": "MUSDT",
       "symbol": "M/USDT",
@@ -48389,7 +48697,7 @@
         "deliveryStartTime": "",
         "deliveryPeriod": "",
         "launchTime": "",
-        "fundInterval": "1",
+        "fundInterval": "4",
         "minLever": "1",
         "maxLever": "20",
         "posLimit": "0.05",
@@ -50012,7 +50320,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104130163",
+        "openTime": "1759708985835",
         "maxMarketOrderQty": "200",
         "maxOrderQty": "1000"
       }
@@ -50802,7 +51110,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104118973",
+        "openTime": "1759708953500",
         "maxMarketOrderQty": "70",
         "maxOrderQty": "600"
       }
@@ -51539,7 +51847,7 @@
         "deliveryStartTime": "",
         "deliveryPeriod": "",
         "launchTime": "",
-        "fundInterval": "1",
+        "fundInterval": "4",
         "minLever": "1",
         "maxLever": "20",
         "posLimit": "0.05",
@@ -52620,7 +52928,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104139145",
+        "openTime": "1759708997414",
         "maxMarketOrderQty": "800",
         "maxOrderQty": "7000"
       }
@@ -52772,7 +53080,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104139482",
+        "openTime": "1759708963536",
         "maxMarketOrderQty": "200",
         "maxOrderQty": "1000"
       }
@@ -56274,7 +56582,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104097348",
+        "openTime": "1759708863333",
         "maxMarketOrderQty": "60",
         "maxOrderQty": "240"
       }
@@ -58722,7 +59030,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104162841",
+        "openTime": "1759708989569",
         "maxMarketOrderQty": "200",
         "maxOrderQty": "2000"
       }
@@ -59285,6 +59593,58 @@
         "openTime": "1732514994250",
         "maxMarketOrderQty": "310000",
         "maxOrderQty": "3100000"
+      }
+    },
+    "P/USDT": {
+      "id": "PUSDT",
+      "symbol": "P/USDT",
+      "base": "P",
+      "quote": "USDT",
+      "baseId": "P",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.001,
+      "maker": 0.001,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 0,
+          "max": 900000000000000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 1
+        }
+      },
+      "info": {
+        "symbol": "PUSDT",
+        "baseCoin": "P",
+        "quoteCoin": "USDT",
+        "minTradeAmount": "0",
+        "maxTradeAmount": "900000000000000000000",
+        "takerFeeRate": "0.001",
+        "makerFeeRate": "0.001",
+        "pricePrecision": "5",
+        "quantityPrecision": "1",
+        "quotePrecision": "6",
+        "status": "online",
+        "minTradeUSDT": "1",
+        "buyLimitPriceRatio": "0.1",
+        "sellLimitPriceRatio": "0.1",
+        "areaSymbol": "no",
+        "orderQuantity": "200",
+        "openTime": "1759492800000",
+        "offTime": ""
       }
     },
     "PARTI/USDT": {
@@ -60373,7 +60733,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 1,
-        "price": 1e-8
+        "price": 1e-9
       },
       "limits": {
         "leverage": {},
@@ -60394,9 +60754,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "8",
+        "pricePrecision": "9",
         "quantityPrecision": "0",
-        "quotePrecision": "8",
+        "quotePrecision": "9",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "0.1",
@@ -61463,8 +61823,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -61474,7 +61834,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104167895",
+        "openTime": "1759709002257",
         "maxMarketOrderQty": "400",
         "maxOrderQty": "3000"
       }
@@ -67108,7 +67468,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104128687",
+        "openTime": "1759708978374",
         "maxMarketOrderQty": "4000",
         "maxOrderQty": "30000"
       }
@@ -70761,7 +71121,7 @@
       "limits": {
         "leverage": {
           "min": 1,
-          "max": 50
+          "max": 75
         },
         "amount": {
           "min": 0.1
@@ -70803,7 +71163,7 @@
         "launchTime": "",
         "fundInterval": "8",
         "minLever": "1",
-        "maxLever": "50",
+        "maxLever": "75",
         "posLimit": "0.05",
         "maintainTime": "",
         "openTime": "",
@@ -72145,8 +72505,8 @@
         "maxProductOrderNum": "1000",
         "maxPositionNum": "150",
         "symbolStatus": "normal",
-        "offTime": "1759536010000",
-        "limitOpenTime": "1759535880000",
+        "offTime": "-1",
+        "limitOpenTime": "-1",
         "deliveryTime": "",
         "deliveryStartTime": "",
         "deliveryPeriod": "",
@@ -72156,7 +72516,7 @@
         "maxLever": "10",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104165415",
+        "openTime": "1759709001860",
         "maxMarketOrderQty": "1000",
         "maxOrderQty": "10000"
       }
@@ -79470,7 +79830,7 @@
       "maker": 0.001,
       "precision": {
         "amount": 0.01,
-        "price": 0.0001
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
@@ -79491,9 +79851,9 @@
         "maxTradeAmount": "900000000000000000000",
         "takerFeeRate": "0.001",
         "makerFeeRate": "0.001",
-        "pricePrecision": "4",
+        "pricePrecision": "5",
         "quantityPrecision": "2",
-        "quotePrecision": "6",
+        "quotePrecision": "7",
         "status": "online",
         "minTradeUSDT": "1",
         "buyLimitPriceRatio": "10",
@@ -81532,7 +81892,7 @@
         "maxLever": "25",
         "posLimit": "0.1",
         "maintainTime": "",
-        "openTime": "1759104115760",
+        "openTime": "1759708838318",
         "maxMarketOrderQty": "35",
         "maxOrderQty": "140"
       }
@@ -83651,58 +84011,6 @@
         "openTime": "1734520588950",
         "maxMarketOrderQty": "110000",
         "maxOrderQty": "950000"
-      }
-    },
-    "UXLINK/USDT": {
-      "id": "UXLINKUSDT",
-      "symbol": "UXLINK/USDT",
-      "base": "UXLINK",
-      "quote": "USDT",
-      "baseId": "UXLINK",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": true,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.01,
-        "price": 0.0001
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0,
-          "max": 900000000000000000000
-        },
-        "price": {},
-        "cost": {
-          "min": 1
-        }
-      },
-      "info": {
-        "symbol": "UXLINKUSDT",
-        "baseCoin": "UXLINK",
-        "quoteCoin": "USDT",
-        "minTradeAmount": "0",
-        "maxTradeAmount": "900000000000000000000",
-        "takerFeeRate": "0.001",
-        "makerFeeRate": "0.001",
-        "pricePrecision": "4",
-        "quantityPrecision": "2",
-        "quotePrecision": "6",
-        "status": "online",
-        "minTradeUSDT": "1",
-        "buyLimitPriceRatio": "0.02",
-        "sellLimitPriceRatio": "0.02",
-        "areaSymbol": "no",
-        "orderQuantity": "200",
-        "openTime": "1721289600000",
-        "offTime": ""
       }
     },
     "VANA/USDC:USDC": {

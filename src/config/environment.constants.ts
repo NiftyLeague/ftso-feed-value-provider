@@ -611,7 +611,7 @@ export const ENV = {
       min: 2000,
       max: 30000,
     }), // Increased from 10s to 15s for better symbol-specific error handling
-    REST_POLLING_DELAY_MS: EnvironmentUtils.parseInt("CCXT_REST_POLLING_DELAY_MS", 1000, { min: 500, max: 10000 }),
+    REST_POLLING_DELAY_MS: EnvironmentUtils.parseInt("CCXT_REST_POLLING_DELAY_MS", 5000, { min: 2000, max: 30000 }),
   },
 
   // Aggregation Configuration

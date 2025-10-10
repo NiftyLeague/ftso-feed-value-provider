@@ -1,6 +1,6 @@
 {
   "exchange": "probit",
-  "timestamp": 1759447634508,
+  "timestamp": 1760037355888,
   "count": 454,
   "symbols": [
     "A/USDT",
@@ -151,7 +151,6 @@
     "FLR/USDT",
     "FLUX/USDT",
     "FLY/USDT",
-    "FONE/USDT",
     "FRR/USDT",
     "FRTS/BTC",
     "FRTS/USDT",
@@ -246,6 +245,7 @@
     "METAQ/USDT",
     "MEW/USDT",
     "MINDFAK/USDT",
+    "MINT/USDT",
     "MNS/USDT",
     "MNT/USDT",
     "MOGUL/USDT",
@@ -8599,61 +8599,6 @@
         "closed": false
       }
     },
-    "FONE/USDT": {
-      "id": "FONE-USDT",
-      "symbol": "FONE/USDT",
-      "base": "FONE",
-      "quote": "USDT",
-      "baseId": "FONE",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "FONE-USDT",
-        "base_currency_id": "FONE",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "FRR/USDT": {
       "id": "FRR-USDT",
       "symbol": "FRR/USDT",
@@ -13812,6 +13757,61 @@
         "min_price": "0.000001",
         "max_price": "9999999999999999",
         "price_increment": "0.000001",
+        "min_quantity": "0.0001",
+        "max_quantity": "9999999999999999",
+        "quantity_precision": "4",
+        "min_cost": "1",
+        "max_cost": "9999999999999999",
+        "cost_precision": "8",
+        "maker_fee_rate": "0.2",
+        "taker_fee_rate": "0.2",
+        "show_in_ui": true,
+        "closed": false
+      }
+    },
+    "MINT/USDT": {
+      "id": "MINT-USDT",
+      "symbol": "MINT/USDT",
+      "base": "MINT",
+      "quote": "USDT",
+      "baseId": "MINT",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.002,
+      "maker": 0.002,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.0001,
+        "cost": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 0.0001,
+          "max": 10000000000000000
+        },
+        "price": {
+          "min": 0.0001,
+          "max": 10000000000000000
+        },
+        "cost": {
+          "min": 1,
+          "max": 10000000000000000
+        }
+      },
+      "info": {
+        "id": "MINT-USDT",
+        "base_currency_id": "MINT",
+        "quote_currency_id": "USDT",
+        "min_price": "0.0001",
+        "max_price": "9999999999999999",
+        "price_increment": "0.0001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",

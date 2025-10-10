@@ -20,6 +20,8 @@ import type {
   LivenessResponse,
 } from "@/common/types/monitoring";
 import type { HealthStatus } from "@/common/types/monitoring";
+import { HealthCheckResponseDto, ReadinessResponseDto, LivenessResponseDto } from "./dto/health-metrics.dto";
+import { ServiceUnavailableErrorResponseDto } from "./dto/common-error.dto";
 
 // Create a composed base class with event and lifecycle capabilities
 const EventDrivenController = WithLifecycle(WithEvents(BaseController));
@@ -96,32 +98,12 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 200,
     description: "System is healthy",
-    schema: {
-      type: "object",
-      properties: {
-        status: { type: "string", enum: ["healthy", "degraded", "unhealthy"] },
-        timestamp: { type: "number" },
-        version: { type: "string" },
-        uptime: { type: "number" },
-        memory: { type: "object" },
-        performance: { type: "object" },
-        components: { type: "object" },
-        details: { type: "object" },
-      },
-    },
+    type: HealthCheckResponseDto,
   })
   @ApiResponse({
     status: 503,
     description: "System is unhealthy",
-    schema: {
-      type: "object",
-      properties: {
-        status: { type: "string", enum: ["unhealthy"] },
-        timestamp: { type: "number" },
-        error: { type: "string" },
-        details: { type: "object" },
-      },
-    },
+    type: HealthCheckResponseDto,
   })
   async healthCheck(): Promise<HealthCheckResponse> {
     const result = await this.executeOperation(
@@ -221,22 +203,13 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 200,
     description: "System is healthy",
-    schema: {
-      type: "object",
-      properties: {
-        status: { type: "string", enum: ["healthy", "degraded", "unhealthy"] },
-        timestamp: { type: "number" },
-        version: { type: "string" },
-        uptime: { type: "number" },
-        memory: { type: "object" },
-        cpu: { type: "object" },
-        environment: { type: "string" },
-        services: { type: "object" },
-        startup: { type: "object" },
-      },
-    },
+    type: HealthCheckResponseDto,
   })
-  @ApiResponse({ status: 503, description: "System is unhealthy" })
+  @ApiResponse({
+    status: 503,
+    description: "System is unhealthy",
+    type: ServiceUnavailableErrorResponseDto,
+  })
   async getHealth(): Promise<HealthStatus> {
     try {
       const startTime = Date.now();
@@ -318,17 +291,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 200,
     description: "Detailed health information retrieved",
-    schema: {
-      type: "object",
-      properties: {
-        timestamp: { type: "number" },
-        overall: { type: "string" },
-        components: { type: "object" },
-        system: { type: "object" },
-        performance: { type: "object" },
-        configuration: { type: "object" },
-      },
-    },
+    type: HealthCheckResponseDto,
   })
   async getDetailedHealth(): Promise<DetailedHealthResponse> {
     try {
@@ -395,17 +358,13 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 200,
     description: "System is ready to serve requests",
-    schema: {
-      type: "object",
-      properties: {
-        ready: { type: "boolean" },
-        status: { type: "string" },
-        timestamp: { type: "number" },
-        checks: { type: "object" },
-      },
-    },
+    type: ReadinessResponseDto,
   })
-  @ApiResponse({ status: 503, description: "System is not ready" })
+  @ApiResponse({
+    status: 503,
+    description: "System is not ready",
+    type: ServiceUnavailableErrorResponseDto,
+  })
   async getReadiness(): Promise<ReadinessResponse> {
     try {
       const startTime = Date.now();
@@ -512,18 +471,13 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 200,
     description: "System is alive and responsive",
-    schema: {
-      type: "object",
-      properties: {
-        alive: { type: "boolean" },
-        responseTime: { type: "number" },
-        timestamp: { type: "number" },
-        uptime: { type: "number" },
-        memory: { type: "object" },
-      },
-    },
+    type: LivenessResponseDto,
   })
-  @ApiResponse({ status: 503, description: "System is not alive" })
+  @ApiResponse({
+    status: 503,
+    description: "System is not alive",
+    type: ServiceUnavailableErrorResponseDto,
+  })
   async getLiveness(): Promise<LivenessResponse> {
     try {
       // Basic liveness checks - verify core services are responsive
@@ -592,8 +546,11 @@ export class HealthController extends EventDrivenController {
     };
 
     try {
-      // Check if integration service is initialized using event-driven state
-      if (!this.integrationServiceReady) {
+      // Check integration service status directly instead of relying on event-driven state
+      // This is more robust and handles race conditions better
+      const isServiceReady = this.integrationService.isServiceInitialized();
+
+      if (!isServiceReady) {
         checks.integration.ready = false;
         checks.integration.status = "initializing";
         checks.integration.error = "Integration service not initialized";
@@ -603,6 +560,13 @@ export class HealthController extends EventDrivenController {
           this.logger.debug("System initializing - integration service still starting up");
         }
       } else {
+        // Update our internal state if we detect the service is ready
+        if (!this.integrationServiceReady) {
+          this.integrationServiceReady = true;
+          this.isInitializingStartup = false;
+          this.logger.debug("Integration service detected as ready during health check");
+        }
+
         // Integration service is initialized, check its health
         const integrationHealth = await this.integrationService.getSystemHealth();
         checks.integration.ready = integrationHealth.status !== "unhealthy";

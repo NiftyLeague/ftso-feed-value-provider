@@ -249,6 +249,11 @@ describe("WebSocket Integration Tests (Fixed)", () => {
       coinbaseAdapter.onPriceUpdate(update => priceUpdates.push(update));
       krakenAdapter.onPriceUpdate(update => priceUpdates.push(update));
 
+      // Subscribe to symbols first
+      await binanceAdapter.subscribe(["BTC/USDT"]);
+      await coinbaseAdapter.subscribe(["BTC/USD"]);
+      await krakenAdapter.subscribe(["BTC/USD"]);
+
       // Simulate WebSocket messages from each exchange
       const binanceMessage = {
         e: "24hrTicker",
@@ -449,6 +454,9 @@ describe("WebSocket Integration Tests (Fixed)", () => {
     it("should handle high-frequency price updates", async () => {
       const priceUpdates: PriceUpdate[] = [];
       binanceAdapter.onPriceUpdate(update => priceUpdates.push(update));
+
+      // Subscribe to the symbol first
+      await binanceAdapter.subscribe(["BTC/USDT"]);
 
       // Simulate 10 rapid price updates (reduced from 100 to prevent timeout)
       for (let i = 0; i < 10; i++) {

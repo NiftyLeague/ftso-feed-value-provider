@@ -215,7 +215,7 @@ export class PerformanceOptimizationCoordinatorService
         this.performanceHistory.splice(0, this.performanceHistory.length - 2000);
       }
 
-      // Enhanced optimization needs assessment
+      // Enhanced optimization needs assessment - only log when there are actual issues
       await this.checkImmediateOptimizationNeeds(performanceMetrics, cacheStats);
     } catch (error) {
       this.logger.error("Error in enhanced performance monitoring:", error);
@@ -377,12 +377,25 @@ export class PerformanceOptimizationCoordinatorService
    * Optimize cache performance
    */
   private async optimizeCachePerformance(): Promise<void> {
+    // Get efficiency before optimization
+    const efficiencyBefore = this.cacheService.getEfficiencyScore();
+
     // Use the new optimization methods
     this.cacheService.optimizePerformance();
 
-    // Get cache efficiency and log results
-    const efficiency = this.cacheService.getEfficiencyScore();
-    this.logger.log(`Cache performance optimized - efficiency score: ${(efficiency * 100).toFixed(1)}%`);
+    // Get cache efficiency after optimization
+    const efficiencyAfter = this.cacheService.getEfficiencyScore();
+
+    // Only log if there's a significant improvement (more than 1% change)
+    const improvement = efficiencyAfter - efficiencyBefore;
+    if (Math.abs(improvement) > 0.01) {
+      this.logger.log(
+        `Cache performance optimized - efficiency improved from ${(efficiencyBefore * 100).toFixed(1)}% to ${(efficiencyAfter * 100).toFixed(1)}% (+${(improvement * 100).toFixed(1)}%)`
+      );
+    } else {
+      // Log at debug level for minor changes
+      this.logger.debug(`Cache performance optimized - efficiency score: ${(efficiencyAfter * 100).toFixed(1)}%`);
+    }
   }
 
   /**

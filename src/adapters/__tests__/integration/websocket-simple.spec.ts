@@ -78,6 +78,9 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
       const priceUpdates: PriceUpdate[] = [];
       binanceAdapter.onPriceUpdate(update => priceUpdates.push(update));
 
+      // Subscribe to the symbol first
+      await binanceAdapter.subscribe(["BTC/USDT"]);
+
       const message = {
         e: "24hrTicker",
         E: Date.now(),
@@ -143,6 +146,9 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
     it("should handle multiple messages efficiently", async () => {
       const priceUpdates: PriceUpdate[] = [];
       binanceAdapter.onPriceUpdate(update => priceUpdates.push(update));
+
+      // Subscribe to the symbol first
+      await binanceAdapter.subscribe(["BTC/USDT"]);
 
       // Process 10 messages quickly
       for (let i = 0; i < 10; i++) {

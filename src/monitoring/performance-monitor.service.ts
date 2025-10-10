@@ -340,10 +340,10 @@ export class PerformanceMonitorService extends StandardService implements OnModu
       this.collectOptimizedMetrics();
     }, 1000);
 
-    // Medium-frequency optimization analysis
+    // Medium-frequency optimization analysis - reduced frequency
     this.createInterval(() => {
       this.performOptimizationAnalysis();
-    }, 5000);
+    }, 30000); // Increased from 5000ms to 30000ms (30 seconds)
 
     this.logger.log("Started optimized performance monitoring");
   }

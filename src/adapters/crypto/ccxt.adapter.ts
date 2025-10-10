@@ -1137,7 +1137,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
       }
     }
 
-    this.logger.log(`Stopped watchTradesForSymbols for ${exchangeId}`);
+    this.logger.debug(`Stopped watchTradesForSymbols for ${exchangeId}`);
   }
 
   private async watchTradesForSymbol(exchange: ccxt.Exchange, symbol: string, exchangeId: string): Promise<void> {
@@ -1149,7 +1149,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     this.setCcxtConnectionStatus(exchangeId, true);
     this.startWatchingTrades(exchangeId);
 
-    this.logger.log(`Starting watchTradesForSymbol for ${exchangeId}/${symbol}`);
+    this.logger.debug(`Starting watchTradesForSymbol for ${exchangeId}/${symbol}`);
 
     while (this.isCcxtWebSocketConnected() && this.watchTradesActive.get(exchangeId)) {
       try {
@@ -1331,11 +1331,13 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
         // Adaptive delay: shorter if we got new data, longer if stale
         const nextDelay = hasNewData
-          ? ENV.CCXT.REST_POLLING_DELAY_MS * 0.5 // Faster when active
-          : ENV.CCXT.REST_POLLING_DELAY_MS * 1.5; // Slower when stale
+          ? ENV.CCXT.REST_POLLING_DELAY_MS * 0.8 // Slightly faster when active (was 0.5)
+          : ENV.CCXT.REST_POLLING_DELAY_MS * 2.0; // Much slower when stale (was 1.5)
 
-        // Schedule next poll
-        setTimeout(adaptivePolling, Math.min(nextDelay, ENV.CCXT.REST_POLLING_DELAY_MS * 2));
+        // Schedule next poll with minimum delay to prevent excessive API calls
+        const minDelay = ENV.CCXT.REST_POLLING_DELAY_MS * 0.5; // Minimum 50% of base delay
+        const maxDelay = ENV.CCXT.REST_POLLING_DELAY_MS * 3.0; // Maximum 300% of base delay
+        setTimeout(adaptivePolling, Math.max(minDelay, Math.min(nextDelay, maxDelay)));
       } catch (error) {
         // Handle individual trade processing errors without stopping loops
         this.logger.warn(`REST polling error for ${exchangeId} (will retry with backoff):`, {

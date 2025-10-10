@@ -253,7 +253,7 @@ export class OkxAdapter extends BaseExchangeAdapter {
         this.logger.debug(`OKX ticker data received for ${message.data.length} symbols`);
         message.data.forEach((ticker: OkxTickerData) => {
           if (this.validateResponse(ticker)) {
-            this.logger.log(`Processing OKX ticker data for ${ticker.instId}: ${ticker.last}`);
+            this.logger.debug(`Processing OKX ticker data for ${ticker.instId}: ${ticker.last}`);
             const priceUpdate = this.normalizePriceData(ticker);
             this.onPriceUpdateCallback?.(priceUpdate);
           } else {

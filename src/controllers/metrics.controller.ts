@@ -11,6 +11,12 @@ import type {
   EndpointStatsResponse,
   ErrorAnalysisResponse,
 } from "@/common/types/monitoring";
+import {
+  ApiMetricsResponseDto,
+  PerformanceMetricsResponseDto,
+  EndpointStatsResponseDto,
+  ErrorAnalysisResponseDto,
+} from "./dto/health-metrics.dto";
 
 @ApiTags("API Metrics and Monitoring")
 @Controller()
@@ -35,16 +41,7 @@ export class MetricsController extends BaseController {
   @ApiResponse({
     status: 200,
     description: "API metrics retrieved successfully",
-    schema: {
-      type: "object",
-      properties: {
-        health: { type: "object" },
-        endpoints: { type: "array" },
-        performance: { type: "object" },
-        errors: { type: "object" },
-        timestamp: { type: "number" },
-      },
-    },
+    type: ApiMetricsResponseDto,
   })
   async getApiMetrics(): Promise<ApiMetricsResponse> {
     try {
@@ -84,6 +81,7 @@ export class MetricsController extends BaseController {
   @ApiResponse({
     status: 200,
     description: "API metrics retrieved successfully",
+    type: ApiMetricsResponseDto,
   })
   async getApiMetricsGet(): Promise<ApiMetricsResponse> {
     // Delegate to the POST method for consistency
@@ -98,6 +96,7 @@ export class MetricsController extends BaseController {
   @ApiResponse({
     status: 200,
     description: "Performance metrics retrieved successfully",
+    type: PerformanceMetricsResponseDto,
   })
   async getPerformanceMetrics(): Promise<PerformanceMetricsResponse> {
     try {
@@ -126,6 +125,7 @@ export class MetricsController extends BaseController {
   @ApiResponse({
     status: 200,
     description: "Endpoint statistics retrieved successfully",
+    type: EndpointStatsResponseDto,
   })
   async getEndpointStats(): Promise<EndpointStatsResponse> {
     try {
@@ -160,6 +160,7 @@ export class MetricsController extends BaseController {
   @ApiResponse({
     status: 200,
     description: "Error analysis retrieved successfully",
+    type: ErrorAnalysisResponseDto,
   })
   async getErrorAnalysis(): Promise<ErrorAnalysisResponse> {
     try {

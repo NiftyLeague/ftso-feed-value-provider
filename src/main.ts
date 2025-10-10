@@ -298,11 +298,11 @@ async function bootstrap() {
     );
 
     // Application is ready to serve requests
-    // Start non-blocking readiness monitoring
+    // Start non-blocking readiness monitoring with delay to avoid error logs during initialization
     if (enhancedLogger) {
       setTimeout(() => {
         void checkApplicationReadiness(enhancedLogger!, PORT, basePath);
-      }, 5000); // Give integration service time to initialize
+      }, 10000); // Give integration service and data sources time to initialize (increased from 5s to 10s)
     }
 
     enhancedLogger.endPerformanceTimer(operationId, true, {
@@ -400,6 +400,8 @@ async function setupSwaggerDocumentation(app: INestApplication, basePath: string
       .setVersion("1.0.0")
       .addTag("FTSO Provider", "Feed value and volume data endpoints")
       .addTag("System Health", "Health check and monitoring endpoints")
+      .addTag("API Metrics and Monitoring", "Performance metrics and monitoring endpoints")
+      .addTag("Configuration", "System configuration and validation endpoints")
       .build();
 
     const options: SwaggerDocumentOptions = {
@@ -574,7 +576,7 @@ async function gracefulShutdown(): Promise<void> {
 }
 
 async function checkApplicationReadiness(logger: EnhancedLoggerService, port: number, basePath: string): Promise<void> {
-  const maxAttempts = 12; // Try for 60 seconds (12 * 5s intervals)
+  const maxAttempts = 6; // Try for 60 seconds (6 * 10s intervals) - reduced frequency
   let attempts = 0;
 
   const checkReadiness = async (): Promise<void> => {
@@ -590,7 +592,7 @@ async function checkApplicationReadiness(logger: EnhancedLoggerService, port: nu
       if (response.ok) {
         const data = await response.json();
         if (data.ready) {
-          logger.log(`✅ Application readiness confirmed after ${attempts * 5} seconds`);
+          logger.log(`✅ Application readiness confirmed after ${attempts * 10} seconds`);
           return;
         }
       }
@@ -604,10 +606,10 @@ async function checkApplicationReadiness(logger: EnhancedLoggerService, port: nu
 
     // Schedule next check if we haven't exceeded max attempts
     if (attempts < maxAttempts) {
-      setTimeout(checkReadiness, 5000);
+      setTimeout(checkReadiness, 10000); // Increased from 5s to 10s
     } else {
       logger.warn(
-        `⚠️ Application readiness monitoring completed after ${maxAttempts * 5} seconds. System may still be initializing.`
+        `⚠️ Application readiness monitoring completed after ${maxAttempts * 10} seconds. System may still be initializing.`
       );
     }
   };

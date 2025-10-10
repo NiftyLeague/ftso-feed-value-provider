@@ -14,7 +14,7 @@ import {
   HttpCode,
 } from "@nestjs/common";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from "@nestjs/swagger";
 import { BaseController } from "@/common/base/base.controller";
 import { ValidationUtils } from "@/common/utils/validation.utils";
 import { FtsoProviderService } from "@/app.service";
@@ -28,6 +28,18 @@ import type {
   RoundFeedValuesResponse,
   VolumesRequest,
 } from "@/common/types/http";
+import {
+  FeedValuesRequestDto,
+  FeedValuesResponseDto,
+  RoundFeedValuesResponseDto,
+  VolumesRequestDto,
+  FeedVolumesResponseDto,
+} from "./dto/feed.dto";
+import {
+  NotFoundErrorResponseDto,
+  InternalServerErrorResponseDto,
+  ValidationErrorResponseDto,
+} from "./dto/common-error.dto";
 
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -61,9 +73,22 @@ export class FeedController extends BaseController {
     summary: "Get current feed values",
     description: "Returns real-time feed values with sub-100ms response time and 1-second cache TTL",
   })
-  @ApiResponse({ status: 200, description: "Current feed values retrieved successfully" })
-  @ApiResponse({ status: 400, description: "Invalid feed request" })
-  @ApiResponse({ status: 500, description: "Internal server error" })
+  @ApiBody({ type: FeedValuesRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: "Current feed values retrieved successfully",
+    type: FeedValuesResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid feed request",
+    type: ValidationErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: InternalServerErrorResponseDto,
+  })
   async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
     return this.handleControllerOperation(
       async () => {
@@ -105,10 +130,33 @@ export class FeedController extends BaseController {
     summary: "Get feed values for specific voting round",
     description: "Returns historical feed values for the specified voting round with enhanced caching and validation",
   })
-  @ApiResponse({ status: 200, description: "Feed values retrieved successfully" })
-  @ApiResponse({ status: 400, description: "Invalid voting round ID or feed request" })
-  @ApiResponse({ status: 404, description: "Voting round not found" })
-  @ApiResponse({ status: 500, description: "Internal server error" })
+  @ApiParam({
+    name: "votingRoundId",
+    description: "Voting round identifier",
+    type: "number",
+    example: 12345,
+  })
+  @ApiBody({ type: FeedValuesRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: "Feed values retrieved successfully",
+    type: RoundFeedValuesResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid voting round ID or feed request",
+    type: ValidationErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Voting round not found",
+    type: NotFoundErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: InternalServerErrorResponseDto,
+  })
   async getFeedValues(
     @Param("votingRoundId", ParseIntPipe) votingRoundId: number,
     @Body() body: FeedValuesRequest
@@ -183,9 +231,22 @@ export class FeedController extends BaseController {
     summary: "Get feed volumes",
     description: "Returns volume data with USDT to USD conversion and optimized CCXT volume processing",
   })
-  @ApiResponse({ status: 200, description: "Feed volumes retrieved successfully" })
-  @ApiResponse({ status: 400, description: "Invalid volume request or time window" })
-  @ApiResponse({ status: 500, description: "Internal server error" })
+  @ApiBody({ type: VolumesRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: "Feed volumes retrieved successfully",
+    type: FeedVolumesResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid volume request or time window",
+    type: ValidationErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: InternalServerErrorResponseDto,
+  })
   async getFeedVolumes(
     @Body() body: VolumesRequest,
     @Query("window", new DefaultValuePipe("60"), ParseIntPipe) windowSec: number

@@ -150,7 +150,8 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
         originalStack: errorObj.stack,
         ...metadata.additionalContext,
       },
-      cause: errorObj,
+      // SECURITY: Sanitize error cause to prevent sensitive information leakage
+      cause: this.sanitizeErrorCause(errorObj),
     };
 
     // Create enhanced response
@@ -552,6 +553,22 @@ export class StandardizedErrorHandlerService extends EventDrivenService {
     } else {
       this.enhancedLogger?.warn(error.message, logData);
     }
+  }
+
+  /**
+   * Sanitize error cause to prevent sensitive information leakage
+   */
+  private sanitizeErrorCause(error: Error | unknown): string {
+    if (!(error instanceof Error)) {
+      return "Unknown error occurred";
+    }
+
+    // Extract only the error name and message, avoiding stack traces and internal details
+    const errorName = error.name || "Error";
+    const errorMessage = error.message || "An error occurred";
+
+    // Return a sanitized, high-level description
+    return `${errorName}: ${errorMessage}`;
   }
 
   private logStandardizedError(

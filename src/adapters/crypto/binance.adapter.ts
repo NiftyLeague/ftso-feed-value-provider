@@ -232,9 +232,12 @@ export class BinanceAdapter extends BaseExchangeAdapter {
           streamData.data.forEach(ticker => {
             if (this.validateResponse(ticker)) {
               const tickerData = ticker as BinanceTickerData;
-              this.logger.log(`Processing Binance ticker data for ${tickerData.s}: ${tickerData.c}`);
-              const priceUpdate = this.normalizePriceData(ticker);
-              this.onPriceUpdateCallback?.(priceUpdate);
+              // Only process symbols we're actually subscribed to
+              if (this.subscriptions.has(tickerData.s.toLowerCase())) {
+                this.logger.log(`Processing Binance ticker data for ${tickerData.s}: ${tickerData.c}`);
+                const priceUpdate = this.normalizePriceData(ticker);
+                this.onPriceUpdateCallback?.(priceUpdate);
+              }
             }
           });
           return;
@@ -245,13 +248,21 @@ export class BinanceAdapter extends BaseExchangeAdapter {
       if (Array.isArray(parsed)) {
         parsed.forEach(ticker => {
           if (this.validateResponse(ticker)) {
-            const priceUpdate = this.normalizePriceData(ticker);
-            this.onPriceUpdateCallback?.(priceUpdate);
+            const tickerData = ticker as BinanceTickerData;
+            // Only process symbols we're actually subscribed to
+            if (this.subscriptions.has(tickerData.s.toLowerCase())) {
+              const priceUpdate = this.normalizePriceData(ticker);
+              this.onPriceUpdateCallback?.(priceUpdate);
+            }
           }
         });
       } else if (this.validateResponse(parsed)) {
-        const priceUpdate = this.normalizePriceData(parsed as BinanceTickerData);
-        this.onPriceUpdateCallback?.(priceUpdate);
+        const tickerData = parsed as BinanceTickerData;
+        // Only process symbols we're actually subscribed to
+        if (this.subscriptions.has(tickerData.s.toLowerCase())) {
+          const priceUpdate = this.normalizePriceData(tickerData);
+          this.onPriceUpdateCallback?.(priceUpdate);
+        }
       }
     } catch (error) {
       this.logger.error("Error processing Binance WebSocket data:", error);

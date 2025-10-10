@@ -180,7 +180,7 @@ export class RealTimeAggregationService
           this.logger.error(`Failed to get fresh price updates for ${feedId.name}:`, error);
         }
       } else {
-        this.logger.log(`Using ${updates.length} active updates for ${feedId.name}`);
+        this.logger.debug(`Using ${updates.length} active updates for ${feedId.name}`);
       }
 
       if (updates.length === 0) {
