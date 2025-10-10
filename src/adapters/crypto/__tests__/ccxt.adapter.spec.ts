@@ -1,0 +1,242 @@
+import { CcxtMultiExchangeAdapter, CcxtMultiExchangeConnectionConfig } from "../ccxt.adapter";
+import { FeedCategory } from "@/common/types/core";
+import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
+import { TestModuleBuilder } from "@/__tests__/utils/test-module.builder";
+import { TestingModule } from "@nestjs/testing";
+
+describe("CcxtMultiExchangeAdapter", () => {
+  let adapter: CcxtMultiExchangeAdapter;
+  let logger: jest.Mocked<EnhancedLoggerService>;
+  let testModule: TestingModule;
+
+  const defaultConfig: CcxtMultiExchangeConnectionConfig = {
+    tradesLimit: 1000,
+    lambda: 0.00005,
+    retryBackoffMs: 10000,
+    tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
+  };
+
+  beforeEach(async () => {
+    testModule = await new TestModuleBuilder()
+      .addProvider(EnhancedLoggerService, {
+        log: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+        verbose: jest.fn(),
+        getErrorStatistics: jest.fn(),
+        getPerformanceStatistics: jest.fn(),
+        startPerformanceTimer: jest.fn(),
+        endPerformanceTimer: jest.fn(),
+        logCriticalOperation: jest.fn(),
+        logDataFlow: jest.fn(),
+        logPriceUpdate: jest.fn(),
+        logAggregation: jest.fn(),
+        logConnection: jest.fn(),
+        logErrorRecovery: jest.fn(),
+        fatal: jest.fn(),
+        dir: jest.fn(),
+      })
+      .build();
+
+    // Clear all mock history before each test
+    jest.clearAllMocks();
+
+    logger = testModule.get(EnhancedLoggerService);
+    adapter = new CcxtMultiExchangeAdapter(defaultConfig);
+    (adapter as any).logger = logger;
+  });
+
+  describe("initialization", () => {
+    it("should initialize with default config", () => {
+      const adapter = new CcxtMultiExchangeAdapter();
+      expect(adapter.exchangeName).toBe("ccxt-multi-exchange");
+      expect(adapter.category).toBe(FeedCategory.Crypto);
+      expect(adapter.capabilities.supportsWebSocket).toBe(true);
+      expect(adapter.capabilities.supportsREST).toBe(true);
+      expect(adapter.capabilities.supportsVolume).toBe(true);
+    });
+
+    it("should initialize with custom config", () => {
+      const customConfig: CcxtMultiExchangeConnectionConfig = {
+        ...defaultConfig,
+        tradesLimit: 2000,
+        lambda: 0.0001,
+      };
+
+      const adapter = new CcxtMultiExchangeAdapter(customConfig);
+      expect((adapter as any).adapterConfig).toEqual(expect.objectContaining(customConfig));
+    });
+  });
+
+  describe("metrics", () => {
+    it("should handle metrics correctly", () => {
+      // Simulate some metrics activity by calling protected methods through type cast
+      const adapterWithMetrics = adapter as any;
+      adapterWithMetrics._requestCount = 10;
+      adapterWithMetrics._successCount = 8;
+      adapterWithMetrics._errorCount = 2;
+      adapterWithMetrics.tier2ExchangeCount = 5;
+
+      // Get metrics
+      const metrics = adapter.getMetrics();
+
+      // Check internal properties directly
+      expect((adapter as any)._requestCount).toBe(10);
+      expect((adapter as any)._successCount).toBe(8);
+      expect((adapter as any)._errorCount).toBe(2);
+      expect(metrics.tier2ExchangeCount).toBe(5);
+
+      // Reset metrics through our resetMetrics method
+      adapter.resetMetrics();
+
+      // Check that metrics are reset (only _requestCount is reset by base class)
+      expect((adapter as any)._requestCount).toBe(0);
+      expect((adapter as any).tier2ExchangeCount).toBe(0);
+      // Note: _successCount and _errorCount are not reset by base class resetRateLimitCounters()
+    });
+  });
+
+  describe("connection management", () => {
+    it("should connect successfully", async () => {
+      await adapter.connect();
+      expect(adapter.isConnected()).toBe(true);
+      expect(logger.log).toHaveBeenCalledWith("Initializing CCXT Pro multi-exchange adapter...");
+    });
+
+    it("should disconnect successfully", async () => {
+      await adapter.connect();
+      await adapter.disconnect();
+      expect(adapter.isConnected()).toBe(false);
+      expect(logger.log).toHaveBeenCalledWith("CCXT Pro multi-exchange adapter disconnected");
+    });
+
+    it("should handle connection errors", async () => {
+      const errorCallbackMock = jest.fn();
+      const connectionChangeCallbackMock = jest.fn();
+
+      // Mock callback registrations
+      adapter.onError(errorCallbackMock);
+      adapter.onConnectionChange(connectionChangeCallbackMock);
+
+      // Mock the logger methods and set up spies
+      const errorSpy = jest.spyOn(logger, "error");
+      const warnSpy = jest.spyOn(logger, "warn");
+
+      // Create an error instance
+      const error = new Error("Connection failed");
+
+      // Mock doConnect to call logger.error directly as the concrete adapter would
+      jest.spyOn(adapter as any, "doConnect").mockImplementation(async () => {
+        // Cast error as a record to satisfy EnhancedLogContext type requirement
+        logger.error("Failed to initialize CCXT multi-exchange adapter:", error as unknown as Record<string, unknown>);
+        throw error;
+      });
+
+      // Mock the retry delay and max retries for fast test
+      (adapter as any).retryDelay = 0;
+      (adapter as any).maxRetries = 2; // This means 3 attempts total
+
+      // Should complete without throwing (graceful degradation to REST API)
+      await adapter.connect();
+      expect(adapter.isConnected()).toBe(false);
+
+      // Should produce warnings for retries and final fallback message
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Connection failed for ccxt-multi-exchange, continuing with REST API fallback")
+      );
+
+      // The error is logged on each attempt in doConnect
+      expect(errorSpy).toHaveBeenCalledTimes(3);
+      expect(errorSpy).toHaveBeenNthCalledWith(1, "Failed to initialize CCXT multi-exchange adapter:", error);
+      expect(errorSpy).toHaveBeenNthCalledWith(2, "Failed to initialize CCXT multi-exchange adapter:", error);
+      expect(errorSpy).toHaveBeenNthCalledWith(3, "Failed to initialize CCXT multi-exchange adapter:", error);
+
+      // Verify callbacks were called
+      expect(connectionChangeCallbackMock).toHaveBeenCalledWith(false);
+      expect(errorCallbackMock).toHaveBeenCalledWith(expect.any(Error));
+    }, 20000); // 20 second timeout
+  });
+
+  describe("data normalization", () => {
+    it("should normalize price data correctly", () => {
+      const rawData = {
+        feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
+        price: "45000.5",
+        timestamp: "1630000000000",
+      };
+
+      const normalized = adapter.normalizePriceData(rawData);
+      expect(normalized).toEqual({
+        symbol: "BTC/USD",
+        price: 45000.5,
+        timestamp: expect.any(Number),
+        source: "ccxt-multi-exchange",
+        confidence: expect.any(Number),
+      });
+    });
+
+    it("should normalize volume data correctly", () => {
+      const rawData = {
+        feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
+        volume: "100.5",
+        timestamp: "1630000000000",
+      };
+
+      const normalized = adapter.normalizeVolumeData(rawData);
+      expect(normalized).toEqual({
+        symbol: "BTC/USD",
+        volume: 100.5,
+        timestamp: 1630000000000,
+        source: "ccxt-multi-exchange",
+      });
+    });
+
+    it("should throw error for invalid price data", () => {
+      const rawData = {
+        feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
+        price: "invalid",
+        timestamp: "1630000000000",
+      };
+
+      expect(() => adapter.normalizePriceData(rawData)).toThrow("Invalid price received");
+    });
+  });
+
+  describe("validation", () => {
+    it("should validate response correctly", () => {
+      const validResponse = {
+        feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
+        price: 45000.5,
+      };
+      expect(adapter.validateResponse(validResponse)).toBe(true);
+
+      const invalidResponse = {
+        feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
+        price: -1,
+      };
+      expect(adapter.validateResponse(invalidResponse)).toBe(false);
+    });
+  });
+
+  describe("extraction metrics", () => {
+    it("should track extraction metrics correctly", () => {
+      expect((adapter as any)._requestCount).toBe(0);
+      expect((adapter as any)._successCount).toBe(0);
+      expect((adapter as any)._errorCount).toBe(0);
+
+      // Reset should be handled by DataProviderMixin now
+      (adapter as any).resetRateLimitCounters();
+      expect((adapter as any)._requestCount).toBe(0);
+      expect((adapter as any)._successCount).toBe(0);
+      expect((adapter as any)._errorCount).toBe(0);
+    });
+  });
+
+  describe("health check", () => {
+    it("should check health status", async () => {
+      const result = await adapter.healthCheck();
+      expect(typeof result).toBe("boolean");
+    });
+  });
+});

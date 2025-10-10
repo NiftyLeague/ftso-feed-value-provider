@@ -1,0 +1,39 @@
+{
+  "categories": {
+    "1": {
+      "category": "Crypto",
+      "exchanges": [
+        "binance",
+        "bitget",
+        "bitmart",
+        "bitmex",
+        "bitrue",
+        "bitstamp",
+        "bybit",
+        "coinbase",
+        "coinex",
+        "cryptocom",
+        "gate",
+        "htx",
+        "kraken",
+        "kucoin",
+        "mexc",
+        "okx",
+        "probit",
+        "upbit"
+      ]
+    },
+    "2": {
+      "category": "Forex",
+      "exchanges": []
+    },
+    "3": {
+      "category": "Commodity",
+      "exchanges": []
+    },
+    "4": {
+      "category": "Stock",
+      "exchanges": []
+    }
+  }
+}

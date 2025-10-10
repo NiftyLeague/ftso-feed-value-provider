@@ -1,0 +1,278 @@
+import { Module, Global } from "@nestjs/common";
+import { StandardizedErrorHandlerService } from "./standardized-error-handler.service";
+import { UniversalRetryService } from "./universal-retry.service";
+import { CircuitBreakerService } from "./circuit-breaker.service";
+import { ConnectionRecoveryService } from "./connection-recovery.service";
+import { FailoverManager } from "@/data-manager/failover-manager.service";
+import { ENV } from "@/config/environment.constants";
+import type { StandardErrorMetadata, EnhancedErrorResponse } from "@/common/types/error-handling";
+
+// Event type definitions for error handling services
+interface StandardizedErrorEvent {
+  error: Error;
+  response: EnhancedErrorResponse;
+  metadata: StandardErrorMetadata;
+  timestamp: number;
+}
+
+interface RetryFailureEvent {
+  serviceId: string;
+  operationName: string;
+  attemptCount: number;
+  totalTime: number;
+  error: string;
+  timestamp: number;
+}
+
+/**
+ * Global error handling module that provides standardized error handling,
+ * retry mechanisms, and circuit breaker patterns across the entire application
+ */
+@Global()
+@Module({
+  providers: [
+    // Core error handling services
+    StandardizedErrorHandlerService,
+    UniversalRetryService,
+    CircuitBreakerService,
+    ConnectionRecoveryService,
+    // Data management services needed by error handling
+    FailoverManager,
+  ],
+  exports: [
+    // Core services
+    StandardizedErrorHandlerService,
+    UniversalRetryService,
+    CircuitBreakerService,
+    ConnectionRecoveryService,
+    // Data management services
+    FailoverManager,
+  ],
+})
+export class ErrorHandlingModule {
+  constructor(
+    private readonly standardizedErrorHandler: StandardizedErrorHandlerService,
+    private readonly universalRetryService: UniversalRetryService,
+    private readonly circuitBreaker: CircuitBreakerService
+  ) {
+    this.initializeErrorHandling();
+  }
+
+  private initializeErrorHandling(): void {
+    // Configure default retry settings for common services
+    this.configureDefaultRetrySettings();
+
+    // Register default circuit breakers
+    this.registerDefaultCircuitBreakers();
+
+    // Set up error monitoring
+    this.setupErrorMonitoring();
+  }
+
+  private configureDefaultRetrySettings(): void {
+    // Configure retry settings for different service types
+    const retryConfigs = [
+      {
+        serviceId: "FeedController",
+        config: {
+          maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DEFAULT_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.HTTP_MAX_DELAY_MS,
+          retryableErrors: [
+            "timeout",
+            "connection",
+            "network",
+            "rate limit",
+            "service unavailable",
+            "data source unavailable",
+          ],
+        },
+      },
+      {
+        serviceId: "HealthController",
+        config: {
+          maxRetries: ENV.RETRY.DATABASE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DATABASE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.DATABASE_MAX_DELAY_MS,
+        },
+      },
+      {
+        serviceId: "MetricsController",
+        config: {
+          maxRetries: ENV.RETRY.CACHE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.CACHE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.CACHE_MAX_DELAY_MS,
+        },
+      },
+      {
+        serviceId: "ExchangeAdapter",
+        config: {
+          maxRetries: ENV.RETRY.DEFAULT_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.EXTERNAL_API_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.EXTERNAL_API_MAX_DELAY_MS,
+          retryableErrors: ["timeout", "connection", "network", "rate limit", "exchange unavailable", "api error"],
+        },
+      },
+      {
+        serviceId: "AggregationService",
+        config: {
+          maxRetries: ENV.RETRY.DATABASE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.DATABASE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.DATABASE_MAX_DELAY_MS,
+        },
+      },
+      {
+        serviceId: "CacheService",
+        config: {
+          maxRetries: ENV.RETRY.CACHE_MAX_RETRIES,
+          initialDelayMs: ENV.RETRY.CACHE_INITIAL_DELAY_MS,
+          maxDelayMs: ENV.RETRY.CACHE_MAX_DELAY_MS,
+        },
+      },
+    ];
+
+    retryConfigs.forEach(({ serviceId, config }) => {
+      this.universalRetryService.configureRetrySettings(serviceId, config);
+    });
+  }
+
+  private registerDefaultCircuitBreakers(): void {
+    // Register circuit breakers for critical services
+    const circuitBreakerConfigs = [
+      {
+        serviceId: "FeedController",
+        config: {
+          failureThreshold: 5,
+          recoveryTimeout: 60000,
+          successThreshold: 3,
+          timeout: 10000,
+          monitoringWindow: 300000,
+        },
+      },
+      {
+        serviceId: "ExchangeAdapter:Binance",
+        config: {
+          failureThreshold: 8,
+          recoveryTimeout: 60000,
+          successThreshold: 3,
+          timeout: 20000,
+          monitoringWindow: 600000,
+        },
+      },
+      {
+        serviceId: "ExchangeAdapter:Coinbase",
+        config: {
+          failureThreshold: 8,
+          recoveryTimeout: 60000,
+          successThreshold: 3,
+          timeout: 20000,
+          monitoringWindow: 600000,
+        },
+      },
+      {
+        serviceId: "ExchangeAdapter:Kraken",
+        config: {
+          failureThreshold: 8,
+          recoveryTimeout: 60000,
+          successThreshold: 3,
+          timeout: 20000,
+          monitoringWindow: 600000,
+        },
+      },
+      {
+        serviceId: "ExchangeAdapter:OKX",
+        config: {
+          failureThreshold: 8,
+          recoveryTimeout: 60000,
+          successThreshold: 3,
+          timeout: 20000,
+          monitoringWindow: 600000,
+        },
+      },
+      {
+        serviceId: "ExchangeAdapter:CryptoCom",
+        config: {
+          failureThreshold: 8,
+          recoveryTimeout: 60000,
+          successThreshold: 3,
+          timeout: 20000,
+          monitoringWindow: 600000,
+        },
+      },
+      {
+        serviceId: "AggregationService",
+        config: {
+          failureThreshold: 5,
+          recoveryTimeout: 30000,
+          successThreshold: 3,
+          timeout: 5000,
+          monitoringWindow: 300000,
+        },
+      },
+      {
+        serviceId: "CacheService",
+        config: {
+          failureThreshold: 10,
+          recoveryTimeout: 15000,
+          successThreshold: 5,
+          timeout: 3000,
+          monitoringWindow: 300000,
+        },
+      },
+    ];
+
+    circuitBreakerConfigs.forEach(({ serviceId, config }) => {
+      this.circuitBreaker.registerCircuit(serviceId, config);
+    });
+  }
+
+  private setupErrorMonitoring(): void {
+    // Set up event listeners for error monitoring
+    this.standardizedErrorHandler.on<[StandardizedErrorEvent]>(
+      "standardizedError",
+      (errorEvent: StandardizedErrorEvent) => {
+        // Log critical errors for monitoring
+        if (errorEvent.metadata?.severity === "critical") {
+          console.error("CRITICAL ERROR DETECTED:", {
+            component: errorEvent.metadata.component,
+            operation: errorEvent.metadata.operation,
+            error: errorEvent.error.message,
+            timestamp: errorEvent.timestamp,
+            requestId: errorEvent.response.requestId,
+          });
+        }
+      }
+    );
+
+    this.universalRetryService.on<[RetryFailureEvent]>("retryFailure", (retryEvent: RetryFailureEvent) => {
+      // Log retry failures for monitoring
+      if (retryEvent.attemptCount >= 3) {
+        console.warn("RETRY EXHAUSTED:", {
+          serviceId: retryEvent.serviceId,
+          operation: retryEvent.operationName,
+          attempts: retryEvent.attemptCount,
+          error: retryEvent.error,
+          timestamp: retryEvent.timestamp,
+        });
+      }
+    });
+
+    this.circuitBreaker.on<[string]>("circuitOpened", (serviceId: string) => {
+      // Log circuit breaker openings for monitoring
+      console.error("CIRCUIT BREAKER OPENED:", {
+        serviceId,
+        timestamp: Date.now(),
+        stats: this.circuitBreaker.getStats(serviceId),
+      });
+    });
+
+    this.circuitBreaker.on<[string]>("circuitClosed", (serviceId: string) => {
+      // Log circuit breaker recoveries for monitoring
+      console.info("CIRCUIT BREAKER RECOVERED:", {
+        serviceId,
+        timestamp: Date.now(),
+        stats: this.circuitBreaker.getStats(serviceId),
+      });
+    });
+  }
+}
