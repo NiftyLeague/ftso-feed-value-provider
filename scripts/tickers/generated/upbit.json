@@ -1,7 +1,7 @@
 {
   "exchange": "upbit",
-  "timestamp": 1760037359686,
-  "count": 629,
+  "timestamp": 1762968840342,
+  "count": 657,
   "symbols": [
     "0G/BTC",
     "0G/KRW",
@@ -111,6 +111,9 @@
     "BIGTIME/BTC",
     "BIGTIME/KRW",
     "BIGTIME/USDT",
+    "BIO/BTC",
+    "BIO/KRW",
+    "BIO/USDT",
     "BLAST/BTC",
     "BLAST/KRW",
     "BLAST/USDT",
@@ -149,6 +152,9 @@
     "COW/BTC",
     "COW/KRW",
     "COW/USDT",
+    "CPOOL/BTC",
+    "CPOOL/KRW",
+    "CPOOL/USDT",
     "CRO/BTC",
     "CRO/KRW",
     "CRV/BTC",
@@ -190,6 +196,9 @@
     "ENJ/BTC",
     "ENS/BTC",
     "ENS/KRW",
+    "ENSO/BTC",
+    "ENSO/KRW",
+    "ENSO/USDT",
     "EPT/USDT",
     "ERA/BTC",
     "ERA/KRW",
@@ -204,6 +213,8 @@
     "ETHFI/USDT",
     "EUL/BTC",
     "EUL/USDT",
+    "F/KRW",
+    "F/USDT",
     "FCT2/BTC",
     "FCT2/KRW",
     "FF/KRW",
@@ -264,6 +275,7 @@
     "IMX/BTC",
     "IMX/KRW",
     "IN/BTC",
+    "IN/KRW",
     "IN/USDT",
     "INIT/BTC",
     "INIT/USDT",
@@ -299,7 +311,11 @@
     "KAVA/BTC",
     "KAVA/KRW",
     "KERNEL/BTC",
+    "KERNEL/KRW",
     "KERNEL/USDT",
+    "KITE/BTC",
+    "KITE/KRW",
+    "KITE/USDT",
     "KNC/KRW",
     "LA/BTC",
     "LA/KRW",
@@ -343,6 +359,9 @@
     "MIRA/USDT",
     "MLK/BTC",
     "MLK/KRW",
+    "MMT/BTC",
+    "MMT/KRW",
+    "MMT/USDT",
     "MNT/BTC",
     "MNT/KRW",
     "MNT/USDT",
@@ -375,6 +394,9 @@
     "NEWT/USDT",
     "NKN/BTC",
     "NMR/BTC",
+    "NOM/BTC",
+    "NOM/KRW",
+    "NOM/USDT",
     "NXPC/BTC",
     "NXPC/KRW",
     "NXPC/USDT",
@@ -387,9 +409,6 @@
     "OM/BTC",
     "OM/KRW",
     "OM/USDT",
-    "OMNI/BTC",
-    "OMNI/KRW",
-    "OMNI/USDT",
     "ONDO/BTC",
     "ONDO/KRW",
     "ONDO/USDT",
@@ -407,6 +426,7 @@
     "ORCA/KRW",
     "ORCA/USDT",
     "ORDER/BTC",
+    "ORDER/KRW",
     "ORDER/USDT",
     "OXT/BTC",
     "OXT/USDT",
@@ -552,6 +572,9 @@
     "TRUMP/BTC",
     "TRUMP/KRW",
     "TRUMP/USDT",
+    "TRUST/BTC",
+    "TRUST/KRW",
+    "TRUST/USDT",
     "TRX/BTC",
     "TRX/KRW",
     "TRX/USDT",
@@ -572,9 +595,6 @@
     "USDS/BTC",
     "USDT/BTC",
     "USDT/KRW",
-    "UXLINK/BTC",
-    "UXLINK/KRW",
-    "UXLINK/USDT",
     "VAL/BTC",
     "VANA/BTC",
     "VANA/KRW",
@@ -618,6 +638,11 @@
     "XTZ/BTC",
     "XTZ/KRW",
     "YGG/BTC",
+    "YGG/KRW",
+    "YGG/USDT",
+    "ZBT/BTC",
+    "ZBT/KRW",
+    "ZBT/USDT",
     "ZETA/BTC",
     "ZETA/KRW",
     "ZETA/USDT",
@@ -626,6 +651,9 @@
     "ZKC/BTC",
     "ZKC/KRW",
     "ZKC/USDT",
+    "ZORA/BTC",
+    "ZORA/KRW",
+    "ZORA/USDT",
     "ZRO/BTC",
     "ZRO/KRW",
     "ZRO/USDT",
@@ -4090,6 +4118,102 @@
         "english_name": "Big Time"
       }
     },
+    "BIO/BTC": {
+      "id": "BTC-BIO",
+      "symbol": "BIO/BTC",
+      "base": "BIO",
+      "quote": "BTC",
+      "baseId": "BIO",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-BIO",
+        "korean_name": "바이오프로토콜",
+        "english_name": "Bio Protocol"
+      }
+    },
+    "BIO/KRW": {
+      "id": "KRW-BIO",
+      "symbol": "BIO/KRW",
+      "base": "BIO",
+      "quote": "KRW",
+      "baseId": "BIO",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-BIO",
+        "korean_name": "바이오프로토콜",
+        "english_name": "Bio Protocol"
+      }
+    },
+    "BIO/USDT": {
+      "id": "USDT-BIO",
+      "symbol": "BIO/USDT",
+      "base": "BIO",
+      "quote": "USDT",
+      "baseId": "BIO",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-BIO",
+        "korean_name": "바이오프로토콜",
+        "english_name": "Bio Protocol"
+      }
+    },
     "BLAST/BTC": {
       "id": "BTC-BLAST",
       "symbol": "BLAST/BTC",
@@ -5304,6 +5428,102 @@
         "market": "USDT-COW",
         "korean_name": "카우프로토콜",
         "english_name": "CoW Protocol"
+      }
+    },
+    "CPOOL/BTC": {
+      "id": "BTC-CPOOL",
+      "symbol": "CPOOL/BTC",
+      "base": "CPOOL",
+      "quote": "BTC",
+      "baseId": "CPOOL",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-CPOOL",
+        "korean_name": "클리어풀",
+        "english_name": "Clearpool"
+      }
+    },
+    "CPOOL/KRW": {
+      "id": "KRW-CPOOL",
+      "symbol": "CPOOL/KRW",
+      "base": "CPOOL",
+      "quote": "KRW",
+      "baseId": "CPOOL",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-CPOOL",
+        "korean_name": "클리어풀",
+        "english_name": "Clearpool"
+      }
+    },
+    "CPOOL/USDT": {
+      "id": "USDT-CPOOL",
+      "symbol": "CPOOL/USDT",
+      "base": "CPOOL",
+      "quote": "USDT",
+      "baseId": "CPOOL",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-CPOOL",
+        "korean_name": "클리어풀",
+        "english_name": "Clearpool"
       }
     },
     "CRO/BTC": {
@@ -6618,6 +6838,102 @@
         "english_name": "Ethereum Name Service"
       }
     },
+    "ENSO/BTC": {
+      "id": "BTC-ENSO",
+      "symbol": "ENSO/BTC",
+      "base": "ENSO",
+      "quote": "BTC",
+      "baseId": "ENSO",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-ENSO",
+        "korean_name": "엔소",
+        "english_name": "Enso"
+      }
+    },
+    "ENSO/KRW": {
+      "id": "KRW-ENSO",
+      "symbol": "ENSO/KRW",
+      "base": "ENSO",
+      "quote": "KRW",
+      "baseId": "ENSO",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-ENSO",
+        "korean_name": "엔소",
+        "english_name": "Enso"
+      }
+    },
+    "ENSO/USDT": {
+      "id": "USDT-ENSO",
+      "symbol": "ENSO/USDT",
+      "base": "ENSO",
+      "quote": "USDT",
+      "baseId": "ENSO",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-ENSO",
+        "korean_name": "엔소",
+        "english_name": "Enso"
+      }
+    },
     "EPT/USDT": {
       "id": "USDT-EPT",
       "symbol": "EPT/USDT",
@@ -7064,6 +7380,70 @@
         "market": "USDT-EUL",
         "korean_name": "오일러",
         "english_name": "Euler"
+      }
+    },
+    "F/KRW": {
+      "id": "KRW-F",
+      "symbol": "F/KRW",
+      "base": "F",
+      "quote": "KRW",
+      "baseId": "F",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-F",
+        "korean_name": "신퓨처스",
+        "english_name": "SynFutures"
+      }
+    },
+    "F/USDT": {
+      "id": "USDT-F",
+      "symbol": "F/USDT",
+      "base": "F",
+      "quote": "USDT",
+      "baseId": "F",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-F",
+        "korean_name": "신퓨처스",
+        "english_name": "SynFutures"
       }
     },
     "FCT2/BTC": {
@@ -8986,6 +9366,38 @@
         "english_name": "Infinit"
       }
     },
+    "IN/KRW": {
+      "id": "KRW-IN",
+      "symbol": "IN/KRW",
+      "base": "IN",
+      "quote": "KRW",
+      "baseId": "IN",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-IN",
+        "korean_name": "인피닛",
+        "english_name": "Infinit"
+      }
+    },
     "IN/USDT": {
       "id": "USDT-IN",
       "symbol": "IN/USDT",
@@ -10106,6 +10518,38 @@
         "english_name": "KernelDAO"
       }
     },
+    "KERNEL/KRW": {
+      "id": "KRW-KERNEL",
+      "symbol": "KERNEL/KRW",
+      "base": "KERNEL",
+      "quote": "KRW",
+      "baseId": "KERNEL",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-KERNEL",
+        "korean_name": "커널다오",
+        "english_name": "KernelDAO"
+      }
+    },
     "KERNEL/USDT": {
       "id": "USDT-KERNEL",
       "symbol": "KERNEL/USDT",
@@ -10136,6 +10580,102 @@
         "market": "USDT-KERNEL",
         "korean_name": "커널다오",
         "english_name": "KernelDAO"
+      }
+    },
+    "KITE/BTC": {
+      "id": "BTC-KITE",
+      "symbol": "KITE/BTC",
+      "base": "KITE",
+      "quote": "BTC",
+      "baseId": "KITE",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-KITE",
+        "korean_name": "카이트",
+        "english_name": "Kite"
+      }
+    },
+    "KITE/KRW": {
+      "id": "KRW-KITE",
+      "symbol": "KITE/KRW",
+      "base": "KITE",
+      "quote": "KRW",
+      "baseId": "KITE",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-KITE",
+        "korean_name": "카이트",
+        "english_name": "Kite"
+      }
+    },
+    "KITE/USDT": {
+      "id": "USDT-KITE",
+      "symbol": "KITE/USDT",
+      "base": "KITE",
+      "quote": "USDT",
+      "baseId": "KITE",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-KITE",
+        "korean_name": "카이트",
+        "english_name": "Kite"
       }
     },
     "KNC/KRW": {
@@ -11514,6 +12054,102 @@
         "english_name": "MiL.k"
       }
     },
+    "MMT/BTC": {
+      "id": "BTC-MMT",
+      "symbol": "MMT/BTC",
+      "base": "MMT",
+      "quote": "BTC",
+      "baseId": "MMT",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-MMT",
+        "korean_name": "모멘텀",
+        "english_name": "Momentum"
+      }
+    },
+    "MMT/KRW": {
+      "id": "KRW-MMT",
+      "symbol": "MMT/KRW",
+      "base": "MMT",
+      "quote": "KRW",
+      "baseId": "MMT",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-MMT",
+        "korean_name": "모멘텀",
+        "english_name": "Momentum"
+      }
+    },
+    "MMT/USDT": {
+      "id": "USDT-MMT",
+      "symbol": "MMT/USDT",
+      "base": "MMT",
+      "quote": "USDT",
+      "baseId": "MMT",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-MMT",
+        "korean_name": "모멘텀",
+        "english_name": "Momentum"
+      }
+    },
     "MNT/BTC": {
       "id": "BTC-MNT",
       "symbol": "MNT/BTC",
@@ -12538,6 +13174,102 @@
         "english_name": "Numeraire"
       }
     },
+    "NOM/BTC": {
+      "id": "BTC-NOM",
+      "symbol": "NOM/BTC",
+      "base": "NOM",
+      "quote": "BTC",
+      "baseId": "NOM",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-NOM",
+        "korean_name": "노미나",
+        "english_name": "Nomina"
+      }
+    },
+    "NOM/KRW": {
+      "id": "KRW-NOM",
+      "symbol": "NOM/KRW",
+      "base": "NOM",
+      "quote": "KRW",
+      "baseId": "NOM",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-NOM",
+        "korean_name": "노미나",
+        "english_name": "Nomina"
+      }
+    },
+    "NOM/USDT": {
+      "id": "USDT-NOM",
+      "symbol": "NOM/USDT",
+      "base": "NOM",
+      "quote": "USDT",
+      "baseId": "NOM",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-NOM",
+        "korean_name": "노미나",
+        "english_name": "Nomina"
+      }
+    },
     "NXPC/BTC": {
       "id": "BTC-NXPC",
       "symbol": "NXPC/BTC",
@@ -12920,102 +13652,6 @@
         "market": "USDT-OM",
         "korean_name": "만트라",
         "english_name": "MANTRA"
-      }
-    },
-    "OMNI/BTC": {
-      "id": "BTC-OMNI",
-      "symbol": "OMNI/BTC",
-      "base": "OMNI",
-      "quote": "BTC",
-      "baseId": "OMNI",
-      "quoteId": "BTC",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.0025,
-      "maker": 0.0025,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "market": "BTC-OMNI",
-        "korean_name": "옴니네트워크",
-        "english_name": "Omni Network"
-      }
-    },
-    "OMNI/KRW": {
-      "id": "KRW-OMNI",
-      "symbol": "OMNI/KRW",
-      "base": "OMNI",
-      "quote": "KRW",
-      "baseId": "OMNI",
-      "quoteId": "KRW",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.0005,
-      "maker": 0.0005,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "market": "KRW-OMNI",
-        "korean_name": "옴니네트워크",
-        "english_name": "Omni Network"
-      }
-    },
-    "OMNI/USDT": {
-      "id": "USDT-OMNI",
-      "symbol": "OMNI/USDT",
-      "base": "OMNI",
-      "quote": "USDT",
-      "baseId": "OMNI",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.0025,
-      "maker": 0.0025,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "market": "USDT-OMNI",
-        "korean_name": "옴니네트워크",
-        "english_name": "Omni Network"
       }
     },
     "ONDO/BTC": {
@@ -13558,6 +14194,38 @@
       },
       "info": {
         "market": "BTC-ORDER",
+        "korean_name": "오덜리",
+        "english_name": "Orderly"
+      }
+    },
+    "ORDER/KRW": {
+      "id": "KRW-ORDER",
+      "symbol": "ORDER/KRW",
+      "base": "ORDER",
+      "quote": "KRW",
+      "baseId": "ORDER",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-ORDER",
         "korean_name": "오덜리",
         "english_name": "Orderly"
       }
@@ -18202,6 +18870,102 @@
         "english_name": "Official Trump"
       }
     },
+    "TRUST/BTC": {
+      "id": "BTC-TRUST",
+      "symbol": "TRUST/BTC",
+      "base": "TRUST",
+      "quote": "BTC",
+      "baseId": "TRUST",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-TRUST",
+        "korean_name": "인튜이션",
+        "english_name": "Intuition"
+      }
+    },
+    "TRUST/KRW": {
+      "id": "KRW-TRUST",
+      "symbol": "TRUST/KRW",
+      "base": "TRUST",
+      "quote": "KRW",
+      "baseId": "TRUST",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-TRUST",
+        "korean_name": "인튜이션",
+        "english_name": "Intuition"
+      }
+    },
+    "TRUST/USDT": {
+      "id": "USDT-TRUST",
+      "symbol": "TRUST/USDT",
+      "base": "TRUST",
+      "quote": "USDT",
+      "baseId": "TRUST",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-TRUST",
+        "korean_name": "인튜이션",
+        "english_name": "Intuition"
+      }
+    },
     "TRX/BTC": {
       "id": "BTC-TRX",
       "symbol": "TRX/BTC",
@@ -18840,102 +19604,6 @@
         "market": "KRW-USDT",
         "korean_name": "테더",
         "english_name": "Tether"
-      }
-    },
-    "UXLINK/BTC": {
-      "id": "BTC-UXLINK",
-      "symbol": "UXLINK/BTC",
-      "base": "UXLINK",
-      "quote": "BTC",
-      "baseId": "UXLINK",
-      "quoteId": "BTC",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.0025,
-      "maker": 0.0025,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "market": "BTC-UXLINK",
-        "korean_name": "유엑스링크",
-        "english_name": "UXLINK"
-      }
-    },
-    "UXLINK/KRW": {
-      "id": "KRW-UXLINK",
-      "symbol": "UXLINK/KRW",
-      "base": "UXLINK",
-      "quote": "KRW",
-      "baseId": "UXLINK",
-      "quoteId": "KRW",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.0005,
-      "maker": 0.0005,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "market": "KRW-UXLINK",
-        "korean_name": "유엑스링크",
-        "english_name": "UXLINK"
-      }
-    },
-    "UXLINK/USDT": {
-      "id": "USDT-UXLINK",
-      "symbol": "UXLINK/USDT",
-      "base": "UXLINK",
-      "quote": "USDT",
-      "baseId": "UXLINK",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.0025,
-      "maker": 0.0025,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "market": "USDT-UXLINK",
-        "korean_name": "유엑스링크",
-        "english_name": "UXLINK"
       }
     },
     "VAL/BTC": {
@@ -20314,6 +20982,166 @@
         "english_name": "Yield Guild Games"
       }
     },
+    "YGG/KRW": {
+      "id": "KRW-YGG",
+      "symbol": "YGG/KRW",
+      "base": "YGG",
+      "quote": "KRW",
+      "baseId": "YGG",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-YGG",
+        "korean_name": "일드길드게임즈",
+        "english_name": "Yield Guild Games"
+      }
+    },
+    "YGG/USDT": {
+      "id": "USDT-YGG",
+      "symbol": "YGG/USDT",
+      "base": "YGG",
+      "quote": "USDT",
+      "baseId": "YGG",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-YGG",
+        "korean_name": "일드길드게임즈",
+        "english_name": "Yield Guild Games"
+      }
+    },
+    "ZBT/BTC": {
+      "id": "BTC-ZBT",
+      "symbol": "ZBT/BTC",
+      "base": "ZBT",
+      "quote": "BTC",
+      "baseId": "ZBT",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-ZBT",
+        "korean_name": "제로베이스",
+        "english_name": "ZEROBASE"
+      }
+    },
+    "ZBT/KRW": {
+      "id": "KRW-ZBT",
+      "symbol": "ZBT/KRW",
+      "base": "ZBT",
+      "quote": "KRW",
+      "baseId": "ZBT",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-ZBT",
+        "korean_name": "제로베이스",
+        "english_name": "ZEROBASE"
+      }
+    },
+    "ZBT/USDT": {
+      "id": "USDT-ZBT",
+      "symbol": "ZBT/USDT",
+      "base": "ZBT",
+      "quote": "USDT",
+      "baseId": "ZBT",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-ZBT",
+        "korean_name": "제로베이스",
+        "english_name": "ZEROBASE"
+      }
+    },
     "ZETA/BTC": {
       "id": "BTC-ZETA",
       "symbol": "ZETA/BTC",
@@ -20568,6 +21396,102 @@
         "market": "USDT-ZKC",
         "korean_name": "바운드리스",
         "english_name": "Boundless"
+      }
+    },
+    "ZORA/BTC": {
+      "id": "BTC-ZORA",
+      "symbol": "ZORA/BTC",
+      "base": "ZORA",
+      "quote": "BTC",
+      "baseId": "ZORA",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-ZORA",
+        "korean_name": "조라",
+        "english_name": "Zora"
+      }
+    },
+    "ZORA/KRW": {
+      "id": "KRW-ZORA",
+      "symbol": "ZORA/KRW",
+      "base": "ZORA",
+      "quote": "KRW",
+      "baseId": "ZORA",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-ZORA",
+        "korean_name": "조라",
+        "english_name": "Zora"
+      }
+    },
+    "ZORA/USDT": {
+      "id": "USDT-ZORA",
+      "symbol": "ZORA/USDT",
+      "base": "ZORA",
+      "quote": "USDT",
+      "baseId": "ZORA",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-ZORA",
+        "korean_name": "조라",
+        "english_name": "Zora"
       }
     },
     "ZRO/BTC": {

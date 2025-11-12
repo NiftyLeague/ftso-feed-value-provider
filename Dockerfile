@@ -67,6 +67,9 @@ COPY --from=production-deps --chown=ftso-provider:nodejs /app/node_modules ./nod
 # Copy built application
 COPY --from=builder --chown=ftso-provider:nodejs /app/dist ./dist
 
+# Copy runtime config files (feeds.json is read at runtime via process.cwd())
+COPY --from=builder --chown=ftso-provider:nodejs /app/src/config ./src/config
+
 # Copy configuration files
 COPY --chown=ftso-provider:nodejs package.json ./
 
@@ -87,4 +90,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

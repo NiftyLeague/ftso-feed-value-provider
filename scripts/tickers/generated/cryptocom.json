@@ -1,7 +1,7 @@
 {
   "exchange": "cryptocom",
-  "timestamp": 1760037331058,
-  "count": 877,
+  "timestamp": 1762968811968,
+  "count": 860,
   "symbols": [
     "1INCH/USD",
     "1INCH/USD:USD",
@@ -33,8 +33,6 @@
     "AGENTFUN/USD",
     "AGLD/USD",
     "AGLD/USDT",
-    "AI16Z/USD",
-    "AI16Z/USD:USD",
     "AIOZ/USD",
     "AIOZ/USDT",
     "AIXBT/USD",
@@ -73,7 +71,6 @@
     "ARB/USDT",
     "ARC/USD",
     "ARC/USD:USD",
-    "ARCH/USD",
     "ARK/USD",
     "ARK/USD:USD",
     "ARKM/USD",
@@ -90,7 +87,6 @@
     "ATOM/USD:USD",
     "ATOM/USDT",
     "AUDIO/USD",
-    "AUDIO/USDT",
     "AURORA/USD",
     "AVAX/BTC",
     "AVAX/USD",
@@ -110,7 +106,6 @@
     "BANANA/USD:USD",
     "BAND/USD",
     "BAND/USD:USD",
-    "BAND/USDT",
     "BARA/USD",
     "BAT/USD",
     "BAT/USD:USD",
@@ -127,7 +122,6 @@
     "BIFI/USD",
     "BIGTIME/USD",
     "BIGTIME/USD:USD",
-    "BIGTIME/USDT",
     "BINK/USD",
     "BLAST/USD",
     "BLAST/USD:USD",
@@ -150,14 +144,13 @@
     "BTC/PYUSD",
     "BTC/USD",
     "BTC/USD:USD",
-    "BTC/USD:USD-251031",
     "BTC/USD:USD-251128",
     "BTC/USD:USD-251226",
+    "BTC/USD:USD-260130",
     "BTC/USD:USD-260327",
     "BTC/USD:USD-260626",
     "BTC/USDT",
     "C98/USD",
-    "CANTO/USD",
     "CATI/USD",
     "CATI/USD:USD",
     "CAW/USD",
@@ -176,7 +169,6 @@
     "CHILLGUY/USD:USD",
     "CHR/USD",
     "CHR/USD:USD",
-    "CHR/USDT",
     "CHZ/USD",
     "CHZ/USD:USD",
     "CHZ/USDT",
@@ -233,7 +225,6 @@
     "DOGE/USD:USD",
     "DOGE/USDT",
     "DOGS/USD",
-    "DOGS/USD:USD",
     "DOOD/USD",
     "DOOD/USD:USD",
     "DOT/USD",
@@ -251,6 +242,8 @@
     "EIGEN/USD",
     "EIGEN/USD:USD",
     "ELA/USD",
+    "ELIZAOS/USD",
+    "ELIZAOS/USD:USD",
     "ELON/USD",
     "ENA/USD",
     "ENA/USD:USD",
@@ -275,9 +268,9 @@
     "ETH/PYUSD",
     "ETH/USD",
     "ETH/USD:USD",
-    "ETH/USD:USD-251031",
     "ETH/USD:USD-251128",
     "ETH/USD:USD-251226",
+    "ETH/USD:USD-260130",
     "ETH/USD:USD-260327",
     "ETH/USD:USD-260626",
     "ETH/USDT",
@@ -324,13 +317,11 @@
     "GALA/USD",
     "GALA/USD:USD",
     "GALA/USDT",
-    "GARI/USD",
     "GAS/USD",
     "GEKKO/USD",
     "GEL/USD",
     "GHST/USD",
     "GLM/USD",
-    "GLM/USDT",
     "GLMR/USD",
     "GMT/USD",
     "GMT/USD:USD",
@@ -343,7 +334,6 @@
     "GOATED/USD",
     "GODS/USD",
     "GODS/USDT",
-    "GRAIL/USD",
     "GRASS/USD",
     "GRASS/USD:USD",
     "GRT/USD",
@@ -355,8 +345,6 @@
     "H/USD",
     "H/USD:USD",
     "H2/USD",
-    "HAEDAL/USD",
-    "HAEDAL/USD:USD",
     "HBAR/USD",
     "HBAR/USD:USD",
     "HBAR/USDT",
@@ -404,8 +392,6 @@
     "IQ/USD",
     "JASMY/USD",
     "JASMY/USDT",
-    "JELLYJELLY/USD",
-    "JELLYJELLY/USD:USD",
     "JOE/USD",
     "JOE/USD:USD",
     "JTO/USD",
@@ -421,8 +407,9 @@
     "KAVA/USD",
     "KAVA/USD:USD",
     "KAVA/USDT",
-    "KDA/USD",
     "KERNEL/USD",
+    "KITE/USD",
+    "KITE/USD:USD",
     "KMNO/USD",
     "KNC/USD",
     "KRL/USD",
@@ -491,11 +478,11 @@
     "MDT/USD",
     "ME/USD",
     "ME/USD:USD",
-    "MELANIA/SOL",
     "MELANIA/USD",
     "MELANIA/USD:USD",
-    "MELANIA/USDT",
     "MERY/USD",
+    "MET/USD",
+    "MET/USD:USD",
     "METIS/USD",
     "METIS/USD:USD",
     "METIS/USDT",
@@ -520,7 +507,6 @@
     "MOVE/USD:USD",
     "MOVR/USD",
     "MTD/USD",
-    "MXC/USD",
     "MYRO/USD",
     "NEAR/USD",
     "NEAR/USD:USD",
@@ -534,6 +520,7 @@
     "NKN/USD:USD",
     "NMR/USD",
     "NMR/USDT",
+    "NOM/USD",
     "NOS/USD",
     "NOT/USD",
     "NOT/USD:USD",
@@ -546,7 +533,6 @@
     "OAS/USD",
     "OGN/USD",
     "OGN/USD:USD",
-    "OLE/USD",
     "OM/USD",
     "OM/USD:USD",
     "ONDO/USD",
@@ -585,7 +571,6 @@
     "PEPE/USD",
     "PEPE/USD:USD",
     "PEPE/USDT",
-    "PERP/USD",
     "PIRATE/USD",
     "PIXEL/USD",
     "PIXEL/USD:USD",
@@ -613,11 +598,9 @@
     "PROMPT/USD:USD",
     "PROVE/USD",
     "PROVE/USD:USD",
-    "PSTAKE/USD",
     "PUMP/USD",
     "PUMP/USD:USD",
     "PUMP/USDT",
-    "PUSH/USD",
     "PYR/USD",
     "PYR/USDT",
     "PYTH/USD",
@@ -649,7 +632,6 @@
     "RLC/USDT",
     "RONIN/USD",
     "RONIN/USD:USD",
-    "RONIN/USDT",
     "RPL/USD",
     "RSR/USD",
     "RSR/USDT",
@@ -665,9 +647,10 @@
     "SAND/USD",
     "SAND/USD:USD",
     "SAND/USDT",
+    "SAPIEN/USD",
+    "SAPIEN/USD:USD",
     "SC/USD",
     "SCROLL/USD",
-    "SCROLL/USD:USD",
     "SD/USD",
     "SDN/USD",
     "SEI/USD",
@@ -769,6 +752,8 @@
     "TRUMP/USD",
     "TRUMP/USD:USD",
     "TRUMP/USDT",
+    "TRUST/USD",
+    "TRUST/USD:USD",
     "TURBO/USD",
     "TURBO/USD:USD",
     "TURBO/USDT",
@@ -855,8 +840,6 @@
     "YGG/USD",
     "YGG/USD:USD",
     "YGG/USDT",
-    "YZY/USD",
-    "YZY/USD:USD",
     "ZBCN/USD",
     "ZED/USD",
     "ZERC/USD",
@@ -2323,105 +2306,6 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "AI16Z/USD": {
-      "id": "AI16Z_USD",
-      "symbol": "AI16Z/USD",
-      "base": "AI16Z",
-      "quote": "USD",
-      "baseId": "AI16Z",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "AI16Z_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "AI16Z/USD",
-        "base_ccy": "AI16Z",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "AI16Z/USD:USD": {
-      "id": "AI16ZUSD-PERP",
-      "symbol": "AI16Z/USD:USD",
-      "base": "AI16Z",
-      "quote": "USD",
-      "baseId": "AI16Z",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "AI16ZUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "AI16ZUSD Perpetual",
-        "base_ccy": "AI16Z",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "AI16ZUSD-INDEX",
-        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -4267,53 +4151,6 @@
         "margin_sell_enabled": false
       }
     },
-    "ARCH/USD": {
-      "id": "ARCH_USD",
-      "symbol": "ARCH/USD",
-      "base": "ARCH",
-      "quote": "USD",
-      "baseId": "ARCH",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 1e-7,
-        "amount": 10
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "ARCH_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "ARCH/USD",
-        "base_ccy": "ARCH",
-        "quote_ccy": "USD",
-        "quote_decimals": 7,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0000001",
-        "qty_tick_size": "10",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "ARK/USD": {
       "id": "ARK_USD",
       "symbol": "ARK/USD",
@@ -5079,53 +4916,6 @@
         "display_name": "AUDIO/USD",
         "base_ccy": "AUDIO",
         "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "AUDIO/USDT": {
-      "id": "AUDIO_USDT",
-      "symbol": "AUDIO/USDT",
-      "base": "AUDIO",
-      "quote": "USDT",
-      "baseId": "AUDIO",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "AUDIO_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "AUDIO/USDT",
-        "base_ccy": "AUDIO",
-        "quote_ccy": "USDT",
         "quote_decimals": 5,
         "quantity_decimals": 0,
         "price_tick_size": "0.00001",
@@ -6061,53 +5851,6 @@
         "margin_sell_enabled": false
       }
     },
-    "BAND/USDT": {
-      "id": "BAND_USDT",
-      "symbol": "BAND/USDT",
-      "base": "BAND",
-      "quote": "USDT",
-      "baseId": "BAND",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.0001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "BAND_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "BAND/USDT",
-        "base_ccy": "BAND",
-        "quote_ccy": "USDT",
-        "quote_decimals": 4,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.0001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "BARA/USD": {
       "id": "BARA_USD",
       "symbol": "BARA/USD",
@@ -6125,8 +5868,8 @@
       "taker": 0.004,
       "maker": 0.004,
       "precision": {
-        "price": 1e-9,
-        "amount": 10000
+        "price": 1e-11,
+        "amount": 100000
       },
       "limits": {
         "leverage": {
@@ -6143,10 +5886,10 @@
         "display_name": "BARA/USD",
         "base_ccy": "BARA",
         "quote_ccy": "USD",
-        "quote_decimals": 9,
+        "quote_decimals": 11,
         "quantity_decimals": 0,
-        "price_tick_size": "0.000000001",
-        "qty_tick_size": "10000",
+        "price_tick_size": "0.00000000001",
+        "qty_tick_size": "100000",
         "max_leverage": "50",
         "tradable": true,
         "expiry_timestamp_ms": 0,
@@ -6876,53 +6619,6 @@
         "beta_product": false,
         "underlying_symbol": "BIGTIMEUSD-INDEX",
         "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "BIGTIME/USDT": {
-      "id": "BIGTIME_USDT",
-      "symbol": "BIGTIME/USDT",
-      "base": "BIGTIME",
-      "quote": "USDT",
-      "baseId": "BIGTIME",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "BIGTIME_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "BIGTIME/USDT",
-        "base_ccy": "BIGTIME",
-        "quote_ccy": "USDT",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -7991,60 +7687,6 @@
         "margin_sell_enabled": false
       }
     },
-    "BTC/USD:USD-251031": {
-      "id": "BTCUSD-251031",
-      "symbol": "BTC/USD:USD-251031",
-      "base": "BTC",
-      "quote": "USD",
-      "baseId": "BTC",
-      "quoteId": "USD",
-      "type": "future",
-      "spot": false,
-      "margin": false,
-      "future": true,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "expiry": 1761897600000,
-      "expiryDatetime": "2025-10-31T08:00:00.000Z",
-      "precision": {
-        "price": 0.1,
-        "amount": 0.0001
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 100
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "BTCUSD-251031",
-        "inst_type": "FUTURE",
-        "display_name": "BTCUSD Futures 20251031",
-        "base_ccy": "BTC",
-        "quote_ccy": "USD",
-        "quote_decimals": 1,
-        "quantity_decimals": 4,
-        "price_tick_size": "0.1",
-        "qty_tick_size": "0.0001",
-        "max_leverage": "100",
-        "tradable": true,
-        "expiry_timestamp_ms": 1761897600000,
-        "beta_product": false,
-        "underlying_symbol": "BTCUSD-INDEX",
-        "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "BTC/USD:USD-251128": {
       "id": "BTCUSD-251128",
       "symbol": "BTC/USD:USD-251128",
@@ -8146,6 +7788,60 @@
         "max_leverage": "100",
         "tradable": true,
         "expiry_timestamp_ms": 1766736000000,
+        "beta_product": false,
+        "underlying_symbol": "BTCUSD-INDEX",
+        "contract_size": "1",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "BTC/USD:USD-260130": {
+      "id": "BTCUSD-260130",
+      "symbol": "BTC/USD:USD-260130",
+      "base": "BTC",
+      "quote": "USD",
+      "baseId": "BTC",
+      "quoteId": "USD",
+      "type": "future",
+      "spot": false,
+      "margin": false,
+      "future": true,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "expiry": 1769760000000,
+      "expiryDatetime": "2026-01-30T08:00:00.000Z",
+      "precision": {
+        "price": 0.1,
+        "amount": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 100
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "BTCUSD-260130",
+        "inst_type": "FUTURE",
+        "display_name": "BTCUSD Futures 20260130",
+        "base_ccy": "BTC",
+        "quote_ccy": "USD",
+        "quote_decimals": 1,
+        "quantity_decimals": 4,
+        "price_tick_size": "0.1",
+        "qty_tick_size": "0.0001",
+        "max_leverage": "100",
+        "tradable": true,
+        "expiry_timestamp_ms": 1769760000000,
         "beta_product": false,
         "underlying_symbol": "BTCUSD-INDEX",
         "contract_size": "1",
@@ -8355,53 +8051,6 @@
         "margin_sell_enabled": false
       }
     },
-    "CANTO/USD": {
-      "id": "CANTO_USD",
-      "symbol": "CANTO/USD",
-      "base": "CANTO",
-      "quote": "USD",
-      "baseId": "CANTO",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 1e-7,
-        "amount": 10
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "CANTO_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "CANTO/USD",
-        "base_ccy": "CANTO",
-        "quote_ccy": "USD",
-        "quote_decimals": 7,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0000001",
-        "qty_tick_size": "10",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "CATI/USD": {
       "id": "CATI_USD",
       "symbol": "CATI/USD",
@@ -8592,7 +8241,7 @@
         "expiry_timestamp_ms": 0,
         "beta_product": false,
         "margin_buy_enabled": true,
-        "margin_sell_enabled": true
+        "margin_sell_enabled": false
       }
     },
     "CDCETH/USD": {
@@ -8639,7 +8288,7 @@
         "expiry_timestamp_ms": 0,
         "beta_product": false,
         "margin_buy_enabled": true,
-        "margin_sell_enabled": true
+        "margin_sell_enabled": false
       }
     },
     "CDCSOL/SOL": {
@@ -9274,53 +8923,6 @@
         "beta_product": false,
         "underlying_symbol": "CHRUSD-INDEX",
         "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "CHR/USDT": {
-      "id": "CHR_USDT",
-      "symbol": "CHR/USDT",
-      "base": "CHR",
-      "quote": "USDT",
-      "baseId": "CHR",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "CHR_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "CHR/USDT",
-        "base_ccy": "CHR",
-        "quote_ccy": "USDT",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -12012,58 +11614,6 @@
         "margin_sell_enabled": false
       }
     },
-    "DOGS/USD:USD": {
-      "id": "DOGSUSD-PERP",
-      "symbol": "DOGS/USD:USD",
-      "base": "DOGS",
-      "quote": "USD",
-      "baseId": "DOGS",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "precision": {
-        "price": 1e-7,
-        "amount": 1000
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "DOGSUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "DOGSUSD Perpetual",
-        "base_ccy": "DOGS",
-        "quote_ccy": "USD",
-        "quote_decimals": 7,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0000001",
-        "qty_tick_size": "1000",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "DOGSUSD-INDEX",
-        "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "DOOD/USD": {
       "id": "DOOD_USD",
       "symbol": "DOOD/USD",
@@ -12889,6 +12439,105 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "ELIZAOS/USD": {
+      "id": "ELIZAOS_USD",
+      "symbol": "ELIZAOS/USD",
+      "base": "ELIZAOS",
+      "quote": "USD",
+      "baseId": "ELIZAOS",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "price": 0.000001,
+        "amount": 10
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "ELIZAOS_USD",
+        "inst_type": "CCY_PAIR",
+        "display_name": "ELIZAOS/USD",
+        "base_ccy": "ELIZAOS",
+        "quote_ccy": "USD",
+        "quote_decimals": 6,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.000001",
+        "qty_tick_size": "10",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "ELIZAOS/USD:USD": {
+      "id": "ELIZAOSUSD-PERP",
+      "symbol": "ELIZAOS/USD:USD",
+      "base": "ELIZAOS",
+      "quote": "USD",
+      "baseId": "ELIZAOS",
+      "quoteId": "USD",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "precision": {
+        "price": 0.000001,
+        "amount": 100
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "ELIZAOSUSD-PERP",
+        "inst_type": "PERPETUAL_SWAP",
+        "display_name": "ELIZAOSUSD Perpetual",
+        "base_ccy": "ELIZAOS",
+        "quote_ccy": "USD",
+        "quote_decimals": 6,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.000001",
+        "qty_tick_size": "100",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "underlying_symbol": "ELIZAOSUSD-INDEX",
+        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -14056,60 +13705,6 @@
         "margin_sell_enabled": false
       }
     },
-    "ETH/USD:USD-251031": {
-      "id": "ETHUSD-251031",
-      "symbol": "ETH/USD:USD-251031",
-      "base": "ETH",
-      "quote": "USD",
-      "baseId": "ETH",
-      "quoteId": "USD",
-      "type": "future",
-      "spot": false,
-      "margin": false,
-      "future": true,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "expiry": 1761897600000,
-      "expiryDatetime": "2025-10-31T08:00:00.000Z",
-      "precision": {
-        "price": 0.01,
-        "amount": 0.0001
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 100
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "ETHUSD-251031",
-        "inst_type": "FUTURE",
-        "display_name": "ETHUSD Futures 20251031",
-        "base_ccy": "ETH",
-        "quote_ccy": "USD",
-        "quote_decimals": 2,
-        "quantity_decimals": 4,
-        "price_tick_size": "0.01",
-        "qty_tick_size": "0.0001",
-        "max_leverage": "100",
-        "tradable": true,
-        "expiry_timestamp_ms": 1761897600000,
-        "beta_product": false,
-        "underlying_symbol": "ETHUSD-INDEX",
-        "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "ETH/USD:USD-251128": {
       "id": "ETHUSD-251128",
       "symbol": "ETH/USD:USD-251128",
@@ -14211,6 +13806,60 @@
         "max_leverage": "100",
         "tradable": true,
         "expiry_timestamp_ms": 1766736000000,
+        "beta_product": false,
+        "underlying_symbol": "ETHUSD-INDEX",
+        "contract_size": "1",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "ETH/USD:USD-260130": {
+      "id": "ETHUSD-260130",
+      "symbol": "ETH/USD:USD-260130",
+      "base": "ETH",
+      "quote": "USD",
+      "baseId": "ETH",
+      "quoteId": "USD",
+      "type": "future",
+      "spot": false,
+      "margin": false,
+      "future": true,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "expiry": 1769760000000,
+      "expiryDatetime": "2026-01-30T08:00:00.000Z",
+      "precision": {
+        "price": 0.01,
+        "amount": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 100
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "ETHUSD-260130",
+        "inst_type": "FUTURE",
+        "display_name": "ETHUSD Futures 20260130",
+        "base_ccy": "ETH",
+        "quote_ccy": "USD",
+        "quote_decimals": 2,
+        "quantity_decimals": 4,
+        "price_tick_size": "0.01",
+        "qty_tick_size": "0.0001",
+        "max_leverage": "100",
+        "tradable": true,
+        "expiry_timestamp_ms": 1769760000000,
         "beta_product": false,
         "underlying_symbol": "ETHUSD-INDEX",
         "contract_size": "1",
@@ -16449,53 +16098,6 @@
         "margin_sell_enabled": false
       }
     },
-    "GARI/USD": {
-      "id": "GARI_USD",
-      "symbol": "GARI/USD",
-      "base": "GARI",
-      "quote": "USD",
-      "baseId": "GARI",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 1e-7,
-        "amount": 100
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "GARI_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "GARI/USD",
-        "base_ccy": "GARI",
-        "quote_ccy": "USD",
-        "quote_decimals": 7,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0000001",
-        "qty_tick_size": "100",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "GAS/USD": {
       "id": "GAS_USD",
       "symbol": "GAS/USD",
@@ -16719,53 +16321,6 @@
         "display_name": "GLM/USD",
         "base_ccy": "GLM",
         "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "GLM/USDT": {
-      "id": "GLM_USDT",
-      "symbol": "GLM/USDT",
-      "base": "GLM",
-      "quote": "USDT",
-      "baseId": "GLM",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "GLM_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "GLM/USDT",
-        "base_ccy": "GLM",
-        "quote_ccy": "USDT",
         "quote_decimals": 5,
         "quantity_decimals": 0,
         "price_tick_size": "0.00001",
@@ -17352,53 +16907,6 @@
         "margin_sell_enabled": false
       }
     },
-    "GRAIL/USD": {
-      "id": "GRAIL_USD",
-      "symbol": "GRAIL/USD",
-      "base": "GRAIL",
-      "quote": "USD",
-      "baseId": "GRAIL",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.01,
-        "amount": 0.0001
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "GRAIL_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "GRAIL/USD",
-        "base_ccy": "GRAIL",
-        "quote_ccy": "USD",
-        "quote_decimals": 2,
-        "quantity_decimals": 4,
-        "price_tick_size": "0.01",
-        "qty_tick_size": "0.0001",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "GRASS/USD": {
       "id": "GRASS_USD",
       "symbol": "GRASS/USD",
@@ -17932,105 +17440,6 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "HAEDAL/USD": {
-      "id": "HAEDAL_USD",
-      "symbol": "HAEDAL/USD",
-      "base": "HAEDAL",
-      "quote": "USD",
-      "baseId": "HAEDAL",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "HAEDAL_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "HAEDAL/USD",
-        "base_ccy": "HAEDAL",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "HAEDAL/USD:USD": {
-      "id": "HAEDALUSD-PERP",
-      "symbol": "HAEDAL/USD:USD",
-      "base": "HAEDAL",
-      "quote": "USD",
-      "baseId": "HAEDAL",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "precision": {
-        "price": 0.00001,
-        "amount": 10
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "HAEDALUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "HAEDALUSD Perpetual",
-        "base_ccy": "HAEDAL",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "10",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "HAEDALUSD-INDEX",
-        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -20314,105 +19723,6 @@
         "margin_sell_enabled": false
       }
     },
-    "JELLYJELLY/USD": {
-      "id": "JELLYJELLY_USD",
-      "symbol": "JELLYJELLY/USD",
-      "base": "JELLYJELLY",
-      "quote": "USD",
-      "baseId": "JELLYJELLY",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.000001,
-        "amount": 10
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "JELLYJELLY_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "JELLYJELLY/USD",
-        "base_ccy": "JELLYJELLY",
-        "quote_ccy": "USD",
-        "quote_decimals": 6,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.000001",
-        "qty_tick_size": "10",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "JELLYJELLY/USD:USD": {
-      "id": "JELLYJELLYUSD-PERP",
-      "symbol": "JELLYJELLY/USD:USD",
-      "base": "JELLYJELLY",
-      "quote": "USD",
-      "baseId": "JELLYJELLY",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "precision": {
-        "price": 0.000001,
-        "amount": 100
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "JELLYJELLYUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "JELLYJELLYUSD Perpetual",
-        "base_ccy": "JELLYJELLY",
-        "quote_ccy": "USD",
-        "quote_decimals": 6,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.000001",
-        "qty_tick_size": "100",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "JELLYJELLYUSD-INDEX",
-        "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "JOE/USD": {
       "id": "JOE_USD",
       "symbol": "JOE/USD",
@@ -21143,53 +20453,6 @@
         "margin_sell_enabled": false
       }
     },
-    "KDA/USD": {
-      "id": "KDA_USD",
-      "symbol": "KDA/USD",
-      "base": "KDA",
-      "quote": "USD",
-      "baseId": "KDA",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "KDA_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "KDA/USD",
-        "base_ccy": "KDA",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "KERNEL/USD": {
       "id": "KERNEL_USD",
       "symbol": "KERNEL/USD",
@@ -21233,6 +20496,105 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "KITE/USD": {
+      "id": "KITE_USD",
+      "symbol": "KITE/USD",
+      "base": "KITE",
+      "quote": "USD",
+      "baseId": "KITE",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "price": 0.00001,
+        "amount": 1
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "KITE_USD",
+        "inst_type": "CCY_PAIR",
+        "display_name": "KITE/USD",
+        "base_ccy": "KITE",
+        "quote_ccy": "USD",
+        "quote_decimals": 5,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.00001",
+        "qty_tick_size": "1",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "KITE/USD:USD": {
+      "id": "KITEUSD-PERP",
+      "symbol": "KITE/USD:USD",
+      "base": "KITE",
+      "quote": "USD",
+      "baseId": "KITE",
+      "quoteId": "USD",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "precision": {
+        "price": 0.00001,
+        "amount": 10
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "KITEUSD-PERP",
+        "inst_type": "PERPETUAL_SWAP",
+        "display_name": "KITEUSD Perpetual",
+        "base_ccy": "KITE",
+        "quote_ccy": "USD",
+        "quote_decimals": 5,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.00001",
+        "qty_tick_size": "10",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "underlying_symbol": "KITEUSD-INDEX",
+        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -24513,53 +23875,6 @@
         "margin_sell_enabled": false
       }
     },
-    "MELANIA/SOL": {
-      "id": "MELANIA_SOL",
-      "symbol": "MELANIA/SOL",
-      "base": "MELANIA",
-      "quote": "SOL",
-      "baseId": "MELANIA",
-      "quoteId": "SOL",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 1e-8,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "MELANIA_SOL",
-        "inst_type": "CCY_PAIR",
-        "display_name": "MELANIA/SOL",
-        "base_ccy": "MELANIA",
-        "quote_ccy": "SOL",
-        "quote_decimals": 8,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00000001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "MELANIA/USD": {
       "id": "MELANIA_USD",
       "symbol": "MELANIA/USD",
@@ -24659,53 +23974,6 @@
         "margin_sell_enabled": false
       }
     },
-    "MELANIA/USDT": {
-      "id": "MELANIA_USDT",
-      "symbol": "MELANIA/USDT",
-      "base": "MELANIA",
-      "quote": "USDT",
-      "baseId": "MELANIA",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "MELANIA_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "MELANIA/USDT",
-        "base_ccy": "MELANIA",
-        "quote_ccy": "USDT",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "MERY/USD": {
       "id": "MERY_USD",
       "symbol": "MERY/USD",
@@ -24749,6 +24017,105 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "MET/USD": {
+      "id": "MET_USD",
+      "symbol": "MET/USD",
+      "base": "MET",
+      "quote": "USD",
+      "baseId": "MET",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "price": 0.0001,
+        "amount": 0.1
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "MET_USD",
+        "inst_type": "CCY_PAIR",
+        "display_name": "MET/USD",
+        "base_ccy": "MET",
+        "quote_ccy": "USD",
+        "quote_decimals": 4,
+        "quantity_decimals": 1,
+        "price_tick_size": "0.0001",
+        "qty_tick_size": "0.1",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "MET/USD:USD": {
+      "id": "METUSD-PERP",
+      "symbol": "MET/USD:USD",
+      "base": "MET",
+      "quote": "USD",
+      "baseId": "MET",
+      "quoteId": "USD",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "precision": {
+        "price": 0.0001,
+        "amount": 1
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "METUSD-PERP",
+        "inst_type": "PERPETUAL_SWAP",
+        "display_name": "METUSD Perpetual",
+        "base_ccy": "MET",
+        "quote_ccy": "USD",
+        "quote_decimals": 4,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.0001",
+        "qty_tick_size": "1",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "underlying_symbol": "METUSD-INDEX",
+        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -25916,53 +25283,6 @@
         "margin_sell_enabled": false
       }
     },
-    "MXC/USD": {
-      "id": "MXC_USD",
-      "symbol": "MXC/USD",
-      "base": "MXC",
-      "quote": "USD",
-      "baseId": "MXC",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 1e-7,
-        "amount": 100
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "MXC_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "MXC/USD",
-        "base_ccy": "MXC",
-        "quote_ccy": "USD",
-        "quote_decimals": 7,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0000001",
-        "qty_tick_size": "100",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "MYRO/USD": {
       "id": "MYRO_USD",
       "symbol": "MYRO/USD",
@@ -26584,6 +25904,53 @@
         "margin_sell_enabled": false
       }
     },
+    "NOM/USD": {
+      "id": "NOM_USD",
+      "symbol": "NOM/USD",
+      "base": "NOM",
+      "quote": "USD",
+      "baseId": "NOM",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "price": 0.000001,
+        "amount": 10
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "NOM_USD",
+        "inst_type": "CCY_PAIR",
+        "display_name": "NOM/USD",
+        "base_ccy": "NOM",
+        "quote_ccy": "USD",
+        "quote_decimals": 6,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.000001",
+        "qty_tick_size": "10",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
     "NOS/USD": {
       "id": "NOS_USD",
       "symbol": "NOS/USD",
@@ -27159,53 +26526,6 @@
         "beta_product": false,
         "underlying_symbol": "OGNUSD-INDEX",
         "contract_size": "1",
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "OLE/USD": {
-      "id": "OLE_USD",
-      "symbol": "OLE/USD",
-      "base": "OLE",
-      "quote": "USD",
-      "baseId": "OLE",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.000001,
-        "amount": 10
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "OLE_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "OLE/USD",
-        "base_ccy": "OLE",
-        "quote_ccy": "USD",
-        "quote_decimals": 6,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.000001",
-        "qty_tick_size": "10",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -29056,53 +28376,6 @@
         "margin_sell_enabled": true
       }
     },
-    "PERP/USD": {
-      "id": "PERP_USD",
-      "symbol": "PERP/USD",
-      "base": "PERP",
-      "quote": "USD",
-      "baseId": "PERP",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "PERP_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "PERP/USD",
-        "base_ccy": "PERP",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "PIRATE/USD": {
       "id": "PIRATE_USD",
       "symbol": "PIRATE/USD",
@@ -30422,53 +29695,6 @@
         "margin_sell_enabled": false
       }
     },
-    "PSTAKE/USD": {
-      "id": "PSTAKE_USD",
-      "symbol": "PSTAKE/USD",
-      "base": "PSTAKE",
-      "quote": "USD",
-      "baseId": "PSTAKE",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.000001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "PSTAKE_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "PSTAKE/USD",
-        "base_ccy": "PSTAKE",
-        "quote_ccy": "USD",
-        "quote_decimals": 6,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.000001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "PUMP/USD": {
       "id": "PUMP_USD",
       "symbol": "PUMP/USD",
@@ -30607,53 +29833,6 @@
         "quantity_decimals": 0,
         "price_tick_size": "0.0000001",
         "qty_tick_size": "100",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "PUSH/USD": {
-      "id": "PUSH_USD",
-      "symbol": "PUSH/USD",
-      "base": "PUSH",
-      "quote": "USD",
-      "baseId": "PUSH",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "PUSH_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "PUSH/USD",
-        "base_ccy": "PUSH",
-        "quote_ccy": "USD",
-        "quote_decimals": 5,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "1",
         "max_leverage": "50",
         "tradable": true,
         "expiry_timestamp_ms": 0,
@@ -32154,53 +31333,6 @@
         "margin_sell_enabled": false
       }
     },
-    "RONIN/USDT": {
-      "id": "RONIN_USDT",
-      "symbol": "RONIN/USDT",
-      "base": "RONIN",
-      "quote": "USDT",
-      "baseId": "RONIN",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.00001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "RONIN_USDT",
-        "inst_type": "CCY_PAIR",
-        "display_name": "RONIN/USDT",
-        "base_ccy": "RONIN",
-        "quote_ccy": "USDT",
-        "quote_decimals": 5,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.00001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
     "RPL/USD": {
       "id": "RPL_USD",
       "symbol": "RPL/USD",
@@ -32931,6 +32063,105 @@
         "margin_sell_enabled": true
       }
     },
+    "SAPIEN/USD": {
+      "id": "SAPIEN_USD",
+      "symbol": "SAPIEN/USD",
+      "base": "SAPIEN",
+      "quote": "USD",
+      "baseId": "SAPIEN",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "price": 0.00001,
+        "amount": 1
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "SAPIEN_USD",
+        "inst_type": "CCY_PAIR",
+        "display_name": "SAPIEN/USD",
+        "base_ccy": "SAPIEN",
+        "quote_ccy": "USD",
+        "quote_decimals": 5,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.00001",
+        "qty_tick_size": "1",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "SAPIEN/USD:USD": {
+      "id": "SAPIENUSD-PERP",
+      "symbol": "SAPIEN/USD:USD",
+      "base": "SAPIEN",
+      "quote": "USD",
+      "baseId": "SAPIEN",
+      "quoteId": "USD",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "precision": {
+        "price": 0.00001,
+        "amount": 10
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "SAPIENUSD-PERP",
+        "inst_type": "PERPETUAL_SWAP",
+        "display_name": "SAPIENUSD Perpetual",
+        "base_ccy": "SAPIEN",
+        "quote_ccy": "USD",
+        "quote_decimals": 5,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.00001",
+        "qty_tick_size": "10",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "underlying_symbol": "SAPIENUSD-INDEX",
+        "contract_size": "1",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
     "SC/USD": {
       "id": "SC_USD",
       "symbol": "SC/USD",
@@ -33021,58 +32252,6 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "SCROLL/USD:USD": {
-      "id": "SCROLLUSD-PERP",
-      "symbol": "SCROLL/USD:USD",
-      "base": "SCROLL",
-      "quote": "USD",
-      "baseId": "SCROLL",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "precision": {
-        "price": 0.0001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "SCROLLUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "SCROLLUSD Perpetual",
-        "base_ccy": "SCROLL",
-        "quote_ccy": "USD",
-        "quote_decimals": 4,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "SCROLLUSD-INDEX",
-        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -35019,8 +34198,8 @@
       "taker": 0.004,
       "maker": 0.004,
       "precision": {
-        "price": 0.000001,
-        "amount": 10
+        "price": 1e-8,
+        "amount": 100
       },
       "limits": {
         "leverage": {
@@ -35037,10 +34216,10 @@
         "display_name": "SQT/USD",
         "base_ccy": "SQT",
         "quote_ccy": "USD",
-        "quote_decimals": 6,
+        "quote_decimals": 8,
         "quantity_decimals": 0,
-        "price_tick_size": "0.000001",
-        "qty_tick_size": "10",
+        "price_tick_size": "0.00000001",
+        "qty_tick_size": "100",
         "max_leverage": "50",
         "tradable": true,
         "expiry_timestamp_ms": 0,
@@ -35484,7 +34663,7 @@
         "expiry_timestamp_ms": 0,
         "beta_product": false,
         "margin_buy_enabled": true,
-        "margin_sell_enabled": true
+        "margin_sell_enabled": false
       }
     },
     "STX/USD:USD": {
@@ -35583,7 +34762,7 @@
         "expiry_timestamp_ms": 0,
         "beta_product": false,
         "margin_buy_enabled": true,
-        "margin_sell_enabled": true
+        "margin_sell_enabled": false
       }
     },
     "SUI/BTC": {
@@ -37951,6 +37130,105 @@
         "expiry_timestamp_ms": 0,
         "beta_product": false,
         "margin_buy_enabled": true,
+        "margin_sell_enabled": false
+      }
+    },
+    "TRUST/USD": {
+      "id": "TRUST_USD",
+      "symbol": "TRUST/USD",
+      "base": "TRUST",
+      "quote": "USD",
+      "baseId": "TRUST",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "price": 0.00001,
+        "amount": 1
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "TRUST_USD",
+        "inst_type": "CCY_PAIR",
+        "display_name": "TRUST/USD",
+        "base_ccy": "TRUST",
+        "quote_ccy": "USD",
+        "quote_decimals": 5,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.00001",
+        "qty_tick_size": "1",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "TRUST/USD:USD": {
+      "id": "TRUSTUSD-PERP",
+      "symbol": "TRUST/USD:USD",
+      "base": "TRUST",
+      "quote": "USD",
+      "baseId": "TRUST",
+      "quoteId": "USD",
+      "type": "swap",
+      "spot": false,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "contractSize": 1,
+      "precision": {
+        "price": 0.00001,
+        "amount": 10
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 50
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "TRUSTUSD-PERP",
+        "inst_type": "PERPETUAL_SWAP",
+        "display_name": "TRUSTUSD Perpetual",
+        "base_ccy": "TRUST",
+        "quote_ccy": "USD",
+        "quote_decimals": 5,
+        "quantity_decimals": 0,
+        "price_tick_size": "0.00001",
+        "qty_tick_size": "10",
+        "max_leverage": "50",
+        "tradable": true,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "underlying_symbol": "TRUSTUSD-INDEX",
+        "contract_size": "1",
+        "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
     },
@@ -42107,105 +41385,6 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "YZY/USD": {
-      "id": "YZY_USD",
-      "symbol": "YZY/USD",
-      "base": "YZY",
-      "quote": "USD",
-      "baseId": "YZY",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "price": 0.0001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "YZY_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "YZY/USD",
-        "base_ccy": "YZY",
-        "quote_ccy": "USD",
-        "quote_decimals": 4,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.0001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "YZY/USD:USD": {
-      "id": "YZYUSD-PERP",
-      "symbol": "YZY/USD:USD",
-      "base": "YZY",
-      "quote": "USD",
-      "baseId": "YZY",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "contractSize": 1,
-      "precision": {
-        "price": 0.0001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "YZYUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "YZYUSD Perpetual",
-        "base_ccy": "YZY",
-        "quote_ccy": "USD",
-        "quote_decimals": 4,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.0001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "YZYUSD-INDEX",
-        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
