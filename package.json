@@ -70,6 +70,7 @@
     "docker:test": "./scripts/run.sh test docker",
     "docker:rebuild": "docker-compose down && docker-compose build --no-cache && docker-compose up -d",
     "docker:shell": "docker-compose exec ftso-provider sh",
+    "docker:registry": "./scripts/docker-registry-run.sh",
     "_comment_tickers": "================== DEV TOOLS ===================",
     "tickers:generate": "./scripts/run.sh utils tickers",
     "tickers:fetch": "./scripts/run.sh utils tickers --fetch-only",

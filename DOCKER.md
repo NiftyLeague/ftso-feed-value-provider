@@ -74,8 +74,8 @@ via GitHub Actions.
 ```bash
 # Pull and run the latest image
 docker run --rm -it \
-  --publish "0.0.0.0:3101:3101" \
-  --publish "0.0.0.0:9090:9090" \
+  --publish "3101:3101" \
+  --publish "9090:9090" \
   ghcr.io/niftyleague/ftso-feed-value-provider:latest
 ```
 
@@ -87,7 +87,10 @@ echo "YOUR_GITHUB_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --passwo
 
 # Then pull and run
 docker pull ghcr.io/niftyleague/ftso-feed-value-provider:latest
-docker run --rm -it --publish "0.0.0.0:3101:3101" ghcr.io/niftyleague/ftso-feed-value-provider:latest
+docker run --rm -it \
+  --publish "3101:3101" \
+  --publish "9090:9090" \
+  ghcr.io/niftyleague/ftso-feed-value-provider:latest
 ```
 
 ### Available Tags

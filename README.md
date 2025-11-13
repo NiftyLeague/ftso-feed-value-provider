@@ -27,9 +27,66 @@ This provider implements a fully modernized, production-ready architecture with:
 
 ### Using Docker
 
+The Docker images are hosted on GitHub Container Registry (GHCR) as private
+packages.
+
+#### Authentication Required
+
+First, authenticate with GHCR using a Personal Access Token:
+
 ```bash
-docker run --rm -it --publish "0.0.0.0:3101:3101" ghcr.io/NiftyLeague/ftso-feed-value-provider
+# 1. Create a token at: https://github.com/settings/tokens
+#    - Select scope: read:packages
+#    - Copy the token
+
+# 2. Login to GHCR
+echo "YOUR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+
+# 3. Pull and run the image
+docker pull ghcr.io/niftyleague/ftso-feed-value-provider:latest
+
+docker run --rm -it \
+  --publish "3101:3101" \
+  --publish "9090:9090" \
+  ghcr.io/niftyleague/ftso-feed-value-provider:latest
 ```
+
+#### Quick Start Script (Easiest)
+
+```bash
+# Pull and run from registry (handles everything)
+pnpm docker:registry
+```
+
+This script will:
+
+- Check authentication
+- Pull the latest image
+- Start the container
+- Show service URLs and test commands
+
+#### Using Docker Compose (For Development)
+
+```bash
+# Start the service
+pnpm docker:up
+
+# View logs
+pnpm docker:logs
+
+# Test deployment
+pnpm docker:test
+
+# Stop the service
+pnpm docker:down
+```
+
+**For detailed Docker documentation**, see:
+
+- [DOCKER.md](./DOCKER.md) - Complete Docker guide
+- [DOCKER-PRIVATE-REGISTRY.md](./DOCKER-PRIVATE-REGISTRY.md) - Authentication &
+  private registry
+- [DOCKER-SETUP-CHECKLIST.md](./DOCKER-SETUP-CHECKLIST.md) - Setup checklist
 
 ### Local Development
 
