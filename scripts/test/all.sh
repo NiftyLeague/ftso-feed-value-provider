@@ -133,7 +133,18 @@ run_test_script "test/shutdown.sh" "Graceful Shutdown Test" 60
 if [ $? -eq 130 ]; then exit 130; fi
 
 echo ""
-echo "🔬 Phase 8: Comprehensive Test Suite"
+echo "🐳 Phase 8: Docker Deployment Testing"
+echo "====================================="
+# Check if Docker is available
+if command -v docker-compose >/dev/null 2>&1; then
+    run_test_script "test/docker.sh" "Docker Deployment Test" 120
+    if [ $? -eq 130 ]; then exit 130; fi
+else
+    echo "⚠️  Docker not available, skipping Docker tests"
+fi
+
+echo ""
+echo "🔬 Phase 9: Comprehensive Test Suite"
 echo "========================================="
 run_test_script "test/runner.sh" "Comprehensive Test Suite" 600 "all"
 if [ $? -eq 130 ]; then exit 130; fi
@@ -158,6 +169,7 @@ This report provides a comprehensive testing analysis of the FTSO Feed Value Pro
 - ✅ Feeds Validation
 - ✅ Graceful Shutdown
 - ✅ Data Flow Verification
+- ✅ Docker Deployment
 - ✅ Comprehensive Test Suite
 
 ### Key Findings
@@ -255,6 +267,23 @@ if [ -f "$TEST_DIR/shutdown_output.log" ]; then
     SHUTDOWN_SUCCESS=${SHUTDOWN_SUCCESS:-0}
     
     echo "- **Graceful Shutdown:** $([ "${SHUTDOWN_SUCCESS:-0}" -gt 0 ] && echo "✅ Successful" || echo "❌ Issues Detected")" >> "$SUMMARY_FILE"
+    echo "" >> "$SUMMARY_FILE"
+fi
+
+if [ -f "$TEST_DIR/docker_output.log" ]; then
+    echo "#### Docker Deployment Testing" >> "$SUMMARY_FILE"
+    
+    # Extract Docker test metrics
+    DOCKER_TESTS_PASSED=$(grep -c "✓" "$TEST_DIR/docker_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    DOCKER_TESTS_FAILED=$(grep -c "✗" "$TEST_DIR/docker_output.log" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+    
+    # Ensure variables are clean integers
+    DOCKER_TESTS_PASSED=${DOCKER_TESTS_PASSED:-0}
+    DOCKER_TESTS_FAILED=${DOCKER_TESTS_FAILED:-0}
+    
+    echo "- **Docker Tests Passed:** $DOCKER_TESTS_PASSED" >> "$SUMMARY_FILE"
+    echo "- **Docker Tests Failed:** $DOCKER_TESTS_FAILED" >> "$SUMMARY_FILE"
+    echo "- **Docker Status:** $([ "${DOCKER_TESTS_FAILED:-0}" -eq 0 ] && echo "✅ All tests passed" || echo "❌ Some tests failed")" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
 fi
 

@@ -25,7 +25,9 @@ FROM base AS dependencies
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install all dependencies (including dev dependencies for build)
+# Set HUSKY=0 to skip git hooks installation in Docker
 RUN --mount=type=cache,target=/root/.local/share/pnpm \
+    export HUSKY=0 && \
     pnpm install --frozen-lockfile
 
 # ===========================================
@@ -48,7 +50,9 @@ FROM base AS production-deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install only production dependencies
+# Set HUSKY=0 to skip git hooks installation in Docker
 RUN --mount=type=cache,target=/root/.local/share/pnpm \
+    export HUSKY=0 && \
     pnpm install --prod --frozen-lockfile && \
     pnpm store prune
 
@@ -66,6 +70,9 @@ COPY --from=production-deps --chown=ftso-provider:nodejs /app/node_modules ./nod
 
 # Copy built application
 COPY --from=builder --chown=ftso-provider:nodejs /app/dist ./dist
+
+# Copy runtime config files (feeds.json is read at runtime via process.cwd())
+COPY --from=builder --chown=ftso-provider:nodejs /app/src/config ./src/config
 
 # Copy configuration files
 COPY --chown=ftso-provider:nodejs package.json ./
@@ -87,4 +94,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

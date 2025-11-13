@@ -28,7 +28,7 @@ This provider implements a fully modernized, production-ready architecture with:
 ### Using Docker
 
 ```bash
-docker run --rm -it --publish "0.0.0.0:3101:3101" ghcr.io/flare-foundation/ftso-v2-example-value-provider
+docker run --rm -it --publish "0.0.0.0:3101:3101" ghcr.io/NiftyLeague/ftso-feed-value-provider
 ```
 
 ### Local Development

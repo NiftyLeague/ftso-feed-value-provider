@@ -1,7 +1,7 @@
 {
   "exchange": "bitstamp",
-  "timestamp": 1760037320760,
-  "count": 249,
+  "timestamp": 1762968802173,
+  "count": 250,
   "symbols": [
     "1INCH/EUR",
     "1INCH/USD",
@@ -170,8 +170,7 @@
     "SAND/USD",
     "SEI/EUR",
     "SEI/USD",
-    "SGB/EUR",
-    "SGB/USD",
+    "SGD/USD",
     "SHIB/EUR",
     "SHIB/USD",
     "SKL/EUR",
@@ -236,6 +235,8 @@
     "XLM/EUR",
     "XLM/GBP",
     "XLM/USD",
+    "XPL/EUR",
+    "XPL/USD",
     "XRP/BTC",
     "XRP/EUR",
     "XRP/GBP",
@@ -6934,52 +6935,12 @@
         "description": "SEI / U.S. dollar"
       }
     },
-    "SGB/EUR": {
-      "id": "sgbeur",
-      "symbol": "SGB/EUR",
-      "base": "SGB",
-      "quote": "EUR",
-      "baseId": "sgb",
-      "quoteId": "eur",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.004,
-      "maker": 0.004,
-      "precision": {
-        "amount": 1e-8,
-        "price": 0.00001
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {},
-        "price": {},
-        "cost": {
-          "min": 10
-        }
-      },
-      "info": {
-        "name": "SGB/EUR",
-        "url_symbol": "sgbeur",
-        "base_decimals": 8,
-        "counter_decimals": 5,
-        "instant_order_counter_decimals": 5,
-        "minimum_order": "10.00000 EUR",
-        "trading": "Enabled",
-        "instant_and_market_orders": "Enabled",
-        "description": "Songbird / Euro"
-      }
-    },
-    "SGB/USD": {
-      "id": "sgbusd",
-      "symbol": "SGB/USD",
-      "base": "SGB",
+    "SGD/USD": {
+      "id": "sgdusd",
+      "symbol": "SGD/USD",
+      "base": "SGD",
       "quote": "USD",
-      "baseId": "sgb",
+      "baseId": "sgd",
       "quoteId": "usd",
       "type": "spot",
       "spot": true,
@@ -6991,7 +6952,7 @@
       "taker": 0.004,
       "maker": 0.004,
       "precision": {
-        "amount": 1e-8,
+        "amount": 0.00001,
         "price": 0.00001
       },
       "limits": {
@@ -7003,15 +6964,15 @@
         }
       },
       "info": {
-        "name": "SGB/USD",
-        "url_symbol": "sgbusd",
-        "base_decimals": 8,
+        "name": "SGD/USD",
+        "url_symbol": "sgdusd",
+        "base_decimals": 5,
         "counter_decimals": 5,
         "instant_order_counter_decimals": 5,
         "minimum_order": "10.00000 USD",
         "trading": "Enabled",
         "instant_and_market_orders": "Enabled",
-        "description": "Songbird / U.S. dollar"
+        "description": "Singapore dollar / U.S. dollar"
       }
     },
     "SHIB/EUR": {
@@ -9572,6 +9533,86 @@
         "trading": "Enabled",
         "instant_and_market_orders": "Enabled",
         "description": "Stellar / U.S. dollar"
+      }
+    },
+    "XPL/EUR": {
+      "id": "xpleur",
+      "symbol": "XPL/EUR",
+      "base": "XPL",
+      "quote": "EUR",
+      "baseId": "xpl",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "XPL/EUR",
+        "url_symbol": "xpleur",
+        "base_decimals": 2,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Plasma / Euro"
+      }
+    },
+    "XPL/USD": {
+      "id": "xplusd",
+      "symbol": "XPL/USD",
+      "base": "XPL",
+      "quote": "USD",
+      "baseId": "xpl",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "XPL/USD",
+        "url_symbol": "xplusd",
+        "base_decimals": 2,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Plasma / U.S. dollar"
       }
     },
     "XRP/BTC": {
