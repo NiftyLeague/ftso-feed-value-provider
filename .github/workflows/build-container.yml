@@ -2,10 +2,10 @@ name: build-container
 
 on:
   push:
-    branches: ['main', 'staging']
+    branches: ['main']
     tags: ['v*']
   pull_request:
-    branches: ['main', 'staging']
+    branches: ['main']
 
 env:
   REGISTRY: ghcr.io

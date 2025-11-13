@@ -25,7 +25,9 @@ FROM base AS dependencies
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install all dependencies (including dev dependencies for build)
+# Set HUSKY=0 to skip git hooks installation in Docker
 RUN --mount=type=cache,target=/root/.local/share/pnpm \
+    export HUSKY=0 && \
     pnpm install --frozen-lockfile
 
 # ===========================================
@@ -48,7 +50,9 @@ FROM base AS production-deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Install only production dependencies
+# Set HUSKY=0 to skip git hooks installation in Docker
 RUN --mount=type=cache,target=/root/.local/share/pnpm \
+    export HUSKY=0 && \
     pnpm install --prod --frozen-lockfile && \
     pnpm store prune
 
