@@ -566,6 +566,10 @@ export const ENV = {
       min: 5000,
       max: 120000,
     }), // Reduced from 45s to 30s for faster connection timeout detection
+
+    // Proxy Configuration - For bypassing geo-restrictions
+    PROXY_URL: EnvironmentUtils.parseString("WEBSOCKET_PROXY_URL", ""),
+    PROXY_ENABLED: EnvironmentUtils.parseBoolean("WEBSOCKET_PROXY_ENABLED", false),
   },
 
   // CCXT Exchange Adapter - Specialized Configuration

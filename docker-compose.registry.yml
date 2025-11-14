@@ -31,6 +31,10 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-warn}
       - APP_PORT=${APP_PORT:-3101}
 
+      # Proxy settings for bypassing geo-restrictions (HTTP 451 errors)
+      - WEBSOCKET_PROXY_ENABLED=${WEBSOCKET_PROXY_ENABLED:-false}
+      - WEBSOCKET_PROXY_URL=${WEBSOCKET_PROXY_URL}
+
       # Optional: Uncomment and configure for alerting
       # - ALERT_EMAIL_ENABLED=${ALERT_EMAIL_ENABLED:-false}
       # - ALERT_SMTP_HOST=${ALERT_SMTP_HOST}
