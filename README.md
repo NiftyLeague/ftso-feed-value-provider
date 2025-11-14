@@ -41,34 +41,42 @@ First, authenticate with GHCR using a Personal Access Token:
 
 # 2. Login to GHCR
 echo "YOUR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-
-# 3. Pull and run the image
-docker pull ghcr.io/niftyleague/ftso-feed-value-provider:latest
-
-docker run --rm -it \
-  --publish "3101:3101" \
-  --publish "9090:9090" \
-  ghcr.io/niftyleague/ftso-feed-value-provider:latest
 ```
 
-#### Quick Start Script (Easiest)
+#### Production/VM Deployment (Recommended)
+
+Use `docker-compose.registry.yml` to pull and run pre-built images:
 
 ```bash
-# Pull and run from registry (handles everything)
-pnpm docker:registry
+# Standard deployment
+pnpm docker:registry:up
+
+# VM deployment with host network (better performance)
+NETWORK_MODE=host pnpm docker:registry:up
+
+# With custom resources
+MEMORY_LIMIT=2G CPU_LIMIT=2.0 pnpm docker:registry:up
+
+# View logs
+pnpm docker:registry:logs
+
+# Stop
+pnpm docker:registry:down
 ```
 
-This script will:
-
-- Check authentication
-- Pull the latest image
-- Start the container
-- Show service URLs and test commands
-
-#### Using Docker Compose (For Development)
+**On a VM:** Clone the repo (just for the docker-compose.registry.yml file) and
+run:
 
 ```bash
-# Start the service
+docker-compose -f docker-compose.registry.yml up -d
+```
+
+#### Local Development
+
+Use `docker-compose.yml` to build and run from source:
+
+```bash
+# Build and start
 pnpm docker:up
 
 # View logs
@@ -77,16 +85,13 @@ pnpm docker:logs
 # Test deployment
 pnpm docker:test
 
-# Stop the service
+# Stop
 pnpm docker:down
 ```
 
 **For detailed Docker documentation**, see:
 
-- [DOCKER.md](./DOCKER.md) - Complete Docker guide
-- [DOCKER-PRIVATE-REGISTRY.md](./DOCKER-PRIVATE-REGISTRY.md) - Authentication &
-  private registry
-- [DOCKER-SETUP-CHECKLIST.md](./DOCKER-SETUP-CHECKLIST.md) - Setup checklist
+- [docs/docker.md](./docs/docker.md) - Complete Docker guide
 
 ### Local Development
 

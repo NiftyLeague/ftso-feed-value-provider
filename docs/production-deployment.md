@@ -12,7 +12,32 @@ environment using Docker containers.
 
 ## Quick Start
 
-### 1. Basic Production Deployment
+### 1. Production Deployment from Registry (Recommended)
+
+For production/VM deployments, use pre-built images from GitHub Container
+Registry:
+
+```bash
+# Clone the repository (just for docker-compose.registry.yml)
+git clone <repository-url>
+cd ftso-feed-value-provider
+
+# Login to GHCR (if image is private)
+echo "YOUR_GITHUB_TOKEN" | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+
+# Deploy with optimal VM settings
+NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+
+# Check container status
+docker-compose -f docker-compose.registry.yml ps
+
+# View logs
+docker-compose -f docker-compose.registry.yml logs -f ftso-provider
+```
+
+### 2. Local Build Deployment
+
+For development or custom builds:
 
 ```bash
 # Clone the repository
@@ -29,10 +54,13 @@ docker-compose ps
 docker-compose logs -f ftso-provider
 ```
 
-### 2. With Monitoring Stack
+### 3. With Monitoring Stack
 
 ```bash
-# Start with monitoring (Prometheus + Grafana)
+# From registry with monitoring (Prometheus + Grafana)
+docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+
+# Or from local build
 docker-compose --profile monitoring up -d
 
 # Access Grafana at http://localhost:3000 (admin/admin)
@@ -50,7 +78,7 @@ settings:
 # Core Application
 NODE_ENV=production
 LOG_LEVEL=warn
-VALUE_PROVIDER_CLIENT_PORT=3101
+APP_PORT=3101
 
 # Monitoring
 MONITORING_ENABLED=true

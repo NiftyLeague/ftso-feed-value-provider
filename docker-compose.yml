@@ -10,24 +10,17 @@ services:
       - '3101:3101'
       - '9090:9090' # Metrics port
     environment:
+      # Minimal environment configuration - most defaults are optimized in environment.constants.ts
       - NODE_ENV=production
       - LOG_LEVEL=warn
-      - VALUE_PROVIDER_CLIENT_PORT=3101
-      - MONITORING_ENABLED=true
-      - MONITORING_METRICS_PORT=9090
-      - ENABLE_FILE_LOGGING=false
-      - LOG_DIRECTORY=logs
-      - ENABLE_PERFORMANCE_LOGGING=false
-      - ENABLE_DEBUG_LOGGING=false
-      - CACHE_TTL_MS=1000
-      - CACHE_MAX_ENTRIES=50000
-      - ALERT_EMAIL_ENABLED=false
-      - ALERT_WEBHOOK_ENABLED=false
-      # Configure these for production alerting:
+      - APP_PORT=3101
+      # Optional: Uncomment to enable alerting
+      # - ALERT_EMAIL_ENABLED=true
       # - ALERT_SMTP_HOST=your-smtp-host
       # - ALERT_SMTP_USERNAME=your-smtp-username
       # - ALERT_SMTP_PASSWORD=your-smtp-password
       # - ALERT_EMAIL_TO=ops@yourcompany.com
+      # - ALERT_WEBHOOK_ENABLED=true
       # - ALERT_WEBHOOK_URL=https://your-webhook-url
     volumes:
       - ftso-logs:/app/logs

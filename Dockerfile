@@ -1,14 +1,15 @@
 # Multi-stage production Dockerfile for FTSO Feed Value Provider
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
 
 # Install security updates and required packages
-RUN apk update && apk upgrade && \
-    apk add --no-cache dumb-init curl && \
-    rm -rf /var/cache/apk/*
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends dumb-init curl ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S ftso-provider -u 1001
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs ftso-provider
 
 # Set working directory
 WORKDIR /app
@@ -62,6 +63,8 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm \
 FROM base AS production
 
 # Set production environment
+# Note: Most configuration defaults are defined in src/config/environment.constants.ts
+# Override via environment variables in docker-compose.yml or docker run command
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 

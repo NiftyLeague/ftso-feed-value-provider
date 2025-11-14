@@ -1,7 +1,7 @@
 {
   "exchange": "kucoin",
-  "timestamp": 1762968829257,
-  "count": 1289,
+  "timestamp": 1763141375628,
+  "count": 1295,
   "symbols": [
     "0G/USDT",
     "1INCH/USDT",
@@ -395,6 +395,7 @@
     "F/USDT",
     "FARTCOIN/USDC",
     "FARTCOIN/USDT",
+    "FASTER/USDT",
     "FB/USDT",
     "FEAR/USDT",
     "FET/BTC",
@@ -837,6 +838,8 @@
     "PIX/USDT",
     "PIXEL/USDT",
     "PLAI/USDT",
+    "PLANCK/USDT",
+    "PLAYSOLANA/USDT",
     "PLU/USDT",
     "PLUME/USDT",
     "PNDR/USDT",
@@ -864,6 +867,7 @@
     "PUBLIC/USDT",
     "PUFFER/USDT",
     "PUMP/USDT",
+    "PUNDIAI/USDT",
     "PUNDIX/USDT",
     "PURR/USDT",
     "PUSH/USDT",
@@ -956,6 +960,7 @@
     "SHIB/DOGE",
     "SHIB/USDC",
     "SHIB/USDT",
+    "SHM/USDT",
     "SHR/USDT",
     "SHRAP/USDT",
     "SIDUS/USDT",
@@ -1136,6 +1141,7 @@
     "USTC/USDC",
     "USTC/USDT",
     "USUAL/USDT",
+    "UXLINK/USDT",
     "VAIOT/USDT",
     "VAIX/USDT",
     "VANA/USDT",
@@ -3453,13 +3459,13 @@
       "taker": 0.001,
       "maker": 0.001,
       "precision": {
-        "amount": 0.1,
-        "price": 0.00001
+        "amount": 1,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 10,
+          "min": 100,
           "max": 10000000000
         },
         "price": {},
@@ -3475,13 +3481,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "10",
+        "baseMinSize": "100",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.1",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -7710,7 +7716,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -7737,13 +7743,13 @@
       "taker": 0.001,
       "maker": 0.001,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
+        "amount": 0.1,
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 0.1,
+          "min": 10,
           "max": 10000000000
         },
         "price": {},
@@ -7759,13 +7765,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "0.1",
+        "baseMinSize": "10",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.0001",
-        "priceIncrement": "0.0001",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -12840,13 +12846,13 @@
       "taker": 0.003,
       "maker": 0.003,
       "precision": {
-        "amount": 0.0001,
-        "price": 1e-10
+        "amount": 1,
+        "price": 1e-11
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 100000,
+          "min": 10000000,
           "max": 61500000000
         },
         "price": {},
@@ -12862,13 +12868,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "100000",
+        "baseMinSize": "10000000",
         "quoteMinSize": "0.1",
         "baseMaxSize": "61500000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.0000000001",
-        "priceIncrement": "0.0000000001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.00000000001",
+        "priceIncrement": "0.00000000001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -15109,12 +15115,12 @@
       "maker": 0.003,
       "precision": {
         "amount": 1,
-        "price": 0.000001
+        "price": 1e-7
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 100,
+          "min": 1000,
           "max": 10000000000
         },
         "price": {},
@@ -15130,13 +15136,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "100",
+        "baseMinSize": "1000",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
         "baseIncrement": "1",
-        "quoteIncrement": "0.000001",
-        "priceIncrement": "0.000001",
+        "quoteIncrement": "0.0000001",
+        "priceIncrement": "0.0000001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -15990,13 +15996,13 @@
       "taker": 0.002,
       "maker": 0.002,
       "precision": {
-        "amount": 0.1,
-        "price": 0.00001
+        "amount": 1,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 10,
+          "min": 100,
           "max": 10000000000
         },
         "price": {},
@@ -16012,13 +16018,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "10",
+        "baseMinSize": "100",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.1",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.1",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -17916,7 +17922,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -25990,6 +25996,69 @@
         "tradingStartTime": 1734598800000
       }
     },
+    "FASTER/USDT": {
+      "id": "FASTER-USDT",
+      "symbol": "FASTER/USDT",
+      "base": "FASTER",
+      "quote": "USDT",
+      "baseId": "FASTER",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.003,
+      "maker": 0.003,
+      "precision": {
+        "amount": 1,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 100,
+          "max": 10000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 0.1,
+          "max": 99999999
+        }
+      },
+      "info": {
+        "symbol": "FASTER-USDT",
+        "name": "FASTER-USDT",
+        "baseCurrency": "FASTER",
+        "quoteCurrency": "USDT",
+        "feeCurrency": "USDT",
+        "market": "USDS",
+        "baseMinSize": "100",
+        "quoteMinSize": "0.1",
+        "baseMaxSize": "10000000000",
+        "quoteMaxSize": "99999999",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
+        "priceLimitRate": "0.05",
+        "minFunds": "0.1",
+        "isMarginEnabled": false,
+        "enableTrading": true,
+        "feeCategory": 3,
+        "makerFeeCoefficient": "1.00",
+        "takerFeeCoefficient": "1.00",
+        "st": false,
+        "callauctionIsEnabled": false,
+        "callauctionPriceFloor": "0.000001",
+        "callauctionPriceCeiling": "0.325",
+        "callauctionFirstStageStartTime": 1763017200000,
+        "callauctionSecondStageStartTime": 1763020200000,
+        "callauctionThirdStageStartTime": 1763020500000,
+        "tradingStartTime": 1763020800000
+      }
+    },
     "FB/USDT": {
       "id": "FB-USDT",
       "symbol": "FB/USDT",
@@ -31614,13 +31683,13 @@
       "taker": 0.001,
       "maker": 0.001,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
+        "amount": 0.1,
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 1,
+          "min": 10,
           "max": 10000000000
         },
         "price": {},
@@ -31636,13 +31705,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "1",
+        "baseMinSize": "10",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.0001",
-        "priceIncrement": "0.0001",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -32244,13 +32313,13 @@
       "taker": 0.003,
       "maker": 0.003,
       "precision": {
-        "amount": 0.1,
-        "price": 0.00001
+        "amount": 1,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 10,
+          "min": 100,
           "max": 10000000000
         },
         "price": {},
@@ -32266,13 +32335,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "10",
+        "baseMinSize": "100",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.1",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -34954,7 +35023,7 @@
       "maker": 0.003,
       "precision": {
         "amount": 1,
-        "price": 0.000001
+        "price": 1e-7
       },
       "limits": {
         "leverage": {},
@@ -34980,8 +35049,8 @@
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
         "baseIncrement": "1",
-        "quoteIncrement": "0.000001",
-        "priceIncrement": "0.000001",
+        "quoteIncrement": "0.0000001",
+        "priceIncrement": "0.0000001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -38202,7 +38271,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -40120,7 +40189,7 @@
       "maker": 0.003,
       "precision": {
         "amount": 0.1,
-        "price": 0.00001
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
@@ -40146,8 +40215,8 @@
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
         "baseIncrement": "0.1",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -40344,7 +40413,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -44908,12 +44977,12 @@
       "maker": 0.002,
       "precision": {
         "amount": 1,
-        "price": 1e-9
+        "price": 1e-10
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 100000,
+          "min": 1000000,
           "max": 1000000000000
         },
         "price": {},
@@ -44929,13 +44998,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "100000",
+        "baseMinSize": "1000000",
         "quoteMinSize": "0.1",
         "baseMaxSize": "1000000000000",
         "quoteMaxSize": "99999999",
         "baseIncrement": "1",
-        "quoteIncrement": "0.000000001",
-        "priceIncrement": "0.000000001",
+        "quoteIncrement": "0.0000000001",
+        "priceIncrement": "0.0000000001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -47742,13 +47811,13 @@
       "taker": 0.001,
       "maker": 0.001,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
+        "amount": 0.1,
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 1,
+          "min": 10,
           "max": 10000000000
         },
         "price": {},
@@ -47764,13 +47833,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "1",
+        "baseMinSize": "10",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.0001",
-        "priceIncrement": "0.0001",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -49443,13 +49512,13 @@
       "taker": 0.002,
       "maker": 0.002,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.00001
+        "amount": 1,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 1,
+          "min": 100,
           "max": 10000000000
         },
         "price": {},
@@ -49465,13 +49534,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "1",
+        "baseMinSize": "100",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -51270,8 +51339,8 @@
       "taker": 0.001,
       "maker": 0.001,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
+        "amount": 0.000001,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
@@ -51296,9 +51365,9 @@
         "quoteMinSize": "0.1",
         "baseMaxSize": "999999999999",
         "quoteMaxSize": "5000",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.0001",
-        "priceIncrement": "0.0001",
+        "baseIncrement": "0.000001",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -53836,6 +53905,132 @@
         "tradingStartTime": 1762257600000
       }
     },
+    "PLANCK/USDT": {
+      "id": "PLANCK-USDT",
+      "symbol": "PLANCK/USDT",
+      "base": "PLANCK",
+      "quote": "USDT",
+      "baseId": "PLANCK",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.003,
+      "maker": 0.003,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 10,
+          "max": 10000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 0.1,
+          "max": 99999999
+        }
+      },
+      "info": {
+        "symbol": "PLANCK-USDT",
+        "name": "PLANCK-USDT",
+        "baseCurrency": "PLANCK",
+        "quoteCurrency": "USDT",
+        "feeCurrency": "USDT",
+        "market": "USDS",
+        "baseMinSize": "10",
+        "quoteMinSize": "0.1",
+        "baseMaxSize": "10000000000",
+        "quoteMaxSize": "99999999",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
+        "priceLimitRate": "0.05",
+        "minFunds": "0.1",
+        "isMarginEnabled": false,
+        "enableTrading": true,
+        "feeCategory": 3,
+        "makerFeeCoefficient": "1.00",
+        "takerFeeCoefficient": "1.00",
+        "st": false,
+        "callauctionIsEnabled": false,
+        "callauctionPriceFloor": "0.00001",
+        "callauctionPriceCeiling": "5",
+        "callauctionFirstStageStartTime": 1763038800000,
+        "callauctionSecondStageStartTime": 1763041800000,
+        "callauctionThirdStageStartTime": 1763042100000,
+        "tradingStartTime": 1763042400000
+      }
+    },
+    "PLAYSOLANA/USDT": {
+      "id": "PLAYSOLANA-USDT",
+      "symbol": "PLAYSOLANA/USDT",
+      "base": "PLAYSOLANA",
+      "quote": "USDT",
+      "baseId": "PLAYSOLANA",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.003,
+      "maker": 0.003,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 10,
+          "max": 10000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 0.1,
+          "max": 99999999
+        }
+      },
+      "info": {
+        "symbol": "PLAYSOLANA-USDT",
+        "name": "PLAYSOLANA-USDT",
+        "baseCurrency": "PLAYSOLANA",
+        "quoteCurrency": "USDT",
+        "feeCurrency": "USDT",
+        "market": "USDS",
+        "baseMinSize": "10",
+        "quoteMinSize": "0.1",
+        "baseMaxSize": "10000000000",
+        "quoteMaxSize": "99999999",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
+        "priceLimitRate": "0.05",
+        "minFunds": "0.1",
+        "isMarginEnabled": false,
+        "enableTrading": true,
+        "feeCategory": 3,
+        "makerFeeCoefficient": "1.00",
+        "takerFeeCoefficient": "1.00",
+        "st": false,
+        "callauctionIsEnabled": false,
+        "callauctionPriceFloor": "0.00001",
+        "callauctionPriceCeiling": "1",
+        "callauctionFirstStageStartTime": 1763125200000,
+        "callauctionSecondStageStartTime": 1763128200000,
+        "callauctionThirdStageStartTime": 1763128500000,
+        "tradingStartTime": 1763128800000
+      }
+    },
     "PLU/USDT": {
       "id": "PLU-USDT",
       "symbol": "PLU/USDT",
@@ -55535,6 +55730,69 @@
         "callauctionSecondStageStartTime": 1752511800000,
         "callauctionThirdStageStartTime": 1752512100000,
         "tradingStartTime": 1752512400000
+      }
+    },
+    "PUNDIAI/USDT": {
+      "id": "PUNDIAI-USDT",
+      "symbol": "PUNDIAI/USDT",
+      "base": "PUNDIAI",
+      "quote": "USDT",
+      "baseId": "PUNDIAI",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.003,
+      "maker": 0.003,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 1,
+          "max": 10000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 0.1,
+          "max": 99999999
+        }
+      },
+      "info": {
+        "symbol": "PUNDIAI-USDT",
+        "name": "PUNDIAI-USDT",
+        "baseCurrency": "PUNDIAI",
+        "quoteCurrency": "USDT",
+        "feeCurrency": "USDT",
+        "market": "USDS",
+        "baseMinSize": "1",
+        "quoteMinSize": "0.1",
+        "baseMaxSize": "10000000000",
+        "quoteMaxSize": "99999999",
+        "baseIncrement": "0.01",
+        "quoteIncrement": "0.0001",
+        "priceIncrement": "0.0001",
+        "priceLimitRate": "0.05",
+        "minFunds": "0.1",
+        "isMarginEnabled": false,
+        "enableTrading": true,
+        "feeCategory": 3,
+        "makerFeeCoefficient": "1.00",
+        "takerFeeCoefficient": "1.00",
+        "st": false,
+        "callauctionIsEnabled": false,
+        "callauctionPriceFloor": "0.0001",
+        "callauctionPriceCeiling": "2.55",
+        "callauctionFirstStageStartTime": 1763103600000,
+        "callauctionSecondStageStartTime": 1763106600000,
+        "callauctionThirdStageStartTime": 1763106900000,
+        "tradingStartTime": 1763107200000
       }
     },
     "PUNDIX/USDT": {
@@ -58767,13 +59025,13 @@
       "taker": 0.002,
       "maker": 0.002,
       "precision": {
-        "amount": 0.1,
-        "price": 0.00001
+        "amount": 1,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 10,
+          "min": 100,
           "max": 10000000000
         },
         "price": {},
@@ -58789,13 +59047,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "10",
+        "baseMinSize": "100",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.1",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -59956,7 +60214,7 @@
       "quoteId": "USDT",
       "type": "spot",
       "spot": true,
-      "margin": true,
+      "margin": false,
       "future": false,
       "option": false,
       "active": true,
@@ -59995,7 +60253,7 @@
         "priceIncrement": "0.00000000001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
-        "isMarginEnabled": true,
+        "isMarginEnabled": false,
         "enableTrading": true,
         "feeCategory": 2,
         "makerFeeCoefficient": "1.00",
@@ -61331,6 +61589,69 @@
         "callauctionSecondStageStartTime": null,
         "callauctionThirdStageStartTime": null,
         "tradingStartTime": 1620630000000
+      }
+    },
+    "SHM/USDT": {
+      "id": "SHM-USDT",
+      "symbol": "SHM/USDT",
+      "base": "SHM",
+      "quote": "USDT",
+      "baseId": "SHM",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.003,
+      "maker": 0.003,
+      "precision": {
+        "amount": 1,
+        "price": 1e-7
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 1000,
+          "max": 10000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 0.1,
+          "max": 99999999
+        }
+      },
+      "info": {
+        "symbol": "SHM-USDT",
+        "name": "SHM-USDT",
+        "baseCurrency": "SHM",
+        "quoteCurrency": "USDT",
+        "feeCurrency": "USDT",
+        "market": "USDS",
+        "baseMinSize": "1000",
+        "quoteMinSize": "0.1",
+        "baseMaxSize": "10000000000",
+        "quoteMaxSize": "99999999",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.0000001",
+        "priceIncrement": "0.0000001",
+        "priceLimitRate": "0.05",
+        "minFunds": "0.1",
+        "isMarginEnabled": false,
+        "enableTrading": true,
+        "feeCategory": 3,
+        "makerFeeCoefficient": "1.00",
+        "takerFeeCoefficient": "1.00",
+        "st": false,
+        "callauctionIsEnabled": false,
+        "callauctionPriceFloor": "0.0000001",
+        "callauctionPriceCeiling": "0.004",
+        "callauctionFirstStageStartTime": 1763020800000,
+        "callauctionSecondStageStartTime": 1763023800000,
+        "callauctionThirdStageStartTime": 1763024100000,
+        "tradingStartTime": 1763024400000
       }
     },
     "SHR/USDT": {
@@ -64284,7 +64605,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -67560,7 +67881,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -68946,7 +69267,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -72673,6 +72994,69 @@
         "tradingStartTime": 1734519600000
       }
     },
+    "UXLINK/USDT": {
+      "id": "UXLINK-USDT",
+      "symbol": "UXLINK/USDT",
+      "base": "UXLINK",
+      "quote": "USDT",
+      "baseId": "UXLINK",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.002,
+      "maker": 0.002,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {
+          "min": 10,
+          "max": 10000000000
+        },
+        "price": {},
+        "cost": {
+          "min": 0.1,
+          "max": 99999999
+        }
+      },
+      "info": {
+        "symbol": "UXLINK-USDT",
+        "name": "UXLINK-USDT",
+        "baseCurrency": "UXLINK",
+        "quoteCurrency": "USDT",
+        "feeCurrency": "USDT",
+        "market": "USDS",
+        "baseMinSize": "10",
+        "quoteMinSize": "0.1",
+        "baseMaxSize": "10000000000",
+        "quoteMaxSize": "99999999",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
+        "priceLimitRate": "0.05",
+        "minFunds": "0.1",
+        "isMarginEnabled": false,
+        "enableTrading": true,
+        "feeCategory": 2,
+        "makerFeeCoefficient": "1.00",
+        "takerFeeCoefficient": "1.00",
+        "st": false,
+        "callauctionIsEnabled": false,
+        "callauctionPriceFloor": "0.00001",
+        "callauctionPriceCeiling": "0.088",
+        "callauctionFirstStageStartTime": 1763114400000,
+        "callauctionSecondStageStartTime": 1763117400000,
+        "callauctionThirdStageStartTime": 1763117700000,
+        "tradingStartTime": 1763118000000
+      }
+    },
     "VAIOT/USDT": {
       "id": "VAI-USDT",
       "symbol": "VAIOT/USDT",
@@ -73824,13 +74208,13 @@
       "taker": 0.001,
       "maker": 0.001,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.0001
+        "amount": 0.1,
+        "price": 0.00001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 0.1,
+          "min": 10,
           "max": 10000000000
         },
         "price": {},
@@ -73846,13 +74230,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "0.1",
+        "baseMinSize": "10",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.0001",
-        "priceIncrement": "0.0001",
+        "baseIncrement": "0.1",
+        "quoteIncrement": "0.00001",
+        "priceIncrement": "0.00001",
         "priceLimitRate": "0.08",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -78522,7 +78906,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,
@@ -79998,13 +80382,13 @@
       "taker": 0.002,
       "maker": 0.002,
       "precision": {
-        "amount": 0.0001,
-        "price": 0.00001
+        "amount": 1,
+        "price": 0.000001
       },
       "limits": {
         "leverage": {},
         "amount": {
-          "min": 1,
+          "min": 100,
           "max": 10000000000
         },
         "price": {},
@@ -80020,13 +80404,13 @@
         "quoteCurrency": "USDT",
         "feeCurrency": "USDT",
         "market": "USDS",
-        "baseMinSize": "1",
+        "baseMinSize": "100",
         "quoteMinSize": "0.1",
         "baseMaxSize": "10000000000",
         "quoteMaxSize": "99999999",
-        "baseIncrement": "0.0001",
-        "quoteIncrement": "0.00001",
-        "priceIncrement": "0.00001",
+        "baseIncrement": "1",
+        "quoteIncrement": "0.000001",
+        "priceIncrement": "0.000001",
         "priceLimitRate": "0.1",
         "minFunds": "0.1",
         "isMarginEnabled": false,
@@ -81250,7 +81634,7 @@
       "quoteId": "USDT",
       "type": "spot",
       "spot": true,
-      "margin": true,
+      "margin": false,
       "future": false,
       "option": false,
       "active": true,
@@ -81289,7 +81673,7 @@
         "priceIncrement": "0.0001",
         "priceLimitRate": "0.05",
         "minFunds": "0.1",
-        "isMarginEnabled": true,
+        "isMarginEnabled": false,
         "enableTrading": true,
         "feeCategory": 2,
         "makerFeeCoefficient": "1.00",
@@ -82428,7 +82812,7 @@
         "feeCategory": 1,
         "makerFeeCoefficient": "1.00",
         "takerFeeCoefficient": "1.00",
-        "st": false,
+        "st": true,
         "callauctionIsEnabled": false,
         "callauctionPriceFloor": null,
         "callauctionPriceCeiling": null,

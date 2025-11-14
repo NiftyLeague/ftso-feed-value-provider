@@ -1,16 +1,13 @@
 {
   "exchange": "probit",
-  "timestamp": 1762968836694,
-  "count": 164,
+  "timestamp": 1763141383459,
+  "count": 108,
   "symbols": [
-    "AAVE/USDT",
     "AGRS/BTC",
     "AGRS/USDT",
     "AMON/USDT",
-    "APEPE/USDT",
     "APX/BTC",
     "AQUA/USDT",
-    "ARB/USDT",
     "ARDR/BTC",
     "ARDR/USDT",
     "ARX/USDT",
@@ -23,93 +20,58 @@
     "BLURT/BTC",
     "BNB/USDT",
     "BPLC/USDT",
-    "BSTY/USDT",
     "BTC/USDT",
     "BTCV/BTC",
     "BTG/USDT",
     "CARR/USDT",
-    "CBX/USDT",
     "CGT/USDT",
-    "CNS/USDT",
-    "COAL/USDT",
     "CPU/USDT",
-    "CRO/USDT",
     "CROAK/USDT",
-    "CTCN/USDT",
-    "DBX/USDT",
     "DEB/USDT",
     "DEXA/USDT",
     "DOGE/USDT",
     "EBPTC/USDT",
-    "ECOREAL/USDT",
-    "EGLD/USDT",
     "ELCASH/USDT",
-    "ERG/USDT",
     "ETH/BTC",
     "ETH/USDT",
     "ETN/USDT",
     "EURR/USDT",
     "EXCC/BTC",
     "EXCC/USDT",
-    "FBX/USDT",
     "FRTS/BTC",
     "FRTS/USDT",
-    "FSTR/USDT",
-    "FTR/USDT",
-    "GLX/USDT",
     "GMCOIN/USDT",
     "HBDC/USDT",
     "HMD/USDT",
-    "HOT/USDT",
     "ICOM/USDT",
     "IGNIS/USDT",
     "ILC/USDT",
     "IMGN/USDT",
-    "IMX/USDT",
     "IZKY/USDC",
     "JOB/USDT",
     "KLY/USDT",
-    "KMX/USDT",
-    "LCMG/USDT",
     "LEMX/USDT",
     "LIMO/USDT",
-    "LINEA/USDT",
     "LOX/USDT",
     "LPY/USDT",
-    "LTC/USDT",
-    "MANA/USDT",
-    "MASK/USDT",
-    "MCF/USDT",
     "MINDFAK/USDT",
     "MINT/USDT",
-    "MOGUL/USDT",
     "NUC/USDC",
-    "NXR/USDT",
-    "OBOT/USDT",
     "OLEA/USDT",
-    "OP/USDT",
-    "OPEN/USDT",
     "OPP/USDT",
     "OUD/USDT",
     "OXA/USDT",
     "PCRM/USDT",
-    "PEPEMEME/USDT",
     "PHNIX/USDT",
     "POL/USDT",
     "PROB/USDT",
     "PROBINEX/USDT",
     "PTH/USDT",
     "PZM/USDT",
-    "QNT/USDT",
     "REAL/USDT",
-    "S/USDT",
     "SBIO/USDT",
     "SEAPT/USDT",
-    "SFM/USDT",
-    "SHIB/USDT",
-    "SHIBDOGE/USDT",
     "SHM/USDT",
-    "SHPING/USDT",
     "SKETCH/USDT",
     "SKEY/USDT",
     "SKF/USDT",
@@ -118,31 +80,18 @@
     "SMARTLOX/USDT",
     "SMARTNFT/USDT",
     "SOL/USDT",
-    "SOLO/USDT",
-    "SQR/USDT",
     "SRX/USDT",
     "STABUL/USDT",
     "STDU/USDT",
-    "STEEM/USDT",
-    "STRM/USDT",
-    "SUI/USDT",
     "SVQ/USDT",
     "SVTS/USDT",
-    "SYL/USDT",
     "SYMM/USDT",
-    "TAC/USDT",
     "TBIG/USDT",
     "TEM/BTC",
     "TLOS/USDT",
-    "TRUMP/USDT",
     "TRX/USDT",
-    "UBSN/USDT",
-    "UBX/USDT",
     "UCO/USDT",
-    "UCX/USDT",
-    "ULX/USDT",
     "UPT/USDT",
-    "UQC/USDT",
     "USDC/USDT",
     "USDQ/USDC",
     "USDQ/USDT",
@@ -153,77 +102,17 @@
     "VISTA/USDT",
     "VOW/USDT",
     "VSN/USDT",
-    "WEMIX/USDT",
-    "WLFI/USDT",
     "WOLF/USDT",
     "XDC/ETH",
     "XDC/USDT",
-    "XDNA/USDT",
     "XGP/USDT",
     "XLM/USDT",
     "XMT/USDT",
     "XRP/USDT",
     "XTP/USDT",
-    "YOLK/USDT",
-    "ZETCAB/USDT",
     "ZYN/USDT"
   ],
   "markets": {
-    "AAVE/USDT": {
-      "id": "AAVE-USDT",
-      "symbol": "AAVE/USDT",
-      "base": "AAVE",
-      "quote": "USDT",
-      "baseId": "AAVE",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.01,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.01,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "AAVE-USDT",
-        "base_currency_id": "AAVE",
-        "quote_currency_id": "USDT",
-        "min_price": "0.01",
-        "max_price": "9999999999999999",
-        "price_increment": "0.01",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "AGRS/BTC": {
       "id": "AGRS-BTC",
       "symbol": "AGRS/BTC",
@@ -389,61 +278,6 @@
         "closed": false
       }
     },
-    "APEPE/USDT": {
-      "id": "APEPE-USDT",
-      "symbol": "APEPE/USDT",
-      "base": "APEPE",
-      "quote": "USDT",
-      "baseId": "APEPE",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-9,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-9,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "APEPE-USDT",
-        "base_currency_id": "APEPE",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "APX/BTC": {
       "id": "APX-BTC",
       "symbol": "APX/BTC",
@@ -550,61 +384,6 @@
         "cost_precision": "8",
         "maker_fee_rate": "0.2",
         "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "ARB/USDT": {
-      "id": "ARB-USDT",
-      "symbol": "ARB/USDT",
-      "base": "ARB",
-      "quote": "USDT",
-      "baseId": "ARB",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "ARB-USDT",
-        "base_currency_id": "ARB",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
         "show_in_ui": true,
         "closed": false
       }
@@ -1269,61 +1048,6 @@
         "closed": false
       }
     },
-    "BSTY/USDT": {
-      "id": "BSTY-USDT",
-      "symbol": "BSTY/USDT",
-      "base": "BSTY",
-      "quote": "USDT",
-      "baseId": "BSTY",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "BSTY-USDT",
-        "base_currency_id": "BSTY",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "BTC/USDT": {
       "id": "BTC-USDT",
       "symbol": "BTC/USDT",
@@ -1544,61 +1268,6 @@
         "closed": false
       }
     },
-    "CBX/USDT": {
-      "id": "CBX-USDT",
-      "symbol": "CBX/USDT",
-      "base": "CBX",
-      "quote": "USDT",
-      "baseId": "CBX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "CBX-USDT",
-        "base_currency_id": "CBX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "CGT/USDT": {
       "id": "CGT-USDT",
       "symbol": "CGT/USDT",
@@ -1642,116 +1311,6 @@
         "min_price": "0.00001",
         "max_price": "9999999999999999",
         "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "CNS/USDT": {
-      "id": "CNS-USDT",
-      "symbol": "CNS/USDT",
-      "base": "CNS",
-      "quote": "USDT",
-      "baseId": "CNS",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "CNS-USDT",
-        "base_currency_id": "CNS",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "COAL/USDT": {
-      "id": "COAL-USDT",
-      "symbol": "COAL/USDT",
-      "base": "COAL",
-      "quote": "USDT",
-      "baseId": "COAL",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.000001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.000001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "COAL-USDT",
-        "base_currency_id": "COAL",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -1819,61 +1378,6 @@
         "closed": false
       }
     },
-    "CRO/USDT": {
-      "id": "CRO-USDT",
-      "symbol": "CRO/USDT",
-      "base": "CRO",
-      "quote": "USDT",
-      "baseId": "CRO",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "CRO-USDT",
-        "base_currency_id": "CRO",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "CROAK/USDT": {
       "id": "CROAK-USDT",
       "symbol": "CROAK/USDT",
@@ -1917,116 +1421,6 @@
         "min_price": "0.0000001",
         "max_price": "9999999999999999",
         "price_increment": "0.0000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "CTCN/USDT": {
-      "id": "CTCN-USDT",
-      "symbol": "CTCN/USDT",
-      "base": "CTCN",
-      "quote": "USDT",
-      "baseId": "CTCN",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "CTCN-USDT",
-        "base_currency_id": "CTCN",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "DBX/USDT": {
-      "id": "DBX-USDT",
-      "symbol": "DBX/USDT",
-      "base": "DBX",
-      "quote": "USDT",
-      "baseId": "DBX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "DBX-USDT",
-        "base_currency_id": "DBX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -2259,116 +1653,6 @@
         "closed": false
       }
     },
-    "ECOREAL/USDT": {
-      "id": "ECOREAL-USDT",
-      "symbol": "ECOREAL/USDT",
-      "base": "ECOREAL",
-      "quote": "USDT",
-      "baseId": "ECOREAL",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "ECOREAL-USDT",
-        "base_currency_id": "ECOREAL",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "EGLD/USDT": {
-      "id": "EGLD-USDT",
-      "symbol": "EGLD/USDT",
-      "base": "EGLD",
-      "quote": "USDT",
-      "baseId": "EGLD",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.01,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.01,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "EGLD-USDT",
-        "base_currency_id": "EGLD",
-        "quote_currency_id": "USDT",
-        "min_price": "0.01",
-        "max_price": "9999999999999999",
-        "price_increment": "0.01",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "ELCASH/USDT": {
       "id": "ELCASH-USDT",
       "symbol": "ELCASH/USDT",
@@ -2408,61 +1692,6 @@
       "info": {
         "id": "ELCASH-USDT",
         "base_currency_id": "ELCASH",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "ERG/USDT": {
-      "id": "ERG-USDT",
-      "symbol": "ERG/USDT",
-      "base": "ERG",
-      "quote": "USDT",
-      "baseId": "ERG",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "ERG-USDT",
-        "base_currency_id": "ERG",
         "quote_currency_id": "USDT",
         "min_price": "0.0001",
         "max_price": "9999999999999999",
@@ -2809,61 +2038,6 @@
         "closed": false
       }
     },
-    "FBX/USDT": {
-      "id": "FBX-USDT",
-      "symbol": "FBX/USDT",
-      "base": "FBX",
-      "quote": "USDT",
-      "baseId": "FBX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-7,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-7,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "FBX-USDT",
-        "base_currency_id": "FBX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "FRTS/BTC": {
       "id": "FRTS-BTC",
       "symbol": "FRTS/BTC",
@@ -2962,171 +2136,6 @@
         "min_price": "0.000000001",
         "max_price": "9999999999999999",
         "price_increment": "0.000000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "FSTR/USDT": {
-      "id": "FSTR-USDT",
-      "symbol": "FSTR/USDT",
-      "base": "FSTR",
-      "quote": "USDT",
-      "baseId": "FSTR",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "FSTR-USDT",
-        "base_currency_id": "FSTR",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "FTR/USDT": {
-      "id": "FTR-USDT",
-      "symbol": "FTR/USDT",
-      "base": "FTR",
-      "quote": "USDT",
-      "baseId": "FTR",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 0.5,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "FTR-USDT",
-        "base_currency_id": "FTR",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "0.5",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "GLX/USDT": {
-      "id": "GLX-USDT",
-      "symbol": "GLX/USDT",
-      "base": "GLX",
-      "quote": "USDT",
-      "baseId": "GLX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "GLX-USDT",
-        "base_currency_id": "GLX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -3295,61 +2304,6 @@
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "HOT/USDT": {
-      "id": "HOT-USDT",
-      "symbol": "HOT/USDT",
-      "base": "HOT",
-      "quote": "USDT",
-      "baseId": "HOT",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 1,
-        "price": 1e-7,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 1,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-7,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "HOT-USDT",
-        "base_currency_id": "HOT",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0000001",
-        "min_quantity": "1",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "0",
         "min_cost": "1",
         "max_cost": "9999999999999999",
         "cost_precision": "8",
@@ -3579,61 +2533,6 @@
         "closed": false
       }
     },
-    "IMX/USDT": {
-      "id": "IMX-USDT",
-      "symbol": "IMX/USDT",
-      "base": "IMX",
-      "quote": "USDT",
-      "baseId": "IMX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "IMX-USDT",
-        "base_currency_id": "IMX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "IZKY/USDC": {
       "id": "IZKY-USDC",
       "symbol": "IZKY/USDC",
@@ -3799,116 +2698,6 @@
         "closed": false
       }
     },
-    "KMX/USDT": {
-      "id": "KMX-USDT",
-      "symbol": "KMX/USDT",
-      "base": "KMX",
-      "quote": "USDT",
-      "baseId": "KMX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-7,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-7,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "KMX-USDT",
-        "base_currency_id": "KMX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "LCMG/USDT": {
-      "id": "LCMG-USDT",
-      "symbol": "LCMG/USDT",
-      "base": "LCMG",
-      "quote": "USDT",
-      "baseId": "LCMG",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-7,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-7,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "LCMG-USDT",
-        "base_currency_id": "LCMG",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "LEMX/USDT": {
       "id": "LEMX-USDT",
       "symbol": "LEMX/USDT",
@@ -4019,61 +2808,6 @@
         "closed": false
       }
     },
-    "LINEA/USDT": {
-      "id": "LINEA-USDT",
-      "symbol": "LINEA/USDT",
-      "base": "LINEA",
-      "quote": "USDT",
-      "baseId": "LINEA",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.000001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.000001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "LINEA-USDT",
-        "base_currency_id": "LINEA",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "LOX/USDT": {
       "id": "LOX-USDT",
       "symbol": "LOX/USDT",
@@ -4168,226 +2902,6 @@
       "info": {
         "id": "LPY-USDT",
         "base_currency_id": "LPY",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "LTC/USDT": {
-      "id": "LTC-USDT",
-      "symbol": "LTC/USDT",
-      "base": "LTC",
-      "quote": "USDT",
-      "baseId": "LTC",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.00001,
-        "price": 0.01,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.01,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "LTC-USDT",
-        "base_currency_id": "LTC",
-        "quote_currency_id": "USDT",
-        "min_price": "0.01",
-        "max_price": "9999999999999999",
-        "price_increment": "0.01",
-        "min_quantity": "0.00001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "5",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "MANA/USDT": {
-      "id": "MANA-USDT",
-      "symbol": "MANA/USDT",
-      "base": "MANA",
-      "quote": "USDT",
-      "baseId": "MANA",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "MANA-USDT",
-        "base_currency_id": "MANA",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "MASK/USDT": {
-      "id": "MASK-USDT",
-      "symbol": "MASK/USDT",
-      "base": "MASK",
-      "quote": "USDT",
-      "baseId": "MASK",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "MASK-USDT",
-        "base_currency_id": "MASK",
-        "quote_currency_id": "USDT",
-        "min_price": "0.001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "MCF/USDT": {
-      "id": "MCF-USDT",
-      "symbol": "MCF/USDT",
-      "base": "MCF",
-      "quote": "USDT",
-      "baseId": "MCF",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.000001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.000001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "MCF-USDT",
-        "base_currency_id": "MCF",
         "quote_currency_id": "USDT",
         "min_price": "0.000001",
         "max_price": "9999999999999999",
@@ -4514,61 +3028,6 @@
         "closed": false
       }
     },
-    "MOGUL/USDT": {
-      "id": "MOGUL-USDT",
-      "symbol": "MOGUL/USDT",
-      "base": "MOGUL",
-      "quote": "USDT",
-      "baseId": "MOGUL",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.000001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.000001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "MOGUL-USDT",
-        "base_currency_id": "MOGUL",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "NUC/USDC": {
       "id": "NUC-USDC",
       "symbol": "NUC/USDC",
@@ -4624,116 +3083,6 @@
         "closed": false
       }
     },
-    "NXR/USDT": {
-      "id": "NXR-USDT",
-      "symbol": "NXR/USDT",
-      "base": "NXR",
-      "quote": "USDT",
-      "baseId": "NXR",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "NXR-USDT",
-        "base_currency_id": "NXR",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "OBOT/USDT": {
-      "id": "OBOT-USDT",
-      "symbol": "OBOT/USDT",
-      "base": "OBOT",
-      "quote": "USDT",
-      "baseId": "OBOT",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "OBOT-USDT",
-        "base_currency_id": "OBOT",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "OLEA/USDT": {
       "id": "OLEA-USDT",
       "symbol": "OLEA/USDT",
@@ -4777,116 +3126,6 @@
         "min_price": "0.000001",
         "max_price": "9999999999999999",
         "price_increment": "0.000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "OP/USDT": {
-      "id": "OP-USDT",
-      "symbol": "OP/USDT",
-      "base": "OP",
-      "quote": "USDT",
-      "baseId": "OP",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "OP-USDT",
-        "base_currency_id": "OP",
-        "quote_currency_id": "USDT",
-        "min_price": "0.001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "OPEN/USDT": {
-      "id": "OPEN-USDT",
-      "symbol": "OPEN/USDT",
-      "base": "OPEN",
-      "quote": "USDT",
-      "baseId": "OPEN",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "OPEN-USDT",
-        "base_currency_id": "OPEN",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -5107,61 +3346,6 @@
         "min_price": "0.00001",
         "max_price": "9999999999999999",
         "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "PEPEMEME/USDT": {
-      "id": "PEPEMEME-USDT",
-      "symbol": "PEPEMEME/USDT",
-      "base": "PEPEMEME",
-      "quote": "USDT",
-      "baseId": "PEPEMEME",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "PEPEMEME-USDT",
-        "base_currency_id": "PEPEMEME",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -5504,61 +3688,6 @@
         "closed": false
       }
     },
-    "QNT/USDT": {
-      "id": "QNT-USDT",
-      "symbol": "QNT/USDT",
-      "base": "QNT",
-      "quote": "USDT",
-      "baseId": "QNT",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.1,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.1,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "QNT-USDT",
-        "base_currency_id": "QNT",
-        "quote_currency_id": "USDT",
-        "min_price": "0.1",
-        "max_price": "9999999999999999",
-        "price_increment": "0.1",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "REAL/USDT": {
       "id": "REAL-USDT",
       "symbol": "REAL/USDT",
@@ -5610,61 +3739,6 @@
         "cost_precision": "8",
         "maker_fee_rate": "0.2",
         "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "S/USDT": {
-      "id": "S-USDT",
-      "symbol": "S/USDT",
-      "base": "S",
-      "quote": "USDT",
-      "baseId": "S",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "S-USDT",
-        "base_currency_id": "S",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
         "show_in_ui": true,
         "closed": false
       }
@@ -5779,171 +3853,6 @@
         "closed": false
       }
     },
-    "SFM/USDT": {
-      "id": "SFM-USDT",
-      "symbol": "SFM/USDT",
-      "base": "SFM",
-      "quote": "USDT",
-      "baseId": "SFM",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SFM-USDT",
-        "base_currency_id": "SFM",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "SHIB/USDT": {
-      "id": "SHIB-USDT",
-      "symbol": "SHIB/USDT",
-      "base": "SHIB",
-      "quote": "USDT",
-      "baseId": "SHIB",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SHIB-USDT",
-        "base_currency_id": "SHIB",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "SHIBDOGE/USDT": {
-      "id": "SHIBDOGE-USDT",
-      "symbol": "SHIBDOGE/USDT",
-      "base": "SHIBDOGE",
-      "quote": "USDT",
-      "baseId": "SHIBDOGE",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-18,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 1e+22
-        },
-        "price": {
-          "min": 1e-18,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SHIBDOGE-USDT",
-        "base_currency_id": "SHIBDOGE",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000000000000000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000000000000000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "SHM/USDT": {
       "id": "SHM-USDT",
       "symbol": "SHM/USDT",
@@ -5987,61 +3896,6 @@
         "min_price": "0.000000001",
         "max_price": "9999999999999999",
         "price_increment": "0.000000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "SHPING/USDT": {
-      "id": "SHPING-USDT",
-      "symbol": "SHPING/USDT",
-      "base": "SHPING",
-      "quote": "USDT",
-      "baseId": "SHPING",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SHPING-USDT",
-        "base_currency_id": "SHPING",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -6494,116 +4348,6 @@
         "closed": false
       }
     },
-    "SOLO/USDT": {
-      "id": "SOLO-USDT",
-      "symbol": "SOLO/USDT",
-      "base": "SOLO",
-      "quote": "USDT",
-      "baseId": "SOLO",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SOLO-USDT",
-        "base_currency_id": "SOLO",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "SQR/USDT": {
-      "id": "SQR-USDT",
-      "symbol": "SQR/USDT",
-      "base": "SQR",
-      "quote": "USDT",
-      "baseId": "SQR",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SQR-USDT",
-        "base_currency_id": "SQR",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "SRX/USDT": {
       "id": "SRX-USDT",
       "symbol": "SRX/USDT",
@@ -6769,171 +4513,6 @@
         "closed": false
       }
     },
-    "STEEM/USDT": {
-      "id": "STEEM-USDT",
-      "symbol": "STEEM/USDT",
-      "base": "STEEM",
-      "quote": "USDT",
-      "baseId": "STEEM",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "STEEM-USDT",
-        "base_currency_id": "STEEM",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "STRM/USDT": {
-      "id": "STRM-USDT",
-      "symbol": "STRM/USDT",
-      "base": "STRM",
-      "quote": "USDT",
-      "baseId": "STRM",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-7,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-7,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "STRM-USDT",
-        "base_currency_id": "STRM",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "SUI/USDT": {
-      "id": "SUI-USDT",
-      "symbol": "SUI/USDT",
-      "base": "SUI",
-      "quote": "USDT",
-      "baseId": "SUI",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SUI-USDT",
-        "base_currency_id": "SUI",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "SVQ/USDT": {
       "id": "SVQ-USDT",
       "symbol": "SVQ/USDT",
@@ -7044,61 +4623,6 @@
         "closed": false
       }
     },
-    "SYL/USDT": {
-      "id": "SYL-USDT",
-      "symbol": "SYL/USDT",
-      "base": "SYL",
-      "quote": "USDT",
-      "baseId": "SYL",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.000001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.000001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "SYL-USDT",
-        "base_currency_id": "SYL",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "SYMM/USDT": {
       "id": "SYMM-USDT",
       "symbol": "SYMM/USDT",
@@ -7142,61 +4666,6 @@
         "min_price": "0.0001",
         "max_price": "9999999999999999",
         "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "TAC/USDT": {
-      "id": "TAC-USDT",
-      "symbol": "TAC/USDT",
-      "base": "TAC",
-      "quote": "USDT",
-      "baseId": "TAC",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "TAC-USDT",
-        "base_currency_id": "TAC",
-        "quote_currency_id": "USDT",
-        "min_price": "0.001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -7374,61 +4843,6 @@
         "closed": false
       }
     },
-    "TRUMP/USDT": {
-      "id": "TRUMP-USDT",
-      "symbol": "TRUMP/USDT",
-      "base": "TRUMP",
-      "quote": "USDT",
-      "baseId": "TRUMP",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.01,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.01,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "TRUMP-USDT",
-        "base_currency_id": "TRUMP",
-        "quote_currency_id": "USDT",
-        "min_price": "0.01",
-        "max_price": "9999999999999999",
-        "price_increment": "0.01",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "TRX/USDT": {
       "id": "TRX-USDT",
       "symbol": "TRX/USDT",
@@ -7480,116 +4894,6 @@
         "cost_precision": "8",
         "maker_fee_rate": "0.1",
         "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "UBSN/USDT": {
-      "id": "UBSN-USDT",
-      "symbol": "UBSN/USDT",
-      "base": "UBSN",
-      "quote": "USDT",
-      "baseId": "UBSN",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "UBSN-USDT",
-        "base_currency_id": "UBSN",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "UBX/USDT": {
-      "id": "UBX-USDT",
-      "symbol": "UBX/USDT",
-      "base": "UBX",
-      "quote": "USDT",
-      "baseId": "UBX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-9,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-9,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "UBX-USDT",
-        "base_currency_id": "UBX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
         "show_in_ui": true,
         "closed": false
       }
@@ -7649,116 +4953,6 @@
         "closed": false
       }
     },
-    "UCX/USDT": {
-      "id": "UCX-USDT",
-      "symbol": "UCX/USDT",
-      "base": "UCX",
-      "quote": "USDT",
-      "baseId": "UCX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "UCX-USDT",
-        "base_currency_id": "UCX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "ULX/USDT": {
-      "id": "ULX-USDT",
-      "symbol": "ULX/USDT",
-      "base": "ULX",
-      "quote": "USDT",
-      "baseId": "ULX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "ULX-USDT",
-        "base_currency_id": "ULX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "UPT/USDT": {
       "id": "UPT-USDT",
       "symbol": "UPT/USDT",
@@ -7802,61 +4996,6 @@
         "min_price": "0.001",
         "max_price": "9999999999999999",
         "price_increment": "0.001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "UQC/USDT": {
-      "id": "UQC-USDT",
-      "symbol": "UQC/USDT",
-      "base": "UQC",
-      "quote": "USDT",
-      "baseId": "UQC",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "UQC-USDT",
-        "base_currency_id": "UQC",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
         "min_quantity": "0.0001",
         "max_quantity": "9999999999999999",
         "quantity_precision": "4",
@@ -8419,116 +5558,6 @@
         "closed": false
       }
     },
-    "WEMIX/USDT": {
-      "id": "WEMIX-USDT",
-      "symbol": "WEMIX/USDT",
-      "base": "WEMIX",
-      "quote": "USDT",
-      "baseId": "WEMIX",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "WEMIX-USDT",
-        "base_currency_id": "WEMIX",
-        "quote_currency_id": "USDT",
-        "min_price": "0.001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "WLFI/USDT": {
-      "id": "WLFI-USDT",
-      "symbol": "WLFI/USDT",
-      "base": "WLFI",
-      "quote": "USDT",
-      "baseId": "WLFI",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.001,
-      "maker": 0.001,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.0001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "WLFI-USDT",
-        "base_currency_id": "WLFI",
-        "quote_currency_id": "USDT",
-        "min_price": "0.0001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.0001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.1",
-        "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
     "WOLF/USDT": {
       "id": "WOLF-USDT",
       "symbol": "WOLF/USDT",
@@ -8690,61 +5719,6 @@
         "cost_precision": "8",
         "maker_fee_rate": "0.1",
         "taker_fee_rate": "0.1",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "XDNA/USDT": {
-      "id": "XDNA-USDT",
-      "symbol": "XDNA/USDT",
-      "base": "XDNA",
-      "quote": "USDT",
-      "baseId": "XDNA",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 1e-8,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 1e-8,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "XDNA-USDT",
-        "base_currency_id": "XDNA",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
         "show_in_ui": true,
         "closed": false
       }
@@ -9008,116 +5982,6 @@
       "info": {
         "id": "XTP-USDT",
         "base_currency_id": "XTP",
-        "quote_currency_id": "USDT",
-        "min_price": "0.000001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.000001",
-        "min_quantity": "0.0001",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "YOLK/USDT": {
-      "id": "YOLK-USDT",
-      "symbol": "YOLK/USDT",
-      "base": "YOLK",
-      "quote": "USDT",
-      "baseId": "YOLK",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.00001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.01,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.00001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "YOLK-USDT",
-        "base_currency_id": "YOLK",
-        "quote_currency_id": "USDT",
-        "min_price": "0.00001",
-        "max_price": "9999999999999999",
-        "price_increment": "0.00001",
-        "min_quantity": "0.01",
-        "max_quantity": "9999999999999999",
-        "quantity_precision": "4",
-        "min_cost": "1",
-        "max_cost": "9999999999999999",
-        "cost_precision": "8",
-        "maker_fee_rate": "0.2",
-        "taker_fee_rate": "0.2",
-        "show_in_ui": true,
-        "closed": false
-      }
-    },
-    "ZETCAB/USDT": {
-      "id": "ZETCAB-USDT",
-      "symbol": "ZETCAB/USDT",
-      "base": "ZETCAB",
-      "quote": "USDT",
-      "baseId": "ZETCAB",
-      "quoteId": "USDT",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.002,
-      "maker": 0.002,
-      "precision": {
-        "amount": 0.0001,
-        "price": 0.000001,
-        "cost": 1e-8
-      },
-      "limits": {
-        "leverage": {},
-        "amount": {
-          "min": 0.0001,
-          "max": 10000000000000000
-        },
-        "price": {
-          "min": 0.000001,
-          "max": 10000000000000000
-        },
-        "cost": {
-          "min": 1,
-          "max": 10000000000000000
-        }
-      },
-      "info": {
-        "id": "ZETCAB-USDT",
-        "base_currency_id": "ZETCAB",
         "quote_currency_id": "USDT",
         "min_price": "0.000001",
         "max_price": "9999999999999999",

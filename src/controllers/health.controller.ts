@@ -594,20 +594,24 @@ export class HealthController extends EventDrivenController {
         // System is ready if we have healthy data sources AND successful aggregation
         const hasHealthySources = healthySources > 0;
         const hasSuccessfulAggregation = systemHealth.aggregation.successRate > 0;
+        const hasLowErrorRate = systemHealth.aggregation.errorCount < 10;
 
         // In development mode, be more lenient - system is ready if integration service is initialized
-        // In production mode, require actual healthy sources and successful aggregation
+        // In production mode, require actual healthy sources OR successful aggregation with low errors
+        // This allows the system to be ready if it has either:
+        // 1. Healthy data sources (even if no aggregation requests yet), OR
+        // 2. Successful aggregation with low error count (serving data successfully)
         if (ENV_HELPERS.isDevelopment()) {
           checks.startup.ready = true; // In development, just being initialized is enough
         } else {
-          // System is ready only if we have both healthy sources AND successful aggregation
-          // This ensures we can actually serve price data, not just that we have connections
-          checks.startup.ready = hasHealthySources && hasSuccessfulAggregation;
+          // System is ready if we have healthy sources OR we're successfully serving data
+          // This is more practical than requiring both, especially during startup
+          checks.startup.ready = hasHealthySources || (hasSuccessfulAggregation && hasLowErrorRate);
         }
 
         if (!checks.startup.ready) {
           this.logger.debug(
-            `System not ready: ${healthySources}/${totalSources} sources healthy, successful aggregation: ${hasSuccessfulAggregation}`
+            `System not ready: ${healthySources}/${totalSources} sources healthy, aggregation success rate: ${systemHealth.aggregation.successRate}%, error count: ${systemHealth.aggregation.errorCount}`
           );
         }
       } catch (error) {

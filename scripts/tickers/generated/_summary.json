@@ -1,32 +1,26 @@
 {
-  "timestamp": 1762968840000,
-  "total_exchanges": 18,
-  "successful": 18,
+  "timestamp": 1763141385000,
+  "total_exchanges": 16,
+  "successful": 16,
   "failed": 0,
   "exchanges": [
     {
       "name": "binance",
       "status": "success",
-      "ticker_count": 2226,
+      "ticker_count": 2229,
       "file": "binance.json"
     },
     {
       "name": "bitget",
       "status": "success",
-      "ticker_count": 1470,
+      "ticker_count": 1454,
       "file": "bitget.json"
     },
     {
       "name": "bitmart",
       "status": "success",
-      "ticker_count": 2085,
+      "ticker_count": 1906,
       "file": "bitmart.json"
-    },
-    {
-      "name": "bitmex",
-      "status": "success",
-      "ticker_count": 101,
-      "file": "bitmex.json"
     },
     {
       "name": "bitrue",
@@ -43,67 +37,61 @@
     {
       "name": "bybit",
       "status": "success",
-      "ticker_count": 2733,
+      "ticker_count": 2747,
       "file": "bybit.json"
     },
     {
       "name": "coinbase",
       "status": "success",
-      "ticker_count": 1074,
+      "ticker_count": 1075,
       "file": "coinbase.json"
     },
     {
       "name": "coinex",
       "status": "success",
-      "ticker_count": 1829,
+      "ticker_count": 1820,
       "file": "coinex.json"
     },
     {
       "name": "cryptocom",
       "status": "success",
-      "ticker_count": 860,
+      "ticker_count": 856,
       "file": "cryptocom.json"
     },
     {
       "name": "gate",
       "status": "success",
-      "ticker_count": 5646,
+      "ticker_count": 6169,
       "file": "gate.json"
-    },
-    {
-      "name": "htx",
-      "status": "success",
-      "ticker_count": 962,
-      "file": "htx.json"
     },
     {
       "name": "kraken",
       "status": "success",
-      "ticker_count": 1319,
+      "ticker_count": 1325,
       "file": "kraken.json"
     },
     {
       "name": "kucoin",
       "status": "success",
-      "ticker_count": 1289,
+      "ticker_count": 1295,
       "file": "kucoin.json"
     },
     {
       "name": "mexc",
       "status": "success",
-      "ticker_count": 2795,
+      "ticker_count": 2816,
       "file": "mexc.json"
     },
     {
       "name": "okx",
       "status": "success",
-      "ticker_count": 2226,
+      "ticker_count": 2482,
       "file": "okx.json"
     },
     {
       "name": "probit",
       "status": "success",
-      "ticker_count": 164,
+      "ticker_count": 108,
       "file": "probit.json"
     },
     {
