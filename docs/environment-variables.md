@@ -145,13 +145,13 @@ injection with proper error handling, validation, and comprehensive logging.
 - **Example**: `LOG_LEVEL_BOOTSTRAP=debug`
 - **Required**: No
 
-### VALUE_PROVIDER_CLIENT_PORT
+### APP_PORT
 
 - **Description**: Port number for the HTTP server
 - **Type**: Integer
 - **Default**: `3101`
 - **Valid Range**: 1-65535
-- **Example**: `VALUE_PROVIDER_CLIENT_PORT=3101`
+- **Example**: `APP_PORT=3101`
 - **Required**: No
 
 ### VALUE_PROVIDER_CLIENT_BASE_PATH
@@ -382,9 +382,9 @@ injection with proper error handling, validation, and comprehensive logging.
 ### Development (.env.development)
 
 ```bash
-LOG_LEVEL=debug
-VALUE_PROVIDER_CLIENT_PORT=3101
 NODE_ENV=development
+LOG_LEVEL=debug
+APP_PORT=3101
 # Production integration is always enabled
 MONITORING_ENABLED=true
 CACHE_TTL_MS=1000
@@ -405,9 +405,9 @@ LOG_LEVEL_ERROR_HANDLER=debug
 ### Production (.env.production)
 
 ```bash
-LOG_LEVEL=warn
-VALUE_PROVIDER_CLIENT_PORT=3101
 NODE_ENV=production
+LOG_LEVEL=warn
+APP_PORT=3101
 # Production integration is always enabled
 
 # Enhanced Logging for Production

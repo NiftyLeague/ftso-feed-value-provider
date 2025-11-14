@@ -53,6 +53,7 @@ For easier access to scripts, use the convenience runner:
 | Script          | Purpose                                             | Usage                          |
 | --------------- | --------------------------------------------------- | ------------------------------ |
 | `all.sh`        | Comprehensive testing suite (runs all test scripts) | `./scripts/test/all.sh`        |
+| `docker.sh`     | Test Docker deployment and container health         | `./scripts/test/docker.sh`     |
 | `shutdown.sh`   | Test graceful shutdown behavior                     | `./scripts/test/shutdown.sh`   |
 | `load.sh`       | Load testing and stress testing                     | `./scripts/test/load.sh`       |
 | `security.sh`   | Security testing and rate limiting validation       | `./scripts/test/security.sh`   |
@@ -97,6 +98,99 @@ pnpm test:scripts:load      # Load test only
 | `audit.sh`           | System audit and log analysis     | `./scripts/utils/audit.sh [command]`               |
 | `test-common.sh`     | Common utilities for test scripts | `source scripts/utils/test-common.sh`              |
 | `timeout-wrapper.sh` | Timeout wrapper for any script    | `./scripts/utils/timeout-wrapper.sh script.sh 120` |
+
+## 🐳 Docker Registry Deployment
+
+For production/VM deployments, use `docker-compose.registry.yml` which pulls
+pre-built images from GitHub Container Registry.
+
+### Quick Start (Production/VM)
+
+**Standard Deployment:**
+
+```bash
+# Pull and start
+docker-compose -f docker-compose.registry.yml up -d
+
+# View logs
+docker-compose -f docker-compose.registry.yml logs -f
+
+# Stop
+docker-compose -f docker-compose.registry.yml down
+```
+
+**VM Deployment (Host Network - Recommended):**
+
+```bash
+# Better performance for VMs
+NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+```
+
+**With Monitoring Stack:**
+
+```bash
+# Includes Prometheus + Grafana
+docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+```
+
+### Configuration Options
+
+All settings can be overridden via environment variables:
+
+```bash
+# Custom tag
+TAG=v1.2.3 docker-compose -f docker-compose.registry.yml up -d
+
+# Custom resources
+MEMORY_LIMIT=2G CPU_LIMIT=2.0 docker-compose -f docker-compose.registry.yml up -d
+
+# Custom log level
+LOG_LEVEL=debug docker-compose -f docker-compose.registry.yml up -d
+
+# Custom ports
+API_PORT=8080 METRICS_PORT=9091 docker-compose -f docker-compose.registry.yml up -d
+
+# Combine multiple
+TAG=latest NETWORK_MODE=host MEMORY_LIMIT=2G LOG_LEVEL=warn \
+  docker-compose -f docker-compose.registry.yml up -d
+```
+
+### Available Environment Variables
+
+| Variable             | Default      | Description                       |
+| -------------------- | ------------ | --------------------------------- |
+| `TAG`                | `latest`     | Image tag to pull                 |
+| `NETWORK_MODE`       | `bridge`     | Network mode (`bridge` or `host`) |
+| `API_PORT`           | `3101`       | API port mapping                  |
+| `METRICS_PORT`       | `9090`       | Metrics port mapping              |
+| `NODE_ENV`           | `production` | Node environment                  |
+| `LOG_LEVEL`          | `warn`       | Logging level                     |
+| `MEMORY_LIMIT`       | `1G`         | Memory limit                      |
+| `CPU_LIMIT`          | `1.0`        | CPU limit                         |
+| `MEMORY_RESERVATION` | `512M`       | Memory reservation                |
+| `CPU_RESERVATION`    | `0.5`        | CPU reservation                   |
+
+### NPM Scripts (Convenience)
+
+```bash
+# Start from registry
+pnpm docker:registry:up
+
+# Pull latest image
+pnpm docker:registry:pull
+
+# View logs
+pnpm docker:registry:logs
+
+# Restart
+pnpm docker:registry:restart
+
+# Stop
+pnpm docker:registry:down
+
+# Start with monitoring
+pnpm docker:registry:monitoring
+```
 
 ## 📊 Quick Start
 
@@ -152,6 +246,7 @@ pnpm test:scripts:load      # Load test only
 
 ```bash
 # Using convenience script
+./scripts/run.sh test docker         # Test Docker deployment
 ./scripts/run.sh test server         # Test server endpoints
 ./scripts/run.sh test security       # Test security measures
 ./scripts/run.sh test load           # Run load tests
@@ -159,11 +254,34 @@ pnpm test:scripts:load      # Load test only
 ./scripts/run.sh test shutdown       # Test graceful shutdown
 
 # Or run directly
+./scripts/test/docker.sh
 ./scripts/test/server.sh
 ./scripts/test/security.sh
 ./scripts/test/load.sh
 ./scripts/test/validation.sh
 ./scripts/test/shutdown.sh
+```
+
+### Docker Deployment
+
+```bash
+# Test Docker deployment (auto-starts if not running)
+pnpm docker:test
+# or
+./scripts/run.sh test docker
+
+# Deploy from registry (standard mode)
+pnpm docker:registry:up
+# or
+docker-compose -f docker-compose.registry.yml up -d
+
+# Deploy from registry (VM mode with host network)
+NETWORK_MODE=host pnpm docker:registry:up
+# or
+NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+
+# Deploy with custom resources
+MEMORY_LIMIT=2G CPU_LIMIT=2.0 pnpm docker:registry:up
 ```
 
 ### System Audit

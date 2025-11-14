@@ -9,8 +9,7 @@ for request and response payloads.
 ## Base URL
 
 - **Development**: `http://localhost:3101`
-- **Production**: Configure via `VALUE_PROVIDER_CLIENT_PORT` environment
-  variable
+- **Production**: Configure via `APP_PORT` environment variable
 
 ## Interactive Documentation
 

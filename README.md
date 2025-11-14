@@ -27,9 +27,71 @@ This provider implements a fully modernized, production-ready architecture with:
 
 ### Using Docker
 
+The Docker images are hosted on GitHub Container Registry (GHCR) as private
+packages.
+
+#### Authentication Required
+
+First, authenticate with GHCR using a Personal Access Token:
+
 ```bash
-docker run --rm -it --publish "0.0.0.0:3101:3101" ghcr.io/NiftyLeague/ftso-feed-value-provider
+# 1. Create a token at: https://github.com/settings/tokens
+#    - Select scope: read:packages
+#    - Copy the token
+
+# 2. Login to GHCR
+echo "YOUR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
+
+#### Production/VM Deployment (Recommended)
+
+Use `docker-compose.registry.yml` to pull and run pre-built images:
+
+```bash
+# Standard deployment
+pnpm docker:registry:up
+
+# VM deployment with host network (better performance)
+NETWORK_MODE=host pnpm docker:registry:up
+
+# With custom resources
+MEMORY_LIMIT=2G CPU_LIMIT=2.0 pnpm docker:registry:up
+
+# View logs
+pnpm docker:registry:logs
+
+# Stop
+pnpm docker:registry:down
+```
+
+**On a VM:** Clone the repo (just for the docker-compose.registry.yml file) and
+run:
+
+```bash
+docker-compose -f docker-compose.registry.yml up -d
+```
+
+#### Local Development
+
+Use `docker-compose.yml` to build and run from source:
+
+```bash
+# Build and start
+pnpm docker:up
+
+# View logs
+pnpm docker:logs
+
+# Test deployment
+pnpm docker:test
+
+# Stop
+pnpm docker:down
+```
+
+**For detailed Docker documentation**, see:
+
+- [docs/docker.md](./docs/docker.md) - Complete Docker guide
 
 ### Local Development
 

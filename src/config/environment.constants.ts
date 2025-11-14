@@ -30,7 +30,7 @@ export const ENV = {
     LOG_LEVEL: EnvironmentUtils.parseString("LOG_LEVEL", "log") as LogLevel,
     LOG_DIRECTORY: EnvironmentUtils.parseString("LOG_DIRECTORY", "logs"),
     ENABLE_FILE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_FILE_LOGGING", false),
-    ENABLE_PERFORMANCE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_PERFORMANCE_LOGGING", true),
+    ENABLE_PERFORMANCE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_PERFORMANCE_LOGGING", false),
     ENABLE_DEBUG_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_DEBUG_LOGGING", false),
   },
 
