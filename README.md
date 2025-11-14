@@ -372,6 +372,8 @@ validation:
   troubleshooting
 - **[Test Logging Control](docs/test-logging-control.md)**: Test suite logging
   configuration
+- **[Troubleshooting Geo-Blocking](docs/troubleshooting-geo-blocking.md)**: Fix
+  HTTP 451 errors and WebSocket connection issues
 
 ### Interactive API Documentation
 

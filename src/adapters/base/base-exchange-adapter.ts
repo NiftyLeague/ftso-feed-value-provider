@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import { OnModuleDestroy } from "@nestjs/common";
 import { DataProviderService } from "@/common/base/composed.service";
 import { FeedCategory } from "@/common/types/core";
@@ -763,9 +764,17 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
 
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(config.url, config.protocols, {
+        // Configure proxy agent if enabled
+        const wsOptions: WebSocket.ClientOptions = {
           headers: config.headers,
-        });
+        };
+
+        if (ENV.WEBSOCKET.PROXY_ENABLED && ENV.WEBSOCKET.PROXY_URL) {
+          this.logger.log(`Using proxy for ${this.exchangeName}: ${ENV.WEBSOCKET.PROXY_URL}`);
+          wsOptions.agent = new HttpsProxyAgent(ENV.WEBSOCKET.PROXY_URL);
+        }
+
+        this.ws = new WebSocket(config.url, config.protocols, wsOptions);
 
         // Use condition-based connection waiting instead of timeout
         const connectionTimeout = config.connectionTimeout || 10000;
