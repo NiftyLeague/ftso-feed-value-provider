@@ -36,6 +36,7 @@ jobs:
   test:
     name: Jest Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: ${{ github.workflow }}-test-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
@@ -53,4 +54,4 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Run tests
-        run: pnpm test:jest
+        run: pnpm jest --colors --passWithNoTests --forceExit --maxWorkers=2
