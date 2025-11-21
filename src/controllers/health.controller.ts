@@ -1,5 +1,5 @@
 import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from "@nestjs/swagger";
 
 import { BaseController } from "@/common/base/base.controller";
 import { WithEvents } from "@/common/base/mixins/events.mixin";
@@ -20,14 +20,26 @@ import type {
 } from "@/common/types/monitoring";
 import type { HealthStatus } from "@/common/types/monitoring";
 import type { CoreFeedId } from "@/common/types/core";
-import { HealthCheckResponseDto, ReadinessResponseDto, LivenessResponseDto } from "./dto/health-metrics.dto";
-import { ServiceUnavailableErrorResponseDto } from "./dto/common-error.dto";
+import {
+  HealthCheckResponseDto,
+  ReadinessResponseDto,
+  LivenessResponseDto,
+  HealthCheckDetailsDto,
+} from "./dto/health-metrics.dto";
+import { HttpErrorResponseDto } from "./dto/common-error.dto";
 
 // Create a composed base class with event and lifecycle capabilities
 const EventDrivenController = WithLifecycle(WithEvents(BaseController));
 
 @ApiTags("System Health")
 @Controller()
+@ApiExtraModels(
+  HealthCheckResponseDto,
+  ReadinessResponseDto,
+  LivenessResponseDto,
+  HealthCheckDetailsDto,
+  HttpErrorResponseDto
+)
 // Note: Health endpoints should NOT be rate limited - they're used by orchestration systems
 export class HealthController extends EventDrivenController {
   private readyTime?: number;
@@ -103,7 +115,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is unhealthy",
-    type: HealthCheckResponseDto,
+    type: HttpErrorResponseDto,
   })
   async healthCheck(): Promise<HealthCheckResponse> {
     const result = await this.executeOperation(
@@ -208,7 +220,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is unhealthy",
-    type: ServiceUnavailableErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getHealth(): Promise<HealthStatus> {
     try {
@@ -379,7 +391,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is not ready",
-    type: ServiceUnavailableErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getReadiness(): Promise<ReadinessResponse> {
     try {
@@ -530,7 +542,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is not alive",
-    type: ServiceUnavailableErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getLiveness(): Promise<LivenessResponse> {
     try {

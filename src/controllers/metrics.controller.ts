@@ -1,5 +1,5 @@
-import { Controller, Post, Get, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { Controller, Post, Get, UseGuards, Header } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from "@nestjs/swagger";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { BaseController } from "@/common/base/base.controller";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
@@ -16,11 +16,45 @@ import {
   PerformanceMetricsResponseDto,
   EndpointStatsResponseDto,
   ErrorAnalysisResponseDto,
+  ApiHealthMetricsDto,
+  EndpointStatsDto,
+  PerformanceMetricsDto,
+  ErrorSummaryDto,
+  EndpointErrorStatsDto,
+  SystemPerformanceDto,
+  ApplicationPerformanceDto,
+  FeedPerformanceDto,
+  TimeWindowDto,
+  ErrorSummaryStatsDto,
+  ErrorAnalysisDto,
+  SystemInfoDto,
+  SystemMetricsDto,
+  EndpointSummaryDto,
 } from "./dto/health-metrics.dto";
 
 @ApiTags("API Metrics and Monitoring")
 @Controller()
 @UseGuards(RateLimitGuard)
+@ApiExtraModels(
+  ApiMetricsResponseDto,
+  PerformanceMetricsResponseDto,
+  EndpointStatsResponseDto,
+  ErrorAnalysisResponseDto,
+  ApiHealthMetricsDto,
+  EndpointStatsDto,
+  PerformanceMetricsDto,
+  ErrorSummaryDto,
+  EndpointErrorStatsDto,
+  SystemPerformanceDto,
+  ApplicationPerformanceDto,
+  FeedPerformanceDto,
+  TimeWindowDto,
+  ErrorSummaryStatsDto,
+  ErrorAnalysisDto,
+  SystemInfoDto,
+  SystemMetricsDto,
+  EndpointSummaryDto
+)
 export class MetricsController extends BaseController {
   constructor(
     standardizedErrorHandler: StandardizedErrorHandlerService,
@@ -179,7 +213,9 @@ export class MetricsController extends BaseController {
   @Get("metrics/prometheus")
   @ApiOperation({
     summary: "Prometheus metrics",
-    description: "Returns metrics in Prometheus format for monitoring and alerting",
+    description:
+      "Returns metrics in Prometheus text exposition format for monitoring and alerting. " +
+      "Includes API performance metrics, system resources, endpoint statistics, and business metrics.",
   })
   @ApiResponse({
     status: 200,
@@ -189,9 +225,29 @@ export class MetricsController extends BaseController {
         schema: {
           type: "string",
         },
+        example: `# HELP ftso_api_requests_total Total number of API requests
+# TYPE ftso_api_requests_total counter
+ftso_api_requests_total 1000
+
+# HELP ftso_api_error_rate API error rate percentage
+# TYPE ftso_api_error_rate gauge
+ftso_api_error_rate 2.5
+
+# HELP ftso_api_response_time_ms Average API response time in milliseconds
+# TYPE ftso_api_response_time_ms gauge
+ftso_api_response_time_ms 150.5
+
+# HELP ftso_memory_heap_used_bytes Heap memory used in bytes
+# TYPE ftso_memory_heap_used_bytes gauge
+ftso_memory_heap_used_bytes 536870912
+
+# HELP ftso_endpoint_requests_total Total requests per endpoint
+# TYPE ftso_endpoint_requests_total counter
+ftso_endpoint_requests_total{endpoint="/feed-values",method="POST"} 500`,
       },
     },
   })
+  @Header("Content-Type", "text/plain; version=0.0.4")
   async getPrometheusMetrics(): Promise<string> {
     try {
       // Get system metrics

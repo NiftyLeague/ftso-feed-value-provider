@@ -395,13 +395,23 @@ async function setupSwaggerDocumentation(app: INestApplication, basePath: string
     const config = new DocumentBuilder()
       .setTitle("Production FTSO Feed Value Provider API")
       .setDescription(
-        "Production-grade FTSO protocol data provider with real-time caching, rate limiting, and comprehensive error handling."
+        "Production-grade FTSO protocol data provider with real-time caching, rate limiting, and comprehensive error handling. " +
+          "Provides sub-100ms response times for feed values with 1-second cache TTL and Kubernetes-compatible health probes."
       )
       .setVersion("1.0.0")
-      .addTag("FTSO Provider", "Feed value and volume data endpoints")
-      .addTag("System Health", "Health check and monitoring endpoints")
-      .addTag("API Metrics and Monitoring", "Performance metrics and monitoring endpoints")
-      .addTag("Configuration", "System configuration and validation endpoints")
+      .addTag(
+        "FTSO Feed Values",
+        "Real-time and historical feed value endpoints with sub-100ms response times and comprehensive error handling"
+      )
+      .addTag(
+        "System Health",
+        "Kubernetes-compatible health probes (liveness, readiness) and detailed system health monitoring"
+      )
+      .addTag(
+        "API Metrics and Monitoring",
+        "Prometheus-compatible metrics and detailed API performance analytics with endpoint statistics"
+      )
+      .addTag("Configuration", "Runtime configuration inspection and validation endpoints for system diagnostics")
       .build();
 
     const options: SwaggerDocumentOptions = {

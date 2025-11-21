@@ -1,18 +1,74 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { ConfigService } from "./config.service";
-import { ENV } from "./environment.constants";
-import * as exchangesConfig from "./exchanges.json";
+import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from "@nestjs/swagger";
+import { ConfigService } from "@/config/config.service";
+import { ENV } from "@/config/environment.constants";
+import * as exchangesConfig from "@/config/exchanges.json";
+import {
+  ConfigStatusResponseDto,
+  ConfigValidationResponseDto,
+  FeedSummaryResponseDto,
+  AdapterConfigurationResponseDto,
+  EnvironmentConfigDto,
+  MonitoringConfigDto,
+  LoggingConfigDto,
+  CacheConfigDto,
+  SystemConfigDto,
+  FeedsConfigDto,
+  AdaptersConfigDto,
+  ValidationResultDto,
+  FeedValidationResultDto,
+  ValidationOverallDto,
+  EnvironmentValidationDto,
+  FeedsValidationDto,
+  CcxtParametersDto,
+  HybridSummaryDto,
+  HybridProviderConfigDto,
+} from "./dto/config.dto";
+import { HttpErrorResponseDto } from "./dto/common-error.dto";
 
 @ApiTags("Configuration")
 @Controller("config")
+@ApiExtraModels(
+  ConfigStatusResponseDto,
+  ConfigValidationResponseDto,
+  FeedSummaryResponseDto,
+  AdapterConfigurationResponseDto,
+  EnvironmentConfigDto,
+  MonitoringConfigDto,
+  LoggingConfigDto,
+  CacheConfigDto,
+  SystemConfigDto,
+  FeedsConfigDto,
+  AdaptersConfigDto,
+  ValidationResultDto,
+  FeedValidationResultDto,
+  ValidationOverallDto,
+  EnvironmentValidationDto,
+  FeedsValidationDto,
+  CcxtParametersDto,
+  HybridSummaryDto,
+  HybridProviderConfigDto,
+  HttpErrorResponseDto
+)
 export class ConfigController {
   constructor(private readonly configService: ConfigService) {}
 
   @Get("status")
-  @ApiOperation({ summary: "Get configuration status and health information" })
-  @ApiResponse({ status: 200, description: "Configuration status retrieved successfully" })
-  getConfigurationStatus() {
+  @ApiOperation({
+    summary: "Get configuration status and health information",
+    description: "Returns current configuration status including environment, system, feeds, and adapter information",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Configuration status retrieved successfully",
+    type: ConfigStatusResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: HttpErrorResponseDto,
+  })
+  getConfigurationStatus(): ConfigStatusResponseDto {
     const feeds = this.configService.getFeedConfigurations();
 
     return {
@@ -51,9 +107,21 @@ export class ConfigController {
   }
 
   @Get("validate")
-  @ApiOperation({ summary: "Validate current configuration and return detailed report" })
-  @ApiResponse({ status: 200, description: "Configuration validation completed" })
-  validateConfiguration() {
+  @ApiOperation({
+    summary: "Validate current configuration and return detailed report",
+    description: "Performs comprehensive validation of environment variables, feeds, and system configuration",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Configuration validation completed",
+    type: ConfigValidationResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: HttpErrorResponseDto,
+  })
+  validateConfiguration(): ConfigValidationResponseDto {
     const envValidation = this.configService.validateConfiguration();
     const feeds = this.configService.getFeedConfigurations();
 
@@ -78,9 +146,21 @@ export class ConfigController {
   }
 
   @Get("feeds/summary")
-  @ApiOperation({ summary: "Get feed configuration summary" })
-  @ApiResponse({ status: 200, description: "Feed configuration summary retrieved" })
-  getFeedConfigurationSummary() {
+  @ApiOperation({
+    summary: "Get feed configuration summary",
+    description: "Returns summary of configured feeds including categories, sources, and exchange usage statistics",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Feed configuration summary retrieved",
+    type: FeedSummaryResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: HttpErrorResponseDto,
+  })
+  getFeedConfigurationSummary(): FeedSummaryResponseDto {
     const feeds = this.configService.getFeedConfigurations();
 
     return {
@@ -116,9 +196,21 @@ export class ConfigController {
   }
 
   @Get("adapters")
-  @ApiOperation({ summary: "Get adapter configuration information" })
-  @ApiResponse({ status: 200, description: "Adapter configuration retrieved" })
-  getAdapterConfiguration() {
+  @ApiOperation({
+    summary: "Get adapter configuration information",
+    description: "Returns information about custom and CCXT adapters including hybrid provider configuration",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Adapter configuration retrieved",
+    type: AdapterConfigurationResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "Internal server error",
+    type: HttpErrorResponseDto,
+  })
+  getAdapterConfiguration(): AdapterConfigurationResponseDto {
     const ccxtExchanges = this.getCcxtExchanges();
     return {
       customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],

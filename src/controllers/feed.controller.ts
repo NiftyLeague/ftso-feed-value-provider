@@ -14,7 +14,7 @@ import {
   HttpCode,
 } from "@nestjs/common";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiExtraModels } from "@nestjs/swagger";
 import { BaseController } from "@/common/base/base.controller";
 import { ValidationUtils } from "@/common/utils/validation.utils";
 import { FtsoProviderService } from "@/app.service";
@@ -34,12 +34,13 @@ import {
   RoundFeedValuesResponseDto,
   VolumesRequestDto,
   FeedVolumesResponseDto,
+  FeedIdDto,
+  FeedErrorDto,
+  FeedValueDataDto,
+  VolumeDto,
+  FeedVolumeDataDto,
 } from "./dto/feed.dto";
-import {
-  NotFoundErrorResponseDto,
-  InternalServerErrorResponseDto,
-  ValidationErrorResponseDto,
-} from "./dto/common-error.dto";
+import { HttpErrorResponseDto, ValidationErrorResponseDto } from "./dto/common-error.dto";
 
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
@@ -51,6 +52,20 @@ import { ApiMonitorService } from "../monitoring/api-monitor.service";
 @ApiTags("FTSO Feed Values")
 @Controller()
 @UseGuards(RateLimitGuard)
+@ApiExtraModels(
+  FeedValuesRequestDto,
+  FeedValuesResponseDto,
+  RoundFeedValuesResponseDto,
+  VolumesRequestDto,
+  FeedVolumesResponseDto,
+  FeedIdDto,
+  FeedErrorDto,
+  FeedValueDataDto,
+  VolumeDto,
+  FeedVolumeDataDto,
+  HttpErrorResponseDto,
+  ValidationErrorResponseDto
+)
 export class FeedController extends BaseController {
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
@@ -71,9 +86,44 @@ export class FeedController extends BaseController {
   @Header("Content-Type", "application/json")
   @ApiOperation({
     summary: "Get current feed values",
-    description: "Returns real-time feed values with sub-100ms response time and 1-second cache TTL",
+    description:
+      "Returns real-time feed values with sub-100ms response time and 1-second cache TTL. Supports batch requests for up to 50 feeds.",
   })
-  @ApiBody({ type: FeedValuesRequestDto })
+  @ApiBody({
+    type: FeedValuesRequestDto,
+    examples: {
+      singleFeed: {
+        summary: "Single feed request",
+        description: "Request data for a single cryptocurrency feed",
+        value: {
+          feeds: [{ category: 1, name: "BTC/USD" }],
+        },
+      },
+      multipleFeeds: {
+        summary: "Multiple feeds request",
+        description: "Request data for multiple feeds in a single call",
+        value: {
+          feeds: [
+            { category: 1, name: "BTC/USD" },
+            { category: 1, name: "ETH/USD" },
+            { category: 1, name: "SOL/USD" },
+            { category: 1, name: "FLR/USD" },
+          ],
+        },
+      },
+      mixedCategories: {
+        summary: "Mixed category feeds",
+        description: "Request feeds from different categories (Crypto, Forex, Commodity, Stock)",
+        value: {
+          feeds: [
+            { category: 1, name: "BTC/USD" },
+            { category: 2, name: "EUR/USD" },
+            { category: 3, name: "XAU/USD" },
+          ],
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: "Current feed values retrieved successfully",
@@ -87,7 +137,7 @@ export class FeedController extends BaseController {
   @ApiResponse({
     status: 500,
     description: "Internal server error",
-    type: InternalServerErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
     return this.handleControllerOperation(
@@ -150,12 +200,12 @@ export class FeedController extends BaseController {
   @ApiResponse({
     status: 404,
     description: "Voting round not found",
-    type: NotFoundErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   @ApiResponse({
     status: 500,
     description: "Internal server error",
-    type: InternalServerErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getFeedValues(
     @Param("votingRoundId", ParseIntPipe) votingRoundId: number,
@@ -229,9 +279,32 @@ export class FeedController extends BaseController {
   @Header("Content-Type", "application/json")
   @ApiOperation({
     summary: "Get feed volumes",
-    description: "Returns volume data with USDT to USD conversion and optimized CCXT volume processing",
+    description:
+      "Returns volume data with USDT to USD conversion and optimized CCXT volume processing. Supports custom time windows.",
   })
-  @ApiBody({ type: VolumesRequestDto })
+  @ApiBody({
+    type: VolumesRequestDto,
+    examples: {
+      basicVolume: {
+        summary: "Basic volume request",
+        description: "Request volume data for cryptocurrency feeds",
+        value: {
+          feeds: [
+            { category: 1, name: "BTC/USD" },
+            { category: 1, name: "ETH/USD" },
+          ],
+        },
+      },
+      withTimeWindow: {
+        summary: "Volume with custom time window",
+        description: "Request volume data with a specific start time",
+        value: {
+          feeds: [{ category: 1, name: "BTC/USD" }],
+          startTime: 1703123456789,
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: "Feed volumes retrieved successfully",
@@ -245,7 +318,7 @@ export class FeedController extends BaseController {
   @ApiResponse({
     status: 500,
     description: "Internal server error",
-    type: InternalServerErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getFeedVolumes(
     @Body() body: VolumesRequest,

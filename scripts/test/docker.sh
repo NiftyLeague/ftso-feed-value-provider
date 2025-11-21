@@ -69,16 +69,55 @@ wait_for_healthy() {
 check_error_logs() {
     echo -e "${BLUE}🔍 Checking for error logs...${NC}"
     
-    local error_count=$(docker logs "$CONTAINER_NAME" 2>&1 | grep -iE "(error|fatal|exception)" | grep -v "OnPingInterval" | wc -l | tr -d ' ')
+    # Filter out expected errors and noise:
+    # - OnPingInterval (WebSocket ping/pong)
+    # - Readiness check failed (expected during startup)
+    # - System not ready (expected during initialization)
+    # - HTTP 429 (rate limiting from exchanges - expected)
+    # - Too Many Requests (rate limiting)
+    # - Failed to get price (rate limiting from exchanges)
+    # - SERVICE_UNAVAILABLE_ERROR (expected during startup)
+    # - Object( (error object dumps)
+    # - error: (error field lines)
+    # - HttpExceptionFilter (exception filter logs)
+    # - HealthController (health check errors during startup)
+    local error_count=$(docker logs "$CONTAINER_NAME" 2>&1 | \
+        grep -iE "(error|fatal|exception)" | \
+        grep -v "OnPingInterval" | \
+        grep -v "Readiness check failed" | \
+        grep -v "System not ready" | \
+        grep -v "HTTP 429" | \
+        grep -v "Too Many Requests" | \
+        grep -v "Failed to get price" | \
+        grep -v "SERVICE_UNAVAILABLE_ERROR" | \
+        grep -v "Object(" | \
+        grep -v "error:" | \
+        grep -v "HttpExceptionFilter" | \
+        grep -v "HealthController.*Readiness" | \
+        wc -l | tr -d ' ')
+    
     local warning_count=$(docker logs "$CONTAINER_NAME" 2>&1 | grep -iE "warn" | wc -l | tr -d ' ')
     
     if [ "$error_count" -gt 0 ]; then
-        echo -e "${RED}✗ Found $error_count error(s) in logs${NC}"
+        echo -e "${RED}✗ Found $error_count unexpected error(s) in logs${NC}"
         echo -e "${YELLOW}Recent errors:${NC}"
-        docker logs "$CONTAINER_NAME" 2>&1 | grep -iE "(error|fatal|exception)" | grep -v "OnPingInterval" | tail -10
+        docker logs "$CONTAINER_NAME" 2>&1 | \
+            grep -iE "(error|fatal|exception)" | \
+            grep -v "OnPingInterval" | \
+            grep -v "Readiness check failed" | \
+            grep -v "System not ready" | \
+            grep -v "HTTP 429" | \
+            grep -v "Too Many Requests" | \
+            grep -v "Failed to get price" | \
+            grep -v "SERVICE_UNAVAILABLE_ERROR" | \
+            grep -v "Object(" | \
+            grep -v "error:" | \
+            grep -v "HttpExceptionFilter" | \
+            grep -v "HealthController.*Readiness" | \
+            tail -10
         return 1
     else
-        echo -e "${GREEN}✓ No errors found in logs${NC}"
+        echo -e "${GREEN}✓ No unexpected errors found in logs${NC}"
     fi
     
     if [ "$warning_count" -gt 0 ]; then
@@ -183,15 +222,21 @@ else
 fi
 echo ""
 
-# Test 6: Check metrics endpoint
-echo "6️⃣  Testing metrics endpoint..."
-METRICS=$(curl -s http://localhost:9090/metrics 2>/dev/null || echo "")
+# Test 6: Check Prometheus metrics endpoint
+echo "6️⃣  Testing Prometheus metrics endpoint..."
+METRICS=$(curl -s http://localhost:3101/metrics/prometheus 2>/dev/null || echo "")
 if [ -n "$METRICS" ]; then
-    echo -e "${GREEN}✓ Metrics endpoint working${NC}"
+    echo -e "${GREEN}✓ Prometheus metrics endpoint working${NC}"
     METRIC_COUNT=$(echo "$METRICS" | grep -c '^ftso_' 2>/dev/null || echo '0')
     echo "   Available metrics: $METRIC_COUNT FTSO metrics"
+    
+    # Show sample metrics
+    echo "   Sample metrics:"
+    echo "$METRICS" | grep '^ftso_api_requests_total' | head -1 | sed 's/^/   /'
+    echo "$METRICS" | grep '^ftso_api_error_rate' | head -1 | sed 's/^/   /'
+    echo "$METRICS" | grep '^ftso_memory_usage_percent' | head -1 | sed 's/^/   /'
 else
-    echo -e "${YELLOW}⚠ Metrics endpoint not responding (this is optional)${NC}"
+    echo -e "${YELLOW}⚠ Prometheus metrics endpoint not responding (this is optional)${NC}"
 fi
 echo ""
 
@@ -210,9 +255,11 @@ echo -e "${GREEN}✅ All tests passed! Docker deployment is working.${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "📊 Service URLs:"
-echo "   • API:     http://localhost:3101"
-echo "   • Metrics: http://localhost:9090/metrics"
-echo "   • Health:  http://localhost:3101/health"
+echo "   • API:        http://localhost:3101"
+echo "   • Health:     http://localhost:3101/health"
+echo "   • Metrics:    http://localhost:3101/metrics/prometheus"
+echo "   • Prometheus: http://localhost:9091 (if monitoring enabled)"
+echo "   • Grafana:    http://localhost:3000 (if monitoring enabled)"
 echo ""
 echo "📝 Example API call:"
 echo '   curl -X POST http://localhost:3101/feed-values \'

@@ -39,6 +39,12 @@ export class HealthCheckDetailsDto {
     description: "Component metrics",
     required: false,
     additionalProperties: true,
+    example: {
+      uptime: 3600,
+      memoryUsage: 512,
+      cpuUsage: 25.5,
+      connectionCount: 10,
+    },
   })
   metrics?: {
     uptime: number;
@@ -79,6 +85,11 @@ export class HealthCheckResponseDto {
     description: "Memory usage information",
     required: false,
     additionalProperties: true,
+    example: {
+      used: 512,
+      total: 2048,
+      percentage: 25.0,
+    },
   })
   memory?: {
     used: number;
@@ -90,6 +101,11 @@ export class HealthCheckResponseDto {
     description: "Performance metrics",
     required: false,
     additionalProperties: true,
+    example: {
+      averageResponseTime: 150.5,
+      errorRate: 2.5,
+      throughput: 100,
+    },
   })
   performance?: {
     averageResponseTime: number;
@@ -340,37 +356,60 @@ export class EndpointStatsDto {
   statusCodeDistribution!: Record<number, number>;
 }
 
+export class SystemPerformanceDto {
+  @ApiProperty({ description: "CPU usage percentage", example: 25.5 })
+  cpu!: number;
+
+  @ApiProperty({ description: "Memory usage in MB", example: 512 })
+  memory!: number;
+
+  @ApiProperty({ description: "System uptime in seconds", example: 3600 })
+  uptime!: number;
+}
+
+export class ApplicationPerformanceDto {
+  @ApiProperty({ description: "Average response time in ms", example: 150.5 })
+  responseTime!: number;
+
+  @ApiProperty({ description: "Requests per second", example: 100 })
+  throughput!: number;
+
+  @ApiProperty({ description: "Error rate percentage", example: 2.5 })
+  errorRate!: number;
+
+  @ApiProperty({ description: "Cache hit rate percentage", example: 90.0 })
+  cacheHitRate!: number;
+}
+
+export class FeedPerformanceDto {
+  @ApiProperty({ description: "Number of active feeds", example: 64 })
+  active!: number;
+
+  @ApiProperty({ description: "Total number of feeds", example: 64 })
+  total!: number;
+
+  @ApiProperty({ description: "Number of aggregations", example: 1000 })
+  aggregations!: number;
+}
+
 export class PerformanceMetricsDto {
   @ApiProperty({
     description: "System performance metrics",
-    additionalProperties: true,
+    type: SystemPerformanceDto,
   })
-  system!: {
-    cpu: number;
-    memory: number;
-    uptime: number;
-  };
+  system!: SystemPerformanceDto;
 
   @ApiProperty({
     description: "Application performance metrics",
-    additionalProperties: true,
+    type: ApplicationPerformanceDto,
   })
-  application!: {
-    responseTime: number;
-    throughput: number;
-    errorRate: number;
-    cacheHitRate: number;
-  };
+  application!: ApplicationPerformanceDto;
 
   @ApiProperty({
     description: "Feed-related metrics",
-    additionalProperties: true,
+    type: FeedPerformanceDto,
   })
-  feeds!: {
-    active: number;
-    total: number;
-    aggregations: number;
-  };
+  feeds!: FeedPerformanceDto;
 }
 
 export class ErrorSummaryDto {
@@ -415,50 +454,84 @@ export class EndpointErrorStatsDto {
   topErrors!: string[];
 }
 
+export class TimeWindowDto {
+  @ApiProperty({ description: "Window start timestamp", example: 1703123456789 })
+  start!: number;
+
+  @ApiProperty({ description: "Window end timestamp", example: 1703123556789 })
+  end!: number;
+}
+
+export class ErrorSummaryStatsDto {
+  @ApiProperty({ description: "Total number of errors", example: 50 })
+  totalErrors!: number;
+
+  @ApiProperty({ description: "Error rate percentage", example: 5.0 })
+  errorRate!: number;
+
+  @ApiProperty({
+    description: "Top errors by frequency",
+    type: [ErrorSummaryDto],
+  })
+  topErrors!: ErrorSummaryDto[];
+}
+
+export class ErrorAnalysisDto {
+  @ApiProperty({
+    description: "Time window for error analysis",
+    type: TimeWindowDto,
+  })
+  timeWindow!: TimeWindowDto;
+
+  @ApiProperty({
+    description: "Error summary statistics",
+    type: ErrorSummaryStatsDto,
+  })
+  summary!: ErrorSummaryStatsDto;
+
+  @ApiProperty({
+    description: "Errors grouped by endpoint",
+    type: "object",
+    additionalProperties: { $ref: "#/components/schemas/EndpointErrorStatsDto" },
+  })
+  byEndpoint!: Record<string, EndpointErrorStatsDto>;
+}
+
+export class SystemInfoDto {
+  @ApiProperty({ description: "Total metrics count", example: 1000 })
+  metricsCount!: number;
+}
+
 export class ApiMetricsResponseDto {
   @ApiProperty({
     description: "API health metrics",
-    additionalProperties: true,
+    type: ApiHealthMetricsDto,
   })
   health!: ApiHealthMetricsDto;
 
   @ApiProperty({
     description: "Endpoint statistics",
-    type: "array",
-    items: { $ref: "#/components/schemas/EndpointStatsDto" },
+    type: [EndpointStatsDto],
   })
   endpoints!: EndpointStatsDto[];
 
   @ApiProperty({
     description: "Performance metrics",
-    additionalProperties: true,
+    type: PerformanceMetricsDto,
   })
   performance!: PerformanceMetricsDto;
 
   @ApiProperty({
     description: "Error analysis",
-    additionalProperties: true,
+    type: ErrorAnalysisDto,
   })
-  errors!: {
-    timeWindow: {
-      start: number;
-      end: number;
-    };
-    summary: {
-      totalErrors: number;
-      errorRate: number;
-      topErrors: ErrorSummaryDto[];
-    };
-    byEndpoint: Record<string, EndpointErrorStatsDto>;
-  };
+  errors!: ErrorAnalysisDto;
 
   @ApiProperty({
     description: "System information",
-    additionalProperties: true,
+    type: SystemInfoDto,
   })
-  system!: {
-    metricsCount: number;
-  };
+  system!: SystemInfoDto;
 
   @ApiProperty({
     description: "Response timestamp",
@@ -474,21 +547,31 @@ export class ApiMetricsResponseDto {
   requestId?: string;
 }
 
+export class SystemMetricsDto {
+  @ApiProperty({ description: "System uptime in seconds", example: 3600 })
+  uptime!: number;
+
+  @ApiProperty({
+    description: "Memory usage information",
+    type: "object",
+    additionalProperties: true,
+    example: { heapUsed: 512, heapTotal: 2048, rss: 1024 },
+  })
+  memory!: Record<string, unknown>;
+}
+
 export class PerformanceMetricsResponseDto {
   @ApiProperty({
     description: "Performance metrics",
-    additionalProperties: true,
+    type: PerformanceMetricsDto,
   })
   performance!: PerformanceMetricsDto;
 
   @ApiProperty({
     description: "System metrics",
-    additionalProperties: true,
+    type: SystemMetricsDto,
   })
-  system!: {
-    uptime: number;
-    memory: Record<string, unknown>;
-  };
+  system!: SystemMetricsDto;
 
   @ApiProperty({
     description: "Response timestamp",
@@ -497,24 +580,32 @@ export class PerformanceMetricsResponseDto {
   timestamp!: number;
 }
 
+export class EndpointSummaryDto {
+  @ApiProperty({ description: "Total number of endpoints", example: 10 })
+  totalEndpoints!: number;
+
+  @ApiProperty({ description: "Total number of requests", example: 1000 })
+  totalRequests!: number;
+
+  @ApiProperty({ description: "Average response time in ms", example: 150.5 })
+  averageResponseTime!: number;
+
+  @ApiProperty({ description: "Error rate percentage", example: 2.5 })
+  errorRate!: number;
+}
+
 export class EndpointStatsResponseDto {
   @ApiProperty({
     description: "Endpoint statistics",
-    type: "array",
-    items: { $ref: "#/components/schemas/EndpointStatsDto" },
+    type: [EndpointStatsDto],
   })
   endpoints!: EndpointStatsDto[];
 
   @ApiProperty({
     description: "Summary statistics",
-    additionalProperties: true,
+    type: EndpointSummaryDto,
   })
-  summary!: {
-    totalEndpoints: number;
-    totalRequests: number;
-    averageResponseTime: number;
-    errorRate: number;
-  };
+  summary!: EndpointSummaryDto;
 
   @ApiProperty({
     description: "Response timestamp",
@@ -526,20 +617,9 @@ export class EndpointStatsResponseDto {
 export class ErrorAnalysisResponseDto {
   @ApiProperty({
     description: "Error analysis data",
-    additionalProperties: true,
+    type: ErrorAnalysisDto,
   })
-  errors!: {
-    timeWindow: {
-      start: number;
-      end: number;
-    };
-    summary: {
-      totalErrors: number;
-      errorRate: number;
-      topErrors: ErrorSummaryDto[];
-    };
-    byEndpoint: Record<string, EndpointErrorStatsDto>;
-  };
+  errors!: ErrorAnalysisDto;
 
   @ApiProperty({
     description: "Response timestamp",
