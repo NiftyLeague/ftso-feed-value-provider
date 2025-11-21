@@ -66,6 +66,7 @@
     "docker:restart": "docker-compose down && docker-compose up -d --build",
     "docker:logs": "docker-compose logs -f ftso-provider",
     "docker:logs:tail": "docker-compose logs --tail=100 ftso-provider",
+    "docker:monitoring": "docker-compose --profile monitoring up -d",
     "docker:ps": "docker-compose ps",
     "docker:shell": "docker-compose exec ftso-provider sh",
     "docker:test": "./scripts/run.sh test docker",

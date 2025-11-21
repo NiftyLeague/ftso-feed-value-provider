@@ -321,6 +321,44 @@ validation:
   analysis
 - **Health Monitoring**: Real-time system health and performance metrics
 - **Error Tracking**: Standardized error handling with detailed context
+- **Prometheus Metrics**: Comprehensive metrics for monitoring and alerting
+- **Grafana Dashboards**: Pre-configured dashboards for visualization
+- **Alert Rules**: Production-ready alerting for critical issues
+
+#### Monitoring Stack
+
+Start the full monitoring stack with Prometheus and Grafana:
+
+```bash
+# Start with monitoring
+docker-compose --profile monitoring up -d
+
+# Access monitoring tools
+# - Prometheus: http://localhost:9091
+# - Grafana: http://localhost:3000 (admin/admin)
+# - Metrics: http://localhost:3101/metrics/prometheus
+```
+
+**Available Metrics:**
+
+- API performance (request rate, error rate, response times)
+- System resources (memory, CPU, uptime)
+- Cache performance (hit rate, entries)
+- Data source health (healthy/unhealthy sources)
+- Feed status (active feeds, aggregation success rate)
+- Business metrics (consensus deviation, price updates)
+
+**Pre-configured Alerts:**
+
+- High error rate (>5%)
+- Slow response times (>500ms)
+- Memory issues (>80% usage)
+- Low cache hit rate (<70%)
+- Unhealthy data sources
+- Feed health issues
+
+See [Prometheus Monitoring Guide](docs/prometheus-monitoring.md) for detailed
+documentation.
 
 ### Data Quality
 
