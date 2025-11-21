@@ -296,6 +296,12 @@ export class MockFactory {
           outlierRate: 0.01,
         },
       })),
+      getAdapterStats: jest.fn().mockReturnValue({
+        total: 6,
+        active: 6,
+        byCategory: {},
+        byHealth: { healthy: 6 },
+      }),
       isHealthy: jest.fn().mockReturnValue(true),
       getStatus: jest.fn().mockReturnValue("healthy"),
       getMetrics: jest.fn().mockReturnValue({}),

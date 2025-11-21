@@ -137,3 +137,18 @@ export interface DetailedSystemHealthMetrics {
     outlierRate: number;
   };
 }
+
+export interface AdapterStats {
+  total: number;
+  active: number;
+  byCategory: Record<string, number>;
+  byHealth: Record<string, number>;
+}
+
+export interface HealthCacheStats {
+  hitRate: number;
+  entries: number;
+  memoryUsage?: number;
+  totalHits?: number;
+  totalMisses?: number;
+}

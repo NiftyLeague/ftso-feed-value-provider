@@ -2,6 +2,7 @@ import { Module, OnModuleDestroy } from "@nestjs/common";
 import { FtsoProviderService } from "@/app.service";
 
 // App controllers
+import { ConfigController } from "@/controllers/config.controller";
 import { FeedController } from "@/controllers/feed.controller";
 import { HealthController } from "@/controllers/health.controller";
 import { MetricsController } from "@/controllers/metrics.controller";
@@ -38,7 +39,7 @@ import { ENV, ENV_HELPERS } from "@/config/environment.constants";
     IntegrationModule,
     ErrorHandlingModule, // Global error handling with standardized patterns
   ],
-  controllers: [FeedController, HealthController, MetricsController],
+  controllers: [ConfigController, FeedController, HealthController, MetricsController],
   providers: [
     // API middleware and guards
     StandardizedErrorHandlerService,

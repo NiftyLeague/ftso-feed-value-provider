@@ -17,6 +17,7 @@ import { WebSocketOrchestratorService } from "./websocket-orchestrator.service";
 // Types and interfaces
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { IExchangeAdapter } from "@/common/types/adapters";
+import type { AdapterStats } from "@/common/types/monitoring";
 
 // Data source factory
 import { DataSourceFactory } from "./data-source.factory";
@@ -119,6 +120,14 @@ export class DataSourceIntegrationService extends EventDrivenService {
     }
   }
 
+  /**
+   * Get all currently connected data sources
+   * Used for syncing initial health status after event wiring
+   */
+  getConnectedSources(): DataSource[] {
+    return this.dataManager.getConnectedSources();
+  }
+
   async shutdown(): Promise<void> {
     this.logger.log("Shutting down Data Source Integration...");
 
@@ -192,7 +201,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
     return this.dataManager.getConnectionHealth();
   }
 
-  getAdapterStats(): ReturnType<ExchangeAdapterRegistry["getStats"]> {
+  getAdapterStats(): AdapterStats {
     return this.adapterRegistry.getStats();
   }
 

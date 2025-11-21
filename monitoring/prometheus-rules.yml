@@ -1,0 +1,159 @@
+groups:
+  - name: ftso_provider_alerts
+    interval: 30s
+    rules:
+      # API Performance Alerts
+      - alert: HighErrorRate
+        expr: ftso_api_error_rate > 5
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: 'High API error rate detected'
+          description: 'API error rate is {{ $value }}% (threshold: 5%)'
+
+      - alert: SlowResponseTime
+        expr: ftso_api_response_time_ms > 500
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: 'API response time is slow'
+          description: 'Average response time is {{ $value }}ms (threshold: 500ms)'
+
+      - alert: CriticalResponseTime
+        expr: ftso_api_response_time_ms > 1000
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: 'API response time is critically slow'
+          description: 'Average response time is {{ $value }}ms (threshold: 1000ms)'
+
+      - alert: HighSlowRequestRate
+        expr: ftso_api_slow_request_rate > 20
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: 'High rate of slow requests'
+          description: '{{ $value }}% of requests are taking >100ms (threshold: 20%)'
+
+      # Memory Alerts
+      - alert: HighMemoryUsage
+        expr: (ftso_memory_heap_used_bytes / ftso_memory_heap_total_bytes) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: 'High memory usage detected'
+          description: 'Heap memory usage is {{ $value }}% (threshold: 80%)'
+
+      - alert: CriticalMemoryUsage
+        expr: (ftso_memory_heap_used_bytes / ftso_memory_heap_total_bytes) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: 'Critical memory usage detected'
+          description: 'Heap memory usage is {{ $value }}% (threshold: 90%)'
+
+      # Cache Performance Alerts
+      - alert: LowCacheHitRate
+        expr: ftso_cache_hit_rate < 70
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: 'Low cache hit rate'
+          description: 'Cache hit rate is {{ $value }}% (threshold: 70%)'
+
+      - alert: CriticalCacheHitRate
+        expr: ftso_cache_hit_rate < 50
+        for: 5m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: 'Critical cache hit rate'
+          description: 'Cache hit rate is {{ $value }}% (threshold: 50%)'
+
+      # Data Source Health Alerts
+      - alert: UnhealthyDataSources
+        expr: ftso_data_sources_unhealthy_total > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: data_sources
+        annotations:
+          summary: 'Unhealthy data sources detected'
+          description: '{{ $value }} data sources are unhealthy'
+
+      - alert: NoHealthyDataSources
+        expr: ftso_data_sources_healthy_total == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: data_sources
+        annotations:
+          summary: 'No healthy data sources available'
+          description: 'All data sources are unhealthy - service degraded'
+
+      # Feed Health Alerts
+      - alert: LowActiveFeedCount
+        expr: ftso_feeds_active_total < 50
+        for: 5m
+        labels:
+          severity: warning
+          component: feeds
+        annotations:
+          summary: 'Low number of active feeds'
+          description: 'Only {{ $value }} feeds are active (expected: 64)'
+
+      - alert: LowAggregationSuccessRate
+        expr: ftso_aggregation_success_rate < 90
+        for: 5m
+        labels:
+          severity: warning
+          component: aggregation
+        annotations:
+          summary: 'Low aggregation success rate'
+          description: 'Aggregation success rate is {{ $value }}% (threshold: 90%)'
+
+      - alert: HighConsensusDeviation
+        expr: ftso_consensus_deviation_percent > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: accuracy
+        annotations:
+          summary: 'High consensus deviation detected'
+          description: 'Consensus deviation is {{ $value }}% (threshold: 5%)'
+
+      # System Health Alerts
+      - alert: ServiceDown
+        expr: up{job="ftso-provider"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: 'FTSO Provider service is down'
+          description: 'The FTSO Provider service is not responding to health checks'
+
+      - alert: HighRequestRate
+        expr: rate(ftso_api_requests_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: info
+          component: api
+        annotations:
+          summary: 'High request rate detected'
+          description: 'Request rate is {{ $value }} req/s - monitor for potential issues'

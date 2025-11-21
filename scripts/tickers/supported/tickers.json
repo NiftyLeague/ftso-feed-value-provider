@@ -28,13 +28,11 @@
         "HNT/USD",
         "HYPE/USD",
         "ICP/USD",
-        "INJ/USD",
         "JOULE/USD",
         "JUP/USD",
         "LEO/USD",
         "LINK/USD",
         "LTC/USD",
-        "MATIC/USD",
         "NEAR/USD",
         "NOT/USD",
         "ONDO/USD",
@@ -65,6 +63,7 @@
         "WIF/USD",
         "XDC/USD",
         "XLM/USD",
+        "XPL/USD",
         "XRP/USD"
       ]
     },

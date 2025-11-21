@@ -1,5 +1,5 @@
-import { Controller, Get, Post, HttpException, HttpStatus, Inject, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from "@nestjs/swagger";
 
 import { BaseController } from "@/common/base/base.controller";
 import { WithEvents } from "@/common/base/mixins/events.mixin";
@@ -7,7 +7,6 @@ import { WithLifecycle } from "@/common/base/mixins/lifecycle.mixin";
 import { ENV, ENV_HELPERS } from "@/config/environment.constants";
 import { FtsoProviderService } from "@/app.service";
 import { IntegrationService } from "@/integration/integration.service";
-import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
@@ -20,15 +19,28 @@ import type {
   LivenessResponse,
 } from "@/common/types/monitoring";
 import type { HealthStatus } from "@/common/types/monitoring";
-import { HealthCheckResponseDto, ReadinessResponseDto, LivenessResponseDto } from "./dto/health-metrics.dto";
-import { ServiceUnavailableErrorResponseDto } from "./dto/common-error.dto";
+import type { CoreFeedId } from "@/common/types/core";
+import {
+  HealthCheckResponseDto,
+  ReadinessResponseDto,
+  LivenessResponseDto,
+  HealthCheckDetailsDto,
+} from "./dto/health-metrics.dto";
+import { HttpErrorResponseDto } from "./dto/common-error.dto";
 
 // Create a composed base class with event and lifecycle capabilities
 const EventDrivenController = WithLifecycle(WithEvents(BaseController));
 
 @ApiTags("System Health")
 @Controller()
-@UseGuards(RateLimitGuard)
+@ApiExtraModels(
+  HealthCheckResponseDto,
+  ReadinessResponseDto,
+  LivenessResponseDto,
+  HealthCheckDetailsDto,
+  HttpErrorResponseDto
+)
+// Note: Health endpoints should NOT be rate limited - they're used by orchestration systems
 export class HealthController extends EventDrivenController {
   private readyTime?: number;
   private integrationServiceReady = false;
@@ -103,7 +115,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is unhealthy",
-    type: HealthCheckResponseDto,
+    type: HttpErrorResponseDto,
   })
   async healthCheck(): Promise<HealthCheckResponse> {
     const result = await this.executeOperation(
@@ -208,7 +220,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is unhealthy",
-    type: ServiceUnavailableErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getHealth(): Promise<HealthStatus> {
     try {
@@ -217,6 +229,22 @@ export class HealthController extends EventDrivenController {
       // Get integration service health (aggregate system metrics)
       const systemHealth = await this.integrationService.getSystemHealth();
 
+      // Get adapter stats to show configured vs connected
+      const adapterStats = this.integrationService.getAdapterStats();
+
+      // Get cache statistics from both cache services
+      const cacheStats = this.cacheService.getStats();
+      const aggregationCacheStats = this.aggregationService.getCacheStats();
+
+      // Combine cache stats - average hit rates, sum entries
+      const totalCacheEntries = (cacheStats?.totalEntries || 0) + (aggregationCacheStats?.totalEntries || 0);
+      const averageHitRate = ((cacheStats?.hitRate || 0) + (aggregationCacheStats?.hitRate || 0)) / 2;
+
+      const combinedCacheStats = {
+        hitRate: averageHitRate,
+        entries: totalCacheEntries,
+      };
+
       // Build response aligned to HealthStatus
       const response: HealthStatus = {
         status: systemHealth.status,
@@ -224,9 +252,9 @@ export class HealthController extends EventDrivenController {
         version: "1.0.0",
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        connections: 0,
-        adapters: systemHealth.sources.length,
-        cache: { hitRate: 0, entries: 0 },
+        connections: systemHealth.sources.filter(s => s.status === "healthy").length,
+        adapters: adapterStats.total,
+        cache: combinedCacheStats,
         startup: {
           initialized: true,
           startTime: this.startupTime,
@@ -363,7 +391,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is not ready",
-    type: ServiceUnavailableErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getReadiness(): Promise<ReadinessResponse> {
     try {
@@ -380,12 +408,50 @@ export class HealthController extends EventDrivenController {
           : "degraded"
         : "unhealthy";
 
+      // Get diagnostic information for the response
+      let diagnostics: {
+        healthySources?: number;
+        totalSources?: number;
+        aggregationSuccessRate?: number;
+        canServeFeedData?: boolean;
+        state?: "not_ready" | "warming_up" | "ready";
+        validFeedCount?: number;
+        totalTestFeeds?: number;
+      } = {};
+
+      try {
+        const systemHealth = await this.integrationService.getSystemHealth();
+        const healthySources = systemHealth.sources.filter(s => s.status === "healthy").length;
+
+        // Get readiness state from checks (it's computed in performReadinessChecks)
+        let state: "not_ready" | "warming_up" | "ready" = "not_ready";
+        if (isReady) {
+          state = "ready";
+        } else if (healthySources > 0 && systemHealth.aggregation.successRate > 0) {
+          state = "warming_up";
+        }
+
+        diagnostics = {
+          healthySources,
+          totalSources: systemHealth.sources.length,
+          aggregationSuccessRate: systemHealth.aggregation.successRate,
+          canServeFeedData: isReady,
+          state,
+          validFeedCount: undefined, // Will be set if available
+          totalTestFeeds: 4, // BTC, ETH, SOL, FLR
+        };
+      } catch {
+        // Diagnostics are optional, don't fail if we can't get them
+        this.logger.debug("Could not get diagnostics for readiness response");
+      }
+
       const response = {
         ready: isReady,
         status: overallStatus,
         timestamp: Date.now(),
         responseTime: Date.now() - startTime,
         checks,
+        diagnostics,
         startup: {
           startTime: this.startupTime,
           readyTime: this.readyTime ?? null,
@@ -476,7 +542,7 @@ export class HealthController extends EventDrivenController {
   @ApiResponse({
     status: 503,
     description: "System is not alive",
-    type: ServiceUnavailableErrorResponseDto,
+    type: HttpErrorResponseDto,
   })
   async getLiveness(): Promise<LivenessResponse> {
     try {
@@ -571,19 +637,30 @@ export class HealthController extends EventDrivenController {
         const integrationHealth = await this.integrationService.getSystemHealth();
         checks.integration.ready = integrationHealth.status !== "unhealthy";
         checks.integration.status = integrationHealth.status;
+
+        // Log detailed health info for debugging
+        this.logger.debug(
+          `Integration health: status=${integrationHealth.status}, ` +
+            `sources=${integrationHealth.sources?.length || 0}, ` +
+            `healthySources=${integrationHealth.sources?.filter(s => s.status === "healthy").length || 0}`
+        );
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : undefined;
       checks.integration.error = errMsg;
       checks.integration.ready = false;
       checks.integration.status = "unhealthy";
+
+      // Log the full error for debugging
+      this.logger.error(`Error checking integration health: ${errMsg}`, errStack);
     }
 
     // For now, use integration health as proxy for provider health
     checks.provider.ready = checks.integration.ready;
     checks.provider.status = checks.integration.status;
 
-    // Check if system has healthy data sources and aggregation capability
+    // Check if system has healthy data sources and can actually serve feed data
 
     if (checks.integration.ready) {
       try {
@@ -591,27 +668,168 @@ export class HealthController extends EventDrivenController {
         const healthySources = systemHealth.sources.filter(s => s.status === "healthy").length;
         const totalSources = systemHealth.sources.length;
 
-        // System is ready if we have healthy data sources AND successful aggregation
+        // System readiness logic:
+        // The system is ready when it can actually serve data to users.
+        // This means we need data sources connected and able to provide prices.
+        //
+        // Readiness criteria:
+        // 1. Integration service is initialized
+        // 2. At least one data source is healthy
+        // 3. System has successfully aggregated at least some prices
+        // 4. Can actually retrieve feed data (verified by test query)
+        //
+        // This ensures users get real data when they query feeds.
         const hasHealthySources = healthySources > 0;
         const hasSuccessfulAggregation = systemHealth.aggregation.successRate > 0;
-        const hasLowErrorRate = systemHealth.aggregation.errorCount < 10;
+        const hasConfiguredSources = totalSources > 0;
 
-        // In development mode, be more lenient - system is ready if integration service is initialized
-        // In production mode, require actual healthy sources OR successful aggregation with low errors
-        // This allows the system to be ready if it has either:
-        // 1. Healthy data sources (even if no aggregation requests yet), OR
-        // 2. Successful aggregation with low error count (serving data successfully)
-        if (ENV_HELPERS.isDevelopment()) {
-          checks.startup.ready = true; // In development, just being initialized is enough
-        } else {
-          // System is ready if we have healthy sources OR we're successfully serving data
-          // This is more practical than requiring both, especially during startup
-          checks.startup.ready = hasHealthySources || (hasSuccessfulAggregation && hasLowErrorRate);
+        // Test if we can actually serve feed data by testing key feeds
+        // This uses the SAME code path as the actual feed endpoint to ensure accuracy
+        let canServeFeedData = false;
+        let feedTestError: string | null = null;
+        let validFeedCount = 0;
+
+        if (hasHealthySources || hasSuccessfulAggregation) {
+          try {
+            // Test key feeds to ensure data pipeline is working
+            // All feeds must pass for system to be ready
+            const testFeeds: CoreFeedId[] = [
+              { name: "BTC/USD", category: 1 }, // FeedCategory.Crypto = 1
+              { name: "ETH/USD", category: 1 },
+              { name: "SOL/USD", category: 1 },
+              { name: "FLR/USD", category: 1 },
+            ];
+
+            const testResults: string[] = [];
+
+            for (const testFeed of testFeeds) {
+              try {
+                // Use the aggregation service (same as feed controller) to test actual data availability
+                const aggregatedPrice = await this.aggregationService.getAggregatedPrice(testFeed);
+
+                // Verify we got valid data with non-null price
+                if (
+                  aggregatedPrice &&
+                  aggregatedPrice.price !== null &&
+                  aggregatedPrice.price > 0 &&
+                  aggregatedPrice.confidence > 0
+                ) {
+                  validFeedCount++;
+                  testResults.push(`${testFeed.name}=✓`);
+                  this.logger.debug(
+                    `Feed test passed: ${testFeed.name} = ${aggregatedPrice.price} (confidence: ${aggregatedPrice.confidence})`
+                  );
+                } else {
+                  testResults.push(`${testFeed.name}=✗(${aggregatedPrice?.price === null ? "null" : "invalid"})`);
+                  this.logger.debug(
+                    `Feed test failed: ${testFeed.name} returned ${aggregatedPrice?.price === null ? "null" : "invalid"} price`
+                  );
+                }
+              } catch (error) {
+                testResults.push(`${testFeed.name}=✗(error)`);
+                this.logger.debug(
+                  `Feed test error: ${testFeed.name} - ${error instanceof Error ? error.message : String(error)}`
+                );
+              }
+            }
+
+            // Require ALL test feeds to have valid data
+            canServeFeedData = validFeedCount === testFeeds.length;
+
+            if (!canServeFeedData) {
+              feedTestError = `Only ${validFeedCount}/${testFeeds.length} test feeds have valid data [${testResults.join(", ")}]`;
+            } else {
+              this.logger.debug(
+                `Feed data test passed: ${validFeedCount}/${testFeeds.length} feeds valid [${testResults.join(", ")}]`
+              );
+            }
+          } catch (error) {
+            feedTestError = error instanceof Error ? error.message : String(error);
+            this.logger.debug(`Feed data test failed: ${feedTestError}`);
+          }
         }
 
-        if (!checks.startup.ready) {
+        // Determine readiness state
+        let readinessState: "not_ready" | "warming_up" | "ready";
+
+        if (ENV_HELPERS.isDevelopment()) {
+          // Development: More lenient - ready if integration is initialized and has sources
+          // Still require at least one healthy source to ensure basic functionality
+          checks.startup.ready = hasHealthySources;
+          readinessState = hasHealthySources ? "ready" : "not_ready";
+
+          if (!checks.startup.ready && hasConfiguredSources) {
+            this.logger.debug(
+              `Development mode: Waiting for sources to connect (${healthySources}/${totalSources} healthy)`
+            );
+          }
+        } else {
+          // Production: Determine readiness state based on data availability
+          // 1. not_ready: No sources or no aggregation
+          // 2. warming_up: Sources connected, aggregation working, but not all feeds ready
+          // 3. ready: All criteria met including feed data availability
+
+          const hasBasicConnectivity = hasHealthySources && hasSuccessfulAggregation;
+
+          if (!hasBasicConnectivity) {
+            readinessState = "not_ready";
+            checks.startup.ready = false;
+          } else if (canServeFeedData) {
+            readinessState = "ready";
+            checks.startup.ready = true;
+          } else {
+            readinessState = "warming_up";
+            checks.startup.ready = false; // Not fully ready yet
+          }
+
+          // Provide helpful logging based on readiness state
+          if (readinessState === "not_ready") {
+            if (!hasConfiguredSources) {
+              this.logger.debug(
+                `System initializing: Waiting for data sources to connect (${totalSources} sources configured)`
+              );
+            } else if (totalSources > 0 && !hasHealthySources) {
+              this.logger.warn(
+                `System not ready: ${healthySources}/${totalSources} sources healthy. ` +
+                  `Check proxy configuration and network connectivity.`
+              );
+            } else if (hasHealthySources && !hasSuccessfulAggregation) {
+              this.logger.warn(
+                `System not ready: Sources connected but no successful aggregations yet. ` +
+                  `This is normal during initial startup - waiting for price data to flow.`
+              );
+            }
+          } else if (readinessState === "warming_up") {
+            this.logger.log(
+              `🔄 System warming up: ${healthySources}/${totalSources} sources healthy, ` +
+                `aggregation success rate: ${systemHealth.aggregation.successRate}%, ` +
+                `feed test: ${validFeedCount}/4 feeds ready. ` +
+                `Waiting for all feeds to have data...`
+            );
+          }
+        }
+
+        if (readinessState === "ready") {
+          this.logger.log(
+            `✅ System ready: ${healthySources}/${totalSources} sources healthy, ` +
+              `aggregation success rate: ${systemHealth.aggregation.successRate}%, ` +
+              `all test feeds validated`
+          );
+        } else if (readinessState === "warming_up") {
           this.logger.debug(
-            `System not ready: ${healthySources}/${totalSources} sources healthy, aggregation success rate: ${systemHealth.aggregation.successRate}%, error count: ${systemHealth.aggregation.errorCount}`
+            `System warming up: ${healthySources}/${totalSources} sources healthy, ` +
+              `aggregation success rate: ${systemHealth.aggregation.successRate}%, ` +
+              `feed test: ${validFeedCount}/4 ready, ` +
+              `error: ${feedTestError || "none"}`
+          );
+        } else {
+          this.logger.warn(
+            `System not ready: ${healthySources}/${totalSources} sources healthy, ` +
+              `aggregation success rate: ${systemHealth.aggregation.successRate}%, ` +
+              `error count: ${systemHealth.aggregation.errorCount}, ` +
+              `can serve feeds: ${canServeFeedData}, ` +
+              `feed test error: ${feedTestError || "none"}, ` +
+              `NODE_ENV: ${ENV.APPLICATION.NODE_ENV}`
           );
         }
       } catch (error) {
