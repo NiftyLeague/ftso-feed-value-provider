@@ -750,7 +750,7 @@ export class HealthController extends EventDrivenController {
         }
 
         // Determine readiness state
-        let readinessState: "not_ready" | "warming_up" | "ready" = "not_ready";
+        let readinessState: "not_ready" | "warming_up" | "ready";
 
         if (ENV_HELPERS.isDevelopment()) {
           // Development: More lenient - ready if integration is initialized and has sources
