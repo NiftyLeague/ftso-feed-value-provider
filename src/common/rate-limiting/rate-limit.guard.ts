@@ -15,6 +15,17 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
+    // Get request info early
+    const url = request.url;
+    const method = request.method;
+
+    // Bypass rate limiting for health check endpoints
+    // These are used by orchestration systems (Docker, Kubernetes) and should never be rate limited
+    if (url.startsWith("/health")) {
+      response.setHeader("X-RateLimit-Bypassed", "health-endpoint");
+      return true;
+    }
+
     // Bypass rate limiting in development environment for testing
     if (ENV.APPLICATION.NODE_ENV === "development") {
       response.setHeader("X-RateLimit-Bypassed", "development");
@@ -24,8 +35,6 @@ export class RateLimitGuard implements CanActivate {
     // Get client identifier (IP address or API key)
     const clientInfo = ClientIdentificationUtils.getClientInfo(request);
     const clientId = clientInfo.id;
-    const method = request.method;
-    const url = request.url;
 
     // Check rate limit
     const rateLimitInfo = this.rateLimiter.checkRateLimit(clientId);

@@ -29,6 +29,12 @@ describe("HealthController - Health Check Endpoints", () => {
     };
     const mockAggregationService = {
       getCacheStats: jest.fn(),
+      getAggregatedPrice: jest.fn().mockResolvedValue({
+        price: 50000,
+        confidence: 1,
+        timestamp: Date.now(),
+        sources: ["test"],
+      }),
     };
 
     module = await createTestModule()
@@ -247,6 +253,33 @@ describe("HealthController - Health Check Endpoints", () => {
         aggregation: { successRate: 1, errorCount: 0 },
         performance: { averageResponseTime: 100, errorRate: 0.01 },
         accuracy: { averageConfidence: 0.99, outlierRate: 0.01 },
+      });
+      integrationService.getAdapterStats.mockReturnValue({
+        total: 5,
+        active: 5,
+        byCategory: { crypto: 5 },
+        byHealth: { healthy: 5 },
+      });
+      cacheService.getStats.mockReturnValue({
+        hits: 950,
+        misses: 50,
+        hitRate: 0.96,
+        size: 100,
+        evictions: 0,
+        averageGetTime: 1,
+        averageSetTime: 1,
+        averageResponseTime: 1,
+        memoryUsage: 1024,
+        totalRequests: 1000,
+        missRate: 0.04,
+        totalEntries: 100,
+      });
+      aggregationService.getCacheStats.mockReturnValue({
+        totalEntries: 50,
+        hitRate: 0.9,
+        missRate: 0.1,
+        evictionCount: 5,
+        averageAge: 1000,
       });
 
       const result = await controller.getHealth();

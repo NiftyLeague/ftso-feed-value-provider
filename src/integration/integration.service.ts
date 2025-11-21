@@ -11,8 +11,9 @@ import { ConfigService } from "@/config/config.service";
 
 // Types and interfaces
 import type { AggregatedPrice } from "@/common/types/services";
-import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
+import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { IntegrationServiceInterface } from "@/common/types/services/provider.types";
+import type { AdapterStats } from "@/common/types/monitoring";
 
 @Injectable()
 export class IntegrationService
@@ -116,10 +117,35 @@ export class IntegrationService
     );
   }
 
+  /**
+   * Sync initial source health status after event wiring
+   * This handles the race condition where sources connect before event listeners are set up
+   */
+  private syncInitialSourceHealth(): void {
+    try {
+      // Get all currently connected sources from the data source integration
+      const connectedSources = this.dataSourceIntegration.getConnectedSources();
+
+      this.logger.log(`Syncing initial health for ${connectedSources.length} connected sources`);
+
+      // Record their current health status
+      connectedSources.forEach((source: DataSource) => {
+        const sourceId = source.id; // DataSource has 'id' property, not getSourceId()
+        const isConnected = source.isConnected();
+        const status = isConnected ? "healthy" : "unhealthy";
+        this.systemHealth.recordSourceHealth(sourceId, status);
+        this.logger.log(`Initial health sync: ${sourceId} = ${status}`);
+      });
+    } catch (error) {
+      this.logger.error("Error syncing initial source health:", error);
+    }
+  }
+
   // Service state management
   public override isServiceInitialized(): boolean {
     // Check if this service is initialized
     if (!this.isInitialized) {
+      this.logger.debug("Integration service not initialized: isInitialized=false");
       return false;
     }
 
@@ -129,7 +155,16 @@ export class IntegrationService
     const aggregationReady = this.priceAggregationCoordinator?.isInitialized ?? true;
     const healthReady = this.systemHealth?.isInitialized ?? true;
 
-    return dataSourceReady && aggregationReady && healthReady;
+    const allReady = dataSourceReady && aggregationReady && healthReady;
+
+    if (!allReady) {
+      this.logger.debug(
+        `Integration sub-services not all ready: ` +
+          `dataSource=${dataSourceReady}, aggregation=${aggregationReady}, health=${healthReady}`
+      );
+    }
+
+    return allReady;
   }
 
   // Public API methods
@@ -190,10 +225,12 @@ export class IntegrationService
 
     // Connect data source health events to system health
     this.dataSourceIntegration.on("sourceHealthy", (sourceId: string) => {
+      this.logger.debug(`[Event] sourceHealthy received for ${sourceId}, recording in system health`);
       this.systemHealth.recordSourceHealth(sourceId, "healthy");
     });
 
     this.dataSourceIntegration.on("sourceUnhealthy", (sourceId: string) => {
+      this.logger.debug(`[Event] sourceUnhealthy received for ${sourceId}, recording in system health`);
       this.systemHealth.recordSourceHealth(sourceId, "unhealthy");
     });
 
@@ -205,6 +242,10 @@ export class IntegrationService
     this.systemHealth.on("healthAlert", (alert: unknown) => {
       this.emit("healthAlert", alert);
     });
+
+    // IMPORTANT: Sync current source health status after wiring events
+    // This handles the race condition where sources connect before event listeners are set up
+    this.syncInitialSourceHealth();
 
     // Connect price aggregation errors to system health
     this.priceAggregationCoordinator.on("aggregationError", (error: Error) => {
@@ -264,6 +305,10 @@ export class IntegrationService
   getStatus(): string {
     const health = this.systemHealth.getOverallHealth();
     return health.status;
+  }
+
+  getAdapterStats(): AdapterStats {
+    return this.dataSourceIntegration.getAdapterStats();
   }
 
   override getMetrics(): Record<string, number> {

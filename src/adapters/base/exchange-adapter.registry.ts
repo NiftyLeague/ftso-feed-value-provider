@@ -1,4 +1,5 @@
 import type { IExchangeAdapter, ExchangeCapabilities } from "@/common/types/adapters";
+import type { AdapterStats } from "@/common/types/monitoring";
 import { FeedCategory } from "@/common/types/core";
 
 export interface IAdapterRegistryEntry {
@@ -122,12 +123,7 @@ export class ExchangeAdapterRegistry {
   /**
    * Get registry statistics
    */
-  getStats(): {
-    total: number;
-    active: number;
-    byCategory: Record<FeedCategory, number>;
-    byHealth: Record<string, number>;
-  } {
+  getStats(): AdapterStats {
     const entries = Array.from(this.adapters.values());
     const active = entries.filter(e => e.isActive);
 
