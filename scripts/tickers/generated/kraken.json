@@ -1,7 +1,7 @@
 {
   "exchange": "kraken",
-  "timestamp": 1763141373001,
-  "count": 1325,
+  "timestamp": 1763746459645,
+  "count": 1338,
   "symbols": [
     "0G/EUR",
     "0G/USD",
@@ -199,6 +199,8 @@
     "BLESS/USD",
     "BLUAI/EUR",
     "BLUAI/USD",
+    "BLUE/EUR",
+    "BLUE/USD",
     "BLUR/EUR",
     "BLUR/USD",
     "BLZ/EUR",
@@ -214,6 +216,8 @@
     "BNC/USD",
     "BNT/EUR",
     "BNT/USD",
+    "BOB/EUR",
+    "BOB/USD",
     "BOBA/EUR",
     "BOBA/USD",
     "BODEN/EUR",
@@ -269,6 +273,8 @@
     "CELR/USD",
     "CFG/EUR",
     "CFG/USD",
+    "CHECK/EUR",
+    "CHECK/USD",
     "CHEEMS/EUR",
     "CHEEMS/USD",
     "CHEX/EUR",
@@ -487,6 +493,7 @@
     "G/USD",
     "GAIA/EUR",
     "GAIA/USD",
+    "GAIB/USD",
     "GALA/EUR",
     "GALA/USD",
     "GARI/EUR",
@@ -548,6 +555,8 @@
     "HOUSE/USD",
     "HPOS10I/EUR",
     "HPOS10I/USD",
+    "IAG/EUR",
+    "IAG/USD",
     "ICNT/EUR",
     "ICNT/USD",
     "ICP/EUR",
@@ -929,6 +938,8 @@
     "RLUSD/USDT",
     "RPL/EUR",
     "RPL/USD",
+    "RSC/EUR",
+    "RSC/USD",
     "RSR/EUR",
     "RSR/USD",
     "RUJI/EUR",
@@ -1068,6 +1079,8 @@
     "T/USD",
     "TAC/EUR",
     "TAC/USD",
+    "TAKE/EUR",
+    "TAKE/USD",
     "TANSSI/EUR",
     "TANSSI/USD",
     "TAO/EUR",
@@ -2874,8 +2887,8 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "1200",
-        "short_position_limit": "980"
+        "long_position_limit": "1400",
+        "short_position_limit": "1100"
       }
     },
     "AAVE/GBP": {
@@ -3162,8 +3175,8 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "2600",
-        "short_position_limit": "2200"
+        "long_position_limit": "3200",
+        "short_position_limit": "2500"
       }
     },
     "AB/EUR": {
@@ -4851,7 +4864,7 @@
         "tick_size": "0.00000001",
         "status": "online",
         "long_position_limit": "520000",
-        "short_position_limit": "320000"
+        "short_position_limit": "280000"
       }
     },
     "ADA/ETH": {
@@ -4998,8 +5011,8 @@
         "costmin": "0.0002",
         "tick_size": "0.0000001",
         "status": "online",
-        "long_position_limit": "140000",
-        "short_position_limit": "140000"
+        "long_position_limit": "120000",
+        "short_position_limit": "120000"
       }
     },
     "ADA/EUR": {
@@ -5625,7 +5638,7 @@
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "1700000",
-        "short_position_limit": "1500000"
+        "short_position_limit": "1300000"
       }
     },
     "ADA/USDT": {
@@ -5786,8 +5799,8 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "800000",
-        "short_position_limit": "750000"
+        "long_position_limit": "710000",
+        "short_position_limit": "600000"
       }
     },
     "ADX/EUR": {
@@ -6351,7 +6364,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "41000",
+        "long_position_limit": "46000",
         "short_position_limit": "0"
       }
     },
@@ -9718,7 +9731,7 @@
         "tick_size": "0.000000001",
         "status": "online",
         "long_position_limit": "720000",
-        "short_position_limit": "260000"
+        "short_position_limit": "290000"
       }
     },
     "ALGO/ETH": {
@@ -10003,8 +10016,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "740000",
-        "short_position_limit": "550000"
+        "long_position_limit": "820000",
+        "short_position_limit": "680000"
       }
     },
     "ALGO/GBP": {
@@ -10289,8 +10302,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2000000",
-        "short_position_limit": "1200000"
+        "long_position_limit": "2300000",
+        "short_position_limit": "1400000"
       }
     },
     "ALGO/USDC": {
@@ -13517,7 +13530,7 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "190000",
+        "long_position_limit": "210000",
         "short_position_limit": "100000"
       }
     },
@@ -14934,7 +14947,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "20000",
-        "short_position_limit": "14000"
+        "short_position_limit": "16000"
       }
     },
     "APT/USD": {
@@ -15791,8 +15804,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "380000",
-        "short_position_limit": "240000"
+        "long_position_limit": "420000",
+        "short_position_limit": "300000"
       }
     },
     "ARB/USD": {
@@ -15940,7 +15953,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "1000000",
-        "short_position_limit": "610000"
+        "short_position_limit": "680000"
       }
     },
     "ARC/EUR": {
@@ -18892,7 +18905,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "52000",
-        "short_position_limit": "31000"
+        "short_position_limit": "35000"
       }
     },
     "ATOM/GBP": {
@@ -19178,7 +19191,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "120000",
-        "short_position_limit": "62000"
+        "short_position_limit": "76000"
       }
     },
     "ATOM/USDC": {
@@ -20987,8 +21000,8 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "28000",
-        "short_position_limit": "24000"
+        "long_position_limit": "39000",
+        "short_position_limit": "30000"
       }
     },
     "AVAX/USD": {
@@ -21149,8 +21162,8 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "110000",
-        "short_position_limit": "95000"
+        "long_position_limit": "130000",
+        "short_position_limit": "110000"
       }
     },
     "AVAX/USDC": {
@@ -21714,7 +21727,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "210000",
+        "long_position_limit": "300000",
         "short_position_limit": "0"
       }
     },
@@ -21860,7 +21873,7 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "21000",
+        "long_position_limit": "16000",
         "short_position_limit": "14000"
       }
     },
@@ -22008,7 +22021,7 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "32000",
+        "long_position_limit": "36000",
         "short_position_limit": "22000"
       }
     },
@@ -24116,8 +24129,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "550000",
-        "short_position_limit": "460000"
+        "long_position_limit": "610000",
+        "short_position_limit": "510000"
       }
     },
     "BAT/USD": {
@@ -24265,7 +24278,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "910000",
-        "short_position_limit": "650000"
+        "short_position_limit": "720000"
       }
     },
     "BCH/AUD": {
@@ -24838,7 +24851,7 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "840",
+        "long_position_limit": "1100",
         "short_position_limit": "550"
       }
     },
@@ -29050,6 +29063,286 @@
         "status": "online"
       }
     },
+    "BLUE/EUR": {
+      "id": "BLUEEUR",
+      "symbol": "BLUE/EUR",
+      "base": "BLUE",
+      "quote": "EUR",
+      "baseId": "BLUE",
+      "quoteId": "EUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 25
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "BLUEEUR",
+        "wsname": "BLUE/EUR",
+        "aclass_base": "currency",
+        "base": "BLUE",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "25",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "BLUE/USD": {
+      "id": "BLUEUSD",
+      "symbol": "BLUE/USD",
+      "base": "BLUE",
+      "quote": "USD",
+      "baseId": "BLUE",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 25
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "BLUEUSD",
+        "wsname": "BLUE/USD",
+        "aclass_base": "currency",
+        "base": "BLUE",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "25",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
     "BLUR/EUR": {
       "id": "BLUREUR",
       "symbol": "BLUR/EUR",
@@ -30331,7 +30624,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "850",
-        "short_position_limit": "360"
+        "short_position_limit": "400"
       }
     },
     "BNB/USDC": {
@@ -31171,6 +31464,286 @@
         "ordermin": "6",
         "costmin": "0.5",
         "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
+    "BOB/EUR": {
+      "id": "BOBEUR",
+      "symbol": "BOB/EUR",
+      "base": "BOB",
+      "quote": "EUR",
+      "baseId": "BOB",
+      "quoteId": "EUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 200
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "BOBEUR",
+        "wsname": "BOB/EUR",
+        "aclass_base": "currency",
+        "base": "BOB",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "200",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "BOB/USD": {
+      "id": "BOBUSD",
+      "symbol": "BOB/USD",
+      "base": "BOB",
+      "quote": "USD",
+      "baseId": "BOB",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 200
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "BOBUSD",
+        "wsname": "BOB/USD",
+        "aclass_base": "currency",
+        "base": "BOB",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "200",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
         "status": "online"
       }
     },
@@ -32298,7 +32871,7 @@
         "costmin": "0.5",
         "tick_size": "0.000000001",
         "status": "online",
-        "long_position_limit": "22000000000",
+        "long_position_limit": "25000000000",
         "short_position_limit": "21000000000"
       }
     },
@@ -33297,7 +33870,7 @@
         "tick_size": "0.1",
         "status": "online",
         "long_position_limit": "8",
-        "short_position_limit": "8"
+        "short_position_limit": "9"
       }
     },
     "BTC/CHF": {
@@ -33444,8 +34017,8 @@
         "costmin": "0.5",
         "tick_size": "0.1",
         "status": "online",
-        "long_position_limit": "11",
-        "short_position_limit": "12"
+        "long_position_limit": "13",
+        "short_position_limit": "14"
       }
     },
     "BTC/DAI": {
@@ -34176,8 +34749,8 @@
         "costmin": "0.43",
         "tick_size": "0.1",
         "status": "online",
-        "long_position_limit": "7",
-        "short_position_limit": "8"
+        "long_position_limit": "8",
+        "short_position_limit": "9"
       }
     },
     "BTC/JPY": {
@@ -36487,7 +37060,7 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "16000",
+        "long_position_limit": "20000",
         "short_position_limit": "0"
       }
     },
@@ -39011,6 +39584,286 @@
         "status": "online"
       }
     },
+    "CHECK/EUR": {
+      "id": "CHECKEUR",
+      "symbol": "CHECK/EUR",
+      "base": "CHECK",
+      "quote": "EUR",
+      "baseId": "CHECK",
+      "quoteId": "EUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 50
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "CHECKEUR",
+        "wsname": "CHECK/EUR",
+        "aclass_base": "currency",
+        "base": "CHECK",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "6",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "50",
+        "costmin": "0.45",
+        "tick_size": "0.000001",
+        "status": "online"
+      }
+    },
+    "CHECK/USD": {
+      "id": "CHECKUSD",
+      "symbol": "CHECK/USD",
+      "base": "CHECK",
+      "quote": "USD",
+      "baseId": "CHECK",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 50
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "CHECKUSD",
+        "wsname": "CHECK/USD",
+        "aclass_base": "currency",
+        "base": "CHECK",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "6",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "50",
+        "costmin": "0.5",
+        "tick_size": "0.000001",
+        "status": "online"
+      }
+    },
     "CHEEMS/EUR": {
       "id": "CHEEMSEUR",
       "symbol": "CHEEMS/EUR",
@@ -40423,7 +41276,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2000000",
+        "long_position_limit": "2300000",
         "short_position_limit": "1200000"
       }
     },
@@ -41822,7 +42675,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "2000",
-        "short_position_limit": "1300"
+        "short_position_limit": "1500"
       }
     },
     "COMP/USD": {
@@ -44636,7 +45489,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "280000",
-        "short_position_limit": "200000"
+        "short_position_limit": "230000"
       }
     },
     "CRV/USD": {
@@ -44784,7 +45637,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "920000",
-        "short_position_limit": "620000"
+        "short_position_limit": "690000"
       }
     },
     "CTC/EUR": {
@@ -46877,8 +47730,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "55000",
-        "short_position_limit": "58000"
+        "long_position_limit": "54000",
+        "short_position_limit": "64000"
       }
     },
     "DAI/USD": {
@@ -47291,8 +48144,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "900",
-        "short_position_limit": "720"
+        "long_position_limit": "1000",
+        "short_position_limit": "710"
       }
     },
     "DASH/USD": {
@@ -47439,7 +48292,7 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "3000",
+        "long_position_limit": "3400",
         "short_position_limit": "3000"
       }
     },
@@ -49413,7 +50266,7 @@
         "tick_size": "0.000000001",
         "status": "online",
         "long_position_limit": "2600000",
-        "short_position_limit": "2000000"
+        "short_position_limit": "2300000"
       }
     },
     "DOGE/CAD": {
@@ -49714,8 +50567,8 @@
         "costmin": "0.45",
         "tick_size": "0.0000001",
         "status": "online",
-        "long_position_limit": "10000000",
-        "short_position_limit": "4600000"
+        "long_position_limit": "12000000",
+        "short_position_limit": "4100000"
       }
     },
     "DOGE/GBP": {
@@ -50178,8 +51031,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2300000",
-        "short_position_limit": "1700000"
+        "long_position_limit": "2000000",
+        "short_position_limit": "1500000"
       }
     },
     "DOGE/USDT": {
@@ -50341,7 +51194,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "1800000",
-        "short_position_limit": "1600000"
+        "short_position_limit": "1800000"
       }
     },
     "DOGS/EUR": {
@@ -51048,8 +51901,8 @@
         "costmin": "0.00002",
         "tick_size": "0.00000001",
         "status": "online",
-        "long_position_limit": "47000",
-        "short_position_limit": "11000"
+        "long_position_limit": "42000",
+        "short_position_limit": "7900"
       }
     },
     "DOT/ETH": {
@@ -51196,8 +52049,8 @@
         "costmin": "0.0002",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "5200",
-        "short_position_limit": "7500"
+        "long_position_limit": "3200",
+        "short_position_limit": "4600"
       }
     },
     "DOT/EUR": {
@@ -51344,8 +52197,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "260000",
-        "short_position_limit": "92000"
+        "long_position_limit": "230000",
+        "short_position_limit": "82000"
       }
     },
     "DOT/GBP": {
@@ -51773,7 +52626,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "340000",
-        "short_position_limit": "230000"
+        "short_position_limit": "200000"
       }
     },
     "DOT/USDC": {
@@ -51921,7 +52774,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "32000",
-        "short_position_limit": "21000"
+        "short_position_limit": "24000"
       }
     },
     "DOT/USDT": {
@@ -52069,7 +52922,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "53000",
-        "short_position_limit": "32000"
+        "short_position_limit": "31000"
       }
     },
     "DRIFT/EUR": {
@@ -53196,7 +54049,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "290000",
+        "long_position_limit": "320000",
         "short_position_limit": "160000"
       }
     },
@@ -54884,8 +55737,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "150000",
-        "short_position_limit": "76000"
+        "long_position_limit": "170000",
+        "short_position_limit": "93000"
       }
     },
     "ELX/EUR": {
@@ -55452,8 +56305,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "970000",
-        "short_position_limit": "710000"
+        "long_position_limit": "1500000",
+        "short_position_limit": "1100000"
       }
     },
     "ENJ/EUR": {
@@ -57867,7 +58720,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "130",
-        "short_position_limit": "110"
+        "short_position_limit": "130"
       }
     },
     "ETH/BTC": {
@@ -58166,7 +59019,7 @@
         "costmin": "1",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "130",
+        "long_position_limit": "150",
         "short_position_limit": "130"
       }
     },
@@ -58315,7 +59168,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "270",
-        "short_position_limit": "240"
+        "short_position_limit": "270"
       }
     },
     "ETH/DAI": {
@@ -59788,7 +60641,7 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "610",
+        "long_position_limit": "680",
         "short_position_limit": "710"
       }
     },
@@ -63542,8 +64395,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "220000",
-        "short_position_limit": "220000"
+        "long_position_limit": "280000",
+        "short_position_limit": "280000"
       }
     },
     "FARTCOIN/USD": {
@@ -63690,7 +64543,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1400000",
+        "long_position_limit": "1600000",
         "short_position_limit": "1300000"
       }
     },
@@ -64258,7 +65111,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1400000",
+        "long_position_limit": "1600000",
         "short_position_limit": "1000000"
       }
     },
@@ -65244,8 +66097,8 @@
         "costmin": "0.00002",
         "tick_size": "0.00000001",
         "status": "online",
-        "long_position_limit": "14000",
-        "short_position_limit": "22000"
+        "long_position_limit": "12000",
+        "short_position_limit": "25000"
       }
     },
     "FIL/ETH": {
@@ -65530,8 +66383,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "58000",
-        "short_position_limit": "36000"
+        "long_position_limit": "64000",
+        "short_position_limit": "50000"
       }
     },
     "FIL/GBP": {
@@ -65816,8 +66669,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "160000",
-        "short_position_limit": "96000"
+        "long_position_limit": "180000",
+        "short_position_limit": "110000"
       }
     },
     "FIS/EUR": {
@@ -66385,7 +67238,7 @@
         "tick_size": "0.00000001",
         "status": "online",
         "long_position_limit": "1200000000",
-        "short_position_limit": "900000000"
+        "short_position_limit": "890000000"
       }
     },
     "FLOW/EUR": {
@@ -66533,7 +67386,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "75000",
-        "short_position_limit": "59000"
+        "short_position_limit": "65000"
       }
     },
     "FLOW/USD": {
@@ -66680,8 +67533,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "150000",
-        "short_position_limit": "110000"
+        "long_position_limit": "170000",
+        "short_position_limit": "130000"
       }
     },
     "FLR/EUR": {
@@ -66976,8 +67829,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "4800000",
-        "short_position_limit": "3500000"
+        "long_position_limit": "5300000",
+        "short_position_limit": "4300000"
       }
     },
     "FLUX/EUR": {
@@ -69360,6 +70213,146 @@
         "status": "online"
       }
     },
+    "GAIB/USD": {
+      "id": "GAIBUSD",
+      "symbol": "GAIB/USD",
+      "base": "GAIB",
+      "quote": "USD",
+      "baseId": "GAIB",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 10
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "GAIBUSD",
+        "wsname": "GAIB/USD",
+        "aclass_base": "currency",
+        "base": "GAIB",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "10",
+        "costmin": "0.5",
+        "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
     "GALA/EUR": {
       "id": "GALAEUR",
       "symbol": "GALA/EUR",
@@ -69644,8 +70637,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "15000000",
-        "short_position_limit": "9900000"
+        "long_position_limit": "17000000",
+        "short_position_limit": "11000000"
       }
     },
     "GARI/EUR": {
@@ -72576,8 +73569,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "150000",
-        "short_position_limit": "140000"
+        "long_position_limit": "170000",
+        "short_position_limit": "160000"
       }
     },
     "GOMINING/EUR": {
@@ -73702,8 +74695,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "880000",
-        "short_position_limit": "720000"
+        "long_position_limit": "970000",
+        "short_position_limit": "890000"
       }
     },
     "GRT/GBP": {
@@ -73988,8 +74981,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2200000",
-        "short_position_limit": "1200000"
+        "long_position_limit": "2500000",
+        "short_position_limit": "1600000"
       }
     },
     "GST/EUR": {
@@ -77920,6 +78913,286 @@
         "status": "online"
       }
     },
+    "IAG/EUR": {
+      "id": "IAGEUR",
+      "symbol": "IAG/EUR",
+      "base": "IAG",
+      "quote": "EUR",
+      "baseId": "IAG",
+      "quoteId": "EUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 30
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "IAGEUR",
+        "wsname": "IAG/EUR",
+        "aclass_base": "currency",
+        "base": "IAG",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "30",
+        "costmin": "0.45",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "IAG/USD": {
+      "id": "IAGUSD",
+      "symbol": "IAG/USD",
+      "base": "IAG",
+      "quote": "USD",
+      "baseId": "IAG",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 30
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "IAGUSD",
+        "wsname": "IAG/USD",
+        "aclass_base": "currency",
+        "base": "IAG",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "5",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "30",
+        "costmin": "0.5",
+        "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
     "ICNT/EUR": {
       "id": "ICNTEUR",
       "symbol": "ICNT/EUR",
@@ -78345,7 +79618,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "33000",
-        "short_position_limit": "28000"
+        "short_position_limit": "31000"
       }
     },
     "ICP/USD": {
@@ -78492,8 +79765,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "120000",
-        "short_position_limit": "91000"
+        "long_position_limit": "180000",
+        "short_position_limit": "130000"
       }
     },
     "ICX/EUR": {
@@ -79766,8 +81039,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "9600",
-        "short_position_limit": "7800"
+        "long_position_limit": "11000",
+        "short_position_limit": "8600"
       }
     },
     "INJ/USD": {
@@ -80762,8 +82035,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "6100000",
-        "short_position_limit": "4400000"
+        "long_position_limit": "6800000",
+        "short_position_limit": "5400000"
       }
     },
     "JITOSOL/EUR": {
@@ -82878,8 +84151,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "54000",
-        "short_position_limit": "27000"
+        "long_position_limit": "67000",
+        "short_position_limit": "34000"
       }
     },
     "KAS/EUR": {
@@ -83166,7 +84439,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "2400000",
+        "long_position_limit": "2700000",
         "short_position_limit": "1800000"
       }
     },
@@ -83454,8 +84727,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "100000",
-        "short_position_limit": "49000"
+        "long_position_limit": "230000",
+        "short_position_limit": "110000"
       }
     },
     "KAVA/USD": {
@@ -83602,8 +84875,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "250000",
-        "short_position_limit": "110000"
+        "long_position_limit": "430000",
+        "short_position_limit": "150000"
       }
     },
     "KERNEL/EUR": {
@@ -85570,8 +86843,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "71000",
-        "short_position_limit": "53000"
+        "long_position_limit": "63000",
+        "short_position_limit": "47000"
       }
     },
     "KOBAN/EUR": {
@@ -86278,8 +87551,8 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "5900",
-        "short_position_limit": "3100"
+        "long_position_limit": "6500",
+        "short_position_limit": "2700"
       }
     },
     "KSM/GBP": {
@@ -86569,7 +87842,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "14000",
-        "short_position_limit": "5000"
+        "short_position_limit": "3900"
       }
     },
     "KTA/EUR": {
@@ -88116,8 +89389,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "89000",
-        "short_position_limit": "54000"
+        "long_position_limit": "98000",
+        "short_position_limit": "60000"
       }
     },
     "LDO/USD": {
@@ -88267,7 +89540,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "230000",
-        "short_position_limit": "160000"
+        "short_position_limit": "140000"
       }
     },
     "LINEA/EUR": {
@@ -88835,7 +90108,7 @@
         "tick_size": "0.00000001",
         "status": "online",
         "long_position_limit": "13000",
-        "short_position_limit": "4900"
+        "short_position_limit": "4400"
       }
     },
     "LINK/ETH": {
@@ -88983,7 +90256,7 @@
         "tick_size": "0.00000001",
         "status": "online",
         "long_position_limit": "2800",
-        "short_position_limit": "2200"
+        "short_position_limit": "2500"
       }
     },
     "LINK/EUR": {
@@ -89144,8 +90417,8 @@
         "costmin": "0.45",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "38000",
-        "short_position_limit": "25000"
+        "long_position_limit": "47000",
+        "short_position_limit": "28000"
       }
     },
     "LINK/GBP": {
@@ -89586,8 +90859,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "130000",
-        "short_position_limit": "100000"
+        "long_position_limit": "110000",
+        "short_position_limit": "80000"
       }
     },
     "LINK/USDC": {
@@ -89748,7 +91021,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "15000",
+        "long_position_limit": "19000",
         "short_position_limit": "14000"
       }
     },
@@ -89910,8 +91183,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "10000",
-        "short_position_limit": "8400"
+        "long_position_limit": "14000",
+        "short_position_limit": "13000"
       }
     },
     "LION/EUR": {
@@ -92159,7 +93432,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "330000",
-        "short_position_limit": "200000"
+        "short_position_limit": "170000"
       }
     },
     "LRC/USD": {
@@ -92306,7 +93579,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "360000",
+        "long_position_limit": "320000",
         "short_position_limit": "170000"
       }
     },
@@ -93698,8 +94971,8 @@
         "costmin": "0.00002",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "1900",
-        "short_position_limit": "1300"
+        "long_position_limit": "2100",
+        "short_position_limit": "1500"
       }
     },
     "LTC/ETH": {
@@ -94000,8 +95273,8 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "7700",
-        "short_position_limit": "5400"
+        "long_position_limit": "9400",
+        "short_position_limit": "6000"
       }
     },
     "LTC/GBP": {
@@ -94442,8 +95715,8 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "18000",
-        "short_position_limit": "14000"
+        "long_position_limit": "20000",
+        "short_position_limit": "16000"
       }
     },
     "LTC/USDC": {
@@ -94739,7 +96012,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "2200",
-        "short_position_limit": "1600"
+        "short_position_limit": "1800"
       }
     },
     "LUNA/EUR": {
@@ -95877,7 +97150,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "350000",
-        "short_position_limit": "210000"
+        "short_position_limit": "240000"
       }
     },
     "MANA/USD": {
@@ -96027,7 +97300,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "870000",
-        "short_position_limit": "430000"
+        "short_position_limit": "480000"
       }
     },
     "MANA/USDC": {
@@ -100522,7 +101795,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "230000",
-        "short_position_limit": "210000"
+        "short_position_limit": "240000"
       }
     },
     "MINA/GBP": {
@@ -100811,8 +102084,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1100000",
-        "short_position_limit": "610000"
+        "long_position_limit": "1300000",
+        "short_position_limit": "830000"
       }
     },
     "MIR/EUR": {
@@ -102636,7 +103909,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "140000",
+        "long_position_limit": "180000",
         "short_position_limit": "0"
       }
     },
@@ -103204,8 +104477,8 @@
         "costmin": "0.5",
         "tick_size": "0.0000000001",
         "status": "online",
-        "long_position_limit": "170000000000",
-        "short_position_limit": "180000000000"
+        "long_position_limit": "210000000000",
+        "short_position_limit": "200000000000"
       }
     },
     "MOODENG/EUR": {
@@ -103493,7 +104766,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "660000",
-        "short_position_limit": "400000"
+        "short_position_limit": "450000"
       }
     },
     "MOON/EUR": {
@@ -104060,8 +105333,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "36000",
-        "short_position_limit": "17000"
+        "long_position_limit": "40000",
+        "short_position_limit": "19000"
       }
     },
     "MOVR/EUR": {
@@ -106290,8 +107563,8 @@
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "3700",
-        "short_position_limit": "2900"
+        "long_position_limit": "4100",
+        "short_position_limit": "4500"
       }
     },
     "NANO/USD": {
@@ -106438,8 +107711,8 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "15000",
-        "short_position_limit": "8800"
+        "long_position_limit": "17000",
+        "short_position_limit": "13000"
       }
     },
     "NEAR/EUR": {
@@ -106586,8 +107859,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "62000",
-        "short_position_limit": "47000"
+        "long_position_limit": "69000",
+        "short_position_limit": "64000"
       }
     },
     "NEAR/USD": {
@@ -106734,8 +108007,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "210000",
-        "short_position_limit": "160000"
+        "long_position_limit": "240000",
+        "short_position_limit": "200000"
       }
     },
     "NEIRO/EUR": {
@@ -111226,7 +112499,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "260000",
+        "long_position_limit": "290000",
         "short_position_limit": "140000"
       }
     },
@@ -111372,8 +112645,8 @@
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "51",
-        "short_position_limit": "140"
+        "long_position_limit": "2200",
+        "short_position_limit": "1900"
       }
     },
     "OMG/USD": {
@@ -111518,8 +112791,8 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "4200",
-        "short_position_limit": "4700"
+        "long_position_limit": "7900",
+        "short_position_limit": "7900"
       }
     },
     "OMNI/EUR": {
@@ -112094,8 +113367,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "680000",
-        "short_position_limit": "400000"
+        "long_position_limit": "750000",
+        "short_position_limit": "450000"
       }
     },
     "OOB/EUR": {
@@ -112660,7 +113933,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "240000",
+        "long_position_limit": "270000",
         "short_position_limit": "170000"
       }
     },
@@ -114491,7 +115764,7 @@
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "54",
-        "short_position_limit": "44"
+        "short_position_limit": "49"
       }
     },
     "PAXG/ETH": {
@@ -114778,7 +116051,7 @@
         "costmin": "0.45",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "130",
+        "long_position_limit": "88",
         "short_position_limit": "79"
       }
     },
@@ -114927,7 +116200,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "240",
-        "short_position_limit": "230"
+        "short_position_limit": "260"
       }
     },
     "PDA/EUR": {
@@ -116194,8 +117467,8 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "20000000",
-        "short_position_limit": "20000000"
+        "long_position_limit": "23000000",
+        "short_position_limit": "23000000"
       }
     },
     "PENGU/USDC": {
@@ -116902,7 +118175,7 @@
         "costmin": "0.45",
         "tick_size": "0.000000001",
         "status": "online",
-        "long_position_limit": "40000000000",
+        "long_position_limit": "45000000000",
         "short_position_limit": "39000000000"
       }
     },
@@ -117190,7 +118463,7 @@
         "costmin": "0.5",
         "tick_size": "0.000000001",
         "status": "online",
-        "long_position_limit": "170000000000",
+        "long_position_limit": "190000000000",
         "short_position_limit": "160000000000"
       }
     },
@@ -119299,7 +120572,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "380000",
-        "short_position_limit": "310000"
+        "short_position_limit": "270000"
       }
     },
     "POL/USD": {
@@ -119446,7 +120719,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "1300000",
+        "long_position_limit": "1500000",
         "short_position_limit": "1000000"
       }
     },
@@ -120994,8 +122267,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "2100000",
-        "short_position_limit": "2000000"
+        "long_position_limit": "1800000",
+        "short_position_limit": "1500000"
       }
     },
     "PORTAL/EUR": {
@@ -123942,8 +125215,8 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "160000000",
-        "short_position_limit": "97000000"
+        "long_position_limit": "140000000",
+        "short_position_limit": "78000000"
       }
     },
     "PUPS/EUR": {
@@ -124510,8 +125783,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "640000",
-        "short_position_limit": "520000"
+        "long_position_limit": "790000",
+        "short_position_limit": "640000"
       }
     },
     "PYUSD/EUR": {
@@ -125887,7 +127160,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "49000",
-        "short_position_limit": "20000"
+        "short_position_limit": "23000"
       }
     },
     "RAD/EUR": {
@@ -127294,8 +128567,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "34000",
-        "short_position_limit": "25000"
+        "long_position_limit": "38000",
+        "short_position_limit": "28000"
       }
     },
     "RBC/EUR": {
@@ -128702,8 +129975,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "91000",
-        "short_position_limit": "66000"
+        "long_position_limit": "110000",
+        "short_position_limit": "81000"
       }
     },
     "REP/EUR": {
@@ -130807,7 +132080,7 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "380000",
+        "long_position_limit": "340000",
         "short_position_limit": "0"
       }
     },
@@ -131743,6 +133016,286 @@
         "status": "online"
       }
     },
+    "RSC/EUR": {
+      "id": "RSCEUR",
+      "symbol": "RSC/EUR",
+      "base": "RSC",
+      "quote": "EUR",
+      "baseId": "RSC",
+      "quoteId": "EUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 17
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "RSCEUR",
+        "wsname": "RSC/EUR",
+        "aclass_base": "currency",
+        "base": "RSC",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "17",
+        "costmin": "0.45",
+        "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
+    "RSC/USD": {
+      "id": "RSCUSD",
+      "symbol": "RSC/USD",
+      "base": "RSC",
+      "quote": "USD",
+      "baseId": "RSC",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.00001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 17
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "RSCUSD",
+        "wsname": "RSC/USD",
+        "aclass_base": "currency",
+        "base": "RSC",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "17",
+        "costmin": "0.5",
+        "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
     "RSR/EUR": {
       "id": "RSREUR",
       "symbol": "RSR/EUR",
@@ -132587,8 +134140,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "130000",
-        "short_position_limit": "79000"
+        "long_position_limit": "150000",
+        "short_position_limit": "110000"
       }
     },
     "S/EUR": {
@@ -133715,8 +135268,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "460000",
-        "short_position_limit": "230000"
+        "long_position_limit": "510000",
+        "short_position_limit": "170000"
       }
     },
     "SAHARA/EUR": {
@@ -134563,8 +136116,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "200000",
-        "short_position_limit": "100000"
+        "long_position_limit": "230000",
+        "short_position_limit": "120000"
       }
     },
     "SAND/GBP": {
@@ -134851,8 +136404,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "280000",
-        "short_position_limit": "190000"
+        "long_position_limit": "430000",
+        "short_position_limit": "270000"
       }
     },
     "SAPIEN/EUR": {
@@ -137116,7 +138669,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "580000",
-        "short_position_limit": "460000"
+        "short_position_limit": "410000"
       }
     },
     "SEI/USD": {
@@ -137691,7 +139244,7 @@
         "costmin": "0.45",
         "tick_size": "0.00000001",
         "status": "online",
-        "long_position_limit": "16000000000",
+        "long_position_limit": "18000000000",
         "short_position_limit": "12000000000"
       }
     },
@@ -140365,8 +141918,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "77000",
-        "short_position_limit": "56000"
+        "long_position_limit": "85000",
+        "short_position_limit": "50000"
       }
     },
     "SOGNI/EUR": {
@@ -140935,8 +142488,8 @@
         "costmin": "0.00002",
         "tick_size": "0.0000001",
         "status": "online",
-        "long_position_limit": "4900",
-        "short_position_limit": "4600"
+        "long_position_limit": "6000",
+        "short_position_limit": "5100"
       }
     },
     "SOL/CAD": {
@@ -141224,7 +142777,7 @@
         "tick_size": "0.000001",
         "status": "online",
         "long_position_limit": "1100",
-        "short_position_limit": "810"
+        "short_position_limit": "900"
       }
     },
     "SOL/EUR": {
@@ -141673,8 +143226,8 @@
         "costmin": "0.43",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "1700",
-        "short_position_limit": "1500"
+        "long_position_limit": "1900",
+        "short_position_limit": "1700"
       }
     },
     "SOL/USD": {
@@ -144547,8 +146100,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "310000",
-        "short_position_limit": "210000"
+        "long_position_limit": "390000",
+        "short_position_limit": "270000"
       }
     },
     "SRM/EUR": {
@@ -146661,7 +148214,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "250000",
-        "short_position_limit": "190000"
+        "short_position_limit": "210000"
       }
     },
     "STRK/USD": {
@@ -146809,7 +148362,7 @@
         "tick_size": "0.00001",
         "status": "online",
         "long_position_limit": "1600000",
-        "short_position_limit": "1100000"
+        "short_position_limit": "880000"
       }
     },
     "STX/EUR": {
@@ -147097,7 +148650,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "320000",
-        "short_position_limit": "210000"
+        "short_position_limit": "160000"
       }
     },
     "SUI/EUR": {
@@ -147258,8 +148811,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "190000",
-        "short_position_limit": "180000"
+        "long_position_limit": "210000",
+        "short_position_limit": "200000"
       }
     },
     "SUI/GBP": {
@@ -147406,8 +148959,8 @@
         "costmin": "0.43",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "29000",
-        "short_position_limit": "26000"
+        "long_position_limit": "32000",
+        "short_position_limit": "32000"
       }
     },
     "SUI/USD": {
@@ -150944,8 +152497,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "160000",
-        "short_position_limit": "150000"
+        "long_position_limit": "230000",
+        "short_position_limit": "170000"
       }
     },
     "T/EUR": {
@@ -151505,6 +153058,286 @@
         "ordermin": "100",
         "costmin": "0.5",
         "tick_size": "0.00001",
+        "status": "online"
+      }
+    },
+    "TAKE/EUR": {
+      "id": "TAKEEUR",
+      "symbol": "TAKE/EUR",
+      "base": "TAKE",
+      "quote": "EUR",
+      "baseId": "TAKE",
+      "quoteId": "EUR",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 16
+        },
+        "price": {},
+        "cost": {
+          "min": 0.45
+        }
+      },
+      "info": {
+        "altname": "TAKEEUR",
+        "wsname": "TAKE/EUR",
+        "aclass_base": "currency",
+        "base": "TAKE",
+        "aclass_quote": "currency",
+        "quote": "ZEUR",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "16",
+        "costmin": "0.45",
+        "tick_size": "0.0001",
+        "status": "online"
+      }
+    },
+    "TAKE/USD": {
+      "id": "TAKEUSD",
+      "symbol": "TAKE/USD",
+      "base": "TAKE",
+      "quote": "USD",
+      "baseId": "TAKE",
+      "quoteId": "USD",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.0023,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 1
+        },
+        "amount": {
+          "min": 16
+        },
+        "price": {},
+        "cost": {
+          "min": 0.5
+        }
+      },
+      "info": {
+        "altname": "TAKEUSD",
+        "wsname": "TAKE/USD",
+        "aclass_base": "currency",
+        "base": "TAKE",
+        "aclass_quote": "currency",
+        "quote": "ZUSD",
+        "lot": "unit5",
+        "cost_decimals": "5",
+        "pair_decimals": "4",
+        "lot_decimals": "5",
+        "lot_multiplier": "1",
+        "leverage_buy": [],
+        "leverage_sell": [],
+        "fees": [
+          [
+            0,
+            0.4
+          ],
+          [
+            10000,
+            0.35
+          ],
+          [
+            50000,
+            0.24
+          ],
+          [
+            100000,
+            0.22
+          ],
+          [
+            250000,
+            0.2
+          ],
+          [
+            500000,
+            0.18
+          ],
+          [
+            1000000,
+            0.16
+          ],
+          [
+            2500000,
+            0.14
+          ],
+          [
+            5000000,
+            0.12
+          ],
+          [
+            10000000,
+            0.1
+          ]
+        ],
+        "fees_maker": [
+          [
+            0,
+            0.23
+          ],
+          [
+            10000,
+            0.18
+          ],
+          [
+            50000,
+            0.12
+          ],
+          [
+            100000,
+            0.1
+          ],
+          [
+            250000,
+            0.08
+          ],
+          [
+            500000,
+            0.06
+          ],
+          [
+            1000000,
+            0.04
+          ],
+          [
+            2500000,
+            0.02
+          ],
+          [
+            5000000,
+            0
+          ],
+          [
+            10000000,
+            -0.02
+          ]
+        ],
+        "fee_volume_currency": "ZUSD",
+        "margin_call": "80",
+        "margin_stop": "40",
+        "ordermin": "16",
+        "costmin": "0.5",
+        "tick_size": "0.0001",
         "status": "online"
       }
     },
@@ -153732,8 +155565,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "200000",
-        "short_position_limit": "250000"
+        "long_position_limit": "290000",
+        "short_position_limit": "310000"
       }
     },
     "TITCOIN/EUR": {
@@ -155280,8 +157113,8 @@
         "costmin": "0.45",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "39000",
-        "short_position_limit": "34000"
+        "long_position_limit": "48000",
+        "short_position_limit": "38000"
       }
     },
     "TON/USD": {
@@ -155428,8 +157261,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "95000",
-        "short_position_limit": "76000"
+        "long_position_limit": "130000",
+        "short_position_limit": "84000"
       }
     },
     "TON/USDC": {
@@ -157404,8 +159237,8 @@
         "costmin": "0.5",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "64000",
-        "short_position_limit": "48000"
+        "long_position_limit": "51000",
+        "short_position_limit": "38000"
       }
     },
     "TRUMP/USDC": {
@@ -158402,8 +160235,8 @@
         "costmin": "0.45",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "2000000",
-        "short_position_limit": "2000000"
+        "long_position_limit": "2300000",
+        "short_position_limit": "2300000"
       }
     },
     "TRX/USD": {
@@ -158978,7 +160811,7 @@
         "costmin": "0.5",
         "tick_size": "0.000001",
         "status": "online",
-        "long_position_limit": "41000000",
+        "long_position_limit": "46000000",
         "short_position_limit": "27000000"
       }
     },
@@ -161615,7 +163448,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "38000",
-        "short_position_limit": "23000"
+        "short_position_limit": "26000"
       }
     },
     "UNI/USD": {
@@ -162795,7 +164628,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "420000",
-        "short_position_limit": "470000"
+        "short_position_limit": "520000"
       }
     },
     "USDC/CAD": {
@@ -162928,8 +164761,8 @@
         "costmin": "1",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "630000",
-        "short_position_limit": "550000"
+        "long_position_limit": "560000",
+        "short_position_limit": "440000"
       }
     },
     "USDC/CHF": {
@@ -163063,7 +164896,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "1200000",
-        "short_position_limit": "1200000"
+        "short_position_limit": "2300000"
       }
     },
     "USDC/EUR": {
@@ -163326,8 +165159,8 @@
         "costmin": "0.43",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1300000",
-        "short_position_limit": "1400000"
+        "long_position_limit": "1700000",
+        "short_position_limit": "1800000"
       }
     },
     "USDC/USD": {
@@ -165736,8 +167569,8 @@
         "costmin": "1",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "610000",
-        "short_position_limit": "850000"
+        "long_position_limit": "540000",
+        "short_position_limit": "940000"
       }
     },
     "USDT/CAD": {
@@ -166271,7 +168104,7 @@
         "tick_size": "0.0001",
         "status": "online",
         "long_position_limit": "1300000",
-        "short_position_limit": "1300000"
+        "short_position_limit": "1700000"
       }
     },
     "USDT/JPY": {
@@ -166402,8 +168235,8 @@
         "costmin": "50",
         "tick_size": "0.001",
         "status": "online",
-        "long_position_limit": "5600",
-        "short_position_limit": "12000"
+        "long_position_limit": "5000",
+        "short_position_limit": "20000"
       }
     },
     "USDT/USD": {
@@ -167097,7 +168930,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "450000",
+        "long_position_limit": "620000",
         "short_position_limit": "0"
       }
     },
@@ -170045,8 +171878,8 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "220000",
-        "short_position_limit": "150000"
+        "long_position_limit": "240000",
+        "short_position_limit": "190000"
       }
     },
     "VIRTUAL/USDC": {
@@ -173682,7 +175515,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "900000",
+        "long_position_limit": "800000",
         "short_position_limit": "790000"
       }
     },
@@ -174532,7 +176365,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1700000",
+        "long_position_limit": "1900000",
         "short_position_limit": "0"
       }
     },
@@ -175940,8 +177773,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "10000000",
-        "short_position_limit": "8300000"
+        "long_position_limit": "8900000",
+        "short_position_limit": "6600000"
       }
     },
     "XDC/CAD": {
@@ -177207,7 +179040,7 @@
         "tick_size": "0.000000001",
         "status": "online",
         "long_position_limit": "310000",
-        "short_position_limit": "350000"
+        "short_position_limit": "310000"
       }
     },
     "XLM/EUR": {
@@ -178213,7 +180046,7 @@
         "tick_size": "0.01",
         "status": "online",
         "long_position_limit": "200",
-        "short_position_limit": "340"
+        "short_position_limit": "380"
       }
     },
     "XMR/USD": {
@@ -178358,7 +180191,7 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "780",
+        "long_position_limit": "860",
         "short_position_limit": "1000"
       }
     },
@@ -179486,7 +181319,7 @@
         "costmin": "0.5",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "1400000",
+        "long_position_limit": "1600000",
         "short_position_limit": "1200000"
       }
     },
@@ -180079,7 +181912,7 @@
         "tick_size": "0.0000001",
         "status": "online",
         "long_position_limit": "110000",
-        "short_position_limit": "120000"
+        "short_position_limit": "100000"
       }
     },
     "XRP/EUR": {
@@ -180388,8 +182221,8 @@
         "costmin": "0.43",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "140000",
-        "short_position_limit": "170000"
+        "long_position_limit": "160000",
+        "short_position_limit": "150000"
       }
     },
     "XRP/RLUSD": {
@@ -180852,8 +182685,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "450000",
-        "short_position_limit": "510000"
+        "long_position_limit": "500000",
+        "short_position_limit": "570000"
       }
     },
     "XRP/USDT": {
@@ -181014,7 +182847,7 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "520000",
+        "long_position_limit": "460000",
         "short_position_limit": "500000"
       }
     },
@@ -181722,8 +183555,8 @@
         "costmin": "0.45",
         "tick_size": "0.0001",
         "status": "online",
-        "long_position_limit": "66000",
-        "short_position_limit": "52000"
+        "long_position_limit": "73000",
+        "short_position_limit": "57000"
       }
     },
     "XTZ/USD": {
@@ -183278,8 +185111,8 @@
         "costmin": "0.5",
         "tick_size": "1",
         "status": "online",
-        "long_position_limit": "18",
-        "short_position_limit": "10"
+        "long_position_limit": "20",
+        "short_position_limit": "16"
       }
     },
     "YGG/EUR": {
@@ -184267,7 +186100,7 @@
         "tick_size": "0.001",
         "status": "online",
         "long_position_limit": "600",
-        "short_position_limit": "650"
+        "short_position_limit": "720"
       }
     },
     "ZEC/USD": {
@@ -184414,8 +186247,8 @@
         "costmin": "0.5",
         "tick_size": "0.01",
         "status": "online",
-        "long_position_limit": "1600",
-        "short_position_limit": "1700"
+        "long_position_limit": "2000",
+        "short_position_limit": "1900"
       }
     },
     "ZEREBRO/EUR": {
@@ -186102,8 +187935,8 @@
         "costmin": "0.5",
         "tick_size": "0.00001",
         "status": "online",
-        "long_position_limit": "740000",
-        "short_position_limit": "550000"
+        "long_position_limit": "1100000",
+        "short_position_limit": "680000"
       }
     },
     "ZORA/EUR": {

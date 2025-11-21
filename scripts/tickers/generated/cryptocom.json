@@ -1,7 +1,7 @@
 {
   "exchange": "cryptocom",
-  "timestamp": 1763141361858,
-  "count": 856,
+  "timestamp": 1763746448520,
+  "count": 855,
   "symbols": [
     "1INCH/USD",
     "1INCH/USD:USD",
@@ -147,6 +147,7 @@
     "BTC/USD:USD-251128",
     "BTC/USD:USD-251226",
     "BTC/USD:USD-260130",
+    "BTC/USD:USD-260227",
     "BTC/USD:USD-260327",
     "BTC/USD:USD-260626",
     "BTC/USDT",
@@ -271,6 +272,7 @@
     "ETH/USD:USD-251128",
     "ETH/USD:USD-251226",
     "ETH/USD:USD-260130",
+    "ETH/USD:USD-260227",
     "ETH/USD:USD-260327",
     "ETH/USD:USD-260626",
     "ETH/USDT",
@@ -419,7 +421,6 @@
     "L3/USD",
     "LA/USD",
     "LADYS/USD",
-    "LADYS/USD:USD",
     "LADYS/USDT",
     "LAYER/USD",
     "LAYER/USD:USD",
@@ -715,8 +716,6 @@
     "SYN/USD",
     "SYRUP/USD",
     "T/USD",
-    "TAIKO/USD",
-    "TAIKO/USD:USD",
     "TAO/USD",
     "TAO/USD:USD",
     "TEVA/USD",
@@ -7845,6 +7844,60 @@
         "margin_sell_enabled": false
       }
     },
+    "BTC/USD:USD-260227": {
+      "id": "BTCUSD-260227",
+      "symbol": "BTC/USD:USD-260227",
+      "base": "BTC",
+      "quote": "USD",
+      "baseId": "BTC",
+      "quoteId": "USD",
+      "type": "future",
+      "spot": false,
+      "margin": false,
+      "future": true,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.005,
+      "maker": 0.0025,
+      "contractSize": 1,
+      "expiry": 1772179200000,
+      "expiryDatetime": "2026-02-27T08:00:00.000Z",
+      "precision": {
+        "price": 0.1,
+        "amount": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 100
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "BTCUSD-260227",
+        "inst_type": "FUTURE",
+        "display_name": "BTCUSD Futures 20260227",
+        "base_ccy": "BTC",
+        "quote_ccy": "USD",
+        "quote_decimals": 1,
+        "quantity_decimals": 4,
+        "price_tick_size": "0.1",
+        "qty_tick_size": "0.0001",
+        "max_leverage": "100",
+        "tradable": true,
+        "expiry_timestamp_ms": 1772179200000,
+        "beta_product": false,
+        "underlying_symbol": "BTCUSD-INDEX",
+        "contract_size": "1",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
     "BTC/USD:USD-260327": {
       "id": "BTCUSD-260327",
       "symbol": "BTC/USD:USD-260327",
@@ -13856,6 +13909,60 @@
         "max_leverage": "100",
         "tradable": true,
         "expiry_timestamp_ms": 1769760000000,
+        "beta_product": false,
+        "underlying_symbol": "ETHUSD-INDEX",
+        "contract_size": "1",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+      }
+    },
+    "ETH/USD:USD-260227": {
+      "id": "ETHUSD-260227",
+      "symbol": "ETH/USD:USD-260227",
+      "base": "ETH",
+      "quote": "USD",
+      "baseId": "ETH",
+      "quoteId": "USD",
+      "type": "future",
+      "spot": false,
+      "margin": false,
+      "future": true,
+      "option": false,
+      "active": true,
+      "contract": true,
+      "linear": true,
+      "inverse": false,
+      "taker": 0.005,
+      "maker": 0.0025,
+      "contractSize": 1,
+      "expiry": 1772179200000,
+      "expiryDatetime": "2026-02-27T08:00:00.000Z",
+      "precision": {
+        "price": 0.01,
+        "amount": 0.0001
+      },
+      "limits": {
+        "leverage": {
+          "min": 1,
+          "max": 100
+        },
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "symbol": "ETHUSD-260227",
+        "inst_type": "FUTURE",
+        "display_name": "ETHUSD Futures 20260227",
+        "base_ccy": "ETH",
+        "quote_ccy": "USD",
+        "quote_decimals": 2,
+        "quantity_decimals": 4,
+        "price_tick_size": "0.01",
+        "qty_tick_size": "0.0001",
+        "max_leverage": "100",
+        "tradable": true,
+        "expiry_timestamp_ms": 1772179200000,
         "beta_product": false,
         "underlying_symbol": "ETHUSD-INDEX",
         "contract_size": "1",
@@ -21019,58 +21126,6 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "LADYS/USD:USD": {
-      "id": "LADYSUSD-PERP",
-      "symbol": "LADYS/USD:USD",
-      "base": "LADYS",
-      "quote": "USD",
-      "baseId": "LADYS",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.005,
-      "maker": 0.0025,
-      "contractSize": 1,
-      "precision": {
-        "price": 1e-11,
-        "amount": 1000000
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "LADYSUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "LADYSUSD Perpetual",
-        "base_ccy": "LADYS",
-        "quote_ccy": "USD",
-        "quote_decimals": 11,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.00000000001",
-        "qty_tick_size": "1000000",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "LADYSUSD-INDEX",
-        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }
@@ -35331,105 +35386,6 @@
         "tradable": true,
         "expiry_timestamp_ms": 0,
         "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "TAIKO/USD": {
-      "id": "TAIKO_USD",
-      "symbol": "TAIKO/USD",
-      "base": "TAIKO",
-      "quote": "USD",
-      "baseId": "TAIKO",
-      "quoteId": "USD",
-      "type": "spot",
-      "spot": true,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": false,
-      "taker": 0.005,
-      "maker": 0.0025,
-      "precision": {
-        "price": 0.0001,
-        "amount": 0.1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "TAIKO_USD",
-        "inst_type": "CCY_PAIR",
-        "display_name": "TAIKO/USD",
-        "base_ccy": "TAIKO",
-        "quote_ccy": "USD",
-        "quote_decimals": 4,
-        "quantity_decimals": 1,
-        "price_tick_size": "0.0001",
-        "qty_tick_size": "0.1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "margin_buy_enabled": false,
-        "margin_sell_enabled": false
-      }
-    },
-    "TAIKO/USD:USD": {
-      "id": "TAIKOUSD-PERP",
-      "symbol": "TAIKO/USD:USD",
-      "base": "TAIKO",
-      "quote": "USD",
-      "baseId": "TAIKO",
-      "quoteId": "USD",
-      "type": "swap",
-      "spot": false,
-      "margin": false,
-      "future": false,
-      "option": false,
-      "active": true,
-      "contract": true,
-      "linear": true,
-      "inverse": false,
-      "taker": 0.005,
-      "maker": 0.0025,
-      "contractSize": 1,
-      "precision": {
-        "price": 0.0001,
-        "amount": 1
-      },
-      "limits": {
-        "leverage": {
-          "min": 1,
-          "max": 50
-        },
-        "amount": {},
-        "price": {},
-        "cost": {}
-      },
-      "info": {
-        "symbol": "TAIKOUSD-PERP",
-        "inst_type": "PERPETUAL_SWAP",
-        "display_name": "TAIKOUSD Perpetual",
-        "base_ccy": "TAIKO",
-        "quote_ccy": "USD",
-        "quote_decimals": 4,
-        "quantity_decimals": 0,
-        "price_tick_size": "0.0001",
-        "qty_tick_size": "1",
-        "max_leverage": "50",
-        "tradable": true,
-        "expiry_timestamp_ms": 0,
-        "beta_product": false,
-        "underlying_symbol": "TAIKOUSD-INDEX",
-        "contract_size": "1",
         "margin_buy_enabled": false,
         "margin_sell_enabled": false
       }

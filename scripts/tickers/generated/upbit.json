@@ -1,7 +1,7 @@
 {
   "exchange": "upbit",
-  "timestamp": 1763141385791,
-  "count": 657,
+  "timestamp": 1763746473259,
+  "count": 660,
   "symbols": [
     "0G/BTC",
     "0G/KRW",
@@ -347,6 +347,9 @@
     "ME/USDT",
     "MED/BTC",
     "MED/KRW",
+    "MET2/BTC",
+    "MET2/KRW",
+    "MET2/USDT",
     "META/BTC",
     "META/KRW",
     "MEW/BTC",
@@ -11668,6 +11671,102 @@
         "market": "KRW-MED",
         "korean_name": "메디블록",
         "english_name": "MediBloc"
+      }
+    },
+    "MET2/BTC": {
+      "id": "BTC-MET2",
+      "symbol": "MET2/BTC",
+      "base": "MET2",
+      "quote": "BTC",
+      "baseId": "MET2",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-MET2",
+        "korean_name": "메테오라",
+        "english_name": "Meteora"
+      }
+    },
+    "MET2/KRW": {
+      "id": "KRW-MET2",
+      "symbol": "MET2/KRW",
+      "base": "MET2",
+      "quote": "KRW",
+      "baseId": "MET2",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-MET2",
+        "korean_name": "메테오라",
+        "english_name": "Meteora"
+      }
+    },
+    "MET2/USDT": {
+      "id": "USDT-MET2",
+      "symbol": "MET2/USDT",
+      "base": "MET2",
+      "quote": "USDT",
+      "baseId": "MET2",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-MET2",
+        "korean_name": "메테오라",
+        "english_name": "Meteora"
       }
     },
     "META/BTC": {

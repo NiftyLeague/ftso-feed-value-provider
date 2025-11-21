@@ -14,12 +14,12 @@ describe("Feeds Loading and Counting", () => {
   describe("ConfigService feeds methods", () => {
     it("should load feeds count correctly", () => {
       const count = configService.getFeedsCount();
-      expect(count).toBe(64);
+      expect(count).toBe(63);
     });
 
     it("should load feeds count with fallback", () => {
       const count = configService.getFeedsCountWithFallback();
-      expect(count).toBe(64);
+      expect(count).toBe(63);
     });
 
     it("should return fallback count when feeds loading fails", () => {
@@ -35,7 +35,7 @@ describe("Feeds Loading and Counting", () => {
     it("should load feed configurations", () => {
       const feeds = configService.getFeedConfigurations();
       expect(Array.isArray(feeds)).toBe(true);
-      expect(feeds.length).toBe(64);
+      expect(feeds.length).toBe(63);
 
       // Verify structure of first feed
       if (feeds.length > 0) {
@@ -67,7 +67,7 @@ describe("Feeds Loading and Counting", () => {
       const feedsArrayLength = configService.getFeedConfigurations().length;
 
       expect(configServiceCount).toBe(feedsArrayLength);
-      expect(configServiceCount).toBe(64);
+      expect(configServiceCount).toBe(63);
     });
   });
 });
