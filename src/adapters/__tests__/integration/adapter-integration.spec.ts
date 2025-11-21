@@ -14,16 +14,16 @@ describe("Adapter Integration Tests", () => {
   beforeEach(() => {
     MockSetup.setupAll();
 
-    // Override WebSocket mock to auto-trigger open event
+    // Override WebSocket mock to auto-trigger open event immediately
     (global as any).WebSocket = jest.fn().mockImplementation(() => {
       const ws = MockFactory.createWebSocket();
-      // Trigger open event asynchronously to simulate real connection
-      setTimeout(() => {
+      // Trigger open event immediately using setImmediate for next tick
+      setImmediate(() => {
         if (ws.onopen) {
           (ws.onopen as any).call(ws, new Event("open"));
         }
         ws.emit("open");
-      }, 10);
+      });
       return ws;
     });
 
@@ -75,8 +75,12 @@ describe("Adapter Integration Tests", () => {
       await binanceAdapter.connect();
       await coinbaseAdapter.connect();
 
-      // Wait for connections to stabilize
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for connections to stabilize and ensure isConnected is true
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Verify connections before subscribing
+      expect(binanceAdapter.isConnected()).toBe(true);
+      expect(coinbaseAdapter.isConnected()).toBe(true);
 
       // Subscribe to symbols
       await binanceAdapter.subscribe(["BTC/USDT"]);
@@ -212,6 +216,13 @@ describe("Adapter Integration Tests", () => {
 
       // Connect and subscribe to the symbol first
       await binanceAdapter.connect();
+
+      // Wait for connection to stabilize
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Verify connection before subscribing
+      expect(binanceAdapter.isConnected()).toBe(true);
+
       await binanceAdapter.subscribe(["BTC/USDT"]);
 
       // Simulate 20 rapid price updates

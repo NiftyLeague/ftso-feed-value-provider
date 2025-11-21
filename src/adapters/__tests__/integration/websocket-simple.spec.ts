@@ -14,16 +14,16 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
   beforeEach(() => {
     MockSetup.setupAll();
 
-    // Override WebSocket mock to auto-trigger open event
+    // Override WebSocket mock to auto-trigger open event immediately
     (global as any).WebSocket = jest.fn().mockImplementation(() => {
       const ws = MockFactory.createWebSocket();
-      // Trigger open event asynchronously to simulate real connection
-      setTimeout(() => {
+      // Trigger open event immediately using setImmediate for next tick
+      setImmediate(() => {
         if (ws.onopen) {
           (ws.onopen as any).call(ws, new Event("open"));
         }
         ws.emit("open");
-      }, 10);
+      });
       return ws;
     });
 
