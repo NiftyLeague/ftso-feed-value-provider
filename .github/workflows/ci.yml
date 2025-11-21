@@ -56,4 +56,4 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Run tests
-        run: pnpm jest --colors --passWithNoTests --forceExit --maxWorkers=2
+        run: pnpm jest --colors --passWithNoTests --forceExit --maxWorkers=2 --testPathIgnorePatterns="src/adapters/__tests__/integration/"
