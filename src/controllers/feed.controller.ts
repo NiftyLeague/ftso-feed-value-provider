@@ -42,6 +42,9 @@ import {
 } from "./dto/feed.dto";
 import { HttpErrorResponseDto, ValidationErrorResponseDto } from "./dto/common-error.dto";
 
+// Maximum allowed feeds per request to avoid DoS via loop bound injection
+const MAX_FEEDS = 1000;
+
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
@@ -219,6 +222,19 @@ export class FeedController extends BaseController {
 
         // Validate feed requests - this will throw BadRequestException for invalid input
         this.validateFeedRequest(body);
+
+        // Explicitly validate feeds array structure and length to prevent loop bound injection
+        if (
+          !Array.isArray(body.feeds) ||
+          typeof body.feeds.length !== "number" ||
+          body.feeds.length < 0 ||
+          body.feeds.length > MAX_FEEDS
+        ) {
+          throw new HttpException(
+            `Invalid feeds array in request body. Must be an array with at most ${MAX_FEEDS} items.`,
+            HttpStatus.BAD_REQUEST
+          );
+        }
 
         // Try to get cached historical data first with retry logic
         const cachedResults = await this.executeWithRetry(
