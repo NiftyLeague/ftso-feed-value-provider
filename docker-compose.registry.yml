@@ -31,9 +31,9 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-warn}
       - APP_PORT=${APP_PORT:-3101}
 
-      # Proxy settings for bypassing geo-restrictions (HTTP 451 errors)
+      # Optional: Proxy settings for bypassing geo-restrictions (HTTP 451 errors)
       - WEBSOCKET_PROXY_ENABLED=${WEBSOCKET_PROXY_ENABLED:-false}
-      - WEBSOCKET_PROXY_URL=${WEBSOCKET_PROXY_URL}
+      - WEBSOCKET_PROXY_URL=${WEBSOCKET_PROXY_URL:-}
 
       # Optional: Uncomment and configure for alerting
       # - ALERT_EMAIL_ENABLED=${ALERT_EMAIL_ENABLED:-false}
@@ -54,11 +54,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${MEMORY_LIMIT:-1G}
-          cpus: ${CPU_LIMIT:-1.0}
+          memory: ${MEMORY_LIMIT:-2G}
+          cpus: ${CPU_LIMIT:-1.5}
         reservations:
-          memory: ${MEMORY_RESERVATION:-512M}
-          cpus: ${CPU_RESERVATION:-0.5}
+          memory: ${MEMORY_RESERVATION:-1G}
+          cpus: ${CPU_RESERVATION:-0.75}
     logging:
       driver: 'json-file'
       options:

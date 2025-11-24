@@ -7,21 +7,27 @@ services:
     container_name: ftso-feed-value-provider
     restart: unless-stopped
     ports:
-      - '3101:3101'
+      - '3101:3101' # API port
       - '9090:9090' # Metrics port
     environment:
       # Minimal environment configuration - most defaults are optimized in environment.constants.ts
-      - NODE_ENV=production
-      - LOG_LEVEL=warn
-      - APP_PORT=3101
-      # Optional: Uncomment to enable alerting
-      # - ALERT_EMAIL_ENABLED=true
-      # - ALERT_SMTP_HOST=your-smtp-host
-      # - ALERT_SMTP_USERNAME=your-smtp-username
-      # - ALERT_SMTP_PASSWORD=your-smtp-password
-      # - ALERT_EMAIL_TO=ops@yourcompany.com
-      # - ALERT_WEBHOOK_ENABLED=true
-      # - ALERT_WEBHOOK_URL=https://your-webhook-url
+      # Core settings
+      - NODE_ENV=${NODE_ENV:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-warn}
+      - APP_PORT=${APP_PORT:-3101}
+
+      # Optional: Proxy settings for bypassing geo-restrictions (HTTP 451 errors)
+      - WEBSOCKET_PROXY_ENABLED=${WEBSOCKET_PROXY_ENABLED:-false}
+      - WEBSOCKET_PROXY_URL=${WEBSOCKET_PROXY_URL:-}
+
+      # Optional: Uncomment and configure for alerting
+      # - ALERT_EMAIL_ENABLED=${ALERT_EMAIL_ENABLED:-false}
+      # - ALERT_SMTP_HOST=${ALERT_SMTP_HOST}
+      # - ALERT_SMTP_USERNAME=${ALERT_SMTP_USERNAME}
+      # - ALERT_SMTP_PASSWORD=${ALERT_SMTP_PASSWORD}
+      # - ALERT_EMAIL_TO=${ALERT_EMAIL_TO}
+      # - ALERT_WEBHOOK_ENABLED=${ALERT_WEBHOOK_ENABLED:-false}
+      # - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
     volumes:
       - ftso-logs:/app/logs
     networks:
@@ -35,11 +41,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
-          cpus: '1.0'
+          memory: ${MEMORY_LIMIT:-2G}
+          cpus: ${CPU_LIMIT:-1.5}
         reservations:
-          memory: 512M
-          cpus: '0.5'
+          memory: ${MEMORY_RESERVATION:-1G}
+          cpus: ${CPU_RESERVATION:-0.75}
     logging:
       driver: 'json-file'
       options:
