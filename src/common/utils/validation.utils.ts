@@ -221,7 +221,7 @@ export class ValidationUtils {
       /drop\s+table/i,
       /delete\s+from/i,
       /insert\s+into/i,
-      /update\s+.*set/i,
+      /update\s+\S+\s+set/i,
       /union\s+select/i,
       /;\s*--/,
       /'\s*or\s*'1'\s*=\s*'1/i,
