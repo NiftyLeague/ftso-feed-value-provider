@@ -435,3 +435,12 @@ The modernized system follows consistent architectural patterns throughout:
   control and performance validation
 - **Zero Code Duplication**: Eliminated all duplicate patterns and consolidated
   functionality into reusable components
+
+## Support
+
+Email [andy@niftyleague.com](mailto:andy@niftyleague.com)
+
+**OR**
+
+Join the Nifty League [Discord Server](https://discord.gg/niftyleague) and
+message an admin
