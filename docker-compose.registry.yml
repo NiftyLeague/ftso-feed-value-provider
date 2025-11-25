@@ -16,7 +16,7 @@
 services:
   ftso-provider:
     image: ghcr.io/niftyleague/ftso-feed-value-provider:${TAG:-latest}
-    container_name: ftso-feed-value-provider
+    container_name: ftso
     restart: unless-stopped
     # Port mapping (ignored if using host network)
     ports:
