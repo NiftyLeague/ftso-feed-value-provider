@@ -297,14 +297,14 @@ describe("FailoverManager", () => {
 
       // Fail both primary sources with delay to avoid cooldown
       await manager.triggerFailover("binance", "Connection lost");
-      await new Promise(resolve => setTimeout(resolve, 6000)); // Wait for cooldown to expire
+      await new Promise(resolve => setTimeout(resolve, 11000)); // Wait for cooldown to expire (10s + buffer)
       await manager.triggerFailover("coinbase", "Connection lost");
 
       await failoverPromise;
 
       const activeSources = manager.getActiveSources(feedId);
       expect(activeSources.some(s => ["kraken", "okx"].includes(s.id))).toBe(true);
-    }, 15000); // Increase timeout to 15 seconds
+    }, 25000); // Increase timeout to 25 seconds to account for longer cooldowns
 
     it("should emit failoverFailed when no backup sources available", async () => {
       // Disconnect all backup sources
@@ -321,11 +321,11 @@ describe("FailoverManager", () => {
 
       // Fail all primary sources with delay to avoid cooldown
       await manager.triggerFailover("binance", "Connection lost");
-      await new Promise(resolve => setTimeout(resolve, 6000)); // Wait for cooldown to expire
+      await new Promise(resolve => setTimeout(resolve, 11000)); // Wait for cooldown to expire (10s + buffer)
       await manager.triggerFailover("coinbase", "Connection lost");
 
       await failoverFailedPromise;
-    }, 15000); // Increase timeout to 15 seconds
+    }, 25000); // Increase timeout to 25 seconds to account for longer cooldowns
 
     it("should complete failover within time limit", async () => {
       const startTime = Date.now();
@@ -378,9 +378,9 @@ describe("FailoverManager", () => {
         });
       });
 
-      // Trigger failover for both primary sources (use same timing as working test)
+      // Trigger failover for both primary sources with updated cooldown timing
       await manager.triggerFailover("binance", "Connection lost");
-      await new Promise(resolve => setTimeout(resolve, 6000)); // Wait for cooldown (same as working test)
+      await new Promise(resolve => setTimeout(resolve, 11000)); // Wait for cooldown (10s + buffer)
       await manager.triggerFailover("coinbase", "Connection lost");
 
       await failoverPromise;
@@ -429,7 +429,7 @@ describe("FailoverManager", () => {
       // Verify source is recovered
       const finalActiveSources = manager.getActiveSources(feedId);
       expect(finalActiveSources.some(s => s.id === "binance")).toBe(true);
-    }, 20000); // Increased timeout for complex recovery process
+    }, 30000); // Increased timeout to 30s for complex recovery process with longer cooldowns
   });
 
   describe("Health Monitoring", () => {
@@ -563,8 +563,8 @@ describe("FailoverManager", () => {
 
       expect(config.maxFailoverTime).toBe(100);
       expect(config.healthCheckInterval).toBe(30000);
-      expect(config.failureThreshold).toBe(3);
-      expect(config.recoveryThreshold).toBe(5);
+      expect(config.failureThreshold).toBe(5); // Updated from 3 to 5 for better tolerance
+      expect(config.recoveryThreshold).toBe(3); // Updated from 5 to 3 for faster recovery
 
       defaultManager.destroy();
     });

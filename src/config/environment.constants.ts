@@ -130,8 +130,9 @@ export const ENV = {
 
   // Circuit Breaker Configuration
   CIRCUIT_BREAKER: {
-    SUCCESS_THRESHOLD: EnvironmentUtils.parseInt("CIRCUIT_BREAKER_SUCCESS_THRESHOLD", 3, { min: 1, max: 10 }),
-    MONITORING_WINDOW_MS: EnvironmentUtils.parseInt("CIRCUIT_BREAKER_MONITORING_WINDOW_MS", 300000, {
+    SUCCESS_THRESHOLD: EnvironmentUtils.parseInt("CIRCUIT_BREAKER_SUCCESS_THRESHOLD", 1, { min: 1, max: 10 }), // Reduced from 3 to 1 for faster recovery
+    MONITORING_WINDOW_MS: EnvironmentUtils.parseInt("CIRCUIT_BREAKER_MONITORING_WINDOW_MS", 60000, {
+      // Reduced from 300s to 60s for WebSocket sources
       min: 60000,
       max: 1800000,
     }),
@@ -581,11 +582,12 @@ export const ENV = {
 
     // Circuit breaker configuration - Improved for connection stability
     CIRCUIT_BREAKER: {
-      FAILURE_THRESHOLD: EnvironmentUtils.parseInt("CCXT_CIRCUIT_BREAKER_FAILURE_THRESHOLD", 5, { min: 2, max: 10 }), // Increased from 3 to 5 for better tolerance
-      RESET_TIMEOUT_MS: EnvironmentUtils.parseInt("CCXT_CIRCUIT_BREAKER_RESET_TIMEOUT_MS", 180000, {
-        min: 60000,
-        max: 1800000,
-      }), // Reduced from 5 minutes to 3 minutes for faster recovery
+      FAILURE_THRESHOLD: EnvironmentUtils.parseInt("CCXT_CIRCUIT_BREAKER_FAILURE_THRESHOLD", 15, { min: 2, max: 30 }), // Increased from 5 to 15 - WebSocket disconnections are normal
+      RESET_TIMEOUT_MS: EnvironmentUtils.parseInt("CCXT_CIRCUIT_BREAKER_RESET_TIMEOUT_MS", 30000, {
+        // Reduced from 180s to 30s for faster recovery
+        min: 10000,
+        max: 300000,
+      }),
     },
 
     // CCXT-specific confidence settings
@@ -684,13 +686,14 @@ export const ENV = {
   // Failover Manager Configuration
   FAILOVER: {
     MAX_FAILOVER_TIME_MS: EnvironmentUtils.parseInt("FAILOVER_MAX_FAILOVER_TIME_MS", 100, { min: 50, max: 500 }),
-    FAILURE_THRESHOLD: EnvironmentUtils.parseInt("FAILOVER_FAILURE_THRESHOLD", 3, { min: 1, max: 10 }),
-    RECOVERY_THRESHOLD: EnvironmentUtils.parseInt("FAILOVER_RECOVERY_THRESHOLD", 5, { min: 2, max: 20 }),
-    MIN_FAILURE_INTERVAL_MS: EnvironmentUtils.parseInt("FAILOVER_MIN_FAILURE_INTERVAL_MS", 10000, {
+    FAILURE_THRESHOLD: EnvironmentUtils.parseInt("FAILOVER_FAILURE_THRESHOLD", 5, { min: 1, max: 15 }), // Increased from 3 to 5 for better tolerance
+    RECOVERY_THRESHOLD: EnvironmentUtils.parseInt("FAILOVER_RECOVERY_THRESHOLD", 3, { min: 1, max: 20 }), // Reduced from 5 to 3 for faster recovery
+    MIN_FAILURE_INTERVAL_MS: EnvironmentUtils.parseInt("FAILOVER_MIN_FAILURE_INTERVAL_MS", 15000, {
+      // Increased from 10s to 15s to reduce failover frequency
       min: 5000,
       max: 60000,
     }),
-    FAILOVER_COOLDOWN_MS: EnvironmentUtils.parseInt("FAILOVER_COOLDOWN_MS", 5000, { min: 1000, max: 30000 }),
+    FAILOVER_COOLDOWN_MS: EnvironmentUtils.parseInt("FAILOVER_COOLDOWN_MS", 10000, { min: 1000, max: 30000 }), // Increased from 5s to 10s
     SUBSCRIPTION_TIMEOUT_MS: EnvironmentUtils.parseInt("FAILOVER_SUBSCRIPTION_TIMEOUT_MS", 10000, {
       min: 5000,
       max: 60000,

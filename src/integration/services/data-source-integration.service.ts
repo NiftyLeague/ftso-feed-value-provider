@@ -30,6 +30,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
   private healthWarningLastLogged = new Map<string, number>();
   private readonly HEALTH_WARNING_COOLDOWN_MS = 30000; // 30 seconds
 
+  // Periodic circuit health check
+  private circuitHealthCheckInterval?: NodeJS.Timeout;
+
   constructor(
     private readonly dataManager: ProductionDataManagerService,
     private readonly adapterRegistry: ExchangeAdapterRegistry,
@@ -94,6 +97,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
         // Initialize the ProductionDataManagerService using standard pattern
         await this.dataManager.initialize();
 
+        // Start periodic circuit health check to prevent stuck circuits
+        this.startCircuitHealthCheck();
+
         this.isInitialized = true;
 
         const duration = this.endTimer("initialize");
@@ -131,6 +137,12 @@ export class DataSourceIntegrationService extends EventDrivenService {
   async shutdown(): Promise<void> {
     this.logger.log("Shutting down Data Source Integration...");
 
+    // Stop circuit health check
+    if (this.circuitHealthCheckInterval) {
+      clearInterval(this.circuitHealthCheckInterval);
+      this.circuitHealthCheckInterval = undefined;
+    }
+
     await this.executeWithErrorHandling(
       async () => {
         // Disconnect data sources
@@ -148,6 +160,44 @@ export class DataSourceIntegrationService extends EventDrivenService {
         retryDelay: 1000,
       }
     );
+  }
+
+  /**
+   * Start periodic circuit health check to ensure circuits match actual connection state
+   * This prevents circuits from staying open when sources are actually connected
+   */
+  private startCircuitHealthCheck(): void {
+    // Check every 60 seconds
+    this.circuitHealthCheckInterval = this.createInterval(() => {
+      this.performCircuitHealthCheck();
+    }, 60000);
+  }
+
+  /**
+   * Check if any circuits are open/half-open but sources are actually connected
+   */
+  private performCircuitHealthCheck(): void {
+    const circuits = this.circuitBreaker.getAllStates();
+
+    for (const [sourceId, state] of circuits.entries()) {
+      // Only check circuits that are not closed
+      if (state !== "closed") {
+        // Get the actual data source
+        const connectedSources = this.dataManager.getConnectedSources();
+        const source = connectedSources.find(s => s.id === sourceId);
+
+        if (source && source.isConnected()) {
+          this.logger.log(`Circuit for ${sourceId} is ${state} but source is connected - resetting circuit`);
+
+          // Reset and close the circuit
+          this.circuitBreaker.resetStats(sourceId);
+          this.circuitBreaker.closeCircuit(sourceId, "Periodic health check - source is connected");
+
+          // Update adapter health
+          this.adapterRegistry.updateHealthStatus(sourceId, "healthy");
+        }
+      }
+    }
   }
 
   async subscribeToFeed(feedId: CoreFeedId): Promise<void> {
@@ -366,12 +416,14 @@ export class DataSourceIntegrationService extends EventDrivenService {
           // Register with connection recovery service for error handling
           await this.connectionRecovery.registerDataSource(dataSource);
 
-          // Register circuit breaker for the data source with more lenient settings
+          // Register circuit breaker for the data source with very lenient settings
+          // WebSocket connections naturally disconnect/reconnect, so we need high tolerance
           this.circuitBreaker.registerCircuit(dataSource.id, {
-            failureThreshold: 20, // Even more lenient for individual data sources
-            recoveryTimeout: 30000, // Longer recovery time
-            successThreshold: 1, // Lower success threshold
-            timeout: 15000, // Longer timeout
+            failureThreshold: 25, // Very high threshold - only open on severe issues
+            recoveryTimeout: 30000, // 30 second recovery time
+            successThreshold: 1, // Only need 1 success to recover
+            timeout: 15000, // 15 second timeout
+            monitoringWindow: 60000, // 1 minute monitoring window (shorter than default 5 min)
           });
 
           // Add to data manager (without connecting)
@@ -484,23 +536,36 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
   private async handleSourceError(sourceId: string, error: Error): Promise<void> {
     try {
-      // Handle through standardized error handler
-      await this.errorHandler
-        .executeWithStandardizedHandling(
-          async () => {
-            throw error;
-          },
-          {
-            serviceId: "DataSourceIntegrationService",
-            operationName: "dataSourceError",
-            component: "dataSource",
-            requestId: `error_${sourceId}_${Date.now()}`,
-          }
-        )
-        .catch(() => {}); // Catch to prevent double throw
+      // Check if this is a normal WebSocket closure (not an actual error)
+      const errorMessage = error.message.toLowerCase();
+      const isNormalClosure =
+        errorMessage.includes("normal closure") ||
+        errorMessage.includes("1000") ||
+        errorMessage.includes("websocket closed");
 
-      // Update adapter health
-      this.adapterRegistry.updateHealthStatus(sourceId, "unhealthy");
+      // Only process through error handler for actual errors, not normal closures
+      if (!isNormalClosure) {
+        // Handle through standardized error handler
+        await this.errorHandler
+          .executeWithStandardizedHandling(
+            async () => {
+              throw error;
+            },
+            {
+              serviceId: "DataSourceIntegrationService",
+              operationName: "dataSourceError",
+              component: "dataSource",
+              requestId: `error_${sourceId}_${Date.now()}`,
+            }
+          )
+          .catch(() => {}); // Catch to prevent double throw
+
+        // Update adapter health only for real errors
+        this.adapterRegistry.updateHealthStatus(sourceId, "unhealthy");
+      } else {
+        // Log normal closures at debug level
+        this.logger.debug(`Normal WebSocket closure for ${sourceId}: ${error.message}`);
+      }
 
       // Emit for system health monitoring
       this.emit("sourceError", sourceId, error);
@@ -509,13 +574,28 @@ export class DataSourceIntegrationService extends EventDrivenService {
     }
   }
 
+  // Track last disconnection handling to prevent duplicate processing
+  private lastDisconnectionHandled = new Map<string, number>();
+  private readonly DISCONNECTION_COOLDOWN_MS = 5000; // 5 seconds
+
   private handleSourceDisconnection(sourceId: string): void {
     try {
-      // Use WebSocket orchestrator for intelligent reconnection
+      // Prevent duplicate disconnection handling
+      const now = Date.now();
+      const lastHandled = this.lastDisconnectionHandled.get(sourceId) || 0;
+
+      if (now - lastHandled < this.DISCONNECTION_COOLDOWN_MS) {
+        this.logger.debug(`Skipping duplicate disconnection handling for ${sourceId}`);
+        return;
+      }
+
+      this.lastDisconnectionHandled.set(sourceId, now);
+
+      // Use WebSocket orchestrator for intelligent reconnection (primary)
       void this.wsOrchestrator.reconnectExchange(sourceId);
 
-      // Also trigger connection recovery as backup
-      void this.connectionRecovery.handleDisconnection(sourceId);
+      // Don't also trigger connection recovery - let orchestrator handle it
+      // This prevents duplicate reconnection attempts
 
       // Emit for system health monitoring
       this.emit("sourceDisconnected", sourceId);
@@ -529,13 +609,20 @@ export class DataSourceIntegrationService extends EventDrivenService {
       // Update adapter health status
       this.adapterRegistry.updateHealthStatus(sourceId, "unhealthy");
 
-      // Use consistent circuit breaker behavior across all environments
-      this.circuitBreaker.openCircuit(sourceId, "Source unhealthy");
+      // Don't immediately open circuit breaker for unhealthy sources
+      // Let the circuit breaker's own failure threshold logic handle it
+      // This prevents premature circuit opening from transient issues
+
+      // Only manually open circuit if we have severe failures
+      const circuitStats = this.circuitBreaker.getStats(sourceId);
+      if (circuitStats && circuitStats.failureCount > 10) {
+        this.circuitBreaker.openCircuit(sourceId, "Source unhealthy with excessive failures");
+      }
 
       // Emit for system health monitoring
       this.emit("sourceUnhealthy", sourceId);
 
-      this.logger.debug(`Handled unhealthy source ${sourceId} - circuit breaker opened`);
+      this.logger.debug(`Handled unhealthy source ${sourceId}`);
     } catch (error) {
       this.logger.error(`Error handling unhealthy source ${sourceId}:`, error);
     }
@@ -570,7 +657,10 @@ export class DataSourceIntegrationService extends EventDrivenService {
       // Reset failure count when source recovers
       this.resetSourceFailureCount(sourceId);
 
-      // Close circuit breaker
+      // CRITICAL FIX: Reset circuit breaker stats before closing
+      // This prevents the circuit from immediately re-opening due to
+      // accumulated failures from before recovery
+      this.circuitBreaker.resetStats(sourceId);
       this.circuitBreaker.closeCircuit(sourceId, "Source recovered");
 
       // Emit for system health monitoring
@@ -612,7 +702,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
       // Update adapter health status
       this.adapterRegistry.updateHealthStatus(sourceId, "healthy");
 
-      // Close circuit breaker
+      // CRITICAL FIX: Reset circuit breaker stats before closing
+      // This ensures a clean slate after reconnection
+      this.circuitBreaker.resetStats(sourceId);
       this.circuitBreaker.closeCircuit(sourceId, "Connection restored");
 
       // Emit for system health monitoring

@@ -195,10 +195,23 @@ class AdapterDataSource extends EventEmitter implements DataSource {
       // Attempt reconnection
       await this.connect();
 
-      // Resubscribe to previous subscriptions
+      // CRITICAL FIX: Graceful subscription retry
+      // Don't fail reconnection if subscriptions fail - they can be retried later
       if (this.subscriptions.size > 0) {
         const symbols = Array.from(this.subscriptions);
-        await this.subscribe(symbols);
+        try {
+          await this.subscribe(symbols);
+          this.logger.log(`Successfully resubscribed to ${symbols.length} symbols for ${this.adapter.exchangeName}`);
+        } catch (subError) {
+          // Log subscription failure but don't fail the reconnection
+          // Subscriptions will be retried on next feed subscription request
+          this.logger.warn(
+            `Subscription failed during reconnection for ${this.adapter.exchangeName}, will retry later: ${subError}`
+          );
+
+          // Clear subscriptions so they can be retried
+          this.subscriptions.clear();
+        }
       }
 
       this.logger.log(`Reconnection successful for ${this.adapter.exchangeName}`);

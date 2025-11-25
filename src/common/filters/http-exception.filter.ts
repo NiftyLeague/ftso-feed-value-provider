@@ -387,7 +387,25 @@ export class HttpExceptionFilter implements ExceptionFilter {
     request: Request,
     status: HttpStatus
   ): void {
-    const logLevel = status >= 500 ? "error" : status >= 400 ? "warn" : "log";
+    // Special handling for readiness checks during startup
+    // Don't log as ERROR if it's a readiness check failure during initialization
+    const isReadinessCheck = request.path.includes("/health/ready");
+    const isStartupPhase =
+      errorResponse.error.message?.includes("not ready") || errorResponse.error.message?.includes("System not ready");
+
+    // Determine log level
+    let logLevel: "error" | "warn" | "log" | "debug";
+    if (isReadinessCheck && isStartupPhase && status === HttpStatus.SERVICE_UNAVAILABLE) {
+      // Readiness checks during startup should be debug level
+      logLevel = "debug";
+    } else if (status >= 500) {
+      logLevel = "error";
+    } else if (status >= 400) {
+      logLevel = "warn";
+    } else {
+      logLevel = "log";
+    }
+
     const message = `${request.method} ${request.path} - ${status} - ${errorResponse.error.message}`;
 
     const logContext = {
@@ -408,6 +426,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         break;
       case "warn":
         this.logger.warn(message, logContext);
+        break;
+      case "debug":
+        this.logger.debug(message, logContext);
         break;
       default:
         this.logger.log(message, logContext);

@@ -18,6 +18,9 @@ export class CircuitBreakerService extends EventDrivenService {
   private warningLastLogged = new Map<string, number>();
   private readonly WARNING_COOLDOWN_MS = 30000; // 30 seconds
 
+  // Health check interval for probing HALF_OPEN circuits
+  private healthCheckInterval?: NodeJS.Timeout;
+
   constructor() {
     super({
       failureThreshold: ENV.CIRCUIT_BREAKER.SUCCESS_THRESHOLD,
@@ -26,6 +29,9 @@ export class CircuitBreakerService extends EventDrivenService {
       timeout: ENV.TIMEOUTS.CIRCUIT_BREAKER_MS,
       monitoringWindow: ENV.CIRCUIT_BREAKER.MONITORING_WINDOW_MS,
     });
+
+    // Start periodic health check for stuck circuits
+    this.startPeriodicHealthCheck();
   }
 
   /**
@@ -48,6 +54,16 @@ export class CircuitBreakerService extends EventDrivenService {
       fullConfig.failureThreshold = Math.max(fullConfig.failureThreshold, 10); // More lenient for adapters
       fullConfig.recoveryTimeout = Math.min(fullConfig.recoveryTimeout, 20000); // Faster recovery for adapters
       fullConfig.successThreshold = Math.max(fullConfig.successThreshold, 3); // Require more successes
+    }
+
+    // Even more lenient thresholds for individual exchange sources (binance, coinbase, etc.)
+    // These naturally disconnect/reconnect and shouldn't trigger circuit breakers aggressively
+    const exchangeNames = ["binance", "coinbase", "kraken", "okx", "cryptocom"];
+    if (exchangeNames.some(name => serviceId.toLowerCase().includes(name))) {
+      fullConfig.failureThreshold = Math.max(fullConfig.failureThreshold, 15); // Very lenient for exchanges
+      fullConfig.recoveryTimeout = Math.min(fullConfig.recoveryTimeout, 30000); // Fast recovery (30s)
+      fullConfig.successThreshold = 1; // Only need 1 success to recover
+      fullConfig.monitoringWindow = 60000; // Shorter monitoring window (1 minute)
     }
 
     this.configs.set(serviceId, fullConfig);
@@ -178,12 +194,19 @@ export class CircuitBreakerService extends EventDrivenService {
       state => state === CircuitBreakerState.CLOSED
     ).length;
 
+    // Calculate total history size for memory monitoring
+    let totalHistorySize = 0;
+    for (const history of this.requestHistory.values()) {
+      totalHistorySize += history.length;
+    }
+
     return {
       ...baseMetrics,
       total_circuits: circuitCount,
       open_circuits: openCircuits,
       half_open_circuits: halfOpenCircuits,
       closed_circuits: closedCircuits,
+      total_history_entries: totalHistorySize,
     };
   }
 
@@ -435,27 +458,97 @@ export class CircuitBreakerService extends EventDrivenService {
     this.emit("circuitHalfOpen", serviceId);
   }
 
+  // Track last cleanup time to avoid excessive cleanup operations
+  private lastCleanupTime = new Map<string, number>();
+  private readonly CLEANUP_INTERVAL_MS = 10000; // Only cleanup every 10 seconds
+
   private cleanHistory(serviceId: string): void {
     const history = this.requestHistory.get(serviceId);
     const config = this.configs.get(serviceId);
 
     if (!history || !config) return;
 
-    const cutoff = Date.now() - config.monitoringWindow;
+    // Rate limit cleanup operations to reduce CPU usage
+    const now = Date.now();
+    const lastCleanup = this.lastCleanupTime.get(serviceId) || 0;
+
+    if (now - lastCleanup < this.CLEANUP_INTERVAL_MS) {
+      return; // Skip cleanup if we cleaned up recently
+    }
+
+    this.lastCleanupTime.set(serviceId, now);
+
+    const cutoff = now - config.monitoringWindow;
     const filteredHistory = history.filter(req => req.timestamp >= cutoff);
 
-    // Keep only recent history to prevent memory leaks
-    if (filteredHistory.length > 1000) {
-      filteredHistory.splice(0, filteredHistory.length - 1000);
+    // Keep only recent history to prevent memory leaks - reduced from 1000 to 500
+    if (filteredHistory.length > 500) {
+      filteredHistory.splice(0, filteredHistory.length - 500);
     }
 
     this.requestHistory.set(serviceId, filteredHistory);
   }
 
   /**
+   * Start periodic health check to recover stuck circuits
+   * This prevents circuits from staying HALF_OPEN or OPEN indefinitely
+   */
+  private startPeriodicHealthCheck(): void {
+    // Check every 30 seconds for stuck circuits
+    this.healthCheckInterval = this.createInterval(() => {
+      this.performCircuitHealthCheck();
+    }, 30000);
+  }
+
+  /**
+   * Check all circuits and attempt to recover stuck ones
+   */
+  private performCircuitHealthCheck(): void {
+    const now = Date.now();
+
+    for (const [serviceId, state] of this.circuits.entries()) {
+      const stats = this.stats.get(serviceId);
+      const config = this.configs.get(serviceId);
+
+      if (!stats || !config) continue;
+
+      // Check HALF_OPEN circuits that have been stuck for too long
+      if (state === CircuitBreakerState.HALF_OPEN) {
+        const timeSinceLastRequest = now - (stats.lastSuccessTime || stats.lastFailureTime || stats.uptime);
+
+        // If no requests in last 60 seconds, try to close the circuit
+        if (timeSinceLastRequest > 60000) {
+          this.logger.log(`Circuit ${serviceId} stuck in HALF_OPEN for ${timeSinceLastRequest}ms, attempting recovery`);
+
+          // Reset stats and close circuit to give it a fresh start
+          this.resetStats(serviceId);
+          this.transitionToClosed(serviceId);
+        }
+      }
+
+      // Check OPEN circuits that should have transitioned to HALF_OPEN by now
+      if (state === CircuitBreakerState.OPEN) {
+        const timeSinceFailure = now - (stats.lastFailureTime || 0);
+
+        // If circuit has been open longer than recovery timeout + grace period
+        if (timeSinceFailure > config.recoveryTimeout + 30000) {
+          this.logger.log(`Circuit ${serviceId} stuck in OPEN for ${timeSinceFailure}ms, forcing HALF_OPEN transition`);
+          this.transitionToHalfOpen(serviceId);
+        }
+      }
+    }
+  }
+
+  /**
    * Cleanup method
    */
   override async cleanup(): Promise<void> {
+    // Clear health check interval
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
+
     // Clear all timers
     for (const timer of this.circuitTimers.values()) {
       clearTimeout(timer);
@@ -466,6 +559,8 @@ export class CircuitBreakerService extends EventDrivenService {
     this.stats.clear();
     this.circuitTimers.clear();
     this.requestHistory.clear();
+    this.warningLastLogged.clear();
+    this.lastCleanupTime.clear();
 
     this.logger.debug("CircuitBreakerService cleanup completed");
   }

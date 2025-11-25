@@ -87,12 +87,13 @@ export class ConnectionRecoveryService extends EventDrivenService {
   async registerDataSource(source: DataSource): Promise<void> {
     this.logger.log(`Registering data source for connection recovery: ${source.id}`);
 
-    // Register with circuit breaker
+    // Register with circuit breaker - very lenient for WebSocket sources
     this.circuitBreaker.registerCircuit(source.id, {
-      failureThreshold: 8, // More lenient for connection recovery
-      recoveryTimeout: 15000, // Faster recovery
-      successThreshold: 2,
-      timeout: 5000,
+      failureThreshold: 15, // High threshold for WebSocket natural disconnections
+      recoveryTimeout: 30000, // 30 second recovery
+      successThreshold: 1, // Only need 1 success
+      timeout: 10000, // 10 second timeout
+      monitoringWindow: 60000, // 1 minute window
     });
 
     // Initialize connection health
@@ -200,9 +201,13 @@ export class ConnectionRecoveryService extends EventDrivenService {
 
         // Don't immediately open circuit breaker for normal WebSocket disconnections
         const isNormalDisconnection =
-          reason.includes("normal closure") || reason.includes("1000") || reason.includes("No data received");
+          reason.includes("normal closure") ||
+          reason.includes("1000") ||
+          reason.includes("No data received") ||
+          reason.includes("Connection lost");
 
-        if (!isNormalDisconnection && health.consecutiveFailures > 3) {
+        // Only open circuit breaker for severe repeated failures (not normal disconnections)
+        if (!isNormalDisconnection && health.consecutiveFailures > 8) {
           this.circuitBreaker.openCircuit(sourceId, reason);
         }
       }
@@ -461,7 +466,10 @@ export class ConnectionRecoveryService extends EventDrivenService {
       this.reconnectTimers.delete(sourceId);
     }
 
-    // Close circuit breaker
+    // CRITICAL FIX: Reset circuit breaker stats to prevent immediate re-opening
+    // This ensures that subscription failures during reconnection don't immediately
+    // re-open the circuit that we just closed
+    this.circuitBreaker.resetStats(sourceId);
     this.circuitBreaker.closeCircuit(sourceId, "Connection restored");
 
     this.emit("connectionRestored", sourceId);
