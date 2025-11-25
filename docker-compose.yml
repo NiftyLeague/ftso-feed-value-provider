@@ -41,10 +41,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${MEMORY_LIMIT:-2G}
-          cpus: ${CPU_LIMIT:-1.5}
+          memory: ${MEMORY_LIMIT:-3G}
+          cpus: ${CPU_LIMIT:-1.0}
         reservations:
-          memory: ${MEMORY_RESERVATION:-1G}
+          memory: ${MEMORY_RESERVATION:-1.5G}
           cpus: ${CPU_RESERVATION:-0.75}
     logging:
       driver: 'json-file'
