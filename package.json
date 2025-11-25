@@ -100,9 +100,9 @@
     "@nestjs/platform-express": "^11.1.9",
     "@nestjs/swagger": "^11.2.3",
     "axios": "^1.13.2",
-    "ccxt": "^4.5.20",
+    "ccxt": "^4.5.22",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.2",
+    "class-validator": "^0.14.3",
     "dotenv": "^17.2.3",
     "helmet": "^8.1.0",
     "https-proxy-agent": "^7.0.6",
@@ -110,7 +110,7 @@
     "protobufjs": "^7.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "uuid": "^11.1.0",
+    "uuid": "^13.0.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {
