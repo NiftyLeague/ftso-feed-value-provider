@@ -103,6 +103,7 @@ describe("ConnectionRecoveryService", () => {
       getState: jest.fn().mockReturnValue("closed"),
       openCircuit: jest.fn(),
       closeCircuit: jest.fn(),
+      resetStats: jest.fn(), // Added for recovery fix
       destroy: jest.fn(),
     };
 

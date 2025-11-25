@@ -64,11 +64,13 @@ export class HealthController extends EventDrivenController {
   }
 
   private setupIntegrationServiceListeners(): void {
+    this.logger.debug(`Setting up integration service listeners, isInitializingStartup=${this.isInitializingStartup}`);
+
     // Check current state first
     if (this.integrationService.isServiceInitialized()) {
       this.integrationServiceReady = true;
       this.isInitializingStartup = false;
-      this.logger.debug("Integration service already initialized");
+      this.logger.log("Integration service already initialized at controller construction");
       return;
     }
 
@@ -81,9 +83,9 @@ export class HealthController extends EventDrivenController {
 
     // Use the base lifecycle mixin's waitForCondition method instead of custom polling
     this.waitForCondition(() => this.integrationService.isServiceInitialized(), {
-      maxAttempts: 30, // 30 seconds with 1 second intervals
+      maxAttempts: 60, // 60 seconds with 1 second intervals (increased from 30)
       checkInterval: 1000,
-      timeout: 30000,
+      timeout: 60000,
     })
       .then(success => {
         if (success && !this.integrationServiceReady) {
@@ -91,14 +93,17 @@ export class HealthController extends EventDrivenController {
           this.isInitializingStartup = false;
           this.logger.debug("Integration service initialization detected via waitForCondition");
         } else if (!success) {
-          this.logger.warn("Integration service initialization timeout reached, marking startup as complete");
-          this.isInitializingStartup = false;
-          // Don't mark as ready if we timeout - let the actual readiness checks handle it
+          // Keep isInitializingStartup = true even after timeout
+          // This ensures readiness check failures continue to be logged at debug level
+          // The flag will be set to false only when the system actually becomes ready
+          this.logger.warn(
+            "Integration service initialization timeout reached, but keeping initialization flag active"
+          );
         }
       })
       .catch(error => {
         this.logger.warn("Error waiting for integration service initialization:", error);
-        this.isInitializingStartup = false;
+        // Don't set isInitializingStartup = false here either
       });
   }
 
@@ -481,13 +486,15 @@ export class HealthController extends EventDrivenController {
           details: `Integration: ${checks.integration.status}, Provider: ${checks.provider.status}, Startup: ${checks.startup.ready ? "ready" : "not ready"}`,
         };
 
+        // The HttpExceptionFilter will handle logging appropriately based on the path and message
         throw new HttpException(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
       }
 
       // Mark as ready if this is the first successful readiness check
       if (!this.readyTime) {
         this.readyTime = Date.now();
-        this.logger.log(`System marked as ready after ${this.readyTime - this.startupTime}ms`);
+        this.isInitializingStartup = false; // System is now ready, no longer initializing
+        this.logger.log(`✅ System ready after ${this.readyTime - this.startupTime}ms`);
       }
 
       return response;
@@ -502,7 +509,10 @@ export class HealthController extends EventDrivenController {
       };
 
       // Use event-driven state to determine appropriate logging level
-      if (this.isInitializingStartup && error instanceof HttpException) {
+      // System is initializing if we haven't marked it as ready yet
+      const isStillInitializing = !this.readyTime;
+
+      if (isStillInitializing && error instanceof HttpException) {
         this.logger.debug("Readiness check failed during initialization:", errorContext);
       } else {
         this.logger.error("Readiness check failed:", errorContext);

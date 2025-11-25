@@ -255,6 +255,10 @@ export class EnhancedLoggerService implements ILogger {
     this.debug(`Data flow: ${count} ${dataType} records from ${source} to ${destination}`, context);
   }
 
+  // Rate limiting for stale price warnings
+  private staleWarningLastLogged = new Map<string, number>();
+  private readonly STALE_WARNING_COOLDOWN_MS = 60000; // 60 seconds
+
   /**
    * Log price update operations
    */
@@ -274,7 +278,18 @@ export class EnhancedLoggerService implements ILogger {
     };
 
     if (age > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
-      this.warn(`Stale price update received: ${symbol} from ${source} (age: ${age}ms)`, context);
+      // Rate limit stale price warnings to prevent spam
+      const warningKey = `${source}_${symbol}`;
+      const now = Date.now();
+      const lastLogged = this.staleWarningLastLogged.get(warningKey) || 0;
+
+      if (now - lastLogged > this.STALE_WARNING_COOLDOWN_MS) {
+        this.warn(`Stale price update received: ${symbol} from ${source} (age: ${age}ms)`, context);
+        this.staleWarningLastLogged.set(warningKey, now);
+      } else {
+        // Log at debug level instead to avoid spam
+        this.debug(`Stale price update received: ${symbol} from ${source} (age: ${age}ms)`, context);
+      }
     } else {
       this.debug(`Price update: ${symbol} = ${price} from ${source}`, context);
     }

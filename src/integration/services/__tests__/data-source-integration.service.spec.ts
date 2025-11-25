@@ -464,6 +464,12 @@ describe("DataSourceIntegrationService", () => {
       const sourceId = "binance";
       const emitSpy = jest.spyOn(service, "emit");
 
+      // Mock circuit breaker stats to simulate severe failures
+      circuitBreaker.getStats = jest.fn().mockReturnValue({
+        failureCount: 15, // More than 10 to trigger circuit opening
+        consecutiveFailures: 15,
+      });
+
       // Get the source unhealthy handler
       const sourceUnhealthyHandler = dataManager.on.mock.calls.find(call => call[0] === "sourceUnhealthy")?.[1];
 
@@ -472,7 +478,8 @@ describe("DataSourceIntegrationService", () => {
 
       // Assert
       expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith("binance", "unhealthy");
-      expect(circuitBreaker.openCircuit).toHaveBeenCalledWith("binance", "Source unhealthy");
+      // Circuit only opens on severe failures (>10), which we've mocked
+      expect(circuitBreaker.openCircuit).toHaveBeenCalledWith("binance", "Source unhealthy with excessive failures");
       expect(emitSpy).toHaveBeenCalledWith("sourceUnhealthy", sourceId);
     });
 
