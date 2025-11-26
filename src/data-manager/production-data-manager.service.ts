@@ -140,11 +140,24 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         if (!isHealthy) {
           // Only emit unhealthy events if service is initialized and data source is ready
           if (this.isServiceInitialized() && this.dataSourcesInitialized.has(sourceId)) {
-            this.logger.warn(`Data source ${sourceId} marked as unhealthy - last update: ${timeSinceLastUpdate}ms ago`);
+            // Get the last error for this source if available
+            const lastError = metrics.lastError || "No recent updates received";
+            const errorCount = metrics.errorCount || 0;
+
+            this.logger.warn(`⚠️  Data source ${sourceId} marked as UNHEALTHY`, {
+              component: "ProductionDataManagerService",
+              operation: "health_check",
+              sourceId,
+              timeSinceLastUpdate: `${timeSinceLastUpdate}ms`,
+              errorCount,
+              lastError,
+              consecutiveFailures: metrics.consecutiveFailures || 0,
+              severity: "medium",
+            });
             this.emit("sourceUnhealthy", sourceId);
           }
         } else {
-          this.logger.log(`Data source ${sourceId} marked as healthy`);
+          this.logger.log(`✅ Data source ${sourceId} marked as healthy`);
           this.emit("sourceHealthy", sourceId);
         }
       }
@@ -830,7 +843,34 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     // Handle source errors (if the DataSource supports error events)
     if (typeof source.onError === "function") {
       source.onError((error: Error) => {
-        this.logger.error(`Error from data source ${source.id}:`, error);
+        // Classify error type for better debugging
+        const errorMessage = error.message || "Unknown error";
+        const isGeoBlocking =
+          errorMessage.includes("451") || errorMessage.includes("geo") || errorMessage.includes("region");
+        const isRateLimit =
+          errorMessage.includes("rate limit") || errorMessage.includes("429") || errorMessage.includes("too many");
+        const isConnection =
+          errorMessage.includes("connection") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("ECONNREFUSED");
+
+        let errorType = "UNKNOWN";
+        if (isGeoBlocking) errorType = "GEO_BLOCKING";
+        else if (isRateLimit) errorType = "RATE_LIMIT";
+        else if (isConnection) errorType = "CONNECTION";
+
+        this.logger.error(`❌ Error from data source ${source.id} [${errorType}]:`, {
+          component: "ProductionDataManagerService",
+          operation: "source_error",
+          sourceId: source.id,
+          sourceType: source.type,
+          errorType,
+          errorMessage,
+          isGeoBlocking,
+          isRateLimit,
+          isConnection,
+          severity: isGeoBlocking ? "high" : "medium",
+        });
 
         // Classify error and emit with additional context
         const errorContext = {
@@ -842,10 +882,12 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
         this.emit("sourceError", source.id, error, errorContext);
 
-        // Update connection metrics to reflect error
+        // Update connection metrics to reflect error and store error message
         const metrics = this.connectionMetrics.get(source.id);
         if (metrics) {
           metrics.isHealthy = false;
+          metrics.lastError = `[${errorType}] ${errorMessage}`;
+          metrics.consecutiveFailures = (metrics.consecutiveFailures || 0) + 1;
         }
       });
     }
@@ -939,6 +981,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     if (connected) {
       this.logger.log(`Data source ${sourceId} connected`);
       metrics.reconnectAttempts = 0;
+      metrics.consecutiveFailures = 0; // Reset on successful connection
+      metrics.lastError = undefined; // Clear error on success
 
       // Cancel any pending reconnection
       const timer = this.reconnectTimers.get(sourceId);
