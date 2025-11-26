@@ -250,20 +250,34 @@ export class HealthController extends EventDrivenController {
         entries: totalCacheEntries,
       };
 
-      // Build response aligned to HealthStatus
+      // Get detailed source information
+      const healthySources = systemHealth.sources.filter(s => s.status === "healthy");
+      const unhealthySources = systemHealth.sources.filter(s => s.status === "unhealthy");
+
+      // Build response aligned to HealthStatus with source details
       const response: HealthStatus = {
         status: systemHealth.status,
         timestamp: Date.now(),
         version: "1.0.0",
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        connections: systemHealth.sources.filter(s => s.status === "healthy").length,
+        connections: healthySources.length,
         adapters: adapterStats.total,
         cache: combinedCacheStats,
         startup: {
           initialized: true,
           startTime: this.startupTime,
           readyTime: this.readyTime,
+        },
+        // Add source details for debugging
+        sources: {
+          healthy: healthySources.map(s => s.sourceId),
+          unhealthy: unhealthySources.map(s => ({
+            id: s.sourceId,
+            errorCount: s.errorCount,
+            lastUpdate: s.lastUpdate,
+          })),
+          total: systemHealth.sources.length,
         },
       };
 

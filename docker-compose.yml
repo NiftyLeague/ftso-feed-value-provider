@@ -13,7 +13,7 @@ services:
       # Minimal environment configuration - most defaults are optimized in environment.constants.ts
       # Core settings
       - NODE_ENV=${NODE_ENV:-production}
-      - LOG_LEVEL=${LOG_LEVEL:-warn}
+      - LOG_LEVEL=${LOG_LEVEL:-log}
       - APP_PORT=${APP_PORT:-3101}
 
       # Optional: Proxy settings for bypassing geo-restrictions (HTTP 451 errors)

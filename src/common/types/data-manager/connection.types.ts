@@ -38,6 +38,8 @@ export interface ConnectionMetrics {
   averageLatency: number;
   latency: number;
   uptime: number;
+  lastError?: string; // Last error message for debugging
+  consecutiveFailures?: number; // Track consecutive failures
 }
 
 export interface ReconnectionTimer {

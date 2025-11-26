@@ -53,6 +53,16 @@ export interface HealthStatus {
     startTime: number;
     readyTime?: number;
   };
+  sources?: {
+    healthy: string[];
+    unhealthy: Array<{
+      id: string;
+      errorCount: number;
+      lastUpdate: number;
+      lastError?: string;
+    }>;
+    total: number;
+  };
 }
 
 export interface HealthCheckResponse {
