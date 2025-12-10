@@ -91,7 +91,7 @@ EXPOSE 3101
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3101/health/ready || exit 1
+    CMD curl -f http://localhost:3101/health || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

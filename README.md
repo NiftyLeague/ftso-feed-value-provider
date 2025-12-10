@@ -120,7 +120,10 @@ validation, monitoring, and error handling:
 - **`POST /feed-values/:votingRoundId`**: Historical feed values for Scaling
   (specific voting rounds)
 - **`POST /volumes`**: Volume data with configurable time windows
-- **`POST /health`**: System health and performance metrics
+- **`GET /health`**: Simple, high-level system health status (`healthy`,
+  `degraded`, or `unhealthy`)
+- **`GET /health/detailed`**: Comprehensive system health and performance
+  metrics
 
 ### Supported Feed Categories
 

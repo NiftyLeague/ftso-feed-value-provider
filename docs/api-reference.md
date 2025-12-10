@@ -127,24 +127,135 @@ Retrieves volume data with configurable time windows.
 }
 ```
 
-### Health Check
+### Get System Health
 
-**Endpoint**: `POST /health`
+Provides the health status of the system through several endpoints, each with a
+specific purpose.
 
-Returns system health and performance metrics.
+#### `GET /health` (Strict Health)
 
-**Response**:
+Returns a `200 OK` status only if the system is operating in a perfectly
+**healthy** state. If the system is `degraded` or `unhealthy`, it will return a
+`503 Service Unavailable` error. This is the most stringent check.
+
+- **Method**: `GET`
+- **Endpoint**: `/health`
+- **Use Case**: Best for dashboards or alerting where you need to confirm the
+  system is flawless.
+
+**Example Request**:
+
+```bash
+curl http://localhost:3101/health
+```
+
+**Example Response** (on success):
 
 ```json
 {
   "status": "healthy",
-  "uptime": 3600000,
-  "version": "1.0.0",
-  "metrics": {
-    "responseTime": 45,
-    "cacheHitRate": 0.95,
-    "activeConnections": 8
+  "timestamp": 1678886400000
+}
+```
+
+---
+
+#### `GET /health/ready` (Readiness)
+
+Indicates if the application is fully initialized and ready to accept traffic.
+This is the standard check for orchestrators.
+
+- **Method**: `GET`
+- **Endpoint**: `/health/ready`
+- **Use Case**: Used by Kubernetes for readiness probes and by **Docker for
+  `HEALTHCHECK`**. An orchestrator will only route traffic to an instance
+  passing this check.
+
+**Example Request**:
+
+```bash
+curl http://localhost:3101/health/ready
+```
+
+**Example Response** (on success):
+
+```json
+{
+  "ready": true,
+  "status": "ready",
+  "timestamp": 1678886400000,
+  "responseTime": 15,
+  "startup": {
+    "startTime": 1678879200000,
+    "readyTime": 1678879230000
   }
+}
+```
+
+---
+
+#### `GET /health/live` (Liveness)
+
+Indicates if the application process is running and not deadlocked.
+
+- **Method**: `GET`
+- **Endpoint**: `/health/live`
+- **Use Case**: Used by Kubernetes for liveness probes. If this check fails, the
+  container is considered broken and will be restarted.
+
+**Example Request**:
+
+```bash
+curl http://localhost:3101/health/live
+```
+
+**Example Response** (on success):
+
+```json
+{
+  "alive": true,
+  "status": "alive",
+  "timestamp": 1678886400000,
+  "uptime": 7200
+}
+```
+
+---
+
+#### `GET /health/detailed` (Debugging)
+
+Returns a comprehensive, verbose breakdown of the system's health for human
+analysis.
+
+- **Method**: `GET`
+- **Endpoint**: `/health/detailed`
+- **Use Case**: Provides a detailed report for developers to use during
+  troubleshooting and debugging.
+
+**Example Request**:
+
+```bash
+curl http://localhost:3101/health/detailed
+```
+
+**Example Response (Structure)**:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": 1678886400000,
+  "uptime": 7200,
+  "version": "1.0.0",
+  "memory": { "used": 128, "total": 512, "external": 50, "rss": 200 },
+  "details": { "environment": "development", "nodeVersion": "v18.12.0", "platform": "darwin", "pid": 12345 },
+  "components": {
+    "provider": { "status": "healthy", "details": { ... } },
+    "cache": { "status": "healthy", "details": { ... } },
+    "aggregation": { "status": "healthy", "details": { ... } },
+    "integration": { "status": "healthy", "details": { ... } },
+    "performance": { "status": "healthy", "details": { ... } }
+  },
+  "startup": { "initialized": true, "startTime": 1678879200000, "readyTime": 1678879230000 }
 }
 ```
 
@@ -254,7 +365,7 @@ curl -X POST "http://localhost:3101/volumes?window=3600" \
   -d '{"feeds": [{"category": 1, "name": "BTC/USD"}]}'
 
 # Health check
-curl -X POST http://localhost:3101/health
+curl http://localhost:3101/health
 ```
 
 ## WebSocket Support

@@ -2,16 +2,32 @@
 
 ## Overview
 
-The FTSO Feed Value Provider exposes four health check endpoints for monitoring
-system status, readiness, and liveness. These endpoints are designed for use by
-load balancers, orchestration systems (Kubernetes, Docker), and monitoring
-tools.
+The FTSO Feed Value Provider exposes multiple health check endpoints, each with
+a distinct purpose for monitoring system status, readiness, and liveness.
+Understanding the role of each is crucial for effective monitoring and
+orchestration.
+
+- **`/health` (Primary Health Check)**: Answers "Is the application
+  operational?" Used for Docker health checks.
+- **`/health/ready` (Readiness)**: Answers "Is the application ready to serve
+  traffic?" Used for Kubernetes readiness probes.
+- **`/health/live` (Liveness)**: Answers "Is the application running?" Used for
+  Kubernetes liveness probes.
+- **`/health/detailed` (Debugging)**: Provides a verbose report for human
+  analysis.
 
 ## Endpoints
 
-### 1. `/health` - Basic Health Check
+### 1. `/health` - Primary Health Check
 
-Returns comprehensive system health status including all integrated components.
+Returns a simple `200 OK` if the system is `healthy` or `degraded`, and a
+`503 Service Unavailable` if `unhealthy`. This is the primary endpoint for
+Docker health checks.
+
+A `degraded` status indicates that the application is functional but may have
+non-critical issues (e.g., a single data source is down). It is still considered
+"healthy" by Docker to avoid unnecessary container restarts. An `unhealthy`
+status means the application cannot function correctly.
 
 **Method**: `GET`
 
@@ -20,49 +36,25 @@ Returns comprehensive system health status including all integrated components.
 ```json
 {
   "status": "healthy",
-  "timestamp": 1763593721230,
-  "version": "1.0.0",
-  "uptime": 37.216613584,
-  "memory": {
-    "rss": 625786880,
-    "heapTotal": 495910912,
-    "heapUsed": 453173880,
-    "external": 37795229,
-    "arrayBuffers": 34387782
-  },
-  "connections": 6,
-  "adapters": 6,
-  "cache": {
-    "hitRate": 0,
-    "entries": 0
-  },
-  "startup": {
-    "initialized": true,
-    "startTime": 1763593721230,
-    "readyTime": 1763593736012
-  }
+  "timestamp": 1763593721230
 }
 ```
 
 **Fields**:
 
-- `status`: Overall system health (`healthy`, `degraded`, `unhealthy`)
-- `adapters`: Total number of configured exchange adapters
-- `connections`: Number of healthy, connected data sources
-- `uptime`: Process uptime in seconds
-- `memory`: Node.js memory usage statistics
-- `cache`: Cache performance metrics
-- `startup`: Initialization timing information
+- `status`: The overall system health (`healthy`, `degraded`, or `unhealthy`).
+- `timestamp`: The timestamp of the health check.
 
-**Use Case**: General health monitoring, dashboards, metrics collection
+**Use Case**: The primary health check for orchestration systems like Docker
+that need a reliable signal of the application's overall operational status.
 
 ---
 
 ### 2. `/health/ready` - Readiness Probe
 
 Indicates whether the system is ready to serve requests. Used by load balancers
-and orchestration systems to determine if traffic should be routed to this
-instance.
+and orchestration systems (like Kubernetes) to determine if traffic should be
+routed to this instance.
 
 **Method**: `GET`
 
@@ -71,24 +63,9 @@ instance.
 ```json
 {
   "ready": true,
-  "status": "healthy",
+  "status": "ready",
   "timestamp": 1763593736012,
   "responseTime": 1,
-  "checks": {
-    "integration": {
-      "ready": true,
-      "status": "healthy",
-      "error": null
-    },
-    "provider": {
-      "ready": true,
-      "status": "healthy",
-      "error": null
-    },
-    "startup": {
-      "ready": true
-    }
-  },
   "startup": {
     "startTime": 1763593721230,
     "readyTime": 1763593736012
@@ -136,8 +113,8 @@ instance.
 - At least one data source is healthy OR successful aggregation is occurring
 - Ensures the system can actually serve real data to users
 
-**Use Case**: Kubernetes readiness probes, load balancer health checks,
-deployment validation
+**Use Case**: Kubernetes readiness probes and load balancer health checks. It
+ensures the instance can do its job before receiving traffic.
 
 ---
 
@@ -153,14 +130,9 @@ orchestration systems to determine if the container should be restarted.
 ```json
 {
   "alive": true,
+  "status": "alive",
   "timestamp": 1763593736012,
-  "uptime": 49.575382709,
-  "checks": {
-    "integration": true,
-    "provider": true,
-    "memory": true,
-    "responseTime": 0
-  }
+  "uptime": 49.575
 }
 ```
 
@@ -169,8 +141,9 @@ orchestration systems to determine if the container should be restarted.
 ```json
 {
   "alive": false,
+  "status": "dead",
   "timestamp": 1763593736012,
-  "uptime": 49.575382709,
+  "uptime": 49.575,
   "message": "Liveness check failed - System is not alive",
   "details": "Integration: false, Provider: false"
 }
@@ -179,12 +152,10 @@ orchestration systems to determine if the container should be restarted.
 **Liveness Criteria**:
 
 - Integration service is responsive
-- Provider service is responsive
 - Memory usage is below 90% of heap
-- Response time is acceptable
 
-**Use Case**: Kubernetes liveness probes, container health monitoring, automatic
-restart triggers
+**Use Case**: Kubernetes liveness probes. If this fails, the container should be
+restarted.
 
 ---
 
@@ -200,35 +171,86 @@ performance metrics.
 ```json
 {
   "status": "healthy",
-  "timestamp": 1763593736012,
-  "uptime": 50.936473042,
+  "timestamp": 1678886400000,
+  "uptime": 7200,
   "version": "1.0.0",
+  "memory": {
+    "used": 128,
+    "total": 512,
+    "external": 50,
+    "rss": 200
+  },
+  "details": {
+    "environment": "development",
+    "nodeVersion": "v18.12.0",
+    "platform": "darwin",
+    "pid": 12345
+  },
   "components": {
-    "database": {
-      "component": "database",
+    "provider": {
       "status": "healthy",
-      "timestamp": 1763593736012
+      "details": { "sources": [], "aggregation": {} }
     },
     "cache": {
-      "component": "cache",
       "status": "healthy",
-      "timestamp": 1763593736012
+      "details": { "hitRate": 0.95, "totalEntries": 1000 }
     },
-    "adapters": {
-      "component": "adapters",
+    "aggregation": {
       "status": "healthy",
-      "timestamp": 1763593736012
+      "details": { "totalEntries": 500, "averageAge": 1500 }
     },
     "integration": {
-      "component": "integration",
       "status": "healthy",
-      "timestamp": 1763593736012
+      "details": { "connected": 6, "total": 6 }
+    },
+    "performance": {
+      "status": "healthy",
+      "details": { "averageResponseTime": 150 }
+    },
+    "api": {
+      "status": "healthy",
+      "details": {
+        "totalRequests": 1000,
+        "requestsPerMinute": 120,
+        "averageResponseTime": 85,
+        "errorRate": 1.5,
+        "errorAnalysis": {
+          "totalErrors": 10,
+          "errorsByStatusCode": { "500": 6 }
+        }
+      }
+    },
+    "rateLimiter": {
+      "status": "healthy",
+      "details": {
+        "stats": {
+          "totalRequests": 1000,
+          "blockedRequests": 0,
+          "hitRate": 0.99
+        },
+        "config": { "windowMs": 60000, "maxRequests": 1000 }
+      }
+    },
+    "retries": {
+      "status": "healthy",
+      "details": {
+        "DataSourceIntegrationService": {
+          "successfulRetries": 3,
+          "failedRetries": 0
+        }
+      }
+    },
+    "errorHandling": {
+      "status": "healthy",
+      "details": {
+        "HealthController": { "totalErrors": 0, "consecutiveFailures": 0 }
+      }
     }
   },
   "startup": {
     "initialized": true,
-    "startTime": 1763593721230,
-    "readyTime": 1763593736012
+    "startTime": 1678879200000,
+    "readyTime": 1678879230000
   }
 }
 ```
@@ -311,7 +333,7 @@ readinessProbe:
 
 ```yaml
 healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:3101/health/ready"]
+  test: ["CMD", "curl", "-f", "http://localhost:3101/health"]
   interval: 30s
   timeout: 10s
   retries: 3
@@ -354,7 +376,7 @@ If `/health/ready` returns 503:
 2. Check data source connections:
 
    ```bash
-   curl http://localhost:3101/health | jq '{adapters, connections}'
+   curl http://localhost:3101/health/detailed | jq '{adapters, connections}'
    ```
 
 3. Review startup logs:
@@ -384,7 +406,7 @@ If memory usage is high:
 1. Check current memory:
 
    ```bash
-   curl http://localhost:3101/health | jq '.memory'
+   curl http://localhost:3101/health/detailed | jq '.memory'
    ```
 
 2. Trigger garbage collection (if enabled):
@@ -415,19 +437,24 @@ If memory usage is high:
 
 ## Best Practices
 
-1. **Use `/health/ready` for load balancer health checks** - It provides the
-   most accurate indication of whether the instance can serve traffic
+1. **Use `/health/live` for Liveness Probes in Kubernetes.**  
+   This check is the most basic and ensures the container process is running and
+   not deadlocked. A failure here should trigger a container restart.
 
-2. **Use `/health/live` for container orchestration** - It detects deadlocks and
-   unresponsive processes
+2. **Use `/health/ready` for Readiness Probes in Kubernetes.**  
+   This check is critical for traffic management in Kubernetes. It confirms the
+   application is fully initialized and can serve data. An orchestrator should
+   only route traffic to an instance that passes this check.
 
-3. **Monitor `/health` for metrics** - It provides comprehensive system
-   information for dashboards
+3. **Use `/health` for Docker Health Checks.**  
+   This endpoint provides a comprehensive check of the application's overall
+   health. It is the recommended health check for Docker environments.
 
-4. **Set appropriate timeouts** - Health checks should complete in < 5 seconds
+4. **Use `/health/detailed` for Manual Debugging.**  
+   This verbose endpoint should be used by developers during troubleshooting to
+   get a complete picture of the system's state.
 
-5. **Configure failure thresholds** - Allow 2-3 failures before taking action to
-   avoid flapping
-
-6. **Use startup delays** - Give the system time to initialize before starting
-   health checks (30-40 seconds)
+5. **Configure Appropriate Timeouts and Thresholds.**  
+   Allow 2-3 failures before taking action to avoid flapping, and use a startup
+   delay (e.g., `initialDelaySeconds`) to give the system time to initialize
+   before probes begin.

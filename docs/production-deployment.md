@@ -127,7 +127,9 @@ The application provides several health check endpoints:
 
 - **Readiness**: `GET /health/ready` - Application is ready to serve requests
 - **Liveness**: `GET /health/live` - Application is running
-- **Health**: `GET /health` - Comprehensive health status
+- **Health**: `GET /health` - Simple, high-level health status
+- **Detailed Health**: `GET /health/detailed` - Comprehensive health status and
+  metrics
 
 ### Load Balancer Integration
 

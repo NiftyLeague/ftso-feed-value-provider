@@ -51,7 +51,7 @@ export interface HealthStatus {
   startup?: {
     initialized: boolean;
     startTime: number;
-    readyTime?: number;
+    readyTime?: number | null;
   };
   sources?: {
     healthy: string[];
@@ -77,17 +77,37 @@ export interface DetailedHealthResponse {
   timestamp: number;
   uptime: number;
   version?: string;
+  memory?: Record<string, number>;
+  details?: Record<string, unknown>;
   components: {
-    database: HealthCheckDetails;
-    cache: HealthCheckDetails;
-    adapters: HealthCheckDetails;
-    integration: HealthCheckDetails;
+    [key: string]: {
+      status: HealthStatusType | string;
+      details: unknown;
+    };
   };
   startup?: {
     initialized: boolean;
     startTime: number;
-    readyTime?: number;
+    readyTime?: number | null;
   };
+  probes?: {
+    liveness: LivenessChecks;
+    readiness: ReadinessChecks;
+  };
+  readinessDiagnostics?: ReadinessDiagnostics;
+}
+
+export interface ReadinessChecks {
+  integration: { ready: boolean; status: string; error: null | string };
+  provider: { ready: boolean; status: string; error: null | string };
+  startup: { ready: boolean };
+}
+
+export interface LivenessChecks {
+  integration: boolean;
+  provider: boolean;
+  memory: boolean;
+  responseTime: number;
 }
 
 export interface ReadinessResponse {
@@ -95,21 +115,35 @@ export interface ReadinessResponse {
   status: string;
   timestamp: number;
   responseTime: number;
+  uptime?: number;
   checks: {
     integration: { ready: boolean; status: string; error: string | null };
     provider: { ready: boolean; status: string; error: string | null };
     startup: { ready: boolean };
   };
+  diagnostics?: ReadinessDiagnostics;
   startup: {
     startTime: number;
     readyTime: number | null;
   };
 }
 
+export interface ReadinessDiagnostics {
+  healthySources?: number;
+  totalSources?: number;
+  aggregationSuccessRate?: number;
+  canServeFeedData?: boolean;
+  state?: "not_ready" | "warming_up" | "ready";
+  validFeedCount?: number;
+  totalTestFeeds?: number;
+}
+
 export interface LivenessResponse {
   alive: boolean;
+  status: string;
   timestamp: number;
   uptime: number;
+  checks: LivenessChecks;
 }
 
 export interface HealthAlert {

@@ -8,6 +8,8 @@ import { MetricsController } from "@/controllers/metrics.controller";
 import { IntegrationService } from "@/integration/integration.service";
 import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
+import { RealTimeCacheService } from "@/cache/real-time-cache.service";
+import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 
 describe("Controllers Integration", () => {
   let app: INestApplication;
@@ -236,6 +238,12 @@ describe("Controllers Integration", () => {
           byHealth: { healthy: 5 },
         });
 
+        const cacheService = module.get(RealTimeCacheService);
+        cacheService.getStats = jest.fn().mockReturnValue({ hitRate: 0.9, totalEntries: 100 });
+
+        const aggregationService = module.get(RealTimeAggregationService);
+        aggregationService.getCacheStats = jest.fn().mockReturnValue({ totalEntries: 50, hitRate: 0.95 });
+
         const response = await request(app.getHttpServer()).get("/health");
 
         // The health endpoint may return 503 during initialization, which is expected
@@ -265,6 +273,12 @@ describe("Controllers Integration", () => {
             outlierRate: 0.01,
           },
         });
+
+        const cacheService = module.get(RealTimeCacheService);
+        cacheService.getStats = jest.fn().mockReturnValue({ hitRate: 0.9, totalEntries: 100 });
+
+        const aggregationService = module.get(RealTimeAggregationService);
+        aggregationService.getCacheStats = jest.fn().mockReturnValue({ totalEntries: 50, hitRate: 0.95 });
 
         const response = await request(app.getHttpServer()).get("/health/detailed").expect(200);
 

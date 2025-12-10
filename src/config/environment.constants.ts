@@ -12,6 +12,8 @@ export const ENV_HELPERS = {
   isProduction: (): boolean => ENV.APPLICATION.NODE_ENV === "production",
 };
 
+import * as packageJson from "../../package.json";
+
 export const ENV = {
   // Application Settings
   APPLICATION: {
@@ -23,6 +25,7 @@ export const ENV = {
     }),
     BASE_PATH: EnvironmentUtils.parseString("APP_BASE_PATH", ""),
     CORS_MAX_AGE: EnvironmentUtils.parseInt("APP_CORS_MAX_AGE", 3600, { min: 300, max: 86400 }),
+    VERSION: packageJson.version,
   },
 
   // Logging Configuration
