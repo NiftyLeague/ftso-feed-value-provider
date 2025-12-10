@@ -183,21 +183,23 @@ export class HealthController extends EventDrivenController {
       const aggregationCacheStats = this.aggregationService.getCacheStats();
 
       // Build components health status
+      // Adjusted thresholds to be more realistic for production:
+      // - API unhealthy: >30% error rate or >10% critical requests (was 20% / 5%)
+      // - API degraded: >10% error rate or >30% slow requests (was 5% / 20%)
       const apiStatus: HealthStatusType =
-        apiHealthMetrics.errorRate > 20 || apiHealthMetrics.criticalRequestRate > 5
+        apiHealthMetrics.errorRate > 30 || apiHealthMetrics.criticalRequestRate > 10
           ? "unhealthy"
-          : apiHealthMetrics.errorRate > 5 || apiHealthMetrics.slowRequestRate > 20
+          : apiHealthMetrics.errorRate > 10 || apiHealthMetrics.slowRequestRate > 30
             ? "degraded"
             : "healthy";
 
       const rateLimiterStatus: HealthStatusType = rateLimitStats.hitRate < 0.8 ? "degraded" : "healthy";
 
       const retryStatsValues = Object.values(retryStats);
-      const retryStatus: HealthStatusType = retryStatsValues.some(stat => stat.failedRetries > 5)
-        ? "unhealthy"
-        : retryStatsValues.some(stat => stat.failedRetries > 0)
-          ? "degraded"
-          : "healthy";
+      // Adjusted: allows some retry failures, only unhealthy if >20 total failures
+      const totalFailedRetries = retryStatsValues.reduce((sum, stat) => sum + stat.failedRetries, 0);
+      const retryStatus: HealthStatusType =
+        totalFailedRetries > 20 ? "unhealthy" : totalFailedRetries > 5 ? "degraded" : "healthy";
 
       const errorStatsValues = Object.values(errorStats);
       const errorHandlingStatus: HealthStatusType = errorStatsValues.some(stat => stat.consecutiveFailures > 10)
@@ -220,17 +222,31 @@ export class HealthController extends EventDrivenController {
             activeFeedCount: performanceMetrics.activeFeedCount,
           },
         },
-        cache: {
-          status: realTimeCacheStats.hitRate > ENV.CACHE.HIT_RATE_TARGET ? "healthy" : "degraded",
-          details: realTimeCacheStats,
-        },
+        cache: (() => {
+          const cacheHealth = this.cacheService.getCacheHealthStatus();
+          return {
+            status: cacheHealth.status,
+            details: {
+              ...realTimeCacheStats,
+              ...cacheHealth.metrics,
+              healthReason: cacheHealth.reason,
+            },
+          };
+        })(),
         aggregation: {
           status: aggregationCacheStats.totalEntries > 0 ? "healthy" : "degraded",
           details: aggregationCacheStats,
         },
         integration: {
-          status: adapterStats.active === adapterStats.total ? "healthy" : "degraded",
-          details: adapterStats,
+          // Adjusted: allows up to 10% inactive adapters to be healthy (was requiring 100%)
+          status: (() => {
+            const activeRatio = adapterStats.total > 0 ? adapterStats.active / adapterStats.total : 0;
+            return activeRatio >= 0.9 ? "healthy" : activeRatio >= 0.7 ? "degraded" : "unhealthy";
+          })(),
+          details: {
+            ...adapterStats,
+            activeRatio: `${adapterStats.total > 0 ? ((adapterStats.active / adapterStats.total) * 100).toFixed(1) : 0}%`,
+          },
         },
         performance: {
           status: "healthy",

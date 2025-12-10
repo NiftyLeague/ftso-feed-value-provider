@@ -89,7 +89,9 @@ USER ftso-provider
 # Expose port
 EXPOSE 3101
 
-# Health check
+# Health check - uses /health which internally calls detailed health check but returns simplified response
+# Returns 200 (healthy/degraded) or 503 (unhealthy), allowing Docker to distinguish
+# between "can continue serving" vs "must restart container"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3101/health || exit 1
 

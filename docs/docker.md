@@ -292,13 +292,14 @@ copy the runtime config files. The build process doesn't include JSON files in
 
 ## 📊 Service Endpoints
 
-| Endpoint      | URL                                | Description                |
-| ------------- | ---------------------------------- | -------------------------- |
-| **API**       | http://localhost:3101              | Main API endpoint          |
-| **Health**    | http://localhost:3101/health       | System health check        |
-| **Liveness**  | http://localhost:3101/health/live  | Kubernetes liveness probe  |
-| **Readiness** | http://localhost:3101/health/ready | Kubernetes readiness probe |
-| **Metrics**   | http://localhost:9090/metrics      | Prometheus metrics         |
+| Endpoint      | URL                                   | Description                                              |
+| ------------- | ------------------------------------- | -------------------------------------------------------- |
+| **API**       | http://localhost:3101                 | Main API endpoint                                        |
+| **Health**    | http://localhost:3101/health          | Docker HEALTHCHECK (simplified response, full diagnosis) |
+| **Detailed**  | http://localhost:3101/health/detailed | Full system diagnostics (all components)                 |
+| **Liveness**  | http://localhost:3101/health/live     | Kubernetes liveness probe                                |
+| **Readiness** | http://localhost:3101/health/ready    | Kubernetes readiness probe                               |
+| **Metrics**   | http://localhost:9090/metrics         | Prometheus metrics                                       |
 
 ## 📝 Example API Usage
 

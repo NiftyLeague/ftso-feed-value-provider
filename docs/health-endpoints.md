@@ -8,26 +8,38 @@ Understanding the role of each is crucial for effective monitoring and
 orchestration.
 
 - **`/health` (Primary Health Check)**: Answers "Is the application
-  operational?" Used for Docker health checks.
+  operational?" Internally runs full system diagnosis but returns simplified
+  response. Used for Docker health checks.
 - **`/health/ready` (Readiness)**: Answers "Is the application ready to serve
-  traffic?" Used for Kubernetes readiness probes.
+  traffic?" Used for Kubernetes readiness probes and load balancers. Ignores
+  cache warmup phase.
 - **`/health/live` (Liveness)**: Answers "Is the application running?" Used for
-  Kubernetes liveness probes.
-- **`/health/detailed` (Debugging)**: Provides a verbose report for human
-  analysis.
+  Kubernetes liveness probes. Minimal checks (integration + provider alive).
+- **`/health/detailed` (Full Diagnostics)**: Provides complete system diagnosis
+  including cache health, performance metrics, all component statuses. Used for
+  debugging and detailed monitoring.
 
 ## Endpoints
 
 ### 1. `/health` - Primary Health Check
 
-Returns a simple `200 OK` if the system is `healthy` or `degraded`, and a
-`503 Service Unavailable` if `unhealthy`. This is the primary endpoint for
-Docker health checks.
+Returns a simplified `200 OK` (healthy/degraded) or `503 Service Unavailable`
+(unhealthy) response. Internally runs a full system diagnosis but presents a
+clean, minimal response format suitable for Docker.
 
-A `degraded` status indicates that the application is functional but may have
-non-critical issues (e.g., a single data source is down). It is still considered
-"healthy" by Docker to avoid unnecessary container restarts. An `unhealthy`
-status means the application cannot function correctly.
+This endpoint:
+
+- Internally calls the full detailed health check (evaluates all components)
+- Returns 200 if `healthy` or `degraded` (application can continue serving)
+- Returns 503 if `unhealthy` (application must restart)
+- Presents a simplified JSON response with just `status` and `timestamp`
+
+A `degraded` status indicates the application is functional but may have
+non-critical issues. An `unhealthy` status means the application cannot function
+correctly and should be restarted.
+
+**Use Case**: Docker health checks. The simplified response format works
+perfectly with Docker while the internal logic ensures full system diagnosis.
 
 **Method**: `GET`
 
@@ -159,10 +171,15 @@ restarted.
 
 ---
 
-### 4. `/health/detailed` - Detailed Health Information
+### 4. `/health/detailed` - Full System Diagnosis
 
-Returns detailed health information for all system components including
-performance metrics.
+Returns comprehensive health information for all system components including
+cache health, performance metrics, and detailed diagnostics. Returns 200 for
+healthy/degraded, 503 for unhealthy.
+
+**Use Case**: Docker health checks (for complete system diagnosis) and detailed
+monitoring/debugging. Allows Docker to distinguish between "can continue
+serving" vs "must restart container".
 
 **Method**: `GET`
 

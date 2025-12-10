@@ -58,6 +58,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   private readonly MAX_DISCONNECTIONS_PER_WINDOW = 5; // Increased from 3 to 5 to reduce false warnings
   private pingTimer?: NodeJS.Timeout;
   private pongTimer?: NodeJS.Timeout;
+  private healthRecoveryTimer?: NodeJS.Timeout; // Timer for health score recovery during stable connections
   private maxReconnectAttempts = ENV.WEBSOCKET.MAX_RECONNECT_ATTEMPTS;
   private lastPongReceived = 0;
   private lastMessageReceived = 0;
@@ -799,6 +800,9 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           // Reset health score on successful connection
           this.connectionHealthScore = Math.min(100, this.connectionHealthScore + 10);
 
+          // Start health recovery timer - improves health score over time when stable
+          this.startHealthRecoveryTimer();
+
           // Set up ping timer if configured
           if (config.pingInterval) {
             this.setupPingTimer(config.pingInterval);
@@ -926,6 +930,9 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
     }
+
+    // Stop health recovery timer
+    this.stopHealthRecoveryTimer();
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.close(code, reason);
@@ -1100,10 +1107,11 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     // Update health score based on recent disconnections
     const disconnectionCount = this.recentDisconnections.length;
     if (disconnectionCount >= this.MAX_DISCONNECTIONS_PER_WINDOW) {
-      this.connectionHealthScore = Math.max(0, this.connectionHealthScore - 15); // Reduced penalty from 20 to 15
+      // Reduced penalty from 15 to 5 - disconnections are normal, recovery is key
+      this.connectionHealthScore = Math.max(0, this.connectionHealthScore - 5);
 
-      // Only log warning if health score drops below 60% (was logging at any degradation)
-      if (this.connectionHealthScore < 60) {
+      // Only log warning if health score drops below 50% (was 60%)
+      if (this.connectionHealthScore < 50) {
         this.logger.warn(
           `Connection health degraded for ${this.exchangeName}: ${disconnectionCount} disconnections in ${this.HEALTH_WINDOW_MS / 1000}s (health: ${this.connectionHealthScore}%)`
         );
@@ -1113,9 +1121,36 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           `Connection health moderate degradation for ${this.exchangeName}: ${disconnectionCount} disconnections in ${this.HEALTH_WINDOW_MS / 1000}s (health: ${this.connectionHealthScore}%)`
         );
       }
-    } else {
-      // Gradually recover health score
-      this.connectionHealthScore = Math.min(100, this.connectionHealthScore + 5);
+    }
+  }
+
+  /**
+   * Start health recovery timer - improves health score while connection is stable
+   */
+  private startHealthRecoveryTimer(): void {
+    // Clear existing timer if any
+    if (this.healthRecoveryTimer) {
+      clearInterval(this.healthRecoveryTimer);
+    }
+
+    // Every 60 seconds, improve health score by 2 points if connected
+    this.healthRecoveryTimer = setInterval(() => {
+      if (this.isConnected_ && this.connectionHealthScore < 100) {
+        this.connectionHealthScore = Math.min(100, this.connectionHealthScore + 2);
+        this.logger.debug(
+          `${this.exchangeName} connection health improved to ${this.connectionHealthScore}% (stable connection)`
+        );
+      }
+    }, 60000); // Every minute
+  }
+
+  /**
+   * Stop health recovery timer
+   */
+  private stopHealthRecoveryTimer(): void {
+    if (this.healthRecoveryTimer) {
+      clearInterval(this.healthRecoveryTimer);
+      this.healthRecoveryTimer = undefined;
     }
   }
 

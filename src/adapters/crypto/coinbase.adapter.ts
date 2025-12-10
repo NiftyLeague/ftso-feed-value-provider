@@ -57,10 +57,11 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
 
     await this.connectWebSocket(
       this.createWebSocketConfig(wsUrl, {
-        // Enhanced connection settings for better stability
-        connectionTimeout: 30000,
-        pingInterval: 25000, // Reduced from 30s to 25s for more frequent pings
-        pongTimeout: 20000, // Increased from 10s to 20s for more tolerance
+        // Enhanced connection settings for better stability with Coinbase's infrastructure
+        // Coinbase can experience latency spikes and connection delays, so we're more tolerant
+        connectionTimeout: 45000, // Increased from 30s to allow for infrastructure latency
+        pingInterval: 30000, // Reduced ping frequency to 30s (less overhead)
+        pongTimeout: 35000, // Increased from 20s to 35s to handle Coinbase API latency
       })
     );
   }
