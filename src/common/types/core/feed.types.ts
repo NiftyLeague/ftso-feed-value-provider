@@ -14,10 +14,12 @@ export interface CoreFeedId {
   name: string;
 }
 
+import { ExchangeId } from "@/common/types/adapters";
+
 export interface FeedConfiguration {
   feed: CoreFeedId;
   sources: {
-    exchange: string;
+    exchange: ExchangeId | string;
     symbol: string;
   }[];
 }

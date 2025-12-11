@@ -3,7 +3,7 @@ import { EventDrivenService } from "@/common/base/composed.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
 import { hasCustomAdapter } from "@/common/utils";
-import type { IExchangeAdapter } from "@/common/types/adapters";
+import { ExchangeId, type IExchangeAdapter } from "@/common/types/adapters";
 import type { CoreFeedId } from "@/common/types/core";
 
 interface ExchangeConnectionState {
@@ -131,7 +131,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
 
       // Group by adapter type
       if (exchangeState.isConnected && !exchangeState.subscribedSymbols.has(config.symbol)) {
-        if (exchangeState.adapter.exchangeName === "ccxt-multi-exchange") {
+        if (exchangeState.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
           // Collect all CCXT symbols for batch subscription
           ccxtSymbols.add(config.symbol);
         } else {
@@ -149,7 +149,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
       // Find the CCXT adapter from any exchange state that uses it
       let ccxtAdapter: IExchangeAdapter | undefined;
       for (const state of this.exchangeStates.values()) {
-        if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+        if (state.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
           ccxtAdapter = state.adapter;
           break;
         }
@@ -166,7 +166,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
             await ccxtAdapter.subscribe(Array.from(ccxtSymbols));
             // Update all CCXT exchange states
             for (const state of this.exchangeStates.values()) {
-              if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+              if (state.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
                 ccxtSymbols.forEach(symbol => state.subscribedSymbols.add(symbol));
               }
             }
@@ -326,7 +326,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
         adapter = this.adapterRegistry.get(exchangeName);
       } else {
         // Use CCXT adapter for non-custom exchanges
-        adapter = this.adapterRegistry.get("ccxt-multi-exchange");
+        adapter = this.adapterRegistry.get(ExchangeId.CcxtMultiExchange);
       }
 
       if (adapter) {
@@ -450,7 +450,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
         totalSubscriptions += symbolsArray.length;
 
         // For CCXT adapter, use the standard subscription method which handles multi-exchange internally
-        if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+        if (state.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
           // CCXT adapter handles multiple exchanges internally via doSubscribe method
           this.logger.debug(`CCXT adapter subscription for ${exchangeName} with symbols: ${symbolsArray.join(", ")}`);
           await state.adapter.subscribe(symbolsArray);

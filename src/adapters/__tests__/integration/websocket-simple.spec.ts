@@ -2,6 +2,7 @@ import { BinanceAdapter } from "@/adapters/crypto/binance.adapter";
 import { CoinbaseAdapter } from "@/adapters/crypto/coinbase.adapter";
 import { MockSetup, MockFactory } from "@/__tests__/utils";
 import type { PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock WebSocket globally
 (global as any).WebSocket = jest.fn().mockImplementation(() => MockFactory.createWebSocket());
@@ -252,7 +253,7 @@ describe("WebSocket Simple Tests (No Hanging)", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("binance");
+      expect(result.source).toBe(ExchangeId.Binance);
     }, 10000); // Increased timeout to 10 seconds
 
     it("should handle REST API errors", async () => {

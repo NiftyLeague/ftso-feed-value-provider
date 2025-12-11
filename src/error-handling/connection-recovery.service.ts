@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
+import { ExchangeId } from "@/common/types/adapters";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
@@ -33,8 +34,8 @@ export interface ConnectionHealth {
 export interface FailoverResult {
   success: boolean;
   failoverTime: number;
-  activatedSources: string[];
-  deactivatedSources: string[];
+  activatedSources: (ExchangeId | string)[];
+  deactivatedSources: (ExchangeId | string)[];
   degradationLevel: "none" | "partial" | "severe";
 }
 
@@ -51,7 +52,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
   private connectionHealth = new Map<string, ConnectionHealth>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthCheckTimer?: NodeJS.Timeout;
-  private feedSourceMapping = new Map<string, string[]>(); // feedId -> sourceIds
+  private feedSourceMapping = new Map<string, (ExchangeId | string)[]>(); // feedId -> sourceIds
 
   // Rate limiting for reconnection attempts
   private lastReconnectAttempt = new Map<string, number>();
@@ -160,7 +161,11 @@ export class ConnectionRecoveryService extends EventDrivenService {
   /**
    * Configure feed-to-source mapping for intelligent failover
    */
-  configureFeedSources(feedId: CoreFeedId, primarySources: string[], backupSources: string[]): void {
+  configureFeedSources(
+    feedId: CoreFeedId,
+    primarySources: (ExchangeId | string)[],
+    backupSources: (ExchangeId | string)[]
+  ): void {
     const feedKey = this.getFeedKey(feedId);
     const allSources = [...primarySources, ...backupSources];
 

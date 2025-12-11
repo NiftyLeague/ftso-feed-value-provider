@@ -1,5 +1,6 @@
 import { CoinbaseAdapter, CoinbaseTickerData } from "../coinbase.adapter";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock WebSocket
 class MockWebSocket {
@@ -53,7 +54,7 @@ describe("CoinbaseAdapter", () => {
 
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
-      expect(adapter.exchangeName).toBe("coinbase");
+      expect(adapter.exchangeName).toBe(ExchangeId.Coinbase);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -99,7 +100,7 @@ describe("CoinbaseAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USD");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("coinbase");
+      expect(result.source).toBe(ExchangeId.Coinbase);
       expect(result.volume).toBe(1000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -111,7 +112,7 @@ describe("CoinbaseAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USD");
       expect(result.volume).toBe(1000);
-      expect(result.source).toBe("coinbase");
+      expect(result.source).toBe(ExchangeId.Coinbase);
       expect(typeof result.timestamp).toBe("number");
     });
 
@@ -292,7 +293,7 @@ describe("CoinbaseAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USD");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("coinbase");
+      expect(result.source).toBe(ExchangeId.Coinbase);
       expect(result.volume).toBe(1000);
     });
 

@@ -10,6 +10,7 @@ import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("Controllers Integration", () => {
   let app: INestApplication;
@@ -36,8 +37,8 @@ describe("Controllers Integration", () => {
             status: "healthy",
             timestamp: Date.now(),
             sources: [
-              { status: "healthy", name: "binance" },
-              { status: "healthy", name: "coinbase" },
+              { status: "healthy", name: ExchangeId.Binance },
+              { status: "healthy", name: ExchangeId.Coinbase },
             ],
             aggregation: {
               successRate: 95, // Greater than 0 to indicate successful aggregation

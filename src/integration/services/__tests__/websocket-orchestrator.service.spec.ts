@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { WebSocketOrchestratorService } from "../websocket-orchestrator.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
+import { ExchangeId } from "@/common/types/adapters";
 import { ConfigService } from "@/config/config.service";
 import type { IExchangeAdapter } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
@@ -73,13 +74,13 @@ describe("WebSocketOrchestratorService", () => {
   let mockCcxtAdapter: MockAdapter;
 
   beforeEach(async () => {
-    mockBinanceAdapter = new MockAdapter("binance");
-    mockCcxtAdapter = new MockAdapter("ccxt-multi-exchange");
+    mockBinanceAdapter = new MockAdapter(ExchangeId.Binance);
+    mockCcxtAdapter = new MockAdapter(ExchangeId.CcxtMultiExchange);
 
     const mockAdapterRegistry = {
       get: jest.fn((name: string) => {
-        if (name === "binance") return mockBinanceAdapter;
-        if (name === "ccxt-multi-exchange") return mockCcxtAdapter;
+        if (name === ExchangeId.Binance) return mockBinanceAdapter;
+        if (name === ExchangeId.CcxtMultiExchange) return mockCcxtAdapter;
         return undefined;
       }),
     };
@@ -89,13 +90,13 @@ describe("WebSocketOrchestratorService", () => {
         {
           feed: { category: 1, name: "BTC/USD" },
           sources: [
-            { exchange: "binance", symbol: "BTC/USDT" },
+            { exchange: ExchangeId.Binance, symbol: "BTC/USDT" },
             { exchange: "gate", symbol: "BTC/USDT" }, // CCXT exchange
           ],
         },
         {
           feed: { category: 1, name: "ETH/USD" },
-          sources: [{ exchange: "binance", symbol: "ETH/USDT" }],
+          sources: [{ exchange: ExchangeId.Binance, symbol: "ETH/USDT" }],
         },
       ]),
     };
@@ -197,7 +198,7 @@ describe("WebSocketOrchestratorService", () => {
     });
 
     it("should not reconnect if already connected", async () => {
-      const result = await service.reconnectExchange("binance");
+      const result = await service.reconnectExchange(ExchangeId.Binance);
 
       expect(result).toBe(true);
       // The orchestrator may call connect to ensure connection, so we check the final state
@@ -208,7 +209,7 @@ describe("WebSocketOrchestratorService", () => {
       // Simulate disconnection - need to update orchestrator state too
       await mockBinanceAdapter.disconnect();
       // Manually update the orchestrator state to reflect disconnection
-      const state = (service as any).exchangeStates.get("binance");
+      const state = (service as any).exchangeStates.get(ExchangeId.Binance);
       state.isConnected = false;
       // Reset the lastConnectionAttempt to avoid cooldown
       state.lastConnectionAttempt = 0;
@@ -219,7 +220,7 @@ describe("WebSocketOrchestratorService", () => {
       expect(state.isConnected).toBe(false);
       expect(mockBinanceAdapter.isConnected()).toBe(false);
 
-      const result = await service.reconnectExchange("binance");
+      const result = await service.reconnectExchange(ExchangeId.Binance);
 
       expect(result).toBe(true);
       expect(connectSpy).toHaveBeenCalled();
@@ -229,7 +230,7 @@ describe("WebSocketOrchestratorService", () => {
     it("should prevent rapid reconnection attempts", async () => {
       // Simulate disconnection
       await mockBinanceAdapter.disconnect();
-      const state = (service as any).exchangeStates.get("binance");
+      const state = (service as any).exchangeStates.get(ExchangeId.Binance);
       state.isConnected = false;
       // Reset the lastConnectionAttempt to avoid initial cooldown
       state.lastConnectionAttempt = 0;
@@ -237,7 +238,7 @@ describe("WebSocketOrchestratorService", () => {
       const connectSpy = jest.spyOn(mockBinanceAdapter, "connect");
 
       // First reconnection
-      await service.reconnectExchange("binance");
+      await service.reconnectExchange(ExchangeId.Binance);
 
       // Simulate disconnection again
       await mockBinanceAdapter.disconnect();
@@ -245,7 +246,7 @@ describe("WebSocketOrchestratorService", () => {
       // Don't reset lastConnectionAttempt this time - it should be recent from the first reconnection
 
       // Immediate second reconnection should be skipped
-      const result = await service.reconnectExchange("binance");
+      const result = await service.reconnectExchange(ExchangeId.Binance);
 
       expect(result).toBe(false); // Should be skipped due to cooldown
       expect(connectSpy).toHaveBeenCalledTimes(1); // Only called once
@@ -254,14 +255,14 @@ describe("WebSocketOrchestratorService", () => {
     it("should handle reconnection failures", async () => {
       // Simulate disconnection
       await mockBinanceAdapter.disconnect();
-      const state = (service as any).exchangeStates.get("binance");
+      const state = (service as any).exchangeStates.get(ExchangeId.Binance);
       state.isConnected = false;
       state.lastConnectionAttempt = 0;
 
       // Make connect fail
       jest.spyOn(mockBinanceAdapter, "connect").mockRejectedValueOnce(new Error("Connection failed"));
 
-      const result = await service.reconnectExchange("binance");
+      const result = await service.reconnectExchange(ExchangeId.Binance);
 
       expect(result).toBe(false);
       expect(state.isConnected).toBe(false);

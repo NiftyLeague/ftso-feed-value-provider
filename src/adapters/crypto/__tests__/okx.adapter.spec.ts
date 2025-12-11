@@ -7,6 +7,7 @@ jest.mock("ws", () => {
 
 import { OkxAdapter, OkxTickerData } from "../okx.adapter";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock WebSocket
 class MockWebSocket {
@@ -60,7 +61,7 @@ describe("OkxAdapter", () => {
 
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
-      expect(adapter.exchangeName).toBe("okx");
+      expect(adapter.exchangeName).toBe(ExchangeId.Okx);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -107,7 +108,7 @@ describe("OkxAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("okx");
+      expect(result.source).toBe(ExchangeId.Okx);
       expect(result.volume).toBe(1000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -119,7 +120,7 @@ describe("OkxAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.volume).toBe(1000);
-      expect(result.source).toBe("okx");
+      expect(result.source).toBe(ExchangeId.Okx);
       expect(typeof result.timestamp).toBe("number");
     });
 
@@ -278,7 +279,7 @@ describe("OkxAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("okx");
+      expect(result.source).toBe(ExchangeId.Okx);
       expect(result.volume).toBe(1000);
     });
 
@@ -289,7 +290,7 @@ describe("OkxAdapter", () => {
         statusText: "Not Found",
       });
 
-      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Failed to fetch OKX ticker");
+      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Failed to fetch okx ticker");
     });
 
     it("should handle OKX API errors", async () => {
@@ -304,7 +305,7 @@ describe("OkxAdapter", () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("OKX API error");
+      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("okx API error");
     });
   });
 

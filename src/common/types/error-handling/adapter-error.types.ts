@@ -3,7 +3,7 @@ import { IErrorDetails, ErrorCode, ErrorSeverity } from "./error.types";
 /**
  * Error specific to adapter operations
  *
- * @property {string} source - The source of the error (e.g., 'binance', 'coinbase')
+ * @property {string} source - The source of the error (e.g., ExchangeId.Binance, ExchangeId.Coinbase)
  * @property {boolean} recoverable - Whether the error is recoverable
  * @property {"websocket" | "rest"} [connectionType] - The type of connection that failed
  * @property {string} [endpoint] - The endpoint that was being accessed
@@ -12,7 +12,7 @@ export interface AdapterError extends IErrorDetails {
   /** Timestamp when the error occurred */
   timestamp: number;
   /**
-   * The source of the error (e.g., 'binance', 'coinbase')
+   * The source of the error (e.g., ExchangeId.Binance, ExchangeId.Coinbase)
    */
   source: string;
 

@@ -2,6 +2,7 @@ import { FeedCategory, CoreFeedId, PriceUpdate } from "@/common/types/core";
 import { AggregatedPrice } from "@/common/types/services";
 import { ValidationContext, DataValidatorResult } from "@/common/types/data-manager";
 import { FeedId } from "@/common/types/http";
+import { ExchangeId } from "@/common/types/adapters";
 
 /**
  * Builder pattern for creating test data objects
@@ -37,7 +38,7 @@ export class TestDataBuilder {
       symbol: "BTC/USD",
       price: 50000,
       timestamp: Date.now(),
-      source: "binance",
+      source: ExchangeId.Binance,
       volume: 1000,
       confidence: 0.95,
       ...overrides,
@@ -48,7 +49,7 @@ export class TestDataBuilder {
    * Create multiple PriceUpdates with different sources
    */
   static createPriceUpdates(count: number, basePrice: number = 50000): PriceUpdate[] {
-    const sources = ["binance", "coinbase", "kraken", "okx", "cryptocom"];
+    const sources = [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Kraken, ExchangeId.Okx, ExchangeId.Cryptocom];
     return Array.from({ length: count }, (_, index) => ({
       symbol: "BTC/USD",
       price: basePrice + (Math.random() - 0.5) * 100, // Add some variance
@@ -67,7 +68,7 @@ export class TestDataBuilder {
       symbol: "BTC/USD",
       price: 50000,
       timestamp: Date.now(),
-      sources: ["binance"],
+      sources: [ExchangeId.Binance],
       confidence: 0.95,
       consensusScore: 0.85,
       ...overrides,
@@ -81,7 +82,7 @@ export class TestDataBuilder {
     return {
       feedId: this.createCoreFeedId(),
       timestamp: Date.now(),
-      source: "binance",
+      source: ExchangeId.Binance,
       ...overrides,
     };
   }

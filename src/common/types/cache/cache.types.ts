@@ -1,5 +1,6 @@
 import type { CoreFeedId } from "../core/feed.types";
 import type { IBaseService, BaseServiceConfig } from "../services/base.types";
+import { ExchangeId } from "@/common/types/adapters";
 
 /**
  * Defines the structure for a single cache entry, representing the data stored for a feed.
@@ -7,7 +8,7 @@ import type { IBaseService, BaseServiceConfig } from "../services/base.types";
 export interface CacheEntry {
   value: number;
   timestamp: number;
-  sources: string[];
+  sources: (ExchangeId | string)[];
   confidence: number;
   votingRound?: number;
 }

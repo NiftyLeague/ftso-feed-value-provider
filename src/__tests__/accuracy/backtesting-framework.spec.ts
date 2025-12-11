@@ -1,5 +1,6 @@
 import { FeedCategory } from "@/common/types/core";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock historical data generator
 const generateHistoricalData = (
@@ -17,7 +18,7 @@ const generateHistoricalData = (
     const randomChange = (Math.random() - 0.5) * 2 * volatility;
     currentPrice *= 1 + randomChange;
 
-    const sources = ["binance", "coinbase", "kraken", "okx"];
+    const sources = [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Kraken, ExchangeId.Okx];
     sources.forEach((source, index) => {
       const sourceVariation = (Math.random() - 0.5) * 0.0005;
       const sourcePrice = currentPrice * (1 + sourceVariation);

@@ -5,6 +5,7 @@
 import { CoreFeedId, PriceUpdate } from "../core";
 
 import { AdapterWithReconnection, AdapterWithHealthCheck } from "../adapters";
+import { ExchangeId } from "@/common/types/adapters";
 
 export interface EnhancedDataSource {
   type: "websocket" | "rest" | "hybrid";
@@ -29,7 +30,7 @@ export function hasHealthCheckCapability(source: unknown): source is AdapterWith
 }
 
 export interface ConnectionMetrics {
-  sourceId: string;
+  sourceId: ExchangeId | string;
   isHealthy: boolean;
   lastUpdate: number;
   errorCount: number;
@@ -43,7 +44,7 @@ export interface ConnectionMetrics {
 }
 
 export interface ReconnectionTimer {
-  sourceId: string;
+  sourceId: ExchangeId | string;
   timerId: NodeJS.Timeout;
   attempts: number;
   nextAttempt: number;
@@ -51,7 +52,7 @@ export interface ReconnectionTimer {
 }
 
 export interface SourceSubscription {
-  sourceId: string;
+  sourceId: ExchangeId | string;
   feedId: CoreFeedId;
   symbols: string[];
   timestamp: number;
@@ -60,7 +61,7 @@ export interface SourceSubscription {
 }
 
 export interface SourceHealthCheck {
-  sourceId: string;
+  sourceId: ExchangeId | string;
   healthy: boolean;
   timestamp: number;
   responseTime: number;
@@ -72,7 +73,7 @@ export interface ConnectionHealth {
   totalSources: number;
   connectedSources: number;
   averageLatency: number;
-  failedSources: string[];
+  failedSources: (ExchangeId | string)[];
   healthScore: number;
 }
 

@@ -14,6 +14,7 @@ import type {
   DataFreshnessPolicy,
 } from "@/common/types/data-manager";
 import { hasRestFallbackCapability, hasHealthCheckCapability } from "@/common/types/data-manager";
+import { ExchangeId } from "@/common/types/adapters/exchange.types";
 
 interface ServicePerformanceMetrics {
   uptime: number;
@@ -443,7 +444,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       }
     } else {
       // This is a CCXT exchange - find the CCXT adapter
-      const ccxtSource = this.dataSources.get("ccxt-multi-exchange");
+      const ccxtSource = this.dataSources.get(ExchangeId.CcxtMultiExchange);
       if (ccxtSource) {
         return ccxtSource;
       }

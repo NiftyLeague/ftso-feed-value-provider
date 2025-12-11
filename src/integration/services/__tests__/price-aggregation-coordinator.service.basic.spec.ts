@@ -5,6 +5,7 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 import { ConfigService } from "@/config/config.service";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Basic test for price-aggregation-coordinator.service.ts
 describe("PriceAggregationCoordinatorService Basic Tests", () => {
@@ -110,14 +111,14 @@ describe("PriceAggregationCoordinatorService Feed Tracking", () => {
       symbol: "BTC/USD",
       price: 50000,
       timestamp: Date.now(),
-      source: "binance",
+      source: ExchangeId.Binance,
       confidence: 0.95,
     });
     service.handlePriceUpdate({
       symbol: "ETH/USD",
       price: 3000,
       timestamp: Date.now(),
-      source: "binance",
+      source: ExchangeId.Binance,
       confidence: 0.95,
     });
 
@@ -137,21 +138,21 @@ describe("PriceAggregationCoordinatorService Feed Tracking", () => {
       symbol: "BTC/USD",
       price: 50000,
       timestamp: Date.now(),
-      source: "binance",
+      source: ExchangeId.Binance,
       confidence: 0.95,
     });
     service.handlePriceUpdate({
       symbol: "BTC/USD",
       price: 50100,
       timestamp: Date.now(),
-      source: "coinbase",
+      source: ExchangeId.Coinbase,
       confidence: 0.95,
     });
     service.handlePriceUpdate({
       symbol: "BTC/USD",
       price: 49900,
       timestamp: Date.now(),
-      source: "kraken",
+      source: ExchangeId.Kraken,
       confidence: 0.95,
     });
 
@@ -281,7 +282,7 @@ describe("PriceAggregationCoordinatorService Fallback Readiness", () => {
         symbol,
         price: 1000,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.95,
       });
     });
@@ -315,7 +316,7 @@ describe("PriceAggregationCoordinatorService Fallback Readiness", () => {
         symbol,
         price: 1000,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.95,
       });
     });
@@ -363,7 +364,7 @@ describe("PriceAggregationCoordinatorService Fallback Readiness", () => {
         symbol,
         price: 1000,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.95,
       });
     });

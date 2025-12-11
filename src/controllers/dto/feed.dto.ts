@@ -1,6 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsArray, IsNumber, IsString, ValidateNested, ArrayMinSize, ArrayMaxSize } from "class-validator";
 import { Type } from "class-transformer";
+import { ExchangeId } from "@/common/types/adapters";
 
 export class FeedErrorDto {
   @ApiProperty({
@@ -130,7 +131,7 @@ export class RoundFeedValuesResponseDto {
 export class VolumeDto {
   @ApiProperty({
     description: "Exchange name",
-    example: "binance",
+    example: ExchangeId.Binance,
   })
   exchange!: string;
 

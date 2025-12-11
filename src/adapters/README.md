@@ -81,8 +81,8 @@ export class MyExchangeAdapter extends BaseExchangeAdapter {
 import { ExchangeAdapterRegistry } from "@/adapters/base";
 
 const registry = new ExchangeAdapterRegistry();
-registry.register("binance", new BinanceAdapter());
-const adapter = registry.get("binance");
+registry.register(ExchangeId.Binance, new BinanceAdapter());
+const adapter = registry.get(ExchangeId.Binance);
 ```
 
 ## Testing

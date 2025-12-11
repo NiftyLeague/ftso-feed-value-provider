@@ -4,6 +4,7 @@ import type { FailoverConfig } from "@/common/types/data-manager";
 import type { DataSource, PriceUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 import { MockSetup } from "@/__tests__/utils";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock DataSource for testing
 class MockDataSource implements DataSource {
@@ -153,8 +154,8 @@ describe("FailoverManager", () => {
         name: "BTC/USD",
       };
 
-      const primarySources = ["binance", "coinbase"];
-      const backupSources = ["kraken", "okx"];
+      const primarySources = [ExchangeId.Binance, ExchangeId.Coinbase];
+      const backupSources = [ExchangeId.Kraken, ExchangeId.Okx];
 
       manager.configureFailoverGroup(feedId, primarySources, backupSources);
 
@@ -176,11 +177,11 @@ describe("FailoverManager", () => {
 
       manager.on("failoverGroupConfigured", (configuredFeedId, group) => {
         expect(configuredFeedId).toEqual(feedId);
-        expect((group as any).primarySources).toEqual(["binance", "coinbase"]);
+        expect((group as any).primarySources).toEqual([ExchangeId.Binance, ExchangeId.Coinbase]);
         done();
       });
 
-      manager.configureFailoverGroup(feedId, ["binance", "coinbase"], ["kraken"]);
+      manager.configureFailoverGroup(feedId, [ExchangeId.Binance, ExchangeId.Coinbase], [ExchangeId.Kraken]);
     });
   });
 
@@ -195,10 +196,10 @@ describe("FailoverManager", () => {
       };
 
       mockSources = [
-        new MockDataSource("binance"),
-        new MockDataSource("coinbase"),
-        new MockDataSource("kraken"),
-        new MockDataSource("okx"),
+        new MockDataSource(ExchangeId.Binance),
+        new MockDataSource(ExchangeId.Coinbase),
+        new MockDataSource(ExchangeId.Kraken),
+        new MockDataSource(ExchangeId.Okx),
       ];
 
       mockSources.forEach(source => {
@@ -206,15 +207,19 @@ describe("FailoverManager", () => {
         source.simulateConnection(true);
       });
 
-      manager.configureFailoverGroup(feedId, ["binance", "coinbase"], ["kraken", "okx"]);
+      manager.configureFailoverGroup(
+        feedId,
+        [ExchangeId.Binance, ExchangeId.Coinbase],
+        [ExchangeId.Kraken, ExchangeId.Okx]
+      );
     });
 
     it("should return active sources correctly", () => {
       const activeSources = manager.getActiveSources(feedId);
 
       expect(activeSources).toHaveLength(2);
-      expect(activeSources.map(s => s.id)).toContain("binance");
-      expect(activeSources.map(s => s.id)).toContain("coinbase");
+      expect(activeSources.map(s => s.id)).toContain(ExchangeId.Binance);
+      expect(activeSources.map(s => s.id)).toContain(ExchangeId.Coinbase);
     });
 
     it("should return healthy sources correctly", () => {
@@ -224,7 +229,7 @@ describe("FailoverManager", () => {
       const healthySources = manager.getHealthySources(feedId);
 
       expect(healthySources).toHaveLength(1);
-      expect(healthySources[0].id).toBe("binance");
+      expect(healthySources[0].id).toBe(ExchangeId.Binance);
     });
 
     it("should return empty array for non-existent feed", () => {
@@ -249,10 +254,10 @@ describe("FailoverManager", () => {
       };
 
       mockSources = [
-        new MockDataSource("binance"),
-        new MockDataSource("coinbase"),
-        new MockDataSource("kraken"),
-        new MockDataSource("okx"),
+        new MockDataSource(ExchangeId.Binance),
+        new MockDataSource(ExchangeId.Coinbase),
+        new MockDataSource(ExchangeId.Kraken),
+        new MockDataSource(ExchangeId.Okx),
       ];
 
       mockSources.forEach(source => {
@@ -260,25 +265,29 @@ describe("FailoverManager", () => {
         source.simulateConnection(true);
       });
 
-      manager.configureFailoverGroup(feedId, ["binance", "coinbase"], ["kraken", "okx"]);
+      manager.configureFailoverGroup(
+        feedId,
+        [ExchangeId.Binance, ExchangeId.Coinbase],
+        [ExchangeId.Kraken, ExchangeId.Okx]
+      );
     });
 
     it("should trigger failover when source fails", async () => {
       const failoverPromise = new Promise<void>(resolve => {
         manager.on("failoverCompleted", (_completedFeedId, details) => {
           expect(_completedFeedId).toEqual(feedId);
-          expect((details as any).failedSource).toBe("binance");
+          expect((details as any).failedSource).toBe(ExchangeId.Binance);
           resolve();
         });
       });
 
-      await manager.triggerFailover("binance", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Binance, "Connection lost");
 
       await failoverPromise;
 
       const activeSources = manager.getActiveSources(feedId);
-      expect(activeSources.map(s => s.id)).not.toContain("binance");
-      expect(activeSources.map(s => s.id)).toContain("coinbase");
+      expect(activeSources.map(s => s.id)).not.toContain(ExchangeId.Binance);
+      expect(activeSources.map(s => s.id)).toContain(ExchangeId.Coinbase);
     });
 
     it("should activate backup sources when all primary sources fail", async () => {
@@ -296,14 +305,14 @@ describe("FailoverManager", () => {
       });
 
       // Fail both primary sources with delay to avoid cooldown
-      await manager.triggerFailover("binance", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Binance, "Connection lost");
       await new Promise(resolve => setTimeout(resolve, 11000)); // Wait for cooldown to expire (10s + buffer)
-      await manager.triggerFailover("coinbase", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Coinbase, "Connection lost");
 
       await failoverPromise;
 
       const activeSources = manager.getActiveSources(feedId);
-      expect(activeSources.some(s => ["kraken", "okx"].includes(s.id))).toBe(true);
+      expect(activeSources.some(s => [ExchangeId.Kraken, ExchangeId.Okx].includes(s.id as ExchangeId))).toBe(true);
     }, 25000); // Increase timeout to 25 seconds to account for longer cooldowns
 
     it("should emit failoverFailed when no backup sources available", async () => {
@@ -320,9 +329,9 @@ describe("FailoverManager", () => {
       });
 
       // Fail all primary sources with delay to avoid cooldown
-      await manager.triggerFailover("binance", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Binance, "Connection lost");
       await new Promise(resolve => setTimeout(resolve, 11000)); // Wait for cooldown to expire (10s + buffer)
-      await manager.triggerFailover("coinbase", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Coinbase, "Connection lost");
 
       await failoverFailedPromise;
     }, 25000); // Increase timeout to 25 seconds to account for longer cooldowns
@@ -330,7 +339,7 @@ describe("FailoverManager", () => {
     it("should complete failover within time limit", async () => {
       const startTime = Date.now();
 
-      await manager.triggerFailover("binance", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Binance, "Connection lost");
 
       const failoverTime = Date.now() - startTime;
       expect(failoverTime).toBeLessThan(testConfig.maxFailoverTime! * 2); // Allow some margin
@@ -348,10 +357,10 @@ describe("FailoverManager", () => {
       };
 
       mockSources = [
-        new MockDataSource("binance"),
-        new MockDataSource("coinbase"),
-        new MockDataSource("kraken"),
-        new MockDataSource("okx"),
+        new MockDataSource(ExchangeId.Binance),
+        new MockDataSource(ExchangeId.Coinbase),
+        new MockDataSource(ExchangeId.Kraken),
+        new MockDataSource(ExchangeId.Okx),
       ];
 
       mockSources.forEach(source => {
@@ -359,7 +368,11 @@ describe("FailoverManager", () => {
         source.simulateConnection(true);
       });
 
-      manager.configureFailoverGroup(feedId, ["binance", "coinbase"], ["kraken", "okx"]);
+      manager.configureFailoverGroup(
+        feedId,
+        [ExchangeId.Binance, ExchangeId.Coinbase],
+        [ExchangeId.Kraken, ExchangeId.Okx]
+      );
     });
 
     it("should handle source recovery correctly", async () => {
@@ -379,16 +392,16 @@ describe("FailoverManager", () => {
       });
 
       // Trigger failover for both primary sources with updated cooldown timing
-      await manager.triggerFailover("binance", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Binance, "Connection lost");
       await new Promise(resolve => setTimeout(resolve, 11000)); // Wait for cooldown (10s + buffer)
-      await manager.triggerFailover("coinbase", "Connection lost");
+      await manager.triggerFailover(ExchangeId.Coinbase, "Connection lost");
 
       await failoverPromise;
 
       // Verify backup sources are active
       let activeSources = manager.getActiveSources(feedId);
-      expect(activeSources.some(s => ["kraken", "okx"].includes(s.id))).toBe(true);
-      expect(activeSources.some(s => s.id === "binance")).toBe(false);
+      expect(activeSources.some(s => [ExchangeId.Kraken, ExchangeId.Okx].includes(s.id as ExchangeId))).toBe(true);
+      expect(activeSources.some(s => s.id === ExchangeId.Binance)).toBe(false);
 
       // Step 2: Set up recovery promise
       const recoveryPromise = new Promise<void>((resolve, reject) => {
@@ -399,7 +412,7 @@ describe("FailoverManager", () => {
         manager.on("sourceRecovered", (recoveredFeedId, details) => {
           clearTimeout(timeout);
           expect(recoveredFeedId).toEqual(feedId);
-          expect((details as any).recoveredSource).toBe("binance");
+          expect((details as any).recoveredSource).toBe(ExchangeId.Binance);
           resolve();
         });
       });
@@ -415,7 +428,7 @@ describe("FailoverManager", () => {
 
       // Verify source is marked as unhealthy
       const healthStatus = manager.getSourceHealthStatus();
-      expect(healthStatus.get("binance")?.isHealthy).toBe(false);
+      expect(healthStatus.get(ExchangeId.Binance)?.isHealthy).toBe(false);
 
       // Step 4: Now simulate recovery with consecutive successes
       for (let i = 0; i < testConfig.recoveryThreshold! + 2; i++) {
@@ -428,7 +441,7 @@ describe("FailoverManager", () => {
 
       // Verify source is recovered
       const finalActiveSources = manager.getActiveSources(feedId);
-      expect(finalActiveSources.some(s => s.id === "binance")).toBe(true);
+      expect(finalActiveSources.some(s => s.id === ExchangeId.Binance)).toBe(true);
     }, 30000); // Increased timeout to 30s for complex recovery process with longer cooldowns
   });
 
@@ -436,7 +449,7 @@ describe("FailoverManager", () => {
     let mockSources: MockDataSource[];
 
     beforeEach(() => {
-      mockSources = [new MockDataSource("binance"), new MockDataSource("coinbase")];
+      mockSources = [new MockDataSource(ExchangeId.Binance), new MockDataSource(ExchangeId.Coinbase)];
 
       mockSources.forEach(source => {
         manager.registerDataSource(source);
@@ -448,8 +461,8 @@ describe("FailoverManager", () => {
       const healthStatus = manager.getSourceHealthStatus();
 
       expect(healthStatus.size).toBe(2);
-      expect(healthStatus.get("binance")?.isHealthy).toBe(true);
-      expect(healthStatus.get("coinbase")?.isHealthy).toBe(true);
+      expect(healthStatus.get(ExchangeId.Binance)?.isHealthy).toBe(true);
+      expect(healthStatus.get(ExchangeId.Coinbase)?.isHealthy).toBe(true);
     });
 
     it("should update health on connection changes", () => {
@@ -457,7 +470,7 @@ describe("FailoverManager", () => {
       mockSources[0].simulateConnection(false);
 
       const healthStatus = manager.getSourceHealthStatus();
-      const binanceHealth = healthStatus.get("binance");
+      const binanceHealth = healthStatus.get(ExchangeId.Binance);
 
       expect(binanceHealth?.consecutiveFailures).toBeGreaterThan(0);
     });
@@ -469,7 +482,7 @@ describe("FailoverManager", () => {
 
       // Verify it's healthy initially
       let healthStatus = manager.getSourceHealthStatus();
-      expect(healthStatus.get("binance")?.isHealthy).toBe(true);
+      expect(healthStatus.get(ExchangeId.Binance)?.isHealthy).toBe(true);
 
       // Simulate multiple connection failures with delays
       for (let i = 0; i < testConfig.failureThreshold! + 1; i++) {
@@ -482,7 +495,9 @@ describe("FailoverManager", () => {
 
       healthStatus = manager.getSourceHealthStatus();
       // The source should have consecutive failures recorded, even if not marked unhealthy yet
-      expect(healthStatus.get("binance")?.consecutiveFailures).toBeGreaterThanOrEqual(testConfig.failureThreshold!);
+      expect(healthStatus.get(ExchangeId.Binance)?.consecutiveFailures).toBeGreaterThanOrEqual(
+        testConfig.failureThreshold!
+      );
     });
 
     it("should mark source as healthy after recovery threshold", () => {
@@ -497,7 +512,7 @@ describe("FailoverManager", () => {
       }
 
       const healthStatus = manager.getSourceHealthStatus();
-      expect(healthStatus.get("binance")?.isHealthy).toBe(true);
+      expect(healthStatus.get(ExchangeId.Binance)?.isHealthy).toBe(true);
     });
   });
 

@@ -12,6 +12,7 @@ import { AlertingService } from "@/monitoring/alerting.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
 import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock HTTP Exception interface for testing
 interface MockHttpException extends Error {
@@ -127,8 +128,8 @@ export class TestModuleBuilder {
           feeds.map(feed => ({
             feed,
             volumes: [
-              { exchange: "binance", volume: 1000000.0 },
-              { exchange: "coinbase", volume: 500000.0 },
+              { exchange: ExchangeId.Binance, volume: 1000000.0 },
+              { exchange: ExchangeId.Coinbase, volume: 500000.0 },
             ],
           }))
         );

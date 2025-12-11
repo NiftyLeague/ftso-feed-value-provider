@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { type PriceUpdate, FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 import { ValidationErrorType } from "@/common/types/error-handling";
 import { DataValidator, ValidationContext } from "../data-validator";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
@@ -36,23 +37,23 @@ describe("DataValidator", () => {
     symbol: "BTC/USD",
     price: 50000,
     timestamp: Date.now(),
-    source: "binance",
+    source: ExchangeId.Binance,
     confidence: 0.95,
   });
 
   const createValidContext = (): ValidationContext => ({
     feedId: { category: FeedCategory.Crypto, name: "BTC/USD" },
     timestamp: Date.now(),
-    source: "binance",
+    source: ExchangeId.Binance,
     historicalPrices: [
-      { symbol: "BTC/USD", price: 49800, timestamp: Date.now() - 5000, source: "coinbase", confidence: 0.9 },
-      { symbol: "BTC/USD", price: 50100, timestamp: Date.now() - 3000, source: "kraken", confidence: 0.92 },
-      { symbol: "BTC/USD", price: 49900, timestamp: Date.now() - 1000, source: "okx", confidence: 0.88 },
+      { symbol: "BTC/USD", price: 49800, timestamp: Date.now() - 5000, source: ExchangeId.Coinbase, confidence: 0.9 },
+      { symbol: "BTC/USD", price: 50100, timestamp: Date.now() - 3000, source: ExchangeId.Kraken, confidence: 0.92 },
+      { symbol: "BTC/USD", price: 49900, timestamp: Date.now() - 1000, source: ExchangeId.Okx, confidence: 0.88 },
     ],
     crossSourcePrices: [
-      { symbol: "BTC/USD", price: 50050, timestamp: Date.now() - 500, source: "coinbase", confidence: 0.9 },
-      { symbol: "BTC/USD", price: 49950, timestamp: Date.now() - 300, source: "kraken", confidence: 0.92 },
-      { symbol: "BTC/USD", price: 50000, timestamp: Date.now() - 200, source: "okx", confidence: 0.88 },
+      { symbol: "BTC/USD", price: 50050, timestamp: Date.now() - 500, source: ExchangeId.Coinbase, confidence: 0.9 },
+      { symbol: "BTC/USD", price: 49950, timestamp: Date.now() - 300, source: ExchangeId.Kraken, confidence: 0.92 },
+      { symbol: "BTC/USD", price: 50000, timestamp: Date.now() - 200, source: ExchangeId.Okx, confidence: 0.88 },
     ],
   });
 
@@ -288,12 +289,12 @@ describe("DataValidator", () => {
     });
 
     it("should filter out same-source prices", async () => {
-      const update = { ...createValidUpdate(), source: "binance" };
+      const update = { ...createValidUpdate(), source: ExchangeId.Binance };
       const context = {
         ...createValidContext(),
         crossSourcePrices: [
-          { symbol: "BTC/USD", price: 50000, timestamp: Date.now(), source: "binance", confidence: 0.9 },
-          { symbol: "BTC/USD", price: 50100, timestamp: Date.now(), source: "coinbase", confidence: 0.9 },
+          { symbol: "BTC/USD", price: 50000, timestamp: Date.now(), source: ExchangeId.Binance, confidence: 0.9 },
+          { symbol: "BTC/USD", price: 50100, timestamp: Date.now(), source: ExchangeId.Coinbase, confidence: 0.9 },
         ],
       };
 
@@ -375,8 +376,8 @@ describe("DataValidator", () => {
     it("should validate multiple updates", async () => {
       const updates = [
         createValidUpdate(),
-        { ...createValidUpdate(), source: "coinbase", price: 50100 },
-        { ...createValidUpdate(), source: "kraken", price: -100 }, // Invalid
+        { ...createValidUpdate(), source: ExchangeId.Coinbase, price: 50100 },
+        { ...createValidUpdate(), source: ExchangeId.Kraken, price: -100 }, // Invalid
       ];
       const context = createValidContext();
 

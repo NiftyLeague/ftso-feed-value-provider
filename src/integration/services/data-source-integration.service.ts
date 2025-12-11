@@ -17,6 +17,8 @@ import { WebSocketOrchestratorService } from "./websocket-orchestrator.service";
 // Types and interfaces
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { IExchangeAdapter } from "@/common/types/adapters";
+import { ExchangeId } from "@/common/types/adapters";
+import { ENV } from "@/config/environment.constants";
 import type { AdapterStats } from "@/common/types/monitoring";
 
 // Data source factory
@@ -262,7 +264,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
     try {
       // Verify that adapters are already registered by AdaptersModule
-      const expectedAdapters = ["binance", "coinbase", "cryptocom", "kraken", "okx", "ccxt-multi-exchange"];
+      const expectedAdapters = [...ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS, ExchangeId.CcxtMultiExchange];
 
       let availableCount = 0;
       let missingAdapters: string[] = [];
@@ -739,18 +741,20 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
   private getAdapterPriority(exchangeName: string): number {
     // Tier 1 exchanges get higher priority
-    const tier1Exchanges = ["binance", "coinbase", "kraken", "okx", "cryptocom"];
-    return tier1Exchanges.includes(exchangeName) ? 1 : 2;
+    const tier1Exchanges = new Set<string>(ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS);
+    return tier1Exchanges.has(exchangeName) ? 1 : 2;
   }
 
   private getPrimarySourcesForFeed(_feedId: CoreFeedId): string[] {
     // Get primary sources for the feed from configuration
     // This would typically come from feed configuration
-    return ["binance", "coinbase", "kraken"];
+    const preferredPrimary: ExchangeId[] = [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Kraken];
+    return preferredPrimary.filter(id => ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(id));
   }
 
   private getBackupSourcesForFeed(_feedId: CoreFeedId): string[] {
     // Get backup sources for the feed from configuration
-    return ["okx", "cryptocom"];
+    const preferredBackup: ExchangeId[] = [ExchangeId.Okx, ExchangeId.Cryptocom];
+    return preferredBackup.filter(id => ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(id));
   }
 }

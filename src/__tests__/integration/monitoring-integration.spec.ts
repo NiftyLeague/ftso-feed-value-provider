@@ -1,5 +1,6 @@
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { MockAlertData } from "@/common/types/utils";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock monitoring services
 class MockPerformanceMonitor {
@@ -221,7 +222,7 @@ describe("Monitoring Integration Tests", () => {
     });
 
     it("should track connection health across multiple exchanges", async () => {
-      const exchanges = ["binance", "coinbase", "kraken", "okx"];
+      const exchanges = [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Kraken, ExchangeId.Okx];
       const alertSpy = jest.spyOn(alertingService, "sendAlert");
 
       // Simulate connection issues
@@ -345,20 +346,20 @@ describe("Monitoring Integration Tests", () => {
     it("should monitor source reliability and alert on failures", async () => {
       const alertSpy = jest.spyOn(alertingService, "sendAlert");
 
-      const sources = ["binance", "coinbase", "kraken"];
+      const sources = [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Kraken];
       sources.forEach((source, index) => {
         const reliability = index === 0 ? 0.5 : 0.9; // Binance has low reliability
         accuracyMonitor.recordSourceReliability(source, reliability);
       });
 
       const reliabilityMetrics = accuracyMonitor.getSourceReliabilityMetrics();
-      expect(reliabilityMetrics["binance"]).toBeLessThan(0.8);
+      expect(reliabilityMetrics[ExchangeId.Binance]).toBeLessThan(0.8);
 
       // Simulate alert triggering for low source reliability
-      if (reliabilityMetrics["binance"] < 0.8) {
+      if (reliabilityMetrics[ExchangeId.Binance] < 0.8) {
         await alertingService.sendAlert({
           severity: "medium",
-          message: "Source reliability degraded for binance",
+          message: `Source reliability degraded for ${ExchangeId.Binance}`,
           component: "reliability",
           timestamp: Date.now(),
         });
@@ -367,7 +368,7 @@ describe("Monitoring Integration Tests", () => {
       expect(alertSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           severity: "medium",
-          message: "Source reliability degraded for binance",
+          message: `Source reliability degraded for ${ExchangeId.Binance}`,
         })
       );
     });
@@ -395,7 +396,7 @@ describe("Monitoring Integration Tests", () => {
           message: "Exchange connection lost",
           component: "connection",
           timestamp: Date.now(),
-          metadata: { exchange: "binance", duration: 30000 },
+          metadata: { exchange: ExchangeId.Binance, duration: 30000 },
         },
       ];
 
@@ -452,8 +453,8 @@ describe("Monitoring Integration Tests", () => {
       }
 
       // 3. Connection issues
-      performanceMonitor.recordConnectionHealth("binance", false);
-      performanceMonitor.recordConnectionHealth("coinbase", false);
+      performanceMonitor.recordConnectionHealth(ExchangeId.Binance, false);
+      performanceMonitor.recordConnectionHealth(ExchangeId.Coinbase, false);
 
       // Trigger alerts based on conditions
       const performanceMetrics = performanceMonitor.getMetrics();
@@ -494,7 +495,7 @@ describe("Monitoring Integration Tests", () => {
       // Generate various metrics
       performanceMonitor.recordResponseTime("/feed-values", 50);
       performanceMonitor.recordDataFreshness(mockFeedId, Date.now() - 1000);
-      performanceMonitor.recordConnectionHealth("binance", true);
+      performanceMonitor.recordConnectionHealth(ExchangeId.Binance, true);
 
       accuracyMonitor.recordConsensusDeviation(mockFeedId, 0.003);
       accuracyMonitor.recordAccuracyCheck(mockFeedId, true);
@@ -544,7 +545,7 @@ describe("Monitoring Integration Tests", () => {
           Promise.resolve().then(() => {
             performanceMonitor.recordResponseTime("/feed-values", 75);
             accuracyMonitor.recordAccuracyCheck(mockFeedId, true);
-            performanceMonitor.recordConnectionHealth("binance", true);
+            performanceMonitor.recordConnectionHealth(ExchangeId.Binance, true);
           })
         );
       }
