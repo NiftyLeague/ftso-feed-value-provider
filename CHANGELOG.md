@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.0.0...v1.1.0) (2025-12-11)
+
+
+### Features
+
+* Enable configuring adapters use by ENV ([#28](https://github.com/NiftyLeague/ftso-feed-value-provider/issues/28)) ([ae30cb3](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/ae30cb3a6e276c7e69847408ac3f20adbcac7af3))
+* **health:** Refactor health check endpoints and improve health metrics aggregation ([114f2d4](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/114f2d4153cf04aeaceeceb0bf6bd6245917d5ec))
+
 ## 1.0.0 (2025-12-11)
 
 ### Features
