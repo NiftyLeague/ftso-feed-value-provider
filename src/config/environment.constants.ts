@@ -660,7 +660,7 @@ export const ENV = {
     }),
     CACHE_TTL_MS: EnvironmentUtils.parseInt("AGGREGATION_CACHE_TTL_MS", 300, { min: 100, max: 2000 }),
     MAX_CACHE_SIZE: EnvironmentUtils.parseInt("AGGREGATION_MAX_CACHE_SIZE", 250, { min: 100, max: 10000 }),
-    FRESH_DATA_THRESHOLD_MS: EnvironmentUtils.parseInt("AGGREGATION_FRESH_DATA_THRESHOLD_MS", 2000, {
+    FRESH_DATA_THRESHOLD_MS: EnvironmentUtils.parseInt("AGGREGATION_FRESH_DATA_THRESHOLD_MS", 5000, {
       min: 500,
       max: 10000,
     }),

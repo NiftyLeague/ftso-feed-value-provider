@@ -57,6 +57,10 @@ export class ConsensusAggregator extends EventDrivenService {
     cacheMisses: 0,
   };
 
+  // Cooldown tracking for rejection logs to reduce noise
+  private readonly rejectionLogLastLogged = new Map<string, number>();
+  private readonly REJECTION_LOG_COOLDOWN_MS = 60000;
+
   constructor() {
     super({
       lambda: ENV.AGGREGATION.LAMBDA_DECAY, // Time decay factor
@@ -165,7 +169,7 @@ export class ConsensusAggregator extends EventDrivenService {
       throw new Error(`No price updates available for feed ${feedName}`);
     }
 
-    const validUpdates = this.validateUpdates(updates);
+    const validUpdates = this.validateUpdates(updates, feedName);
 
     if (validUpdates.length === 0) {
       throw new Error(`No valid price data available for feed ${feedName}`);
@@ -276,18 +280,36 @@ export class ConsensusAggregator extends EventDrivenService {
   /**
    * Validate price updates with staleness and stability checks
    */
-  private validateUpdates(updates: PriceUpdate[]): PriceUpdate[] {
+  private validateUpdates(updates: PriceUpdate[], feedName: string): PriceUpdate[] {
+    const rejected: Array<{
+      reason: string;
+      source: string;
+      price: number;
+      confidence: number;
+      deviationPct?: number;
+    }> = [];
+
     // Pre-filter for basic validity
     const basicValid = updates.filter(update => {
       // Fast price validity check
       if (!update.price || update.price <= 0 || !isFinite(update.price)) {
-        this.logger.debug(`Rejecting invalid price from ${update.source}: ${update.price}`);
+        rejected.push({
+          reason: "invalid_price",
+          source: update.source,
+          price: update.price,
+          confidence: update.confidence,
+        });
         return false;
       }
 
       // Confidence check - be more permissive to accept more sources
       if (update.confidence < 0.01 || update.confidence > 1) {
-        this.logger.debug(`Rejecting invalid confidence update from ${update.source}: ${update.confidence}`);
+        rejected.push({
+          reason: "invalid_confidence",
+          source: update.source,
+          price: update.price,
+          confidence: update.confidence,
+        });
         return false;
       }
 
@@ -305,9 +327,13 @@ export class ConsensusAggregator extends EventDrivenService {
         const deviation = Math.abs(update.price - medianPrice) / medianPrice;
         if (deviation > 0.25) {
           // 25% pre-filter threshold (more permissive)
-          this.logger.debug(
-            `Pre-filtering unstable price from ${update.source}: ${(deviation * 100).toFixed(2)}% deviation`
-          );
+          rejected.push({
+            reason: "median_deviation",
+            source: update.source,
+            price: update.price,
+            confidence: update.confidence,
+            deviationPct: deviation * 100,
+          });
           return false;
         }
         return true;
@@ -318,12 +344,42 @@ export class ConsensusAggregator extends EventDrivenService {
       const validUpdates =
         stableUpdates.length >= Math.max(1, Math.floor(basicValid.length * 0.4)) ? stableUpdates : basicValid;
 
+      this.logRejectionsIfNeeded(feedName, updates.length, validUpdates.length, rejected);
       // No staleness check - accept all valid updates regardless of age
       return validUpdates;
     }
 
+    this.logRejectionsIfNeeded(feedName, updates.length, basicValid.length, rejected);
     // For small sets, accept all valid updates regardless of age
     return basicValid;
+  }
+
+  private logRejectionsIfNeeded(
+    feedName: string,
+    total: number,
+    kept: number,
+    rejected: Array<{ reason: string; source: string; price: number; confidence: number; deviationPct?: number }>
+  ): void {
+    if (rejected.length === 0) return;
+
+    const now = Date.now();
+    const lastLogged = this.rejectionLogLastLogged.get(feedName) || 0;
+    if (now - lastLogged < this.REJECTION_LOG_COOLDOWN_MS) return;
+
+    const counts = rejected.reduce<Record<string, number>>((acc, r) => {
+      acc[r.reason] = (acc[r.reason] || 0) + 1;
+      return acc;
+    }, {});
+
+    this.logger.warn(`Rejected ${rejected.length} updates for ${feedName}`, {
+      feed: feedName,
+      total,
+      kept,
+      counts,
+      examples: rejected.slice(0, 3),
+    });
+
+    this.rejectionLogLastLogged.set(feedName, now);
   }
 
   /**
