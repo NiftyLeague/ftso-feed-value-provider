@@ -208,7 +208,7 @@ pnpm test:debug
 
 ### Environment Requirements
 
-- Node.js 22+
+- Node.js 24+
 - Available memory: 2GB+
 - Network connectivity for exchange APIs
 - Optional: `--expose-gc` flag for memory testing

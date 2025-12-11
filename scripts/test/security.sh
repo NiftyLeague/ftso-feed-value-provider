@@ -46,8 +46,8 @@ register_port "$TEST_PORT"
 echo "🚀 Application started with PID: $APP_PID"
 echo "⏱️  Waiting for server to be ready..."
 
-# Use smart system readiness detection
-if ! check_system_readiness "$LOG_FILE"; then
+# Use smart system readiness detection with dynamic port
+if ! check_system_readiness "$LOG_FILE" "false" "http://localhost:$TEST_PORT"; then
     echo "❌ System not ready for security testing"
     exit 1
 fi
@@ -120,7 +120,7 @@ echo "---------------------------------"
 # Test security headers
 echo "Testing security headers..."
 
-HEADERS_TEST=$(curl -s -I http://localhost:$TEST_PORT/health 2>/dev/null)
+HEADERS_TEST=$(curl -s -I http://localhost:$TEST_PORT/health/ready 2>/dev/null)
 
 # Check for security headers
 if echo "$HEADERS_TEST" | grep -qi "x-content-type-options"; then
@@ -193,7 +193,7 @@ echo "--------------------------"
 
 # Test endpoints without authentication (should work for public API)
 run_security_test "Public Health Endpoint" \
-    "curl -s -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
+    "curl -s -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health/ready" \
     "success"
 
 run_security_test "Public Metrics Endpoint" \
@@ -211,7 +211,7 @@ echo "-----------------------"
 
 # Test unsupported HTTP methods
 run_security_test "TRACE Method Test" \
-    "curl -s -X TRACE -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
+    "curl -s -X TRACE -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health/ready" \
     "fail"
 
 run_security_test "DELETE Method Test" \
@@ -265,7 +265,7 @@ echo "-------------------------"
 echo "Testing rate limiting..."
 
 # Make multiple rapid requests to test rate limiting
-RATE_LIMIT_REQUESTS=105  # Slightly exceed the 100 requests per minute limit
+RATE_LIMIT_REQUESTS=1005  # Slightly exceed the 1000 requests per minute limit
 RATE_LIMITED=0
 
 for i in $(seq 1 $RATE_LIMIT_REQUESTS); do

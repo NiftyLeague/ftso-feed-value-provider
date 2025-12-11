@@ -168,7 +168,7 @@ security. Here's why each stage exists:
 ### Stage 1: `base`
 
 ```dockerfile
-FROM node:22-alpine AS base
+FROM node:24-bookworm-slim AS base
 ```
 
 **Purpose**: Creates a common foundation for all other stages
@@ -292,13 +292,14 @@ copy the runtime config files. The build process doesn't include JSON files in
 
 ## 📊 Service Endpoints
 
-| Endpoint      | URL                                | Description                |
-| ------------- | ---------------------------------- | -------------------------- |
-| **API**       | http://localhost:3101              | Main API endpoint          |
-| **Health**    | http://localhost:3101/health       | System health check        |
-| **Liveness**  | http://localhost:3101/health/live  | Kubernetes liveness probe  |
-| **Readiness** | http://localhost:3101/health/ready | Kubernetes readiness probe |
-| **Metrics**   | http://localhost:9090/metrics      | Prometheus metrics         |
+| Endpoint      | URL                                   | Description                                              |
+| ------------- | ------------------------------------- | -------------------------------------------------------- |
+| **API**       | http://localhost:3101                 | Main API endpoint                                        |
+| **Health**    | http://localhost:3101/health          | Docker HEALTHCHECK (simplified response, full diagnosis) |
+| **Detailed**  | http://localhost:3101/health/detailed | Full system diagnostics (all components)                 |
+| **Liveness**  | http://localhost:3101/health/live     | Kubernetes liveness probe                                |
+| **Readiness** | http://localhost:3101/health/ready    | Kubernetes readiness probe                               |
+| **Metrics**   | http://localhost:9090/metrics         | Prometheus metrics                                       |
 
 ## 📝 Example API Usage
 
@@ -467,7 +468,7 @@ Import dashboards from `monitoring/grafana/dashboards/` for visualization.
 ### Container Security
 
 - ✅ Runs as non-root user (`ftso-provider:nodejs`)
-- ✅ Minimal Alpine Linux base image
+- ✅ Minimal Debian bookworm-slim base image
 - ✅ Security updates applied
 - ✅ Proper signal handling with dumb-init
 - ✅ No build tools in production image

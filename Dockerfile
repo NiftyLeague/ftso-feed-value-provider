@@ -1,7 +1,8 @@
 # Multi-stage production Dockerfile for FTSO Feed Value Provider
-FROM node:22-bookworm-slim AS base
+FROM node:24-bookworm-slim AS base
 
 # Install security updates and required packages
+# Debian bookworm-slim uses apt package manager
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends dumb-init curl ca-certificates && \
     apt-get clean && \
@@ -89,9 +90,11 @@ USER ftso-provider
 # Expose port
 EXPOSE 3101
 
-# Health check
+# Health check - uses /health which internally calls detailed health check but returns simplified response
+# Returns 200 (healthy/degraded) or 503 (unhealthy), allowing Docker to distinguish
+# between "can continue serving" vs "must restart container"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3101/health/ready || exit 1
+    CMD curl -f http://localhost:3101/health || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

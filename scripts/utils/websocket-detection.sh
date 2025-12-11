@@ -36,7 +36,7 @@ wait_for_websocket_connections() {
         fi
         if [ -f "$log_file" ]; then
             # Check for the specific completion message
-            if grep -q "Connected to .*/18 exchanges" "$log_file" 2>/dev/null; then
+            if grep -q "Connected to .*/16 exchanges" "$log_file" 2>/dev/null; then
                 if grep -q "Asynchronous WebSocket initialization completed" "$log_file" 2>/dev/null; then
                     echo "✅ All WebSocket connections established ($((wait_count * check_interval))s)"
                     return 0
@@ -45,7 +45,7 @@ wait_for_websocket_connections() {
             
             # Show progress - count unique exchanges connected
             local connected_count=$(grep "Successfully connected to exchange:" "$log_file" 2>/dev/null | sed 's/.*exchange: \([^[:space:]]*\).*/\1/' | sort | uniq | wc -l | tr -d ' ' || echo "0")
-            echo "   WebSocket connections: $connected_count/18 ($((wait_count * check_interval))s)"
+            echo "   WebSocket connections: $connected_count/16 ($((wait_count * check_interval))s)"
         else
             echo "   Waiting for log file... ($((wait_count * check_interval))s)"
         fi
@@ -211,7 +211,7 @@ wait_for_data_collection() {
 check_system_readiness() {
     local log_file="$1"
     local require_websockets="${2:-true}"  # Default to requiring WebSockets
-    local base_url="http://localhost:3101"  # Standard service URL
+    local base_url="${3:-http://localhost:3101}"  # Allow custom base URL
     
     echo "🔍 Checking system readiness..."
     

@@ -128,7 +128,20 @@ export class OkxAdapter extends BaseExchangeAdapter {
   };
 
   constructor(config?: ExchangeConnectionConfig) {
-    super({ connection: config });
+    // Configure OKX-specific aggressive rate limiting
+    const okxConfig: ExchangeConnectionConfig = {
+      ...config,
+      rateLimiting: {
+        maxRetries: 3, // Increased retries for OKX's strict limits
+        baseDelay: 5000, // 5 second delay for OKX
+        multiplier: 3, // More aggressive exponential backoff
+        queueInterval: 100, // 100ms minimum interval between requests
+        enableQueue: true, // Enable queue for OKX's strict rate limits (~20 requests per 2 seconds)
+        ...config?.rateLimiting, // Allow override if provided
+      },
+    };
+
+    super({ connection: okxConfig });
   }
 
   override getSymbolMapping(normalizedSymbol: string): string {

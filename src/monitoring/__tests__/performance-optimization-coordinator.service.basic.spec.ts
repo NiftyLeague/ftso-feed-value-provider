@@ -7,16 +7,14 @@ describe("PerformanceOptimizationCoordinatorService Basic Tests", () => {
   });
 
   it("should have PerformanceOptimizationCoordinatorService defined", async () => {
-    const { PerformanceOptimizationCoordinatorService } = await import(
-      "../performance-optimization-coordinator.service"
-    );
+    const { PerformanceOptimizationCoordinatorService } =
+      await import("../performance-optimization-coordinator.service");
     expect(PerformanceOptimizationCoordinatorService).toBeDefined();
   });
 
   it("should be a function (NestJS service)", async () => {
-    const { PerformanceOptimizationCoordinatorService } = await import(
-      "../performance-optimization-coordinator.service"
-    );
+    const { PerformanceOptimizationCoordinatorService } =
+      await import("../performance-optimization-coordinator.service");
     expect(typeof PerformanceOptimizationCoordinatorService).toBe("function");
   });
 });

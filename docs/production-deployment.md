@@ -127,7 +127,9 @@ The application provides several health check endpoints:
 
 - **Readiness**: `GET /health/ready` - Application is ready to serve requests
 - **Liveness**: `GET /health/live` - Application is running
-- **Health**: `GET /health` - Comprehensive health status
+- **Health**: `GET /health` - Simple, high-level health status
+- **Detailed Health**: `GET /health/detailed` - Comprehensive health status and
+  metrics
 
 ### Load Balancer Integration
 
@@ -191,7 +193,7 @@ Import the provided dashboards for comprehensive monitoring:
 The Dockerfile implements several security best practices:
 
 - **Non-root user**: Application runs as `ftso-provider` user (UID 1001)
-- **Minimal base image**: Uses Alpine Linux for smaller attack surface
+- **Minimal base image**: Uses Debian bookworm-slim for smaller attack surface
 - **Security updates**: Installs latest security patches
 - **Signal handling**: Uses `dumb-init` for proper signal handling
 
@@ -247,7 +249,7 @@ deploy:
 
 ```bash
 # Backup logs
-docker run --rm -v ftso-feed-value-provider_ftso-logs:/data -v $(pwd):/backup alpine tar czf /backup/logs-backup.tar.gz -C /data .
+docker run --rm -v ftso-feed-value-provider_ftso-logs:/data -v $(pwd):/backup debian:bookworm-slim tar czf /backup/logs-backup.tar.gz -C /data .
 ```
 
 ### Configuration Backup

@@ -50,7 +50,7 @@ fi
 # Make some health check calls to trigger service interactions
 for i in {1..3}; do
     echo "📡 Making health check call $i/3..."
-    curl -s -X GET "http://localhost:3101/health" > /dev/null 2>&1 || true
+    curl -s -X GET "http://localhost:3101/health/ready" > /dev/null 2>&1 || true
     # Check service health between calls
     if ! wait_for_service_health "http://localhost:3101" 1 5000 5000; then
         echo "⚠️  Service health degraded after health check call"

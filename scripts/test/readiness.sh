@@ -100,7 +100,7 @@ test_complete_system_readiness() {
     log_both "⏳ Running complete system readiness check..."
     local start_time=$(date +%s)
     
-    if check_system_readiness "$TEST_LOG_FILE" true; then
+    if check_system_readiness "$TEST_LOG_FILE" "true" "http://localhost:3101"; then
         local end_time=$(date +%s)
         local duration=$((end_time - start_time))
         
@@ -139,9 +139,9 @@ test_websocket_connections_ready() {
     
     if [ -f "$TEST_LOG_FILE" ]; then
         # Check for WebSocket connection completion
-        if grep -q "Connected to .*/18 exchanges" "$TEST_LOG_FILE" 2>/dev/null; then
+        if grep -q "Connected to .*/16 exchanges" "$TEST_LOG_FILE" 2>/dev/null; then
             if grep -q "Asynchronous WebSocket initialization completed" "$TEST_LOG_FILE" 2>/dev/null; then
-                log_test_result "WebSocket Connections Ready" "PASS" "All 18 exchanges connected"
+                log_test_result "WebSocket Connections Ready" "PASS" "All 16 exchanges connected"
             else
                 log_test_result "WebSocket Connections Ready" "FAIL" "WebSocket initialization not completed"
             fi
@@ -324,7 +324,7 @@ test_production_readiness() {
     fi
     
     # Check WebSocket connections
-    if [ -f "$TEST_LOG_FILE" ] && grep -q "Connected to .*/18 exchanges" "$TEST_LOG_FILE" 2>/dev/null; then
+    if [ -f "$TEST_LOG_FILE" ] && grep -q "Connected to .*/16 exchanges" "$TEST_LOG_FILE" 2>/dev/null; then
         readiness_score=$((readiness_score + 1))
         log_both "   ✅ All WebSocket connections established"
     else

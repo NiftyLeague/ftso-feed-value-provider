@@ -12,6 +12,8 @@ export const ENV_HELPERS = {
   isProduction: (): boolean => ENV.APPLICATION.NODE_ENV === "production",
 };
 
+import * as packageJson from "../../package.json";
+
 export const ENV = {
   // Application Settings
   APPLICATION: {
@@ -23,6 +25,7 @@ export const ENV = {
     }),
     BASE_PATH: EnvironmentUtils.parseString("APP_BASE_PATH", ""),
     CORS_MAX_AGE: EnvironmentUtils.parseInt("APP_CORS_MAX_AGE", 3600, { min: 300, max: 86400 }),
+    VERSION: packageJson.version,
   },
 
   // Logging Configuration
@@ -43,7 +46,7 @@ export const ENV = {
 
   // Rate Limiting
   RATE_LIMITING: {
-    MAX_REQUESTS: EnvironmentUtils.parseInt("RATE_LIMIT_MAX_REQUESTS", 2000, { min: 1, max: 10000 }),
+    MAX_REQUESTS: EnvironmentUtils.parseInt("RATE_LIMIT_MAX_REQUESTS", 5000, { min: 1, max: 20000 }),
     WINDOW_MS: EnvironmentUtils.parseInt("RATE_LIMIT_WINDOW_MS", 60000, { min: 1000, max: 3600000 }),
   },
 
@@ -267,8 +270,8 @@ export const ENV = {
     }),
 
     // Node.js version requirements
-    MIN_NODE_VERSION: EnvironmentUtils.parseInt("SYSTEM_MIN_NODE_VERSION", 16, { min: 14, max: 20 }),
-    RECOMMENDED_NODE_VERSION: EnvironmentUtils.parseInt("SYSTEM_RECOMMENDED_NODE_VERSION", 18, { min: 16, max: 20 }),
+    MIN_NODE_VERSION: EnvironmentUtils.parseInt("SYSTEM_MIN_NODE_VERSION", 20, { min: 18, max: 26 }),
+    RECOMMENDED_NODE_VERSION: EnvironmentUtils.parseInt("SYSTEM_RECOMMENDED_NODE_VERSION", 24, { min: 20, max: 26 }),
   },
 
   // Cache System - Unified Configuration

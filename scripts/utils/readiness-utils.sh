@@ -72,8 +72,8 @@ check_service_health() {
     local base_url=$1
     local timeout=${2:-$DEFAULT_TIMEOUT}
     
-    # Try multiple health endpoints in order of preference
-    local health_endpoints=("health/ready" "health" "health/live" "healthz" "ready")
+    # Try multiple health endpoints in order
+    local health_endpoints=("health/live" "health/ready")
     
     for endpoint in "${health_endpoints[@]}"; do
         local url="${base_url}/${endpoint}"

@@ -524,4 +524,125 @@ export class RealTimeCacheService extends EventDrivenService implements RealTime
     // Normal efficiency calculation for active caches
     return (insights.hitRateEfficiency + insights.memoryEfficiency + (1 - insights.evictionRate)) / 3;
   }
+
+  /**
+   * Get intelligent cache health status with strict but fair requirements
+   *
+   * Startup phase (< MIN_REQUESTS_FOR_HIT_RATE):
+   * - Healthy if memory usage is under 90% of limit; do NOT require cached entries yet.
+   * - Hit rate not evaluated during startup; cache starts empty and warms as traffic arrives.
+   *
+   * Active phase (>= MIN_REQUESTS_FOR_HIT_RATE):
+   * - Hit rate must be >= HIT_RATE_TARGET (90%).
+   * - Memory must stay under 90% of limit.
+   * - P95 response time enforced only after MIN_REQUESTS_FOR_RESPONSE_TIME samples to avoid early-noise.
+   */
+  getCacheHealthStatus(): { status: "healthy" | "degraded" | "unhealthy"; reason: string; metrics: object } {
+    // STARTUP PHASE: Cache starts empty with zero requests. Healthy if properly configured (memory < 90%).
+    // ACTIVE PHASE: After MIN_REQUESTS_FOR_HIT_RATE (50), cache MUST maintain 90%+ hit rate, <90% memory, fast response time.
+    // Response time constraint only enforced after MIN_REQUESTS_FOR_RESPONSE_TIME (25) samples to avoid startup noise.
+    const stats = this.getStats();
+    const insights = this.getPerformanceInsights();
+    const minRequests = ENV.CACHE.MIN_REQUESTS_FOR_HIT_RATE;
+
+    // ===== STRICT REQUIREMENT 1: STARTUP GRACE PERIOD =====
+    if (stats.totalRequests < minRequests) {
+      // During startup/low activity, cache is healthy if:
+      // 1. Memory usage is reasonable (< 90% of limit)
+      // 2. Cache is enabled and configured (not in error state)
+      // NOTE: We do NOT require entries to be cached yet - that's not a sign of unhealthiness during startup.
+      // The cache starts empty and gradually warms up as requests come in.
+      const memoryUsageReasonable = insights.memoryEfficiency > 0.1; // Using < 90% of limit
+
+      if (memoryUsageReasonable) {
+        return {
+          status: "healthy",
+          reason: `Cache warmup phase (${stats.totalRequests}/${minRequests} requests). Cache properly configured with ${stats.totalEntries} cached entries, memory efficiency ${(insights.memoryEfficiency * 100).toFixed(1)}%`,
+          metrics: {
+            totalRequests: stats.totalRequests,
+            minRequests,
+            totalEntries: stats.totalEntries,
+            memoryEfficiency: insights.memoryEfficiency,
+            hitRate: stats.hitRate,
+            phase: "startup",
+          },
+        };
+      } else {
+        return {
+          status: "degraded",
+          reason: `Cache startup has issues: memory efficiency ${(insights.memoryEfficiency * 100).toFixed(1)}% exceeds 90% limit - need to investigate memory usage`,
+          metrics: {
+            totalRequests: stats.totalRequests,
+            minRequests,
+            totalEntries: stats.totalEntries,
+            memoryEfficiency: insights.memoryEfficiency,
+            hitRate: stats.hitRate,
+            phase: "startup",
+          },
+        };
+      }
+    }
+
+    // ===== STRICT REQUIREMENT 2: AFTER WARMUP, HIT RATE IS STRICT =====
+    const hitRateTarget = ENV.CACHE.HIT_RATE_TARGET; // 90%
+    const hitRateOk = stats.hitRate >= hitRateTarget;
+
+    // ===== STRICT REQUIREMENT 3: MEMORY MUST NOT EXCEED LIMITS =====
+    const memoryOk = insights.memoryEfficiency > 0.1; // Using < 90% of memory limit
+
+    // ===== STRICT REQUIREMENT 4: RESPONSE TIME MUST BE FAST =====
+    // Only strictly enforce response time if we have enough samples; otherwise accept it
+    const minResponseTimeSamples = ENV.CACHE.MIN_REQUESTS_FOR_RESPONSE_TIME; // 25
+    const hasEnoughSamples = this.performanceBuffer.length >= minResponseTimeSamples;
+    const p95Target = ENV.CACHE.RESPONSE_TIME_P95_TARGET_MS; // 300ms
+    const responseTimeOk = !hasEnoughSamples || insights.p95ResponseTime <= p95Target;
+
+    // Overall health: all strict requirements must pass
+    if (hitRateOk && memoryOk && responseTimeOk) {
+      return {
+        status: "healthy",
+        reason: `All health checks passed: hit rate ${(stats.hitRate * 100).toFixed(1)}% >= ${(hitRateTarget * 100).toFixed(0)}%, memory ${(insights.memoryEfficiency * 100).toFixed(1)}% used, P95 response time ${insights.p95ResponseTime.toFixed(1)}ms ${hasEnoughSamples ? `<= ${p95Target}ms` : `(${this.performanceBuffer.length} samples)`}`,
+        metrics: {
+          totalRequests: stats.totalRequests,
+          hitRate: stats.hitRate,
+          hitRateTarget,
+          hitRateOk,
+          memoryEfficiency: insights.memoryEfficiency,
+          memoryOk,
+          p95ResponseTime: insights.p95ResponseTime,
+          p95Target,
+          responseTimeOk,
+          responseTimeSamples: this.performanceBuffer.length,
+          minResponseTimeSamples,
+          phase: "active",
+        },
+      };
+    }
+
+    // Determine if degraded or unhealthy based on severity
+    const failureCount = (hitRateOk ? 0 : 1) + (memoryOk ? 0 : 1) + (responseTimeOk ? 0 : 1);
+    const isUnhealthy = failureCount >= 2; // 2+ failures = unhealthy
+
+    const failures: string[] = [];
+    if (!hitRateOk)
+      failures.push(`hit rate ${(stats.hitRate * 100).toFixed(1)}% < ${(hitRateTarget * 100).toFixed(0)}%`);
+    if (!memoryOk) failures.push(`memory ${(insights.memoryEfficiency * 100).toFixed(1)}% > 90% limit`);
+    if (!responseTimeOk) failures.push(`P95 response time ${insights.p95ResponseTime.toFixed(1)}ms > ${p95Target}ms`);
+
+    return {
+      status: isUnhealthy ? "unhealthy" : "degraded",
+      reason: `Cache health check failed: ${failures.join(", ")}`,
+      metrics: {
+        totalRequests: stats.totalRequests,
+        hitRate: stats.hitRate,
+        hitRateTarget,
+        hitRateOk,
+        memoryEfficiency: insights.memoryEfficiency,
+        memoryOk,
+        p95ResponseTime: insights.p95ResponseTime,
+        p95Target,
+        responseTimeOk,
+      },
+    };
+  }
 }

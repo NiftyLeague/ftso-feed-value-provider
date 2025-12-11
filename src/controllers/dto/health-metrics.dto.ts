@@ -1,4 +1,372 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { HealthStatusType } from "@/common/types/monitoring/health.types";
+
+export class LivenessChecksDto {
+  @ApiProperty({ example: true })
+  integration!: boolean;
+  @ApiProperty({ example: true })
+  provider!: boolean;
+  @ApiProperty({ example: true })
+  memory!: boolean;
+  @ApiProperty({ example: 2 })
+  responseTime!: number;
+}
+
+export class ReadinessCheckDetailDto {
+  @ApiProperty({ example: true })
+  ready!: boolean;
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy", "initializing"] })
+  status!: HealthStatusType | "initializing";
+  @ApiProperty({ example: null, nullable: true })
+  error!: string | null;
+}
+
+export class ReadinessChecksDto {
+  @ApiProperty()
+  integration!: ReadinessCheckDetailDto;
+  @ApiProperty()
+  provider!: ReadinessCheckDetailDto;
+  @ApiProperty()
+  startup!: { ready: boolean };
+}
+
+export class ProbesDto {
+  @ApiProperty()
+  liveness!: LivenessChecksDto;
+  @ApiProperty()
+  readiness!: ReadinessChecksDto;
+}
+
+export class StartupDto {
+  @ApiProperty({ example: true })
+  initialized!: boolean;
+  @ApiProperty({ example: 1678879200000 })
+  startTime!: number;
+  @ApiProperty({ example: 1678879230000, nullable: true })
+  readyTime?: number | null;
+}
+
+export class ReadinessDiagnosticsDto {
+  @ApiProperty({ example: 3, required: false })
+  healthySources?: number;
+  @ApiProperty({ example: 5, required: false })
+  totalSources?: number;
+  @ApiProperty({ example: 99.5, required: false })
+  aggregationSuccessRate?: number;
+  @ApiProperty({ example: true, required: false })
+  canServeFeedData?: boolean;
+  @ApiProperty({ example: "ready", enum: ["not_ready", "warming_up", "ready"], required: false })
+  state?: "not_ready" | "warming_up" | "ready";
+  @ApiProperty({ example: 4, required: false })
+  validFeedCount?: number;
+  @ApiProperty({ example: 4, required: false })
+  totalTestFeeds?: number;
+}
+
+// Component details DTOs
+export class SourceHealthStatusDto {
+  @ApiProperty({ example: "uniswap" })
+  sourceId!: string;
+  @ApiProperty({ example: "healthy", enum: ["healthy", "unhealthy", "recovered"] })
+  status!: "healthy" | "unhealthy" | "recovered";
+  @ApiProperty({ example: 1703123456789 })
+  lastUpdate!: number;
+  @ApiProperty({ example: 0 })
+  errorCount!: number;
+  @ApiProperty({ example: 0 })
+  recoveryCount!: number;
+}
+
+export class AggregationMetricsDetailsDto {
+  @ApiProperty({ example: 99.5 })
+  successRate!: number;
+  @ApiProperty({ example: 5 })
+  errorCount!: number;
+  @ApiProperty({ example: "Data source X down", required: false })
+  lastError?: string;
+}
+
+export class PerformanceHealthMetricsDetailsDto {
+  @ApiProperty({ example: 150.5 })
+  averageResponseTime!: number;
+  @ApiProperty({ example: 2.5 })
+  errorRate!: number;
+}
+
+export class AccuracyMetricsDetailsDto {
+  @ApiProperty({ example: 0.98 })
+  averageConfidence!: number;
+  @ApiProperty({ example: 0.01 })
+  outlierRate!: number;
+}
+
+export class DetailedSystemHealthMetricsDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({ example: 1703123456789 })
+  timestamp!: number;
+  @ApiProperty({ type: [SourceHealthStatusDto] })
+  sources!: SourceHealthStatusDto[];
+  @ApiProperty()
+  aggregation!: AggregationMetricsDetailsDto;
+  @ApiProperty()
+  performance!: PerformanceHealthMetricsDetailsDto;
+  @ApiProperty()
+  accuracy!: AccuracyMetricsDetailsDto;
+}
+
+export class CacheStatsDto {
+  @ApiProperty({ example: 100 })
+  hits!: number;
+  @ApiProperty({ example: 10 })
+  misses!: number;
+  @ApiProperty({ example: 0.9 })
+  hitRate!: number;
+  @ApiProperty({ example: 1000 })
+  size!: number;
+  @ApiProperty({ example: 5 })
+  evictions!: number;
+  @ApiProperty({ example: 0.5 })
+  averageGetTime!: number;
+  @ApiProperty({ example: 1.2 })
+  averageSetTime!: number;
+  @ApiProperty({ example: 0.6 })
+  averageResponseTime!: number;
+  @ApiProperty({ example: 102400 })
+  memoryUsage!: number;
+  @ApiProperty({ example: 110 })
+  totalRequests!: number;
+  @ApiProperty({ example: 0.1 })
+  missRate!: number;
+  @ApiProperty({ example: 1000 })
+  totalEntries!: number;
+}
+
+export class AggregationCacheStatsDto {
+  @ApiProperty({ example: 500 })
+  totalEntries!: number;
+  @ApiProperty({ example: 0.95 })
+  hitRate!: number;
+  @ApiProperty({ example: 0.05 })
+  missRate!: number;
+  @ApiProperty({ example: 10 })
+  evictionCount!: number;
+  @ApiProperty({ example: 1500 })
+  averageAge!: number;
+}
+
+export class AdapterStatsDto {
+  @ApiProperty({ example: 5 })
+  total!: number;
+  @ApiProperty({ example: 4 })
+  active!: number;
+  @ApiProperty({ example: { crypto: 3, forex: 2 } })
+  byCategory!: Record<string, number>;
+  @ApiProperty({ example: { healthy: 4, unhealthy: 1 } })
+  byHealth!: Record<string, number>;
+}
+
+export class ServiceResponseTimeMetricsDto {
+  @ApiProperty({ example: 150.5 })
+  average!: number;
+  @ApiProperty({ example: 200.0 })
+  p95!: number;
+  @ApiProperty({ example: 500.0 })
+  max!: number;
+}
+
+export class ServicePerformanceMetricsDto {
+  @ApiProperty({ example: 3600 })
+  uptime!: number;
+  @ApiProperty()
+  responseTime!: ServiceResponseTimeMetricsDto;
+  @ApiProperty({ example: 100 })
+  requestsPerSecond!: number;
+  @ApiProperty({ example: 0.01 })
+  errorRate!: number;
+}
+
+// Combined DTO for Provider Component Details
+export class ProviderComponentDetailsDto extends DetailedSystemHealthMetricsDto {
+  @ApiProperty({ example: 3600, description: "Provider service uptime" })
+  providerUptime!: number;
+  @ApiProperty({ description: "Provider service response time metrics" })
+  providerResponseTime!: ServiceResponseTimeMetricsDto;
+  @ApiProperty({ example: 100, description: "Provider service requests per second" })
+  providerRequestsPerSecond!: number;
+  @ApiProperty({ example: 0.01, description: "Provider service error rate" })
+  providerErrorRate!: number;
+  @ApiProperty({ description: "Provider service cache statistics" })
+  providerCacheStats!: CacheStatsDto;
+  @ApiProperty({ description: "Provider service aggregation statistics" })
+  providerAggregationStats!: AggregationCacheStatsDto;
+  @ApiProperty({ example: 64, description: "Number of active feeds" })
+  activeFeedCount!: number;
+}
+
+// Component DTOs for HealthCheckResponseDto
+export class CacheComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({ type: CacheStatsDto })
+  details!: CacheStatsDto;
+}
+
+export class AggregationComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({ type: AggregationCacheStatsDto })
+  details!: AggregationCacheStatsDto;
+}
+
+export class IntegrationComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({ type: AdapterStatsDto })
+  details!: AdapterStatsDto;
+}
+
+export class PerformanceComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({ type: ServicePerformanceMetricsDto })
+  details!: ServicePerformanceMetricsDto;
+}
+
+export class ProviderComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({ type: ProviderComponentDetailsDto })
+  details!: ProviderComponentDetailsDto;
+}
+
+export class ApiComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+
+  @ApiProperty({
+    description: "API health metrics and error analysis",
+    example: {
+      totalRequests: 1000,
+      requestsPerMinute: 120,
+      averageResponseTime: 85,
+      errorRate: 1.5,
+      slowRequestRate: 8,
+      criticalRequestRate: 0.5,
+      topEndpoints: [{ endpoint: "GET /feeds", requests: 400, avgResponseTime: 70 }],
+      recentErrors: [{ endpoint: "GET /feeds", error: "500", timestamp: 1703123456789, count: 2 }],
+      errorAnalysis: {
+        totalErrors: 10,
+        errorsByStatusCode: { "500": 6 },
+        errorsByEndpoint: { "/feeds": 4 },
+        recentErrorTrends: [{ timestamp: 1703123400000, errorCount: 3 }],
+      },
+    },
+  })
+  details!: ApiHealthMetricsDto & { errorAnalysis: ErrorAnalysisDto };
+}
+
+export class RateLimiterStatsDto {
+  @ApiProperty({ example: 1000 })
+  totalRequests!: number;
+  @ApiProperty({ example: 980 })
+  allowedRequests!: number;
+  @ApiProperty({ example: 20 })
+  blockedRequests!: number;
+  @ApiProperty({ example: 0.98 })
+  hitRate!: number;
+  @ApiProperty({ example: 2 })
+  averageResponseTime!: number;
+}
+
+export class RateLimiterConfigDto {
+  @ApiProperty({ example: 60000 })
+  windowMs!: number;
+  @ApiProperty({ example: 1000 })
+  maxRequests!: number;
+  @ApiProperty({ example: false, required: false })
+  skipSuccessfulRequests?: boolean;
+  @ApiProperty({ example: false, required: false })
+  skipFailedRequests?: boolean;
+}
+
+export class RateLimiterComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+  @ApiProperty({
+    description: "Rate limiter statistics and configuration",
+  })
+  details!: {
+    stats: RateLimiterStatsDto;
+    config: RateLimiterConfigDto;
+  };
+}
+
+export class RetryServiceStatsDto {
+  @ApiProperty({ example: 12 })
+  totalAttempts!: number;
+  @ApiProperty({ example: 10 })
+  successfulRetries!: number;
+  @ApiProperty({ example: 2 })
+  failedRetries!: number;
+  @ApiProperty({ example: 83.33 })
+  successRate!: number;
+  @ApiProperty({ example: 120 })
+  averageRetryTime!: number;
+  @ApiProperty({ example: "2024-02-22T10:00:00.000Z", required: false })
+  lastRetryTime?: Date;
+}
+
+export class RetryComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+
+  @ApiProperty({
+    description: "Retry statistics by service",
+    additionalProperties: {
+      type: "object",
+      properties: {
+        totalAttempts: { type: "number", example: 12 },
+        successfulRetries: { type: "number", example: 10 },
+        failedRetries: { type: "number", example: 2 },
+        successRate: { type: "number", example: 83.33 },
+        averageRetryTime: { type: "number", example: 120 },
+        lastRetryTime: { type: "string", example: "2024-02-22T10:00:00.000Z" },
+      },
+    },
+  })
+  details!: Record<string, RetryServiceStatsDto>;
+}
+
+export class ErrorHandlingServiceStatsDto {
+  @ApiProperty({ example: 25 })
+  totalErrors!: number;
+  @ApiProperty({ example: { TIMEOUT_ERROR: 5, CONNECTION_ERROR: 3 } })
+  errorsByType!: Record<string, number>;
+  @ApiProperty({ example: "2024-02-22T10:00:00.000Z", required: false })
+  lastError?: string;
+  @ApiProperty({ example: 2 })
+  consecutiveFailures!: number;
+}
+
+export class ErrorHandlingComponentDto {
+  @ApiProperty({ example: "healthy", enum: ["healthy", "degraded", "unhealthy"] })
+  status!: HealthStatusType;
+
+  @ApiProperty({
+    description: "Error handling statistics by service",
+    additionalProperties: {
+      type: "object",
+      properties: {
+        totalErrors: { type: "number", example: 25 },
+        errorsByType: { type: "object", additionalProperties: { type: "number" } },
+        lastError: { type: "string", example: "2024-02-22T10:00:00.000Z" },
+        consecutiveFailures: { type: "number", example: 2 },
+      },
+    },
+  })
+  details!: Record<string, ErrorHandlingServiceStatsDto>;
+}
 
 // Health DTOs
 export class HealthCheckDetailsDto {
@@ -60,7 +428,7 @@ export class HealthCheckResponseDto {
     enum: ["healthy", "degraded", "unhealthy"],
     example: "healthy",
   })
-  status!: string;
+  status!: HealthStatusType;
 
   @ApiProperty({
     description: "Health check timestamp",
@@ -82,55 +450,51 @@ export class HealthCheckResponseDto {
   version?: string;
 
   @ApiProperty({
-    description: "Memory usage information",
+    description: "Memory usage information in MB",
     required: false,
-    additionalProperties: true,
     example: {
       used: 512,
       total: 2048,
-      percentage: 25.0,
+      rss: 1024,
+      external: 256,
     },
   })
-  memory?: {
-    used: number;
-    total: number;
-    percentage: number;
-  };
-
-  @ApiProperty({
-    description: "Performance metrics",
-    required: false,
-    additionalProperties: true,
-    example: {
-      averageResponseTime: 150.5,
-      errorRate: 2.5,
-      throughput: 100,
-    },
-  })
-  performance?: {
-    averageResponseTime: number;
-    errorRate: number;
-    throughput: number;
-  };
+  memory?: Record<string, number>;
 
   @ApiProperty({
     description: "Component health status",
-    required: false,
-    additionalProperties: true,
   })
-  components?: {
-    provider: HealthCheckDetailsDto;
-    cache: HealthCheckDetailsDto;
-    aggregation: HealthCheckDetailsDto;
-    integration: HealthCheckDetailsDto;
+  components!: {
+    provider: ProviderComponentDto;
+    cache: CacheComponentDto;
+    aggregation: AggregationComponentDto;
+    integration: IntegrationComponentDto;
+    performance: PerformanceComponentDto;
+    api: ApiComponentDto;
+    rateLimiter: RateLimiterComponentDto;
+    retries: RetryComponentDto;
+    errorHandling: ErrorHandlingComponentDto;
   };
 
   @ApiProperty({
-    description: "Additional health details",
+    description: "Additional system details",
     required: false,
-    additionalProperties: true,
+    example: {
+      environment: "development",
+      nodeVersion: "v24.5.0",
+      platform: "darwin",
+    },
   })
   details?: Record<string, unknown>;
+
+  @ApiProperty({ required: false })
+  startup?: StartupDto;
+
+  @ApiProperty({ required: false })
+  probes?: ProbesDto;
+
+  @ApiProperty({ required: false })
+  readinessDiagnostics?: ReadinessDiagnosticsDto;
 }
 
 export class ReadinessResponseDto {
@@ -141,8 +505,8 @@ export class ReadinessResponseDto {
   ready!: boolean;
 
   @ApiProperty({
-    description: "Readiness status message",
-    example: "System is ready",
+    description: "Overall readiness status (healthy | degraded | unhealthy)",
+    example: "healthy",
   })
   status!: string;
 
@@ -153,17 +517,34 @@ export class ReadinessResponseDto {
   timestamp!: number;
 
   @ApiProperty({
+    description: "Readiness check duration in milliseconds",
+    example: 42,
+  })
+  responseTime!: number;
+
+  @ApiProperty({
     description: "System uptime in seconds",
     example: 3600,
   })
-  uptime!: number;
+  uptime?: number; // Made optional to match the interface
 
   @ApiProperty({
-    description: "Additional readiness details",
-    required: false,
-    additionalProperties: true,
+    description: "Detailed readiness checks",
   })
-  details?: Record<string, unknown>;
+  checks!: ReadinessChecksDto;
+
+  @ApiProperty({
+    description: "Readiness diagnostics information",
+    required: false,
+    type: ReadinessDiagnosticsDto,
+  })
+  diagnostics?: ReadinessDiagnosticsDto;
+
+  @ApiProperty({
+    description: "Startup information",
+    type: StartupDto,
+  })
+  startup!: StartupDto;
 }
 
 export class LivenessResponseDto {
@@ -174,8 +555,8 @@ export class LivenessResponseDto {
   alive!: boolean;
 
   @ApiProperty({
-    description: "Liveness status message",
-    example: "System is alive",
+    description: "Liveness status (alive | dead)",
+    example: "alive",
   })
   status!: string;
 
@@ -190,6 +571,12 @@ export class LivenessResponseDto {
     example: 3600,
   })
   uptime!: number;
+
+  @ApiProperty({
+    description: "Detailed liveness checks",
+    required: false,
+  })
+  checks?: LivenessChecksDto;
 }
 
 // Metrics DTOs
@@ -634,3 +1021,36 @@ export class ErrorAnalysisResponseDto {
   })
   requestId?: string;
 }
+
+// Consolidated list of health-related DTOs for Swagger registration
+export const healthMetricModels = [
+  HealthCheckResponseDto,
+  ReadinessResponseDto,
+  LivenessResponseDto,
+  HealthCheckDetailsDto,
+  SourceHealthStatusDto,
+  AggregationMetricsDetailsDto,
+  PerformanceHealthMetricsDetailsDto,
+  AccuracyMetricsDetailsDto,
+  DetailedSystemHealthMetricsDto,
+  CacheStatsDto,
+  AggregationCacheStatsDto,
+  AdapterStatsDto,
+  ServiceResponseTimeMetricsDto,
+  ServicePerformanceMetricsDto,
+  ProviderComponentDetailsDto,
+  CacheComponentDto,
+  AggregationComponentDto,
+  IntegrationComponentDto,
+  PerformanceComponentDto,
+  ProviderComponentDto,
+  ApiComponentDto,
+  RateLimiterStatsDto,
+  RateLimiterConfigDto,
+  RateLimiterComponentDto,
+  RetryServiceStatsDto,
+  RetryComponentDto,
+  ErrorHandlingServiceStatsDto,
+  ErrorHandlingComponentDto,
+  ReadinessDiagnosticsDto,
+] as const;

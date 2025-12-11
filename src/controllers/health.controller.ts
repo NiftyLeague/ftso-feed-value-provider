@@ -1,4 +1,4 @@
-import { Controller, Get, Post, HttpException, HttpStatus, Inject } from "@nestjs/common";
+import { Controller, Get, HttpException, HttpStatus, Inject } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from "@nestjs/swagger";
 
 import { BaseController } from "@/common/base/base.controller";
@@ -11,38 +11,36 @@ import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
+import { RateLimiterService } from "@/common/rate-limiting/rate-limiter.service";
+import { ApiMonitorService } from "@/monitoring/api-monitor.service";
 
 import type {
-  HealthCheckResponse,
   DetailedHealthResponse,
   ReadinessResponse,
   LivenessResponse,
+  ReadinessChecks,
+  LivenessChecks,
+  ReadinessDiagnostics,
+  HealthStatusType,
 } from "@/common/types/monitoring";
-import type { HealthStatus } from "@/common/types/monitoring";
 import type { CoreFeedId } from "@/common/types/core";
 import {
   HealthCheckResponseDto,
   ReadinessResponseDto,
   LivenessResponseDto,
-  HealthCheckDetailsDto,
-} from "./dto/health-metrics.dto";
-import { HttpErrorResponseDto } from "./dto/common-error.dto";
+  HttpErrorResponseDto,
+  healthApiModels,
+} from "./dto";
 
 // Create a composed base class with event and lifecycle capabilities
 const EventDrivenController = WithLifecycle(WithEvents(BaseController));
 
 @ApiTags("System Health")
 @Controller()
-@ApiExtraModels(
-  HealthCheckResponseDto,
-  ReadinessResponseDto,
-  LivenessResponseDto,
-  HealthCheckDetailsDto,
-  HttpErrorResponseDto
-)
+@ApiExtraModels(...healthApiModels)
 // Note: Health endpoints should NOT be rate limited - they're used by orchestration systems
 export class HealthController extends EventDrivenController {
-  private readyTime?: number;
+  private readyTime: number | null = null;
   private integrationServiceReady = false;
   private isInitializingStartup = true;
 
@@ -51,6 +49,8 @@ export class HealthController extends EventDrivenController {
     private readonly integrationService: IntegrationService,
     private readonly cacheService: RealTimeCacheService,
     private readonly aggregationService: RealTimeAggregationService,
+    private readonly rateLimiterService: RateLimiterService,
+    private readonly apiMonitorService: ApiMonitorService,
     standardizedErrorHandler: StandardizedErrorHandlerService,
     universalRetryService: UniversalRetryService
   ) {
@@ -107,227 +107,40 @@ export class HealthController extends EventDrivenController {
       });
   }
 
-  @Post("health")
-  @ApiOperation({
-    summary: "Health check endpoint",
-    description: "Returns comprehensive system health status and performance metrics with detailed component status",
-  })
-  @ApiResponse({
-    status: 200,
-    description: "System is healthy",
-    type: HealthCheckResponseDto,
-  })
-  @ApiResponse({
-    status: 503,
-    description: "System is unhealthy",
-    type: HttpErrorResponseDto,
-  })
-  async healthCheck(): Promise<HealthCheckResponse> {
-    const result = await this.executeOperation(
-      async () => {
-        // Get comprehensive health information
-        const [health, performanceMetrics] = await Promise.allSettled([
-          this.providerService.healthCheck(),
-          this.providerService.getPerformanceMetrics(),
-        ]);
-
-        // Get additional component health
-        const cacheStats = this.cacheService.getStats();
-        const aggregationStats = this.aggregationService.getCacheStats();
-
-        // Determine component health status
-        const components = {
-          provider: {
-            status: health.status === "fulfilled" ? health.value.status : "unhealthy",
-            details: health.status === "fulfilled" ? health.value.details : { error: health.reason?.message },
-          },
-          cache: {
-            status: cacheStats.hitRate > ENV.CACHE.HIT_RATE_TARGET ? "healthy" : "degraded",
-            hitRate: cacheStats.hitRate,
-            totalEntries: cacheStats.totalEntries,
-            memoryUsage: cacheStats.memoryUsage,
-          },
-          aggregation: {
-            status: aggregationStats.totalEntries > 0 ? "healthy" : "degraded",
-            totalEntries: aggregationStats.totalEntries,
-            hitRate: aggregationStats.hitRate,
-            averageAge: aggregationStats.averageAge,
-          },
-          performance: {
-            status: performanceMetrics.status === "fulfilled" ? "healthy" : "degraded",
-            metrics: performanceMetrics.status === "fulfilled" ? performanceMetrics.value : null,
-          },
-        };
-
-        // Determine overall health
-        const componentStatuses = Object.values(components).map(c => c.status);
-        const unhealthyCount = componentStatuses.filter(s => s === "unhealthy").length;
-        const degradedCount = componentStatuses.filter(s => s === "degraded").length;
-
-        let overallStatus: "healthy" | "degraded" | "unhealthy";
-        if (unhealthyCount > 0) {
-          overallStatus = "unhealthy";
-        } else if (degradedCount > 0) {
-          overallStatus = "degraded";
-        } else {
-          overallStatus = "healthy";
-        }
-
-        const response = {
-          status: overallStatus,
-          timestamp: Date.now(),
-          version: "1.0.0",
-          uptime: process.uptime(),
-          memory: {
-            used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
-            total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
-            external: Math.round(process.memoryUsage().external / 1024 / 1024), // MB
-            rss: Math.round(process.memoryUsage().rss / 1024 / 1024), // MB
-          },
-          components,
-          details: {
-            environment: ENV.APPLICATION.NODE_ENV,
-            nodeVersion: process.version,
-            platform: process.platform,
-            pid: process.pid,
-          },
-        };
-
-        if (overallStatus === "unhealthy") {
-          const errorMessage = `Liveness check failed - Status: ${overallStatus}`;
-          const errorResponse = {
-            ...response,
-            message: errorMessage,
-            details: `System is unhealthy and not responding properly`,
-          };
-          this.logger.error(errorMessage, { response });
-          throw new HttpException(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
-        }
-
-        return response;
-      },
-      "healthCheck",
-      { performanceThreshold: 1000 }
-    );
-    return result.data as HealthCheckResponse;
-  }
-
   @Get("health")
   @ApiOperation({
     summary: "System health check",
-    description: "Returns comprehensive system health status including all integrated components",
+    description: "Returns a health status summary of the full system.",
   })
   @ApiResponse({
     status: 200,
-    description: "System is healthy",
-    type: HealthCheckResponseDto,
+    description: "System status retrieved.",
+    schema: {
+      properties: {
+        status: { type: "string", example: "healthy" },
+        timestamp: { type: "number", example: 1678886400000 },
+      },
+    },
   })
   @ApiResponse({
     status: 503,
     description: "System is unhealthy",
     type: HttpErrorResponseDto,
   })
-  async getHealth(): Promise<HealthStatus> {
-    try {
-      const startTime = Date.now();
+  async getHealth(): Promise<{ status: HealthStatusType; timestamp: number }> {
+    const detailedHealth = await this.getDetailedHealth();
 
-      // Get integration service health (aggregate system metrics)
-      const systemHealth = await this.integrationService.getSystemHealth();
-
-      // Get adapter stats to show configured vs connected
-      const adapterStats = this.integrationService.getAdapterStats();
-
-      // Get cache statistics from both cache services
-      const cacheStats = this.cacheService.getStats();
-      const aggregationCacheStats = this.aggregationService.getCacheStats();
-
-      // Combine cache stats - average hit rates, sum entries
-      const totalCacheEntries = (cacheStats?.totalEntries || 0) + (aggregationCacheStats?.totalEntries || 0);
-      const averageHitRate = ((cacheStats?.hitRate || 0) + (aggregationCacheStats?.hitRate || 0)) / 2;
-
-      const combinedCacheStats = {
-        hitRate: averageHitRate,
-        entries: totalCacheEntries,
-      };
-
-      // Get detailed source information
-      const healthySources = systemHealth.sources.filter(s => s.status === "healthy");
-      const unhealthySources = systemHealth.sources.filter(s => s.status === "unhealthy");
-
-      // Build response aligned to HealthStatus with source details
-      const response: HealthStatus = {
-        status: systemHealth.status,
-        timestamp: Date.now(),
-        version: "1.0.0",
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        connections: healthySources.length,
-        adapters: adapterStats.total,
-        cache: combinedCacheStats,
-        startup: {
-          initialized: true,
-          startTime: this.startupTime,
-          readyTime: this.readyTime,
-        },
-        // Add source details for debugging
-        sources: {
-          healthy: healthySources.map(s => s.sourceId),
-          unhealthy: unhealthySources.map(s => ({
-            id: s.sourceId,
-            errorCount: s.errorCount,
-            lastUpdate: s.lastUpdate,
-          })),
-          total: systemHealth.sources.length,
-        },
-      };
-
-      // Log health check performance
-      const totalResponseTime = Date.now() - startTime;
-      if (totalResponseTime > 1000) {
-        this.logger.warn(`Health check took ${totalResponseTime}ms (exceeds 1s threshold)`);
-      }
-
-      // Only return 503 for completely non-functional system
-      // Allow degraded systems to return 200 for load testing purposes
-      if (response.status === "unhealthy") {
-        this.logger.warn(`Health check shows unhealthy status but returning 200 for load testing compatibility`);
-        // Still return the response but with 200 status for load testing
-        // The response body will still indicate the unhealthy status
-      }
-
-      return response;
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      this.logger.error("Health check failed:", errMsg);
-
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      const errorResponse: HealthStatus = {
-        status: "unhealthy",
-        timestamp: Date.now(),
-        version: "1.0.0",
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        connections: 0,
-        adapters: 0,
-        cache: { hitRate: 0, entries: 0 },
-        startup: {
-          initialized: false,
-          startTime: this.startupTime,
-          readyTime: this.readyTime,
-        },
-      };
-
-      const enhancedErrorResponse = {
-        ...errorResponse,
-        message: `Health check failed: ${errMsg}`,
-        error: errMsg,
-      };
-
-      throw new HttpException(enhancedErrorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+    if (detailedHealth.status === "unhealthy") {
+      throw new HttpException(
+        { status: detailedHealth.status, timestamp: detailedHealth.timestamp },
+        HttpStatus.SERVICE_UNAVAILABLE
+      );
     }
+
+    return {
+      status: detailedHealth.status,
+      timestamp: detailedHealth.timestamp,
+    };
   }
 
   @Get("health/detailed")
@@ -342,57 +155,255 @@ export class HealthController extends EventDrivenController {
   })
   async getDetailedHealth(): Promise<DetailedHealthResponse> {
     try {
-      // Get comprehensive system health
-      const systemHealth = await this.integrationService.getSystemHealth();
+      // Get comprehensive system health and performance metrics
+      const [
+        systemHealth,
+        performanceMetrics,
+        { checks: readinessChecks, diagnostics: readinessDiagnostics },
+        livenessChecks,
+      ] = await Promise.all([
+        this.integrationService.getSystemHealth(),
+        this.providerService.getPerformanceMetrics(),
+        this.performReadinessChecks(),
+        this.performLivenessChecks(),
+      ]);
 
-      // Intentionally omit system/config blocks to conform to DetailedHealthResponse type
+      const apiHealthMetrics = this.apiMonitorService.getApiHealthMetrics();
+      const apiErrorAnalysis = this.apiMonitorService.getErrorAnalysis();
+      const rateLimitStats = this.rateLimiterService.getStats();
+      const rateLimitConfig = this.rateLimiterService.getRateLimitConfig();
+      const retryStats = this.universalRetryService!.getRetryStatistics();
+      const errorStats = this.standardizedErrorHandler!.getErrorStatistics();
 
+      // Get adapter stats
+      const adapterStats = this.integrationService.getAdapterStats();
+
+      // Get cache statistics
+      const realTimeCacheStats = this.cacheService.getStats();
+      const aggregationCacheStats = this.aggregationService.getCacheStats();
+
+      // Build components health status
+      // Adjusted thresholds to be more realistic for production:
+      // - API unhealthy: >30% error rate or >10% critical requests (was 20% / 5%)
+      // - API degraded: >10% error rate or >30% slow requests (was 5% / 20%)
+      const apiStatus: HealthStatusType =
+        apiHealthMetrics.errorRate > 30 || apiHealthMetrics.criticalRequestRate > 10
+          ? "unhealthy"
+          : apiHealthMetrics.errorRate > 10 || apiHealthMetrics.slowRequestRate > 30
+            ? "degraded"
+            : "healthy";
+
+      const rateLimiterStatus: HealthStatusType = rateLimitStats.hitRate < 0.8 ? "degraded" : "healthy";
+
+      const retryStatsValues = Object.values(retryStats);
+      // Adjusted: allows some retry failures, only unhealthy if >20 total failures
+      const totalFailedRetries = retryStatsValues.reduce((sum, stat) => sum + stat.failedRetries, 0);
+      const retryStatus: HealthStatusType =
+        totalFailedRetries > 20 ? "unhealthy" : totalFailedRetries > 5 ? "degraded" : "healthy";
+
+      const errorStatsValues = Object.values(errorStats);
+      const errorHandlingStatus: HealthStatusType = errorStatsValues.some(stat => stat.consecutiveFailures > 10)
+        ? "unhealthy"
+        : errorStatsValues.some(stat => stat.consecutiveFailures > 0)
+          ? "degraded"
+          : "healthy";
+
+      const components = {
+        provider: {
+          status: systemHealth.status,
+          details: {
+            ...systemHealth, // DetailedSystemHealthMetrics
+            providerUptime: performanceMetrics.uptime,
+            providerResponseTime: performanceMetrics.responseTime,
+            providerRequestsPerSecond: performanceMetrics.requestsPerSecond,
+            providerErrorRate: performanceMetrics.errorRate,
+            providerCacheStats: performanceMetrics.cacheStats,
+            providerAggregationStats: performanceMetrics.aggregationStats,
+            activeFeedCount: performanceMetrics.activeFeedCount,
+          },
+        },
+        cache: (() => {
+          const cacheHealth = this.cacheService.getCacheHealthStatus();
+          return {
+            status: cacheHealth.status,
+            details: {
+              ...realTimeCacheStats,
+              ...cacheHealth.metrics,
+              healthReason: cacheHealth.reason,
+            },
+          };
+        })(),
+        aggregation: {
+          status: aggregationCacheStats.totalEntries > 0 ? "healthy" : "degraded",
+          details: aggregationCacheStats,
+        },
+        integration: {
+          // Adjusted: allows up to 10% inactive adapters to be healthy (was requiring 100%)
+          status: (() => {
+            const activeRatio = adapterStats.total > 0 ? adapterStats.active / adapterStats.total : 0;
+            return activeRatio >= 0.9 ? "healthy" : activeRatio >= 0.7 ? "degraded" : "unhealthy";
+          })(),
+          details: {
+            ...adapterStats,
+            activeRatio: `${adapterStats.total > 0 ? ((adapterStats.active / adapterStats.total) * 100).toFixed(1) : 0}%`,
+          },
+        },
+        performance: {
+          status: "healthy",
+          details: {
+            system: {
+              cpu: 0, // Placeholder, actual CPU usage would need OS-level monitoring
+              memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+              uptime: process.uptime(),
+            },
+            application: {
+              responseTime: performanceMetrics.responseTime.average,
+              throughput: performanceMetrics.requestsPerSecond,
+              errorRate: performanceMetrics.errorRate,
+              cacheHitRate: realTimeCacheStats.hitRate,
+            },
+            feeds: {
+              active: performanceMetrics.activeFeedCount,
+              total: performanceMetrics.activeFeedCount, // Assuming all active are total for now
+              aggregations: aggregationCacheStats.totalEntries, // Approximation
+            },
+          },
+        },
+        api: {
+          status: apiStatus,
+          details: {
+            ...apiHealthMetrics,
+            errorAnalysis: apiErrorAnalysis,
+          },
+        },
+        rateLimiter: {
+          status: rateLimiterStatus,
+          details: {
+            stats: rateLimitStats,
+            config: rateLimitConfig,
+          },
+        },
+        retries: {
+          status: retryStatus,
+          details: retryStats,
+        },
+        errorHandling: {
+          status: errorHandlingStatus,
+          details: errorStats,
+        },
+      };
+
+      // Determine overall health
+      const componentStatuses = Object.values(components).map(c => c.status);
+      const unhealthyCount = componentStatuses.filter(s => s === "unhealthy").length;
+      const degradedCount = componentStatuses.filter(s => s === "degraded").length;
+
+      let overallStatus: HealthStatusType;
+      if (unhealthyCount > 0) {
+        overallStatus = "unhealthy";
+      } else if (degradedCount > 0) {
+        overallStatus = "degraded";
+      } else {
+        overallStatus = "healthy";
+      }
+
+      // Build the final detailed response
       return {
-        status: systemHealth.status,
+        status: overallStatus,
         timestamp: Date.now(),
         uptime: process.uptime(),
-        version: "1.0.0",
-        components: {
-          database: {
-            component: "database",
-            status: systemHealth.status,
-            timestamp: Date.now(),
-          },
-          cache: {
-            component: "cache",
-            status: systemHealth.status,
-            timestamp: Date.now(),
-          },
-          adapters: {
-            component: "adapters",
-            status: systemHealth.status,
-            timestamp: Date.now(),
-          },
-          integration: {
-            component: "integration",
-            status: systemHealth.status,
-            timestamp: Date.now(),
-          },
+        version: ENV.APPLICATION.VERSION,
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
+          external: Math.round(process.memoryUsage().external / 1024 / 1024), // MB
+          rss: Math.round(process.memoryUsage().rss / 1024 / 1024), // MB
         },
+        details: {
+          environment: ENV.APPLICATION.NODE_ENV,
+          nodeVersion: process.version,
+          platform: process.platform,
+          pid: process.pid,
+        },
+        components: components,
         startup: {
-          initialized: true,
+          initialized: !this.isInitializingStartup,
           startTime: this.startupTime,
-          readyTime: this.readyTime,
+          readyTime: this.readyTime ?? null,
         },
+        probes: {
+          liveness: livenessChecks,
+          readiness: readinessChecks,
+        },
+        readinessDiagnostics: readinessDiagnostics,
       };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
       const errStack = error instanceof Error ? error.stack : undefined;
       this.logger.error("Detailed health check failed:", errMsg);
-      throw new HttpException(
-        {
-          error: "Detailed health check failed",
-          message: errMsg,
-          timestamp: Date.now(),
-          stack: ENV_HELPERS.isDevelopment() ? errStack : undefined,
+
+      // Fall back to an unhealthy response instead of propagating a 500 to callers
+      // so that health endpoints remain debuggable even when dependencies error.
+      const fallback: DetailedHealthResponse = {
+        status: "unhealthy",
+        timestamp: Date.now(),
+        uptime: process.uptime(),
+        version: ENV.APPLICATION.VERSION,
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+          external: Math.round(process.memoryUsage().external / 1024 / 1024),
+          rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
         },
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
+        details: {
+          environment: ENV.APPLICATION.NODE_ENV,
+          nodeVersion: process.version,
+          platform: process.platform,
+          pid: process.pid,
+          error: errMsg,
+          stack: ENV_HELPERS.isDevelopment() || ENV_HELPERS.isTest() ? errStack : undefined,
+        },
+        components: {
+          provider: { status: "unhealthy", details: { error: errMsg } },
+          cache: { status: "unhealthy", details: { error: errMsg } },
+          aggregation: { status: "unhealthy", details: { error: errMsg } },
+          integration: { status: "unhealthy", details: { error: errMsg } },
+          performance: { status: "unhealthy", details: { error: errMsg } },
+          api: { status: "unhealthy", details: { error: errMsg } },
+          rateLimiter: { status: "unhealthy", details: { error: errMsg } },
+          retries: { status: "unhealthy", details: { error: errMsg } },
+          errorHandling: { status: "unhealthy", details: { error: errMsg } },
+        },
+        startup: {
+          initialized: !this.isInitializingStartup,
+          startTime: this.startupTime,
+          readyTime: this.readyTime ?? null,
+        },
+        probes: {
+          liveness: {
+            integration: false,
+            provider: false,
+            memory: false,
+            responseTime: 0,
+          },
+          readiness: {
+            integration: { ready: false, status: "unhealthy", error: errMsg },
+            provider: { ready: false, status: "unhealthy", error: errMsg },
+            startup: { ready: false },
+          },
+        },
+        readinessDiagnostics: {
+          healthySources: 0,
+          totalSources: 0,
+          aggregationSuccessRate: 0,
+          canServeFeedData: false,
+          state: "not_ready",
+          validFeedCount: 0,
+          totalTestFeeds: 0,
+        },
+      };
+
+      return fallback;
     }
   }
 
@@ -416,7 +427,7 @@ export class HealthController extends EventDrivenController {
     try {
       const startTime = Date.now();
       // Perform readiness checks
-      const checks = await this.performReadinessChecks();
+      const { checks, diagnostics } = await this.performReadinessChecks();
       // System is ready if all critical checks pass
       const isReady = checks.integration.ready && checks.provider.ready && checks.startup.ready;
 
@@ -427,48 +438,12 @@ export class HealthController extends EventDrivenController {
           : "degraded"
         : "unhealthy";
 
-      // Get diagnostic information for the response
-      let diagnostics: {
-        healthySources?: number;
-        totalSources?: number;
-        aggregationSuccessRate?: number;
-        canServeFeedData?: boolean;
-        state?: "not_ready" | "warming_up" | "ready";
-        validFeedCount?: number;
-        totalTestFeeds?: number;
-      } = {};
-
-      try {
-        const systemHealth = await this.integrationService.getSystemHealth();
-        const healthySources = systemHealth.sources.filter(s => s.status === "healthy").length;
-
-        // Get readiness state from checks (it's computed in performReadinessChecks)
-        let state: "not_ready" | "warming_up" | "ready" = "not_ready";
-        if (isReady) {
-          state = "ready";
-        } else if (healthySources > 0 && systemHealth.aggregation.successRate > 0) {
-          state = "warming_up";
-        }
-
-        diagnostics = {
-          healthySources,
-          totalSources: systemHealth.sources.length,
-          aggregationSuccessRate: systemHealth.aggregation.successRate,
-          canServeFeedData: isReady,
-          state,
-          validFeedCount: undefined, // Will be set if available
-          totalTestFeeds: 4, // BTC, ETH, SOL, FLR
-        };
-      } catch {
-        // Diagnostics are optional, don't fail if we can't get them
-        this.logger.debug("Could not get diagnostics for readiness response");
-      }
-
-      const response = {
+      const response: ReadinessResponse = {
         ready: isReady,
         status: overallStatus,
         timestamp: Date.now(),
         responseTime: Date.now() - startTime,
+        uptime: process.uptime(), // Added uptime
         checks,
         diagnostics,
         startup: {
@@ -494,14 +469,24 @@ export class HealthController extends EventDrivenController {
         }
 
         // Create a proper error response with meaningful message
-        const errorResponse = {
-          ...response,
-          message: errorMessage,
-          details: `Integration: ${checks.integration.status}, Provider: ${checks.provider.status}, Startup: ${checks.startup.ready ? "ready" : "not ready"}`,
-        };
-
-        // The HttpExceptionFilter will handle logging appropriately based on the path and message
-        throw new HttpException(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+        throw new HttpException(
+          {
+            ready: false,
+            status: overallStatus,
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            error: "Service Unavailable",
+            message: errorMessage,
+            timestamp: Date.now(),
+            path: "/health/ready",
+            details: {
+              integration: checks.integration.status,
+              provider: checks.provider.status,
+              startup: checks.startup.ready ? "ready" : "not ready",
+              diagnostics: diagnostics,
+            },
+          },
+          HttpStatus.SERVICE_UNAVAILABLE
+        );
       }
 
       // Mark as ready if this is the first successful readiness check
@@ -514,9 +499,10 @@ export class HealthController extends EventDrivenController {
       return response;
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : undefined;
       const errorContext = {
         error: errMsg,
-        stack: error instanceof Error ? error.stack : undefined,
+        stack: errStack,
         startupTime: this.startupTime,
         readyTime: this.readyTime,
         isInitializing: this.isInitializingStartup,
@@ -536,19 +522,28 @@ export class HealthController extends EventDrivenController {
         throw error;
       }
 
-      const errorResponse = {
-        ready: false,
-        status: "unhealthy",
-        timestamp: Date.now(),
-        message: `Readiness check failed: ${errMsg}`,
-        error: errMsg,
-        startup: {
-          startTime: this.startupTime,
-          readyTime: this.readyTime,
+      // Fallback error response
+      throw new HttpException(
+        {
+          ready: false,
+          status: "unhealthy",
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          error: "Service Unavailable",
+          message: `Readiness check failed: ${errMsg}`,
+          timestamp: Date.now(),
+          path: "/health/ready",
+          details: {
+            ready: false,
+            // Include relevant context from errorContext or default values
+            startupTime: errorContext.startupTime,
+            readyTime: errorContext.readyTime,
+            isInitializing: errorContext.isInitializing,
+            reason: errMsg,
+            stack: ENV_HELPERS.isDevelopment() ? errStack : undefined,
+          },
         },
-      };
-
-      throw new HttpException(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+        HttpStatus.SERVICE_UNAVAILABLE
+      );
     }
   }
 
@@ -576,16 +571,17 @@ export class HealthController extends EventDrivenController {
 
       const response: LivenessResponse = {
         alive: isAlive,
+        status: isAlive ? "alive" : "dead",
         timestamp: Date.now(),
         uptime: process.uptime(),
-        // Include checks for testing/observability (not strictly required by type)
-        ...(livenessChecks && { checks: livenessChecks as unknown as never }),
+        checks: livenessChecks,
       };
 
       if (!isAlive) {
         const errorMessage = `Liveness check failed - System is not alive`;
         const errorResponse = {
           ...response,
+          status: "dead",
           message: errorMessage,
           details: `Integration: ${livenessChecks.integration}, Provider: ${livenessChecks.provider}`,
         };
@@ -604,12 +600,20 @@ export class HealthController extends EventDrivenController {
 
       const resp: LivenessResponse = {
         alive: false,
+        status: "dead",
         timestamp: Date.now(),
         uptime: process.uptime(),
+        checks: {
+          integration: false,
+          provider: false,
+          memory: false,
+          responseTime: 0,
+        },
       };
 
       const enhancedErrorResponse = {
         ...resp,
+        status: "dead",
         message: `Liveness check failed: ${errMsg}`,
         error: errMsg,
       };
@@ -620,19 +624,21 @@ export class HealthController extends EventDrivenController {
 
   // Helper methods
 
-  private async performReadinessChecks(): Promise<{
-    integration: { ready: boolean; status: string; error: null | string };
-    provider: { ready: boolean; status: string; error: null | string };
-    startup: { ready: boolean };
-  }> {
-    const checks: {
-      integration: { ready: boolean; status: string; error: string | null };
-      provider: { ready: boolean; status: string; error: string | null };
-      startup: { ready: boolean };
-    } = {
+  private async performReadinessChecks(): Promise<{ checks: ReadinessChecks; diagnostics: ReadinessDiagnostics }> {
+    const checks: ReadinessChecks = {
       integration: { ready: false, status: "unhealthy", error: null },
       provider: { ready: false, status: "unhealthy", error: null },
       startup: { ready: false },
+    };
+
+    let diagnostics: ReadinessDiagnostics = {
+      healthySources: 0,
+      totalSources: 0,
+      aggregationSuccessRate: 0,
+      canServeFeedData: false,
+      state: "not_ready",
+      validFeedCount: 0,
+      totalTestFeeds: 4, // BTC, ETH, SOL, FLR
     };
 
     try {
@@ -692,6 +698,11 @@ export class HealthController extends EventDrivenController {
         const healthySources = systemHealth.sources.filter(s => s.status === "healthy").length;
         const totalSources = systemHealth.sources.length;
 
+        // Populate diagnostics
+        diagnostics.healthySources = healthySources;
+        diagnostics.totalSources = totalSources;
+        diagnostics.aggregationSuccessRate = systemHealth.aggregation.successRate;
+
         // System readiness logic:
         // The system is ready when it can actually serve data to users.
         // This means we need data sources connected and able to provide prices.
@@ -712,6 +723,8 @@ export class HealthController extends EventDrivenController {
         let canServeFeedData = false;
         let feedTestError: string | null = null;
         let validFeedCount = 0;
+
+        diagnostics.totalTestFeeds = 4; // Always 4 for BTC, ETH, SOL, FLR
 
         if (hasHealthySources || hasSuccessfulAggregation) {
           try {
@@ -759,6 +772,8 @@ export class HealthController extends EventDrivenController {
 
             // Require ALL test feeds to have valid data
             canServeFeedData = validFeedCount === testFeeds.length;
+            diagnostics.canServeFeedData = canServeFeedData;
+            diagnostics.validFeedCount = validFeedCount;
 
             if (!canServeFeedData) {
               feedTestError = `Only ${validFeedCount}/${testFeeds.length} test feeds have valid data [${testResults.join(", ")}]`;
@@ -832,6 +847,7 @@ export class HealthController extends EventDrivenController {
             );
           }
         }
+        diagnostics.state = readinessState;
 
         if (readinessState === "ready") {
           this.logger.log(
@@ -866,16 +882,11 @@ export class HealthController extends EventDrivenController {
       checks.startup.ready = false;
     }
 
-    return checks;
+    return { checks, diagnostics };
   }
 
-  private async performLivenessChecks(): Promise<{
-    integration: boolean;
-    provider: boolean;
-    memory: boolean;
-    responseTime: number;
-  }> {
-    const checks = {
+  private async performLivenessChecks(): Promise<LivenessChecks> {
+    const checks: LivenessChecks = {
       integration: false,
       provider: false,
       memory: false,
