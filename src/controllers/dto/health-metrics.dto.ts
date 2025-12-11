@@ -481,7 +481,7 @@ export class HealthCheckResponseDto {
     required: false,
     example: {
       environment: "development",
-      nodeVersion: "v18.12.0",
+      nodeVersion: "v24.5.0",
       platform: "darwin",
     },
   })

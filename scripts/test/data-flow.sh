@@ -134,13 +134,13 @@ analyze_logs() {
     
     # Check for WebSocket connections
     local ws_connections=$(tail -n 100 "$LOG_FILE" | grep -c "WebSocket.*connected\|Subscribed to.*symbols" || echo "0")
-    if [ $ws_connections -gt 0 ]; then
+    if [ "$ws_connections" -gt 0 ]; then
         WEBSOCKET_CONNECTIONS=$((WEBSOCKET_CONNECTIONS + ws_connections))
     fi
     
     # Check for price aggregation activity
     local price_aggregations=$(tail -n 100 "$LOG_FILE" | grep -c "Price aggregated\|aggregated price" || echo "0")
-    if [ $price_aggregations -gt 0 ]; then
+    if [ "$price_aggregations" -gt 0 ]; then
         echo "   📈 Price aggregation activity detected: $price_aggregations events"
         DATA_FLOW_DETECTED="true"
     fi

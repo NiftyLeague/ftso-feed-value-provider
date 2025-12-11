@@ -199,7 +199,7 @@ serving" vs "must restart container".
   },
   "details": {
     "environment": "development",
-    "nodeVersion": "v18.12.0",
+    "nodeVersion": "v24.5.0",
     "platform": "darwin",
     "pid": 12345
   },

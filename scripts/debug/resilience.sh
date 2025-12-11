@@ -92,7 +92,7 @@ if wait_for_debug_service_readiness "http://localhost:3101" 10 20 "FTSO Service"
     echo "🧪 Test 2: API resilience (rapid requests)..."
     pids=()
     for i in $(seq 1 10); do
-        curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/health" >/dev/null 2>&1 &
+        curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/health/ready" >/dev/null 2>&1 &
         pids+=($!)
         curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/feed-values?feeds=BTC/USD" >/dev/null 2>&1 &
         pids+=($!)

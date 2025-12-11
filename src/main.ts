@@ -198,7 +198,7 @@ async function bootstrap() {
     // Configure global rate limiting
     const rateLimiterService = new RateLimiterService({
       windowMs: 60000, // 1 minute
-      maxRequests: 100, // 100 requests per minute per client
+      maxRequests: 5000, // 5000 requests per minute per client
       skipSuccessfulRequests: false,
       skipFailedRequests: false,
     });
@@ -210,7 +210,7 @@ async function bootstrap() {
       component: "Bootstrap",
       operation: "configure_rate_limiting",
       windowMs: 60000,
-      maxRequests: 100,
+      maxRequests: 5000,
     });
 
     // Configure API documentation

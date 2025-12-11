@@ -210,7 +210,7 @@ else
             
             # Try one more health check with verbose output
             echo "🔍 Final health check attempt:"
-            curl -v http://localhost:$AVAILABLE_PORT/health 2>&1 | head -10 || echo "  - Health check failed"
+            curl -v http://localhost:$AVAILABLE_PORT/health/ready 2>&1 | head -10 || echo "  - Health check failed"
         else
             echo "  - Port $AVAILABLE_PORT is not bound - application may not have started properly"
         fi

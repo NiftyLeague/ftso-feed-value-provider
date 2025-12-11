@@ -1,7 +1,8 @@
 # Multi-stage production Dockerfile for FTSO Feed Value Provider
-FROM node:22-bookworm-slim AS base
+FROM node:24-bookworm-slim AS base
 
 # Install security updates and required packages
+# Debian bookworm-slim uses apt package manager
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends dumb-init curl ca-certificates && \
     apt-get clean && \

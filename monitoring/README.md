@@ -216,7 +216,7 @@ docker-compose stop prometheus
 
 # Backup data directory
 docker run --rm -v ftso-prometheus-data:/data -v $(pwd):/backup \
-  alpine tar czf /backup/prometheus-backup.tar.gz /data
+  debian:bookworm-slim tar czf /backup/prometheus-backup.tar.gz /data
 
 # Restart Prometheus
 docker-compose start prometheus

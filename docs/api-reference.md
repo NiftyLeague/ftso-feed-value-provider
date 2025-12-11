@@ -247,7 +247,7 @@ curl http://localhost:3101/health/detailed
   "uptime": 7200,
   "version": "1.0.0",
   "memory": { "used": 128, "total": 512, "external": 50, "rss": 200 },
-  "details": { "environment": "development", "nodeVersion": "v18.12.0", "platform": "darwin", "pid": 12345 },
+  "details": { "environment": "development", "nodeVersion": "v24.5.0", "platform": "darwin", "pid": 12345 },
   "components": {
     "provider": { "status": "healthy", "details": { ... } },
     "cache": { "status": "healthy", "details": { ... } },

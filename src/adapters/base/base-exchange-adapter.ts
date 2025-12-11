@@ -39,6 +39,24 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   private warningLastLogged = new Map<string, number>();
   private readonly WARNING_COOLDOWN_MS = 30000; // 30 seconds
 
+  // Request queue for rate limiting (migrated from OKX adapter)
+  private requestQueue: Array<{
+    requestFn: () => Promise<Response>;
+    resolve: (value: Response) => void;
+    reject: (reason: Error) => void;
+  }> = [];
+  private isQueueProcessing = false;
+  private lastRequestTime = 0;
+
+  // Rate limiting configuration with sensible defaults
+  protected rateLimitConfig = {
+    maxRetries: 2,
+    baseDelay: 2000, // 2 seconds
+    multiplier: 2,
+    queueInterval: 100, // 100ms minimum interval between requests
+    enableQueue: false, // Disabled by default for backward compatibility
+  };
+
   // Event callbacks
   protected onPriceUpdateCallback?: (update: PriceUpdate) => void;
   protected onVolumeUpdateCallback?: (update: VolumeUpdate) => void;
@@ -66,6 +84,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   constructor(config?: IExchangeAdapterConfig) {
     super(config || { connection: {} });
     this.initValidation();
+    this.initRateLimiting(config?.connection);
   }
 
   /**
@@ -81,6 +100,78 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       },
       true // silent mode to prevent duplicate rule errors
     );
+  }
+
+  /**
+   * Initialize rate limiting configuration from connection config
+   */
+  protected initRateLimiting(connectionConfig?: ExchangeConnectionConfig): void {
+    if (connectionConfig?.rateLimiting) {
+      const { maxRetries, baseDelay, multiplier, queueInterval, enableQueue } = connectionConfig.rateLimiting;
+
+      if (maxRetries !== undefined) this.rateLimitConfig.maxRetries = maxRetries;
+      if (baseDelay !== undefined) this.rateLimitConfig.baseDelay = baseDelay;
+      if (multiplier !== undefined) this.rateLimitConfig.multiplier = multiplier;
+      if (queueInterval !== undefined) this.rateLimitConfig.queueInterval = queueInterval;
+      if (enableQueue !== undefined) this.rateLimitConfig.enableQueue = enableQueue;
+    }
+  }
+
+  /**
+   * Queue a request to ensure proper spacing between API calls
+   * Migrated from OKX adapter for use by all exchanges with strict rate limiting
+   */
+  protected async queueRequest<T>(requestFn: () => Promise<T>): Promise<T> {
+    if (!this.rateLimitConfig.enableQueue) {
+      // If queuing is disabled, execute immediately (backward compatibility)
+      return requestFn();
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      this.requestQueue.push({
+        requestFn: requestFn as () => Promise<Response>,
+        resolve: resolve as (value: Response) => void,
+        reject,
+      });
+
+      // Start queue processing if not already running
+      if (!this.isQueueProcessing) {
+        void this.processQueue();
+      }
+    });
+  }
+
+  /**
+   * Process the request queue with configurable intervals
+   * Migrated from OKX adapter for use by all exchanges
+   */
+  private async processQueue(): Promise<void> {
+    if (this.isQueueProcessing) return;
+    this.isQueueProcessing = true;
+
+    while (this.requestQueue.length > 0) {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+
+      // Ensure minimum interval between requests
+      if (timeSinceLastRequest < this.rateLimitConfig.queueInterval) {
+        const waitTime = this.rateLimitConfig.queueInterval - timeSinceLastRequest;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+
+      const request = this.requestQueue.shift();
+      if (!request) break;
+
+      try {
+        this.lastRequestTime = Date.now();
+        const response = await request.requestFn();
+        request.resolve(response);
+      } catch (error) {
+        request.reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+
+    this.isQueueProcessing = false;
   }
 
   // Abstract properties that must be implemented
@@ -525,41 +616,55 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
   }
 
   /**
-   * Helper method for REST API calls with standardized error handling and rate limiting
+   * Helper method for REST API calls with standardized error handling and configurable rate limiting
+   * Now supports queue-based rate limiting migrated from OKX adapter
    */
   protected async fetchRestApi(url: string, errorContext: string, retryCount = 0): Promise<Response> {
-    const maxRetries = 2; // Reduced from 3 to 2 to be less aggressive
-    const baseDelay = 2000; // Increased from 1s to 2s base delay
+    // Use request queue if enabled for strict rate limiting
+    const executeRequest = async (): Promise<Response> => {
+      const { maxRetries, baseDelay, multiplier } = this.rateLimitConfig;
 
-    try {
-      const response = await fetch(url);
+      try {
+        const response = await fetch(url);
 
-      // Handle rate limiting (429) with exponential backoff
-      if (response.status === 429) {
-        if (retryCount < maxRetries) {
-          const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
-          // Use debug level for rate limiting warnings to reduce log noise
-          this.logger.debug(
-            `Rate limited by ${this.exchangeName}, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries + 1})`
-          );
+        // Handle rate limiting (429) with configurable exponential backoff
+        if (response.status === 429) {
+          if (retryCount < maxRetries) {
+            const delay = baseDelay * Math.pow(multiplier, retryCount);
 
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return this.fetchRestApi(url, errorContext, retryCount + 1);
-        } else {
-          this.logger.warn(
-            `Rate limit exceeded for ${this.exchangeName} after ${maxRetries + 1} attempts, skipping request`
-          );
+            // Log with exchange-specific context
+            const logLevel = this.rateLimitConfig.enableQueue ? "debug" : "warn";
+            this.logger[logLevel](
+              `${this.exchangeName} rate limited, retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries + 1})${
+                this.rateLimitConfig.enableQueue ? " [Queue: enabled]" : ""
+              }`
+            );
+
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return this.fetchRestApi(url, errorContext, retryCount + 1);
+          } else {
+            this.logger.error(
+              `${this.exchangeName} rate limit exceeded after ${maxRetries + 1} attempts. Consider enabling request queuing or reducing request frequency.`
+            );
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+        }
+
+        if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        return response;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`${errorContext}: ${errorMessage}`);
       }
+    };
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      return response;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`${errorContext}: ${errorMessage}`);
+    // Use queue if enabled, otherwise execute directly
+    if (this.rateLimitConfig.enableQueue) {
+      return this.queueRequest(executeRequest);
+    } else {
+      return executeRequest();
     }
   }
 

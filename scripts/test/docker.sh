@@ -193,7 +193,7 @@ echo ""
 
 # Test 4: Check health endpoint
 echo "4️⃣  Testing health endpoint..."
-HEALTH=$(curl -s http://localhost:3101/health)
+HEALTH=$(curl -s http://localhost:3101/health/ready)
 if echo "$HEALTH" | grep -q '"status":"healthy"'; then
     echo -e "${GREEN}✓ Health check passed${NC}"
 else
@@ -256,7 +256,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "📊 Service URLs:"
 echo "   • API:        http://localhost:3101"
-echo "   • Health:     http://localhost:3101/health"
+echo "   • Health:     http://localhost:3101/health/ready"
 echo "   • Metrics:    http://localhost:3101/metrics/prometheus"
 echo "   • Prometheus: http://localhost:9091 (if monitoring enabled)"
 echo "   • Grafana:    http://localhost:3000 (if monitoring enabled)"

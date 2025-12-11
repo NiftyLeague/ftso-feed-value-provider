@@ -54,7 +54,7 @@ log_both "🚀 Starting application..."
 start_app_with_cleanup "pnpm start:dev 2>&1 | strip_ansi" 3101 "$TEST_LOG_FILE"
 
 # Wait for complete system readiness using enhanced detection
-if ! check_system_readiness "$TEST_LOG_FILE"; then
+if ! check_system_readiness "$TEST_LOG_FILE" "true" "http://localhost:3101"; then
     log_both "❌ System not ready for testing"
     exit 1
 fi

@@ -9,7 +9,14 @@ import { PriceUpdate, VolumeUpdate } from "../core/data-source.types";
 export interface ExchangeConnectionConfig {
   websocketUrl?: string;
   restApiUrl?: string;
-  rateLimit?: number; // requests per second
+  // Enhanced rate limiting configuration
+  rateLimiting?: {
+    maxRetries?: number; // Maximum retry attempts for rate limited requests
+    baseDelay?: number; // Base delay in milliseconds for exponential backoff
+    multiplier?: number; // Multiplier for exponential backoff
+    queueInterval?: number; // Minimum interval between queued requests in milliseconds
+    enableQueue?: boolean; // Enable request queuing (recommended for strict rate limits)
+  };
 }
 
 export interface ExchangeCapabilities {

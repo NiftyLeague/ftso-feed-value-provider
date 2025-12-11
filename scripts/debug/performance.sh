@@ -76,8 +76,8 @@ while [ $ELAPSED -lt $MONITOR_DURATION ]; do
     
     # Test response time (if server is ready)
     RESPONSE_TIME="0"
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3101/health 2>/dev/null | grep -q "200\|503"; then
-        RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" http://localhost:3101/health 2>/dev/null | awk '{print int($1*1000)}' || echo "0")
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:3101/health/ready 2>/dev/null | grep -q "200\|503"; then
+        RESPONSE_TIME=$(curl -s -o /dev/null -w "%{time_total}" http://localhost:3101/health/ready 2>/dev/null | awk '{print int($1*1000)}' || echo "0")
     fi
     
     # Log metrics
