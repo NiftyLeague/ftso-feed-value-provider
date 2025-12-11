@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiExtraModels } from "@nestjs/swag
 import { ConfigService } from "@/config/config.service";
 import { ENV } from "@/config/environment.constants";
 import * as exchangesConfig from "@/config/exchanges.json";
+import { ExchangeId } from "@/common/types/adapters";
 import {
   ConfigStatusResponseDto,
   ConfigValidationResponseDto,
@@ -71,6 +72,9 @@ export class ConfigController {
   getConfigurationStatus(): ConfigStatusResponseDto {
     const feeds = this.configService.getFeedConfigurations();
 
+    const customAdapters = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
+    const ccxtExchanges = this.getCcxtExchanges();
+
     return {
       environment: {
         isValid: true,
@@ -99,9 +103,9 @@ export class ConfigController {
         filePath: "src/config/feeds.json",
       },
       adapters: {
-        customAdapterCount: 5, // binance, coinbase, cryptocom, kraken, okx
-        ccxtAdapterCount: 11, // All others
-        totalExchanges: 16,
+        customAdapterCount: customAdapters.length,
+        ccxtAdapterCount: ccxtExchanges.length,
+        totalExchanges: customAdapters.length + ccxtExchanges.length,
       },
     };
   }
@@ -184,7 +188,7 @@ export class ConfigController {
         {} as Record<string, number>
       ),
       hybridSummary: {
-        customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
+        customAdapterExchanges: ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS,
         ccxtExchanges: this.getCcxtExchanges(),
         ccxtParameters: {
           lambda: 0.00005,
@@ -212,11 +216,12 @@ export class ConfigController {
   })
   getAdapterConfiguration(): AdapterConfigurationResponseDto {
     const ccxtExchanges = this.getCcxtExchanges();
+    const customAdapterExchanges = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
     return {
-      customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
+      customAdapterExchanges,
       ccxtExchanges,
       hybridProviderConfig: {
-        customAdapterExchanges: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
+        customAdapterExchanges,
         ccxtExchanges,
         ccxtParameters: {
           lambda: 0.00005,
@@ -232,9 +237,9 @@ export class ConfigController {
    * Filters out custom adapter exchanges from the crypto category
    */
   private getCcxtExchanges(): string[] {
-    const customAdapterExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
+    const customAdapterExchanges = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
     const cryptoExchanges = exchangesConfig.categories["1"]?.exchanges || [];
 
-    return cryptoExchanges.filter(exchange => !customAdapterExchanges.includes(exchange));
+    return cryptoExchanges.filter(exchange => !customAdapterExchanges.includes(exchange as ExchangeId));
   }
 }

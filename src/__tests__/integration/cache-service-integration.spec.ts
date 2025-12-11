@@ -4,6 +4,7 @@ import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("Cache Service Integration - Task 7 Implementation", () => {
   let cacheService: RealTimeCacheService;
@@ -19,7 +20,7 @@ describe("Cache Service Integration - Task 7 Implementation", () => {
     symbol: "BTC/USD",
     price: 50000,
     timestamp: Date.now(),
-    sources: ["binance", "coinbase"],
+    sources: [ExchangeId.Binance, ExchangeId.Coinbase],
     confidence: 0.95,
     consensusScore: 0.98,
   };

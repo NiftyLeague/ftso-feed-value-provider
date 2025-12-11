@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
 
+import { ExchangeId } from "@/common/types/adapters";
 import type { IExchangeAdapter, ExchangeConnectionConfig } from "@/common/types/adapters";
 import type { RawPriceData, RawVolumeData } from "@/common/types/adapters";
 import type { CoreFeedId, PriceUpdate, VolumeUpdate } from "@/common/types/core";
@@ -12,7 +13,7 @@ import { DataValidator } from "../validation/data-validator";
 
 // Mock adapter for testing that implements DataSource interface
 class MockExchangeAdapter implements IExchangeAdapter {
-  readonly exchangeName = "binance"; // Match the feed configuration
+  readonly exchangeName = ExchangeId.Binance; // Match the feed configuration
   readonly category = FeedCategory.Crypto;
   readonly capabilities = {
     supportsWebSocket: true,
@@ -23,7 +24,7 @@ class MockExchangeAdapter implements IExchangeAdapter {
   };
 
   // DataSource interface properties
-  readonly id = "binance"; // Match the exchange name
+  readonly id = ExchangeId.Binance; // Match the exchange name
   readonly type: "websocket" | "rest" = "websocket";
   readonly priority = 1;
 
@@ -152,8 +153,8 @@ describe("ProductionDataManagerService", () => {
       getFeedConfiguration: jest.fn().mockReturnValue({
         feed: { category: 1, name: "BTC/USD" },
         sources: [
-          { exchange: "binance", symbol: "BTC/USD" },
-          { exchange: "coinbase", symbol: "BTC/USD" },
+          { exchange: ExchangeId.Binance, symbol: "BTC/USD" },
+          { exchange: ExchangeId.Coinbase, symbol: "BTC/USD" },
         ],
       }),
       hasCustomAdapter: jest.fn().mockReturnValue(true),

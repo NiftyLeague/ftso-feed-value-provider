@@ -58,7 +58,7 @@ export class CircuitBreakerService extends EventDrivenService {
 
     // Even more lenient thresholds for individual exchange sources (binance, coinbase, etc.)
     // These naturally disconnect/reconnect and shouldn't trigger circuit breakers aggressively
-    const exchangeNames = ["binance", "coinbase", "kraken", "okx", "cryptocom"];
+    const exchangeNames = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
     if (exchangeNames.some(name => serviceId.toLowerCase().includes(name))) {
       fullConfig.failureThreshold = Math.max(fullConfig.failureThreshold, 15); // Very lenient for exchanges
       fullConfig.recoveryTimeout = Math.min(fullConfig.recoveryTimeout, 30000); // Fast recovery (30s)

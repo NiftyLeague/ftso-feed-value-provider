@@ -4,6 +4,7 @@
 
 import { EnvironmentUtils } from "@/common/utils/environment.utils";
 import type { LogLevel } from "@/common/types/logging";
+import { ExchangeId, isExchangeId } from "@/common/types/adapters";
 
 // Environment Helpers
 export const ENV_HELPERS = {
@@ -13,6 +14,27 @@ export const ENV_HELPERS = {
 };
 
 import * as packageJson from "../../package.json";
+
+const DEFAULT_CUSTOM_ADAPTERS: readonly ExchangeId[] = [
+  ExchangeId.Binance,
+  ExchangeId.Coinbase,
+  ExchangeId.Cryptocom,
+  ExchangeId.Kraken,
+  ExchangeId.Okx,
+];
+
+const parseDisabledCustomAdapters = (): ExchangeId[] => {
+  const validAdapters = new Set<ExchangeId>(DEFAULT_CUSTOM_ADAPTERS);
+  const disabled = EnvironmentUtils.parseList("DISABLED_CUSTOM_ADAPTERS", []);
+
+  return disabled
+    .map(value => value.toLowerCase())
+    .filter(isExchangeId)
+    .filter(adapter => validAdapters.has(adapter));
+};
+
+const DISABLED_CUSTOM_ADAPTERS = parseDisabledCustomAdapters();
+const ACTIVE_CUSTOM_ADAPTERS = DEFAULT_CUSTOM_ADAPTERS.filter(adapter => !DISABLED_CUSTOM_ADAPTERS.includes(adapter));
 
 export const ENV = {
   // Application Settings
@@ -35,6 +57,13 @@ export const ENV = {
     ENABLE_FILE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_FILE_LOGGING", false),
     ENABLE_PERFORMANCE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_PERFORMANCE_LOGGING", false),
     ENABLE_DEBUG_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_DEBUG_LOGGING", false),
+  },
+
+  // Adapter Configuration
+  ADAPTERS: {
+    CUSTOM_ADAPTERS: DEFAULT_CUSTOM_ADAPTERS,
+    DISABLED_CUSTOM_ADAPTERS,
+    ACTIVE_CUSTOM_ADAPTERS,
   },
 
   // Data Freshness

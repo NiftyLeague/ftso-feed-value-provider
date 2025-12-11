@@ -5,6 +5,7 @@ import { ProductionDataManagerService } from "@/data-manager/production-data-man
 import type { AggregatedPrice } from "@/common/types/services";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 import { RealTimeAggregationService } from "../real-time-aggregation.service";
 import { ConsensusAggregator } from "../consensus-aggregator.service";
@@ -82,7 +83,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance", "coinbase"],
+        sources: [ExchangeId.Binance, ExchangeId.Coinbase],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -94,7 +95,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -102,7 +103,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50100,
         timestamp: Date.now() - 300,
-        source: "coinbase",
+        source: ExchangeId.Coinbase,
         confidence: 0.85,
       };
 
@@ -124,7 +125,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -135,7 +136,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -157,7 +158,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -168,7 +169,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -191,7 +192,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -202,7 +203,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -221,7 +222,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -238,7 +239,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: -100, // Invalid negative price
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -253,7 +254,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50100,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -264,7 +265,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 1000,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -272,7 +273,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50100,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -294,7 +295,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: now - 500, // Fresh
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -302,7 +303,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 49000,
         timestamp: now - 3000, // Stale (3 seconds old)
-        source: "coinbase",
+        source: ExchangeId.Coinbase,
         confidence: 0.9,
       };
 
@@ -313,7 +314,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: now,
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -331,7 +332,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -342,7 +343,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 1000,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -357,7 +358,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50100,
         timestamp: Date.now() - 500,
-        source: "coinbase",
+        source: ExchangeId.Coinbase,
         confidence: 0.85,
       };
 
@@ -388,7 +389,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -401,7 +402,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -420,7 +421,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -436,7 +437,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -456,7 +457,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -496,7 +497,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -507,7 +508,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -531,7 +532,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -542,7 +543,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -560,7 +561,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -572,7 +573,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -593,7 +594,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
         consensusScore: 0.85,
       };
@@ -604,7 +605,7 @@ describe("RealTimeAggregationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 

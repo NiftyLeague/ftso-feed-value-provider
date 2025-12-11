@@ -6,6 +6,7 @@ import type {
   RawPriceData,
   RawVolumeData,
 } from "@/common/types/adapters";
+import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate, CoreFeedId } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 import { ENV } from "@/config/environment.constants";
@@ -16,7 +17,6 @@ export interface CcxtMultiExchangeConnectionConfig extends ExchangeConnectionCon
   tradesLimit?: number; // CCXT trades limit (default: 1000)
   lambda?: number; // Exponential decay parameter (default: 0.00005)
   retryBackoffMs?: number; // Retry backoff in milliseconds (default: 10000)
-  tier1Exchanges?: string[]; // Exchanges handled by custom adapters (default: ["binance", "coinbase", "kraken", "okx"])
   useEnhancedLogging?: boolean; // Enable enhanced logging (default: false)
 }
 
@@ -29,7 +29,7 @@ export interface ExchangePriceData {
 }
 
 export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
-  readonly exchangeName = "ccxt-multi-exchange";
+  readonly exchangeName = ExchangeId.CcxtMultiExchange;
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
     supportsWebSocket: true, // CCXT Pro supports WebSocket via watchTradesForSymbols/watchTrades
@@ -43,8 +43,6 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     tradesLimit: ENV.CCXT.TRADES_LIMIT,
     lambda: ENV.CCXT.LAMBDA_DECAY,
     retryBackoffMs: ENV.CCXT.RETRY_BACKOFF_MS,
-
-    tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
   };
 
   // Metrics tracking

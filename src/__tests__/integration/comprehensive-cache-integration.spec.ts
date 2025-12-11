@@ -10,6 +10,7 @@ import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.
 import { ConfigService } from "@/config/config.service";
 import { type CoreFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("Comprehensive Cache Integration Across All Services", () => {
   let integrationService: IntegrationService;
@@ -28,7 +29,7 @@ describe("Comprehensive Cache Integration Across All Services", () => {
     symbol: "BTC/USD",
     price: 50000,
     timestamp: Date.now(),
-    sources: ["binance", "coinbase"],
+    sources: [ExchangeId.Binance, ExchangeId.Coinbase],
     confidence: 0.95,
     consensusScore: 0.98,
   };
@@ -128,7 +129,7 @@ describe("Comprehensive Cache Integration Across All Services", () => {
             getFeedConfigurations: jest.fn().mockReturnValue([
               {
                 feed: mockFeedId,
-                sources: ["binance", "coinbase"],
+                sources: [ExchangeId.Binance, ExchangeId.Coinbase],
                 enabled: true,
               },
             ]),
@@ -227,7 +228,7 @@ describe("Comprehensive Cache Integration Across All Services", () => {
         symbol: "ETH/USD",
         price: 3000,
         timestamp: Date.now(),
-        sources: ["binance", "kraken"],
+        sources: [ExchangeId.Binance, ExchangeId.Kraken],
         confidence: 0.92,
         consensusScore: 0.95,
       };

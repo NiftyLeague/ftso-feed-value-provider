@@ -1,6 +1,7 @@
 import axios from "axios";
 import { type MonitoringConfig, AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import { AlertingService } from "../alerting.service";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock axios
 jest.mock("axios");
@@ -348,7 +349,7 @@ describe("AlertingService", () => {
     it("should format alert messages correctly", () => {
       service.evaluateMetric("consensus_deviation", 0.8, {
         feedId: "BTC/USD",
-        exchange: "binance",
+        exchange: ExchangeId.Binance,
       });
 
       const alerts = service.getAllAlerts(1);
@@ -356,7 +357,7 @@ describe("AlertingService", () => {
       expect(alerts[0].message).toContain("0.8");
       expect(alerts[0].message).toContain("0.5");
       expect(alerts[0].message).toContain("BTC/USD");
-      expect(alerts[0].message).toContain("binance");
+      expect(alerts[0].message).toContain(ExchangeId.Binance);
     });
   });
 });

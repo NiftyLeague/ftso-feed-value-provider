@@ -7,6 +7,7 @@ import { RateLimitGuard } from "@/common/rate-limiting/rate-limit.guard";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 import { TestModuleBuilder, TestDataBuilder, TestHelpers } from "@/__tests__/utils";
 
 import { FeedController } from "../feed.controller";
@@ -18,7 +19,7 @@ describe("FeedController - Feed Value Endpoints", () => {
   let aggregationService: jest.Mocked<RealTimeAggregationService>;
 
   const mockFeedId = TestDataBuilder.createCoreFeedId({ category: FeedCategory.Crypto, name: "BTC/USD" });
-  const mockVolumeData = { feed: mockFeedId, volumes: [{ exchange: "binance", volume: 1000000 }] };
+  const mockVolumeData = { feed: mockFeedId, volumes: [{ exchange: ExchangeId.Binance, volume: 1000000 }] };
 
   beforeEach(async () => {
     const module = await new TestModuleBuilder()
@@ -125,7 +126,7 @@ describe("FeedController - Feed Value Endpoints", () => {
       const mockAggregatedPrice = TestDataBuilder.createAggregatedPrice({
         symbol: "BTC/USD",
         price: 50000,
-        sources: ["binance", "coinbase"],
+        sources: [ExchangeId.Binance, ExchangeId.Coinbase],
         confidence: 0.95,
         consensusScore: 0.98,
       });
@@ -148,7 +149,7 @@ describe("FeedController - Feed Value Endpoints", () => {
       expect(cacheService.setPrice).toHaveBeenCalledWith(mockFeedId, {
         value: 50000,
         timestamp: mockAggregatedPrice.timestamp,
-        sources: ["binance", "coinbase"],
+        sources: [ExchangeId.Binance, ExchangeId.Coinbase],
         confidence: 0.95,
       });
     });
@@ -157,7 +158,7 @@ describe("FeedController - Feed Value Endpoints", () => {
       const cachedEntry = {
         value: 49500,
         timestamp: Date.now() - 1000,
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.9,
       };
       cacheService.getPrice.mockReturnValue(cachedEntry);

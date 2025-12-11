@@ -3,6 +3,7 @@ import { EventDrivenService } from "@/common/base/composed.service";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
 import type { FailoverConfig, SourceHealth, FailoverGroup } from "@/common/types/data-manager";
 import { ENV } from "@/config/environment.constants";
+import { ExchangeId } from "@/common/types/adapters";
 
 @Injectable()
 export class FailoverManager extends EventDrivenService {
@@ -66,7 +67,11 @@ export class FailoverManager extends EventDrivenService {
   }
 
   // Configure failover group for a feed
-  configureFailoverGroup(feedId: CoreFeedId, primarySources: string[], backupSources: string[]): void {
+  configureFailoverGroup(
+    feedId: CoreFeedId,
+    primarySources: (ExchangeId | string)[],
+    backupSources: (ExchangeId | string)[]
+  ): void {
     const groupKey = this.getGroupKey(feedId);
 
     this.logger.log(

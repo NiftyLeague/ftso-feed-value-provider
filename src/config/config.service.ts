@@ -9,6 +9,7 @@ import { ENV } from "./environment.constants";
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import { type IConfigurationService } from "@/common/types";
 import { type FeedConfiguration } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 import {
   getAllFeedConfigurations,
   getFeedConfiguration as getFeedConfigUtil,
@@ -97,8 +98,8 @@ export class ConfigService extends StandardService implements IConfigurationServ
   }
 
   // Core adapter method (actually used) - delegate to utility
-  hasCustomAdapter(exchange: string): boolean {
-    return hasCustomAdapterUtil(exchange);
+  hasCustomAdapter(exchange: ExchangeId | string): boolean {
+    return hasCustomAdapterUtil(exchange as string);
   }
 
   // Environment config - return ENV constants directly
@@ -149,9 +150,15 @@ export class ConfigService extends StandardService implements IConfigurationServ
     return adapters[exchange];
   }
 
-  getCcxtId(exchange: string): string | undefined {
-    const customExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
-    return customExchanges.includes(exchange) ? undefined : exchange;
+  getCcxtId(exchange: ExchangeId | string): string | undefined {
+    const customExchanges = [
+      ExchangeId.Binance,
+      ExchangeId.Coinbase,
+      ExchangeId.Cryptocom,
+      ExchangeId.Kraken,
+      ExchangeId.Okx,
+    ];
+    return (customExchanges as string[]).includes(exchange as string) ? undefined : (exchange as string);
   }
 
   reloadFeedConfigurations(): void {

@@ -1,6 +1,7 @@
 import type { CacheEntry } from "@/common/types/cache";
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import { TestDataBuilder } from "@/__tests__/utils";
+import { ExchangeId } from "@/common/types/adapters";
 
 import { RealTimeCacheService } from "../real-time-cache.service";
 
@@ -12,7 +13,7 @@ describe("RealTimeCacheService", () => {
   const mockCacheEntry: CacheEntry = {
     value: 50000,
     timestamp: Date.now(),
-    sources: ["binance", "coinbase"],
+    sources: [ExchangeId.Binance, ExchangeId.Coinbase],
     confidence: 0.95,
   };
 

@@ -1,5 +1,6 @@
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
+import { ExchangeId } from "@/common/types/adapters";
 
 import { CacheWarmerService } from "../cache-warmer.service";
 import { RealTimeCacheService } from "../real-time-cache.service";
@@ -113,7 +114,7 @@ describe("CacheWarmerService", () => {
       const mockCallback = jest.fn().mockResolvedValue({
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.95,
       } as AggregatedPrice);
 
@@ -201,7 +202,7 @@ describe("CacheWarmerService", () => {
       const mockCallback = jest.fn().mockResolvedValue({
         price: 50000,
         timestamp: Date.now(),
-        sources: ["binance"],
+        sources: [ExchangeId.Binance],
         confidence: 0.95,
       } as AggregatedPrice);
 

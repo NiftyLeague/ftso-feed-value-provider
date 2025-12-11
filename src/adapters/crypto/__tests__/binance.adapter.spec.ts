@@ -14,6 +14,7 @@ jest.mock("ws", () => {
 
 import { BinanceAdapter, BinanceTickerData } from "../binance.adapter";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 // @ts-ignore - MockFactory is used in jest.mock below
 import { MockFactory, MockSetup } from "@/__tests__/utils";
 
@@ -58,7 +59,7 @@ describe("BinanceAdapter", () => {
 
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
-      expect(adapter.exchangeName).toBe("binance");
+      expect(adapter.exchangeName).toBe(ExchangeId.Binance);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -207,7 +208,7 @@ describe("BinanceAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("binance");
+      expect(result.source).toBe(ExchangeId.Binance);
       expect(result.volume).toBe(1000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -219,7 +220,7 @@ describe("BinanceAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.volume).toBe(1000);
-      expect(result.source).toBe("binance");
+      expect(result.source).toBe(ExchangeId.Binance);
       expect(typeof result.timestamp).toBe("number");
     });
 
@@ -344,7 +345,7 @@ describe("BinanceAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("binance");
+      expect(result.source).toBe(ExchangeId.Binance);
       expect(result.volume).toBe(1000);
     });
 

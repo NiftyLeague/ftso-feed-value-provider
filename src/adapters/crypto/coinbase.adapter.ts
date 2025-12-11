@@ -1,5 +1,6 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
@@ -32,7 +33,7 @@ export interface CoinbaseRestTickerData {
 }
 
 export class CoinbaseAdapter extends BaseExchangeAdapter {
-  readonly exchangeName = "coinbase";
+  readonly exchangeName = ExchangeId.Coinbase;
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
     supportsWebSocket: true,

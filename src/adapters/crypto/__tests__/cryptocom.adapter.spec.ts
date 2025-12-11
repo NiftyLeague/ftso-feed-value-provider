@@ -1,5 +1,6 @@
 import { CryptocomAdapter, ICryptocomTickerData, ICryptocomRestResponse } from "../cryptocom.adapter";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock the BaseExchangeAdapter's WebSocket methods
 jest.mock("@/adapters/base/base-exchange-adapter", () => {
@@ -65,7 +66,7 @@ describe("CryptocomAdapter", () => {
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
       // Test basic properties
-      expect(adapter.exchangeName).toBe("cryptocom");
+      expect(adapter.exchangeName).toBe(ExchangeId.Cryptocom);
       expect(adapter.category).toBe(FeedCategory.Crypto);
 
       // Test capabilities
@@ -136,7 +137,7 @@ describe("CryptocomAdapter", () => {
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000.5);
       expect(result.timestamp).toBe(1640995200000);
-      expect(result.source).toBe("cryptocom");
+      expect(result.source).toBe(ExchangeId.Cryptocom);
       expect(result.volume).toBe(20.0);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -148,7 +149,7 @@ describe("CryptocomAdapter", () => {
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.volume).toBe(20.0);
       expect(result.timestamp).toBe(1640995200000);
-      expect(result.source).toBe("cryptocom");
+      expect(result.source).toBe(ExchangeId.Cryptocom);
     });
 
     it("should handle symbol mapping correctly", () => {
@@ -269,7 +270,7 @@ describe("CryptocomAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000.5);
-      expect(result.source).toBe("cryptocom");
+      expect(result.source).toBe(ExchangeId.Cryptocom);
       expect(global.fetch).toHaveBeenCalledWith("https://api.crypto.com/v2/public/get-ticker?instrument_name=BTC_USDT");
     });
 

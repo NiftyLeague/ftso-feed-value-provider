@@ -4,6 +4,7 @@
 
 import type { CoreFeedId } from "../core";
 import type { BaseServiceConfig } from "../services";
+import { ExchangeId } from "@/common/types/adapters";
 
 export interface FailoverConfig extends BaseServiceConfig {
   maxFailoverTime: number; // Maximum time to complete failover (ms)
@@ -14,7 +15,7 @@ export interface FailoverConfig extends BaseServiceConfig {
 }
 
 export interface SourceHealth {
-  sourceId: string;
+  sourceId: ExchangeId | string;
   isHealthy: boolean;
   consecutiveFailures: number;
   consecutiveSuccesses: number;
@@ -25,9 +26,9 @@ export interface SourceHealth {
 
 export interface FailoverGroup {
   feedId: CoreFeedId;
-  primarySources: string[];
-  backupSources: string[];
-  activeSources: string[];
-  failedSources: string[];
+  primarySources: (ExchangeId | string)[];
+  backupSources: (ExchangeId | string)[];
+  activeSources: (ExchangeId | string)[];
+  failedSources: (ExchangeId | string)[];
   lastFailoverTime?: number; // Timestamp of last failover to prevent loops
 }

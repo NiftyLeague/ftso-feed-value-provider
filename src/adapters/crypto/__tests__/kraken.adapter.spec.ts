@@ -7,6 +7,7 @@ jest.mock("ws", () => {
 
 import { KrakenAdapter, KrakenTickerData } from "../kraken.adapter";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -40,7 +41,7 @@ describe("KrakenAdapter", () => {
 
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
-      expect(adapter.exchangeName).toBe("kraken");
+      expect(adapter.exchangeName).toBe(ExchangeId.Kraken);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -135,7 +136,7 @@ describe("KrakenAdapter", () => {
 
       expect(result.symbol).toBe("XBT/USD");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("kraken");
+      expect(result.source).toBe(ExchangeId.Kraken);
       expect(result.volume).toBe(5000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -147,7 +148,7 @@ describe("KrakenAdapter", () => {
 
       expect(result.symbol).toBe("XBT/USD");
       expect(result.volume).toBe(5000);
-      expect(result.source).toBe("kraken");
+      expect(result.source).toBe(ExchangeId.Kraken);
       expect(typeof result.timestamp).toBe("number");
     });
 
@@ -309,7 +310,7 @@ describe("KrakenAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USD");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("kraken");
+      expect(result.source).toBe(ExchangeId.Kraken);
       expect(result.volume).toBe(2000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);

@@ -6,6 +6,8 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { type CoreFeedId, type FeedConfiguration } from "@/common/types/core";
+import { ENV } from "@/config/environment.constants";
+import { ExchangeId, isExchangeId } from "@/common/types/adapters";
 
 // Raw JSON structure from feeds.json
 interface RawFeedData {
@@ -73,9 +75,9 @@ export function getFeedConfiguration(feedId: CoreFeedId): FeedConfiguration | un
 /**
  * Check if exchange has a custom adapter
  */
-export function hasCustomAdapter(exchange: string): boolean {
-  const customAdapterExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
-  return customAdapterExchanges.includes(exchange);
+export function hasCustomAdapter(exchange: string | ExchangeId): boolean {
+  const normalizedExchange = typeof exchange === "string" ? exchange.toLowerCase() : exchange;
+  return isExchangeId(normalizedExchange) && ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(normalizedExchange);
 }
 
 /**

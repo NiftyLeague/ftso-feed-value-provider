@@ -1,5 +1,6 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
@@ -117,7 +118,7 @@ export interface OkxRestResponse {
 }
 
 export class OkxAdapter extends BaseExchangeAdapter {
-  readonly exchangeName = "okx";
+  readonly exchangeName = ExchangeId.Okx;
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
     supportsWebSocket: true,
@@ -386,10 +387,10 @@ export class OkxAdapter extends BaseExchangeAdapter {
     const baseUrl = config?.restApiUrl || "https://www.okx.com";
     const url = `${baseUrl}/api/v5/market/ticker?instId=${okxSymbol}`;
 
-    const response = await this.fetchRestApi(url, `Failed to fetch OKX ticker for ${symbol}`);
+    const response = await this.fetchRestApi(url, `Failed to fetch ${ExchangeId.Okx} ticker for ${symbol}`);
     const result: OkxRestResponse = await response.json();
 
-    this.handleRestApiError(result, "OKX");
+    this.handleRestApiError(result, ExchangeId.Okx);
 
     if (!result.data || result.data.length === 0) {
       throw new Error("OKX API error: No data");

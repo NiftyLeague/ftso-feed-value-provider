@@ -2,6 +2,7 @@ import { ConsensusAggregator } from "../consensus-aggregator.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 import { TestDataBuilder } from "@/__tests__/utils";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("ConsensusAggregator", () => {
   let aggregator: ConsensusAggregator;
@@ -20,7 +21,7 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 500,
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
           volume: 1000,
         }),
@@ -28,7 +29,7 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50100,
           timestamp: now - 1000,
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           confidence: 0.85,
           volume: 800,
         }),
@@ -36,7 +37,7 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 49950,
           timestamp: now - 200,
-          source: "kraken",
+          source: ExchangeId.Kraken,
           confidence: 0.8,
           volume: 600,
         }),
@@ -49,9 +50,9 @@ describe("ConsensusAggregator", () => {
       expect(result.price).toBeGreaterThan(49900);
       expect(result.price).toBeLessThan(50200);
       expect(result.sources).toHaveLength(3);
-      expect(result.sources).toContain("binance");
-      expect(result.sources).toContain("coinbase");
-      expect(result.sources).toContain("kraken");
+      expect(result.sources).toContain(ExchangeId.Binance);
+      expect(result.sources).toContain(ExchangeId.Coinbase);
+      expect(result.sources).toContain(ExchangeId.Kraken);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
       expect(result.consensusScore).toBeGreaterThan(0);
@@ -66,7 +67,7 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 500,
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
         },
         // Tier 2 exchange (CCXT individual)
@@ -92,21 +93,21 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 500, // Fresh data
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 50010,
           timestamp: now - 400, // Fresh data
-          source: "kraken",
+          source: ExchangeId.Kraken,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 60000, // Outlier price - should be filtered by outlier detection
           timestamp: now - 40000, // Old data but staleness validation is disabled
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           confidence: 0.9,
         },
       ];
@@ -116,8 +117,8 @@ describe("ConsensusAggregator", () => {
       // Should filter out the outlier price but accept the old timestamp
       // The exact behavior depends on outlier detection algorithm
       expect(result.sources.length).toBeGreaterThanOrEqual(2);
-      expect(result.sources).toContain("binance");
-      expect(result.sources).toContain("kraken");
+      expect(result.sources).toContain(ExchangeId.Binance);
+      expect(result.sources).toContain(ExchangeId.Kraken);
       expect(result.price).toBeGreaterThan(49990);
       expect(result.price).toBeLessThan(50020);
     });
@@ -137,14 +138,14 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: -100, // Invalid negative price
           timestamp: now - 500,
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 0, // Invalid zero price
           timestamp: now - 1000,
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           confidence: 0.9,
         },
       ];
@@ -163,21 +164,21 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 500,
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 50010,
           timestamp: now - 500,
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 49990,
           timestamp: now - 500,
-          source: "kraken",
+          source: ExchangeId.Kraken,
           confidence: 0.9,
         },
       ];
@@ -190,21 +191,21 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 500,
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 52000,
           timestamp: now - 500,
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 48000,
           timestamp: now - 500,
-          source: "kraken",
+          source: ExchangeId.Kraken,
           confidence: 0.9,
         },
       ];
@@ -223,14 +224,14 @@ describe("ConsensusAggregator", () => {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 100, // Very fresh
-          source: "binance",
+          source: ExchangeId.Binance,
           confidence: 0.9,
         },
         {
           symbol: "BTC/USD",
           price: 50000,
           timestamp: now - 1500, // Older but still valid
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           confidence: 0.9,
         },
       ];
@@ -239,8 +240,8 @@ describe("ConsensusAggregator", () => {
 
       // The fresher data should have more influence
       expect(result.price).toBe(50000);
-      expect(result.sources).toContain("binance");
-      expect(result.sources).toContain("coinbase");
+      expect(result.sources).toContain(ExchangeId.Binance);
+      expect(result.sources).toContain(ExchangeId.Coinbase);
     });
   });
 
@@ -250,7 +251,7 @@ describe("ConsensusAggregator", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -262,7 +263,7 @@ describe("ConsensusAggregator", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 35000, // 35 seconds old - should be accepted
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -274,7 +275,7 @@ describe("ConsensusAggregator", () => {
         symbol: "BTC/USD",
         price: -100,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -286,7 +287,7 @@ describe("ConsensusAggregator", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now() - 500,
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 1.5, // > 1.0
       };
 

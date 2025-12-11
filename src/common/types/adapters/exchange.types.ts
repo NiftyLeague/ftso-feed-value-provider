@@ -6,6 +6,19 @@
 import { FeedCategory } from "../core/feed.types";
 import { PriceUpdate, VolumeUpdate } from "../core/data-source.types";
 
+export enum ExchangeId {
+  Binance = "binance",
+  Coinbase = "coinbase",
+  Cryptocom = "cryptocom",
+  Kraken = "kraken",
+  Okx = "okx",
+  CcxtMultiExchange = "ccxt-multi-exchange",
+}
+
+export function isExchangeId(value: unknown): value is ExchangeId {
+  return typeof value === "string" && (Object.values(ExchangeId) as string[]).includes(value);
+}
+
 export interface ExchangeConnectionConfig {
   websocketUrl?: string;
   restApiUrl?: string;
@@ -28,7 +41,7 @@ export interface ExchangeCapabilities {
 }
 
 export interface IExchangeAdapter {
-  readonly exchangeName: string;
+  readonly exchangeName: ExchangeId | string;
   readonly category: FeedCategory;
   readonly capabilities: ExchangeCapabilities;
 

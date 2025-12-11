@@ -16,6 +16,9 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-log}
       - APP_PORT=${APP_PORT:-3101}
 
+      # Optional: Disabled adapters will fall back to CCXT multi-exchange handling
+      - DISABLED_CUSTOM_ADAPTERS=${DISABLED_CUSTOM_ADAPTERS:-}
+
       # Optional: Proxy settings for bypassing geo-restrictions (HTTP 451 errors)
       - WEBSOCKET_PROXY_ENABLED=${WEBSOCKET_PROXY_ENABLED:-false}
       - WEBSOCKET_PROXY_URL=${WEBSOCKET_PROXY_URL:-}
