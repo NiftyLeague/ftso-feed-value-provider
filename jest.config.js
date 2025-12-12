@@ -21,8 +21,9 @@ module.exports = {
   globalTeardown: "<rootDir>/__tests__/global-teardown.ts",
   // Test ordering will be handled by file naming conventions
   // Test execution settings - optimized to prevent hanging
-  detectOpenHandles: false, // Disable to prevent hanging on integration tests
-  forceExit: true, // Force exit after tests complete to prevent hanging
+  // Default to clean shutdowns; opt into these via env vars when troubleshooting.
+  detectOpenHandles: process.env.JEST_DETECT_OPEN_HANDLES === "true",
+  forceExit: process.env.JEST_FORCE_EXIT === "true",
   // Timeout configuration - optimized per test type
   testTimeout: process.env.npm_lifecycle_event?.includes("endurance") ? 60000 : 15000, // Reduced timeout for faster failure
   // Parallel execution for faster tests, sequential for complex ones

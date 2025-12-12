@@ -6,6 +6,9 @@
 
 import type { GlobalTestLogging, ConsoleOverride } from "./utils/test-logging.types";
 import { setupTestPort } from "./utils/port-utils";
+import * as http from "http";
+import * as https from "https";
+import * as tls from "tls";
 
 // Set NODE_ENV to test
 process.env.NODE_ENV = "test";
@@ -127,6 +130,14 @@ afterEach(async () => {
   cleanupTimers();
   cleanupIntervals();
 
+  // Ensure persistent HTTP(S) agent sockets don't keep Jest worker processes alive.
+  try {
+    http.globalAgent.destroy();
+    https.globalAgent.destroy();
+  } catch {
+    // Ignore agent cleanup errors
+  }
+
   // Additional aggressive cleanup for any remaining timers
   try {
     // Clear Jest timers
@@ -153,6 +164,35 @@ afterEach(async () => {
 
 // Restore original methods and cleanup after all tests
 afterAll(() => {
+  // Optional debug: print active handles per test file (useful when Jest workers don't exit).
+  if (process.env.JEST_DEBUG_HANDLES === "true") {
+    try {
+      const testPath = (expect.getState().testPath ?? "(unknown testPath)").replace(process.cwd() + "/", "");
+      const getActiveHandles = (process as unknown as { _getActiveHandles?: () => unknown[] })._getActiveHandles;
+      const handles = getActiveHandles ? getActiveHandles() : [];
+
+      // Keep this very compact to avoid noisy logs.
+      const handleTypes = handles
+        .map(h => (h as { constructor?: { name?: string } })?.constructor?.name ?? typeof h)
+        .slice(0, 25);
+
+      originalConsole.log(`[JEST_DEBUG_HANDLES] ${testPath}: ${handles.length} handles -> ${handleTypes.join(", ")}`);
+
+      const tlsSockets = handles.filter(h => h instanceof tls.TLSSocket).slice(0, 3) as tls.TLSSocket[];
+      tlsSockets.forEach((socket, i) => {
+        originalConsole.log(
+          `[JEST_DEBUG_HANDLES] ${testPath}: TLSSocket#${i + 1} ` +
+            `local=${socket.localAddress ?? "?"}:${socket.localPort ?? "?"} ` +
+            `remote=${socket.remoteAddress ?? "?"}:${socket.remotePort ?? "?"} ` +
+            `servername=${(socket as unknown as { servername?: string }).servername ?? "?"} ` +
+            `destroyed=${socket.destroyed} encrypted=${socket.encrypted}`
+        );
+      });
+    } catch {
+      // Ignore debug errors
+    }
+  }
+
   // Restore console methods
   console.error = originalConsole.error;
   console.warn = originalConsole.warn;

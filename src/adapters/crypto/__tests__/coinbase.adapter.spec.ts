@@ -1,45 +1,41 @@
+// Mock the ws module used by BaseExchangeAdapter to prevent real network connections.
+jest.mock("ws", () => {
+  const { MockFactory } = jest.requireActual("@/__tests__/utils");
+
+  const MockWebSocketConstructor = jest.fn().mockImplementation(() => {
+    const ws = MockFactory.createWebSocket();
+    // Start as CONNECTING and then emit open on next tick.
+    (ws as any).readyState = 0;
+    setImmediate(() => {
+      (ws as any).readyState = 1;
+      (ws as any).emit?.("open");
+    });
+    return ws;
+  });
+
+  Object.assign(MockWebSocketConstructor, {
+    CONNECTING: 0,
+    OPEN: 1,
+    CLOSING: 2,
+    CLOSED: 3,
+  });
+
+  return MockWebSocketConstructor;
+});
+
 import { CoinbaseAdapter, CoinbaseTickerData } from "../coinbase.adapter";
 import { FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";
-
-// Mock WebSocket
-class MockWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-
-  readyState = MockWebSocket.CONNECTING;
-  onopen?: () => void;
-  onclose?: () => void;
-  onerror?: (error: Error | Event) => void;
-  onmessage?: (event: { data: string }) => void;
-
-  constructor(public url: string) {
-    setTimeout(() => {
-      this.readyState = MockWebSocket.OPEN;
-      this.onopen?.();
-    }, 1);
-  }
-
-  send(_data: string) {
-    // Mock send implementation
-  }
-
-  close() {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.();
-  }
-}
+import { MockSetup } from "@/__tests__/utils";
 
 // Mock fetch
 global.fetch = jest.fn();
-global.WebSocket = MockWebSocket as any;
 
 describe("CoinbaseAdapter", () => {
   let adapter: CoinbaseAdapter;
 
   beforeEach(() => {
+    MockSetup.setupAll();
     adapter = new CoinbaseAdapter();
 
     // Disable reconnection attempts during tests to prevent hanging
@@ -50,6 +46,7 @@ describe("CoinbaseAdapter", () => {
 
   afterEach(async () => {
     await adapter.disconnect();
+    MockSetup.cleanup();
   });
 
   describe("initialization", () => {
