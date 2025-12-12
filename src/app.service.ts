@@ -97,11 +97,38 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
       }));
 
       const aggregatedPrices = await this.integrationService.getCurrentPrices(coreFeedIds);
+      const results: FeedValueData[] = [];
 
-      const results: FeedValueData[] = aggregatedPrices.map((price, index) => ({
-        feed: feeds[index],
-        value: price.price,
-      }));
+      // Map aggregated prices by symbol for safe lookup even when some feeds fail
+      const priceMap = new Map<string, (typeof aggregatedPrices)[number]>();
+      for (const price of aggregatedPrices) {
+        if (price?.symbol) {
+          priceMap.set(price.symbol, price);
+        }
+      }
+
+      // Build results in the same order as requested feeds
+      const missing: string[] = [];
+      for (const feed of feeds) {
+        const price = priceMap.get(feed.name);
+        if (price) {
+          results.push({
+            feed,
+            value: price.price,
+          });
+        } else {
+          missing.push(`${feed.category}:${feed.name}`);
+        }
+      }
+
+      if (missing.length > 0) {
+        this.logger.warn("Partial getValues response: some feeds had no aggregated price", {
+          requested: feeds.length,
+          received: aggregatedPrices.length,
+          resolved: results.length,
+          missingFeeds: missing,
+        });
+      }
 
       const responseTime = this.endTimer("getValues");
       this.logPerformance(`getValues-${feeds.length}feeds`, responseTime);

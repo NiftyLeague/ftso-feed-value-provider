@@ -27,7 +27,6 @@ services:
     network_mode: ${NETWORK_MODE:-bridge}
     environment:
       # Core settings
-      - NODE_OPTIONS=${NODE_OPTIONS:---trace-gc --trace-gc-verbose --max-old-space-size=2048}
       - NODE_ENV=${NODE_ENV:-production}
       - LOG_LEVEL=${LOG_LEVEL:-log}
       - APP_PORT=${APP_PORT:-3101}
@@ -68,6 +67,7 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
+    command: ['node', '--trace-gc', '--max-old-space-size=2048', 'dist/src/main.js']
 
   # Optional: Prometheus for metrics collection
   # Enable with: docker-compose -f docker-compose.registry.yml --profile monitoring up -d

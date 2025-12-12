@@ -633,24 +633,25 @@ export class FeedController extends BaseController {
   }
 
   private async cacheHistoricalData(feeds: FeedId[], data: FeedValueData[], votingRoundId: number): Promise<void> {
-    for (let i = 0; i < feeds.length; i++) {
-      const feed = feeds[i];
-      const feedData = data[i];
-
-      if (feedData) {
-        this.cacheService.setForVotingRound(
-          feed,
-          votingRoundId,
-          {
-            value: feedData.value,
-            timestamp: Date.now(),
-            sources: ["historical"],
-            confidence: 1.0,
-            votingRound: votingRoundId,
-          },
-          60000 // 1 minute TTL for historical data
-        );
+    // Cache based on the feed attached to each data entry to avoid
+    // index-based mismatches when some feeds fail to return data
+    for (const feedData of data) {
+      if (!feedData?.feed) {
+        continue;
       }
+
+      this.cacheService.setForVotingRound(
+        feedData.feed,
+        votingRoundId,
+        {
+          value: feedData.value,
+          timestamp: Date.now(),
+          sources: ["historical"],
+          confidence: 1.0,
+          votingRound: votingRoundId,
+        },
+        60000 // 1 minute TTL for historical data
+      );
     }
   }
 
