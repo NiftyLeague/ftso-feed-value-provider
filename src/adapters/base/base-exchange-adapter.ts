@@ -345,10 +345,18 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       this.reconnectTimer = undefined;
     }
 
+    if (this.pongTimer) {
+      clearTimeout(this.pongTimer);
+      this.pongTimer = undefined;
+    }
+
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = undefined;
     }
+
+    // Clear health recovery timer (setInterval) to avoid leaks across shutdown/restarts
+    this.stopHealthRecoveryTimer();
 
     // Clear all maps and sets
     this.subscriptions.clear();

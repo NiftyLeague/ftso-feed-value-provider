@@ -52,6 +52,15 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   // Data source initialization tracking
   private dataSourcesInitialized = new Set<string>();
 
+  private readonly sourceEventHandlers = new Map<
+    string,
+    {
+      priceUpdate: (update: PriceUpdate) => void;
+      connectionChange: (connected: boolean) => void;
+      error?: (error: Error) => void;
+    }
+  >();
+
   // Rate limiting for quality warnings only
   private qualityWarningLastLogged = new Map<string, number>();
   private readonly QUALITY_WARNING_COOLDOWN_MS = ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS; // 5 minutes - much less frequent for quality warnings
@@ -228,6 +237,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     // Clear connection metrics
     this.connectionMetrics.clear();
     this.subscriptions.clear();
+
+    // Clear stored handler references
+    this.sourceEventHandlers.clear();
   }
 
   /**
@@ -376,6 +388,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         this.logger.warn(`Data source ${sourceId} not found`);
         return;
       }
+
+      this.detachSourceEventHandlers(sourceId, source);
 
       // Cancel any active reconnection attempts
       const timer = this.reconnectTimers.get(sourceId);
@@ -581,22 +595,38 @@ export class ProductionDataManagerService extends EventDrivenService implements 
           continue;
         }
 
+        const exchangeSymbol = sourceConfig.symbol || feedId.name;
+
         // Track subscription (but don't actually subscribe - orchestrator handles this)
         const sourceSubscriptions = this.subscriptions.get(source.id) || [];
-        sourceSubscriptions.push({
-          sourceId: source.id,
-          feedId,
-          symbols: [sourceConfig.symbol],
-          timestamp: Date.now(),
-          lastUpdate: Date.now(),
-          active: true,
-        });
+
+        const existing = sourceSubscriptions.find(
+          sub =>
+            sub.feedId.name === feedId.name &&
+            sub.feedId.category === feedId.category &&
+            sub.symbols.length === 1 &&
+            sub.symbols[0] === exchangeSymbol
+        );
+
+        if (existing) {
+          existing.active = true;
+          existing.lastUpdate = Date.now();
+        } else {
+          sourceSubscriptions.push({
+            sourceId: source.id,
+            feedId,
+            symbols: [exchangeSymbol],
+            timestamp: Date.now(),
+            lastUpdate: Date.now(),
+            active: true,
+          });
+        }
         this.subscriptions.set(source.id, sourceSubscriptions);
 
-        this.logger.debug(`Tracked subscription ${source.id} to ${sourceConfig.symbol} for feed ${feedId.name}`);
+        this.logger.debug(`Tracked subscription ${source.id} to ${exchangeSymbol} for feed ${feedId.name}`);
       } catch (error) {
         this.logger.error(
-          `Failed to track subscription to ${sourceConfig.symbol} on ${sourceConfig.exchange} for feed ${feedId.name}:`,
+          `Failed to track subscription to ${sourceConfig.symbol || feedId.name} on ${sourceConfig.exchange} for feed ${feedId.name}:`,
           error
         );
       }
@@ -614,8 +644,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     }
 
     for (const [sourceId, subscriptions] of this.subscriptions.entries()) {
-      const source = this.dataSources.get(sourceId);
-      if (!source) continue;
+      // Only untrack here; actual websocket unsubscribe is owned by orchestrator.
+      // This avoids symbol-mismatch issues (e.g., CCXT multi-exchange) and prevents duplicate unsubscribe storms.
 
       // Find and remove subscription
       const subscriptionIndex = subscriptions.findIndex(
@@ -623,18 +653,8 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       );
 
       if (subscriptionIndex >= 0) {
-        try {
-          // Find the exchange-specific symbol for this source
-          const sourceConfig = feedConfig.sources.find(s => s.exchange === sourceId);
-          const exchangeSymbol = sourceConfig?.symbol || feedId.name;
-
-          await source.unsubscribe([exchangeSymbol]);
-          subscriptions.splice(subscriptionIndex, 1);
-
-          this.logger.debug(`Successfully unsubscribed ${sourceId} from ${exchangeSymbol} for feed ${feedId.name}`);
-        } catch (error) {
-          this.logger.error(`Failed to unsubscribe from ${feedId.name} on ${sourceId}:`, error);
-        }
+        subscriptions.splice(subscriptionIndex, 1);
+        this.logger.debug(`Untracked subscription for ${sourceId} (feed ${feedId.name})`);
       }
     }
   }
@@ -797,8 +817,11 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
   // Private helper methods
   private setupSourceEventHandlers(source: DataSource): void {
+    // If the same id is ever re-added, avoid stacking listeners.
+    this.detachSourceEventHandlers(source.id, source);
+
     // Handle price updates
-    source.onPriceUpdate((update: PriceUpdate) => {
+    const priceUpdateHandler = (update: PriceUpdate) => {
       try {
         // Update connection metrics first
         this.updateConnectionMetrics(source.id, update.timestamp);
@@ -834,16 +857,20 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         this.logger.error(`Error processing price update from ${source.id}:`, error);
         this.emit("sourceError", source.id, error);
       }
-    });
+    };
+
+    source.onPriceUpdate(priceUpdateHandler);
 
     // Handle connection changes
-    source.onConnectionChange((connected: boolean) => {
+    const connectionChangeHandler = (connected: boolean) => {
       this.handleConnectionChange(source.id, connected);
-    });
+    };
+
+    source.onConnectionChange(connectionChangeHandler);
 
     // Handle source errors (if the DataSource supports error events)
     if (typeof source.onError === "function") {
-      source.onError((error: Error) => {
+      const errorHandler = (error: Error) => {
         // Classify error type for better debugging
         const errorMessage = error.message || "Unknown error";
         const isGeoBlocking =
@@ -890,8 +917,51 @@ export class ProductionDataManagerService extends EventDrivenService implements 
           metrics.lastError = `[${errorType}] ${errorMessage}`;
           metrics.consecutiveFailures = (metrics.consecutiveFailures || 0) + 1;
         }
+      };
+
+      source.onError(errorHandler);
+
+      this.sourceEventHandlers.set(source.id, {
+        priceUpdate: priceUpdateHandler,
+        connectionChange: connectionChangeHandler,
+        error: errorHandler,
       });
+      return;
     }
+
+    this.sourceEventHandlers.set(source.id, {
+      priceUpdate: priceUpdateHandler,
+      connectionChange: connectionChangeHandler,
+    });
+  }
+
+  private detachSourceEventHandlers(sourceId: string, source: DataSource): void {
+    const handlers = this.sourceEventHandlers.get(sourceId);
+    if (!handlers) {
+      return;
+    }
+
+    const emitter = source as unknown as {
+      off?: (event: string, listener: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+    };
+
+    const detach =
+      typeof emitter.off === "function"
+        ? emitter.off.bind(source)
+        : typeof emitter.removeListener === "function"
+          ? emitter.removeListener.bind(source)
+          : undefined;
+
+    if (detach) {
+      detach("priceUpdate", handlers.priceUpdate as unknown as (...args: unknown[]) => void);
+      detach("connectionChange", handlers.connectionChange as unknown as (...args: unknown[]) => void);
+      if (handlers.error) {
+        detach("error", handlers.error as unknown as (...args: unknown[]) => void);
+      }
+    }
+
+    this.sourceEventHandlers.delete(sourceId);
   }
 
   private validatePriceUpdateQuality(update: PriceUpdate): boolean {

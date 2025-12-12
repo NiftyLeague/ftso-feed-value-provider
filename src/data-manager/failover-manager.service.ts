@@ -12,6 +12,10 @@ export class FailoverManager extends EventDrivenService {
   private failoverGroups = new Map<string, FailoverGroup>();
   private sourceFailoverCooldowns = new Map<string, number>();
 
+  private readonly connectionChangeHandlers = new Map<string, (connected: boolean) => void>();
+
+  private healthMonitoringStarted = false;
+
   constructor() {
     super({
       maxFailoverTime: ENV.FAILOVER.MAX_FAILOVER_TIME_MS,
@@ -20,7 +24,13 @@ export class FailoverManager extends EventDrivenService {
       recoveryThreshold: ENV.FAILOVER.RECOVERY_THRESHOLD,
       minFailureInterval: ENV.FAILOVER.MIN_FAILURE_INTERVAL_MS,
     });
-    this.startHealthMonitoring();
+  }
+
+  override async initialize(): Promise<void> {
+    if (!this.healthMonitoringStarted) {
+      this.startHealthMonitoring();
+      this.healthMonitoringStarted = true;
+    }
   }
 
   /**
@@ -45,14 +55,22 @@ export class FailoverManager extends EventDrivenService {
     });
 
     // Set up connection monitoring
-    source.onConnectionChange((connected: boolean) => {
+    this.detachConnectionChangeHandler(source.id, source);
+    const handler = (connected: boolean) => {
       this.handleConnectionChange(source.id, connected);
-    });
+    };
+    this.connectionChangeHandlers.set(source.id, handler);
+    source.onConnectionChange(handler);
   }
 
   // Unregister data source
   unregisterDataSource(sourceId: string): void {
     this.logger.log(`Unregistering data source: ${sourceId}`);
+
+    const source = this.dataSources.get(sourceId);
+    if (source) {
+      this.detachConnectionChangeHandler(sourceId, source);
+    }
 
     this.dataSources.delete(sourceId);
     this.sourceHealth.delete(sourceId);
@@ -64,6 +82,31 @@ export class FailoverManager extends EventDrivenService {
       group.activeSources = group.activeSources.filter(id => id !== sourceId);
       group.failedSources = group.failedSources.filter(id => id !== sourceId);
     }
+  }
+
+  private detachConnectionChangeHandler(sourceId: string, source: DataSource): void {
+    const handler = this.connectionChangeHandlers.get(sourceId);
+    if (!handler) {
+      return;
+    }
+
+    const emitter = source as unknown as {
+      off?: (event: string, listener: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+    };
+
+    const detach =
+      typeof emitter.off === "function"
+        ? emitter.off.bind(source)
+        : typeof emitter.removeListener === "function"
+          ? emitter.removeListener.bind(source)
+          : undefined;
+
+    if (detach) {
+      detach("connectionChange", handler as unknown as (...args: unknown[]) => void);
+    }
+
+    this.connectionChangeHandlers.delete(sourceId);
   }
 
   // Configure failover group for a feed

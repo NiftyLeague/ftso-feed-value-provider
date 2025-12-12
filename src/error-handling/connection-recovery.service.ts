@@ -54,6 +54,11 @@ export class ConnectionRecoveryService extends EventDrivenService {
   private healthCheckTimer?: NodeJS.Timeout;
   private feedSourceMapping = new Map<string, (ExchangeId | string)[]>(); // feedId -> sourceIds
 
+  private readonly connectionChangeHandlers = new Map<string, (connected: boolean) => void>();
+
+  private monitoringStarted = false;
+  private failoverEventHandlersAttached = false;
+
   // Rate limiting for reconnection attempts
   private lastReconnectAttempt = new Map<string, number>();
   private readonly RECONNECT_COOLDOWN_MS = ENV.CONNECTION_RECOVERY.RECONNECT_COOLDOWN_MS;
@@ -71,8 +76,18 @@ export class ConnectionRecoveryService extends EventDrivenService {
       maxReconnectAttempts: ENV.CONNECTION_RECOVERY.MAX_RECONNECT_ATTEMPTS,
       gracefulDegradationThreshold: ENV.CONNECTION_RECOVERY.GRACEFUL_DEGRADATION_THRESHOLD,
     });
-    this.startHealthMonitoring();
-    this.setupEventHandlers();
+  }
+
+  override async initialize(): Promise<void> {
+    if (!this.failoverEventHandlersAttached) {
+      this.setupEventHandlers();
+      this.failoverEventHandlersAttached = true;
+    }
+
+    if (!this.monitoringStarted) {
+      this.startHealthMonitoring();
+      this.monitoringStarted = true;
+    }
   }
 
   /**
@@ -112,9 +127,12 @@ export class ConnectionRecoveryService extends EventDrivenService {
     this.dataSources.set(source.id, source);
 
     // Set up connection monitoring
-    source.onConnectionChange((connected: boolean) => {
+    this.detachConnectionChangeHandler(source.id, source);
+    const handler = (connected: boolean) => {
       this.handleConnectionChange(source.id, connected);
-    });
+    };
+    this.connectionChangeHandlers.set(source.id, handler);
+    source.onConnectionChange(handler);
 
     // Register with failover manager
     this.failoverManager.registerDataSource(source);
@@ -127,6 +145,11 @@ export class ConnectionRecoveryService extends EventDrivenService {
    */
   async unregisterDataSource(sourceId: string): Promise<void> {
     this.logger.log(`Unregistering data source: ${sourceId}`);
+
+    const source = this.dataSources.get(sourceId);
+    if (source) {
+      this.detachConnectionChangeHandler(sourceId, source);
+    }
 
     // Cancel any pending reconnection
     const timer = this.reconnectTimers.get(sourceId);
@@ -156,6 +179,31 @@ export class ConnectionRecoveryService extends EventDrivenService {
     }
 
     this.emit("sourceUnregistered", sourceId);
+  }
+
+  private detachConnectionChangeHandler(sourceId: string, source: DataSource): void {
+    const handler = this.connectionChangeHandlers.get(sourceId);
+    if (!handler) {
+      return;
+    }
+
+    const emitter = source as unknown as {
+      off?: (event: string, listener: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+    };
+
+    const detach =
+      typeof emitter.off === "function"
+        ? emitter.off.bind(source)
+        : typeof emitter.removeListener === "function"
+          ? emitter.removeListener.bind(source)
+          : undefined;
+
+    if (detach) {
+      detach("connectionChange", handler as unknown as (...args: unknown[]) => void);
+    }
+
+    this.connectionChangeHandlers.delete(sourceId);
   }
 
   /**

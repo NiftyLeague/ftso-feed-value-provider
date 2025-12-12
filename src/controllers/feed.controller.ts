@@ -259,7 +259,7 @@ export class FeedController extends BaseController {
           });
 
           // Cache the fresh data for this voting round
-          await this.executeWithRetry(() => this.cacheHistoricalData(missingFeeds, freshData, votingRoundId), {
+          await this.executeWithRetry(() => this.cacheHistoricalData(freshData, votingRoundId), {
             operationName: "cacheHistoricalData",
             serviceType: "cache",
             retryConfig: { maxRetries: 1, initialDelayMs: 100 },
@@ -632,7 +632,7 @@ export class FeedController extends BaseController {
     return results;
   }
 
-  private async cacheHistoricalData(feeds: FeedId[], data: FeedValueData[], votingRoundId: number): Promise<void> {
+  private async cacheHistoricalData(data: FeedValueData[], votingRoundId: number): Promise<void> {
     // Cache based on the feed attached to each data entry to avoid
     // index-based mismatches when some feeds fail to return data
     for (const feedData of data) {

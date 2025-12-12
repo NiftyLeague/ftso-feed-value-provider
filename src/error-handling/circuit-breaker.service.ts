@@ -21,6 +21,8 @@ export class CircuitBreakerService extends EventDrivenService {
   // Health check interval for probing HALF_OPEN circuits
   private healthCheckInterval?: NodeJS.Timeout;
 
+  private periodicHealthCheckStarted = false;
+
   constructor() {
     super({
       failureThreshold: ENV.CIRCUIT_BREAKER.SUCCESS_THRESHOLD,
@@ -29,9 +31,13 @@ export class CircuitBreakerService extends EventDrivenService {
       timeout: ENV.TIMEOUTS.CIRCUIT_BREAKER_MS,
       monitoringWindow: ENV.CIRCUIT_BREAKER.MONITORING_WINDOW_MS,
     });
+  }
 
-    // Start periodic health check for stuck circuits
-    this.startPeriodicHealthCheck();
+  override async initialize(): Promise<void> {
+    if (!this.periodicHealthCheckStarted) {
+      this.startPeriodicHealthCheck();
+      this.periodicHealthCheckStarted = true;
+    }
   }
 
   /**

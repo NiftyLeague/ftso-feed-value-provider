@@ -30,6 +30,8 @@ export class RealTimeCacheService extends EventDrivenService implements RealTime
   private adaptiveTTL = true;
   private compressionEnabled = false;
 
+  private cleanupIntervalStarted = false;
+
   constructor() {
     // Use consistent cache configuration for all environments
     super({
@@ -42,9 +44,13 @@ export class RealTimeCacheService extends EventDrivenService implements RealTime
     });
 
     this.logger.log(`Cache initialized: maxSize=${ENV.CACHE.MAX_ENTRIES}, memoryLimit=${ENV.CACHE.MEMORY_LIMIT_MB}MB`);
+  }
 
-    // Cleanup interval for expired entries using managed timer
-    this.createInterval(() => this.cleanupExpiredEntries(), ENV.INTERVALS.CACHE_CLEANUP_MS);
+  override async initialize(): Promise<void> {
+    if (!this.cleanupIntervalStarted) {
+      this.createInterval(() => this.cleanupExpiredEntries(), ENV.INTERVALS.CACHE_CLEANUP_MS);
+      this.cleanupIntervalStarted = true;
+    }
   }
 
   override getConfig(): CacheConfig {
