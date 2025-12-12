@@ -6,6 +6,7 @@ import { ConfigController } from "@/controllers/config.controller";
 import { FeedController } from "@/controllers/feed.controller";
 import { HealthController } from "@/controllers/health.controller";
 import { MetricsController } from "@/controllers/metrics.controller";
+import { DebugController } from "@/controllers/debug.controller";
 
 // Production integration
 import { IntegrationModule } from "@/integration/integration.module";
@@ -39,7 +40,7 @@ import { ENV, ENV_HELPERS } from "@/config/environment.constants";
     IntegrationModule,
     ErrorHandlingModule, // Global error handling with standardized patterns
   ],
-  controllers: [ConfigController, FeedController, HealthController, MetricsController],
+  controllers: [ConfigController, FeedController, HealthController, MetricsController, DebugController],
   providers: [
     // API middleware and guards
     StandardizedErrorHandlerService,

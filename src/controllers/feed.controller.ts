@@ -661,6 +661,7 @@ export class FeedController extends BaseController {
     freshData: FeedValueData[]
   ): FeedValueData[] {
     const results: FeedValueData[] = new Array(allFeeds.length);
+    const feedKey = (feed: FeedId) => `${feed.category}:${feed.name}`;
 
     // First, fill in all cached results
     for (let i = 0; i < allFeeds.length; i++) {
@@ -675,42 +676,49 @@ export class FeedController extends BaseController {
       return validResults;
     }
 
+    const missingFeedKeys = missingFeeds.map(feedKey);
+
     // Handle case where we need fresh data but none is available
     if (!freshData || freshData.length === 0) {
-      if (missingFeeds.length > 0) {
-        throw new HttpException(
-          {
-            error: "DATA_UNAVAILABLE",
-            message: "Fresh data unavailable for requested feeds",
-            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          },
-          HttpStatus.SERVICE_UNAVAILABLE
-        );
-      }
+      this.logger.warn("Partial historical data: no fresh data returned", {
+        missingFeeds: missingFeedKeys,
+        expected: missingFeeds.length,
+        received: 0,
+      });
       const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
       return validResults;
     }
 
-    // Map each missing feed to its corresponding fresh data
-    let freshIndex = 0;
+    // Map fresh data by feed key for deterministic lookup
+    const freshMap = new Map<string, FeedValueData>();
+    for (const entry of freshData) {
+      if (entry?.feed) {
+        freshMap.set(feedKey(entry.feed), entry);
+      }
+    }
+
+    const unresolvedFeeds: string[] = [];
+
+    // Fill any gaps with matching fresh data
     for (let i = 0; i < allFeeds.length; i++) {
       if (!results[i]) {
-        // This position needs fresh data
-        if (freshIndex >= freshData.length) {
-          throw new HttpException(
-            {
-              error: "INSUFFICIENT_DATA",
-              message: `Insufficient fresh data: expected ${missingFeeds.length} but received ${freshData.length}`,
-              statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            },
-            HttpStatus.INTERNAL_SERVER_ERROR
-          );
+        const key = feedKey(allFeeds[i]);
+        const freshEntry = freshMap.get(key);
+        if (freshEntry) {
+          results[i] = freshEntry;
+        } else {
+          unresolvedFeeds.push(key);
         }
-        if (freshData && freshData[freshIndex]) {
-          results[i] = freshData[freshIndex];
-        }
-        freshIndex++;
       }
+    }
+
+    if (unresolvedFeeds.length > 0) {
+      this.logger.warn("Partial historical data: missing fresh data for feeds", {
+        missingFeeds: unresolvedFeeds,
+        expected: missingFeeds.length,
+        received: freshData.length,
+        resolved: missingFeeds.length - unresolvedFeeds.length,
+      });
     }
 
     return results.filter(result => result !== null && result !== undefined) as FeedValueData[];

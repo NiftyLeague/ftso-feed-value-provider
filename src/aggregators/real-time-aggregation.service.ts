@@ -73,6 +73,10 @@ export class RealTimeAggregationService
   private readonly processingUpdates = new Set<string>(); // Track updates being processed
   private readonly activeAggregations = new Set<string>(); // Track active aggregations
 
+  // Track staleness-drop logging to avoid spamming
+  private readonly staleDropLastLogged = new Map<string, number>();
+  private readonly STALE_DROP_COOLDOWN_MS = 60000;
+
   // Performance optimization features
   private readonly batchProcessor = new Map<string, PriceUpdate[]>();
   private batchProcessingInterval?: NodeJS.Timeout;
@@ -384,6 +388,22 @@ export class RealTimeAggregationService
       // Keep only recent updates
       const now = Date.now();
       const freshUpdates = updatedList.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
+
+      // Log staleness drops with cooldown so we can see why feeds go missing
+      if (freshUpdates.length < updatedList.length) {
+        const lastLogged = this.staleDropLastLogged.get(feedKey) || 0;
+        if (now - lastLogged > this.STALE_DROP_COOLDOWN_MS) {
+          const maxAge = Math.max(...updatedList.map(u => now - u.timestamp));
+          this.logger.warn(`Dropped stale updates for ${feedId.name}`, {
+            feed: feedId.name,
+            dropped: updatedList.length - freshUpdates.length,
+            kept: freshUpdates.length,
+            maxAgeMs: maxAge,
+            thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+          });
+          this.staleDropLastLogged.set(feedKey, now);
+        }
+      }
 
       this.activePriceUpdates.set(feedKey, freshUpdates);
 

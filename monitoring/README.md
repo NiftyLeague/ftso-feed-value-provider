@@ -54,7 +54,7 @@ Main Prometheus configuration file that defines:
 
 - Scrape interval: 15s (global), 5s (FTSO Provider)
 - Evaluation interval: 15s
-- Retention: 200 hours
+- Retention: 72 hours
 
 ### prometheus-rules.yml
 
@@ -205,6 +205,14 @@ curl http://localhost:9091/api/v1/rules
 1. Open Prometheus UI
 2. Go to Alerts tab
 3. Check alert state and evaluation
+
+-### Log Pruning
+
+- Application logs under `/logs` are shared via the `ftso-logs` volume and
+  pruned by the `log-pruner` sidecar (see `monitoring/log-prune.cron`). Files
+  older than 72 hours are deleted and empty directories removed.
+- Container stdout/stderr logs use the Docker `json-file` driver with rotation
+  (`10m` max-size, 3 files).
 
 ## Maintenance
 
