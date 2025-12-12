@@ -350,7 +350,7 @@ environment:
 
 ```yaml
 volumes:
-  - ftso-logs:/app/logs # Persistent logs (if enabled)
+  - ftso-logs:/logs # Persistent logs (if enabled)
 ```
 
 ### Resource Limits
@@ -539,7 +539,7 @@ in the Dockerfile.
 
 **Solution**: The Dockerfile now copies `src/config/` from the builder stage.
 
-### Issue: "EACCES: permission denied, mkdir '/app/app/logs'"
+### Issue: "EACCES: permission denied, mkdir '/logs'"
 
 **Solution**: Disable file logging in Docker or fix the LOG_DIRECTORY path.
 Current config uses console logging only.

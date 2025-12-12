@@ -27,6 +27,7 @@ services:
     network_mode: ${NETWORK_MODE:-bridge}
     environment:
       # Core settings
+      - NODE_OPTIONS=${NODE_OPTIONS:---trace-gc --trace-gc-verbose --max-old-space-size=2048}
       - NODE_ENV=${NODE_ENV:-production}
       - LOG_LEVEL=${LOG_LEVEL:-log}
       - APP_PORT=${APP_PORT:-3101}
@@ -47,7 +48,7 @@ services:
       # - ALERT_WEBHOOK_ENABLED=${ALERT_WEBHOOK_ENABLED:-false}
       # - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
     volumes:
-      - ftso-logs:/app/logs
+      - ftso-logs:/logs
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3101/health/ready']
       interval: 30s
@@ -85,7 +86,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
+      - '--storage.tsdb.retention.time=72h'
       - '--web.enable-lifecycle'
     networks:
       - ftso-network
@@ -110,6 +111,17 @@ services:
       - ftso-network
     profiles:
       - monitoring
+
+  log-pruner:
+    image: busybox:stable
+    container_name: ftso-log-pruner
+    restart: unless-stopped
+    volumes:
+      - ftso-logs:/logs
+      - ./monitoring/log-prune.cron:/etc/crontabs/root:ro
+    command: ['crond', '-f', '-l', '8', '-c', '/etc/crontabs']
+    networks:
+      - ftso-network
 
 volumes:
   ftso-logs:
