@@ -10,6 +10,7 @@ module.exports = {
   testEnvironment: "node",
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
+    "^ws$": "<rootDir>/__tests__/mocks/ws.ts",
   },
   setupFilesAfterEnv: [
     "<rootDir>/__tests__/test-setup.ts",

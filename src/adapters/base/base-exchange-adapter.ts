@@ -891,11 +891,11 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         this.ws = new WebSocket(config.url, config.protocols, wsOptions);
 
         // Use condition-based connection waiting instead of timeout
-        const connectionTimeout = config.connectionTimeout || 10000;
+        const connectionTimeoutMs = config.connectionTimeout || 10000;
         void this.waitForCondition(() => this.ws?.readyState === WebSocket.OPEN, {
-          maxAttempts: connectionTimeout / 100,
+          maxAttempts: connectionTimeoutMs / 100,
           checkInterval: 100,
-          timeout: connectionTimeout,
+          timeout: connectionTimeoutMs,
         }).then(connected => {
           if (!connected && this.ws?.readyState === WebSocket.CONNECTING) {
             this.ws.terminate();
@@ -931,8 +931,6 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         });
 
         this.ws.on("close", (code: number, reason: string) => {
-          clearTimeout(connectionTimeout);
-
           // Track disconnection for health monitoring
           this.trackDisconnection();
 
@@ -976,8 +974,6 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         });
 
         this.ws.on("error", (error: Error) => {
-          clearTimeout(connectionTimeout);
-
           // During shutdown, suppress WebSocket connection errors as they're expected
           if (this.isShuttingDown) {
             resolve(); // Allow graceful shutdown without error logging
@@ -1047,9 +1043,21 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     // Stop health recovery timer
     this.stopHealthRecoveryTimer();
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.close(code, reason);
-      this.ws = undefined;
+    if (this.ws) {
+      try {
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close(code, reason);
+        }
+      } catch {
+        // If close fails, ensure termination to avoid leaking handles
+        try {
+          this.ws.terminate();
+        } catch {
+          // ignore
+        }
+      } finally {
+        this.ws = undefined;
+      }
     }
   }
 

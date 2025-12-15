@@ -395,6 +395,20 @@ class AdapterDataSource extends EventEmitter implements DataSource {
         return false;
       }
 
+      // Normalize timestamp to milliseconds when upstream sources send seconds or microseconds.
+      // Many exchanges/libraries are inconsistent here; rejecting them breaks real-time updates.
+      if (typeof update.timestamp === "number" && !isNaN(update.timestamp) && update.timestamp > 0) {
+        // Seconds since epoch are typically < 1e12; milliseconds are ~1.7e12+ in 2025.
+        if (update.timestamp < 1e12) {
+          update.timestamp = update.timestamp * 1000;
+        }
+
+        // Microseconds since epoch are typically > 1e15; convert to milliseconds.
+        if (update.timestamp > 1e15) {
+          update.timestamp = Math.floor(update.timestamp / 1000);
+        }
+      }
+
       // Required fields validation
       if (!update.symbol || typeof update.symbol !== "string") {
         this.logger.debug(`Validation failed: invalid symbol: ${update.symbol}`);

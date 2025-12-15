@@ -56,14 +56,20 @@ async function bootstrap() {
       isProductionReady: heapSizeMB >= 1000, // 1GB minimum for production
     });
 
-    enhancedLogger.logCriticalOperation("application_startup", "Bootstrap", {
-      nodeVersion: process.version,
-      platform: process.platform,
-      pid: process.pid,
-      environment: ENV.APPLICATION.NODE_ENV,
-      heapSizeMB: heapSizeMB,
-      timestamp: Date.now(),
-    });
+    enhancedLogger.logCriticalOperation(
+      "application_startup",
+      "Bootstrap",
+      {
+        nodeVersion: process.version,
+        platform: process.platform,
+        pid: process.pid,
+        environment: ENV.APPLICATION.NODE_ENV,
+        heapSizeMB: heapSizeMB,
+        timestamp: Date.now(),
+      },
+      true,
+      "started"
+    );
 
     // Start memory monitoring
     startMemoryMonitoring(enhancedLogger);
@@ -281,7 +287,8 @@ async function bootstrap() {
         basePath,
         startupTime: serverStartDuration,
       },
-      true
+      true,
+      "completed"
     );
 
     // Log successful server startup
@@ -294,7 +301,8 @@ async function bootstrap() {
         basePath,
         readyToServe: true,
       },
-      true
+      true,
+      "completed"
     );
 
     // Application is ready to serve requests

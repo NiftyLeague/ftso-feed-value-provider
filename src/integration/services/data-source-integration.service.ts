@@ -64,7 +64,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
         this.triggerGarbageCollection("after_adapter_registration");
 
         // Step 2: Initialize WebSocket orchestrator (handles connections centrally)
-        await this.wsOrchestrator.initialize();
+        await this.initializeDependency(this.wsOrchestrator, "wsOrchestrator");
 
         // Wire WebSocket orchestrator events
         this.wsOrchestrator.on(
@@ -97,7 +97,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
         this.triggerGarbageCollection("after_data_flow_wiring");
 
         // Initialize the ProductionDataManagerService using standard pattern
-        await this.dataManager.initialize();
+        await this.initializeDependency(this.dataManager, "dataManager");
 
         // Start periodic circuit health check to prevent stuck circuits
         this.startCircuitHealthCheck();
@@ -116,6 +116,24 @@ export class DataSourceIntegrationService extends EventDrivenService {
         },
       }
     );
+  }
+
+  private async initializeDependency(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dependency: any,
+    name: string
+  ): Promise<void> {
+    if (typeof dependency?.onModuleInit === "function") {
+      await dependency.onModuleInit();
+      return;
+    }
+
+    if (typeof dependency?.initialize === "function") {
+      await dependency.initialize();
+      return;
+    }
+
+    throw new TypeError(`Dependency ${name} does not support initialization (no onModuleInit/initialize)`);
   }
 
   private triggerGarbageCollection(phase: string): void {

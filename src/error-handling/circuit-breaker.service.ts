@@ -18,6 +18,10 @@ export class CircuitBreakerService extends EventDrivenService {
   private warningLastLogged = new Map<string, number>();
   private readonly WARNING_COOLDOWN_MS = 30000; // 30 seconds
 
+  // Rate limiting for re-emitting circuit state events (helps late-wired listeners)
+  private stateEventLastEmitted = new Map<string, number>();
+  private readonly STATE_EVENT_COOLDOWN_MS = 5000; // 5 seconds
+
   // Health check interval for probing HALF_OPEN circuits
   private healthCheckInterval?: NodeJS.Timeout;
 
@@ -51,7 +55,13 @@ export class CircuitBreakerService extends EventDrivenService {
    * Register a new circuit breaker for a service
    */
   registerCircuit(serviceId: string, config?: Partial<CircuitBreakerConfig>): void {
-    this.logger.log(`Registering circuit breaker for service: ${serviceId}`);
+    const existingConfig = this.configs.get(serviceId);
+    const existingState = this.circuits.get(serviceId);
+    const isAlreadyRegistered = Boolean(existingConfig) && Boolean(existingState);
+
+    if (!isAlreadyRegistered) {
+      this.logger.log(`Registering circuit breaker for service: ${serviceId}`);
+    }
 
     const fullConfig = { ...this.circuitBreakerConfig, ...config };
 
@@ -72,7 +82,13 @@ export class CircuitBreakerService extends EventDrivenService {
       fullConfig.monitoringWindow = 60000; // Shorter monitoring window (1 minute)
     }
 
+    // Always update config (allows callers to adjust thresholds), but avoid re-registering/resetting state.
     this.configs.set(serviceId, fullConfig);
+
+    if (isAlreadyRegistered) {
+      return;
+    }
+
     this.circuits.set(serviceId, CircuitBreakerState.CLOSED);
     this.requestHistory.set(serviceId, []);
 
@@ -220,6 +236,17 @@ export class CircuitBreakerService extends EventDrivenService {
    * Manually open a circuit breaker
    */
   openCircuit(serviceId: string, reason?: string): void {
+    if (!this.circuits.has(serviceId)) {
+      this.logger.warn(`Cannot open circuit - not registered: ${serviceId}`);
+      return;
+    }
+
+    if (this.circuits.get(serviceId) === CircuitBreakerState.OPEN) {
+      // Still emit (rate-limited) to allow downstream listeners to synchronize.
+      this.emitStateEventWithCooldown("circuitOpened", serviceId);
+      return;
+    }
+
     // Rate limit manual circuit opening warnings
     const now = Date.now();
     const warningKey = `${serviceId}_manual_open`;
@@ -237,6 +264,17 @@ export class CircuitBreakerService extends EventDrivenService {
    * Manually close a circuit breaker
    */
   closeCircuit(serviceId: string, reason?: string): void {
+    if (!this.circuits.has(serviceId)) {
+      this.logger.warn(`Cannot close circuit - not registered: ${serviceId}`);
+      return;
+    }
+
+    if (this.circuits.get(serviceId) === CircuitBreakerState.CLOSED) {
+      // Still emit (rate-limited) to allow downstream listeners to synchronize.
+      this.emitStateEventWithCooldown("circuitClosed", serviceId);
+      return;
+    }
+
     this.logger.log(`Manually closing circuit for ${serviceId}: ${reason || "Manual trigger"}`);
     this.transitionToClosed(serviceId);
   }
@@ -245,6 +283,10 @@ export class CircuitBreakerService extends EventDrivenService {
    * Reset circuit breaker statistics
    */
   resetStats(serviceId: string): void {
+    if (!this.circuits.has(serviceId)) {
+      return;
+    }
+
     const stats = this.stats.get(serviceId);
     if (stats) {
       stats.failureCount = 0;
@@ -296,6 +338,10 @@ export class CircuitBreakerService extends EventDrivenService {
    * Unregister a circuit breaker
    */
   unregisterCircuit(serviceId: string): void {
+    if (!this.circuits.has(serviceId)) {
+      return;
+    }
+
     this.logger.log(`Unregistering circuit breaker for service: ${serviceId}`);
 
     // Clear any pending timers
@@ -386,6 +432,11 @@ export class CircuitBreakerService extends EventDrivenService {
   }
 
   private transitionToClosed(serviceId: string): void {
+    if (this.circuits.get(serviceId) === CircuitBreakerState.CLOSED) {
+      this.emitStateEventWithCooldown("circuitClosed", serviceId);
+      return;
+    }
+
     this.circuits.set(serviceId, CircuitBreakerState.CLOSED);
     const stats = this.stats.get(serviceId);
 
@@ -407,6 +458,11 @@ export class CircuitBreakerService extends EventDrivenService {
   }
 
   private transitionToOpen(serviceId: string): void {
+    if (this.circuits.get(serviceId) === CircuitBreakerState.OPEN) {
+      this.emitStateEventWithCooldown("circuitOpened", serviceId);
+      return;
+    }
+
     this.circuits.set(serviceId, CircuitBreakerState.OPEN);
     const stats = this.stats.get(serviceId);
     const config = this.configs.get(serviceId);
@@ -451,6 +507,11 @@ export class CircuitBreakerService extends EventDrivenService {
   }
 
   private transitionToHalfOpen(serviceId: string): void {
+    if (this.circuits.get(serviceId) === CircuitBreakerState.HALF_OPEN) {
+      this.emitStateEventWithCooldown("circuitHalfOpen", serviceId);
+      return;
+    }
+
     this.circuits.set(serviceId, CircuitBreakerState.HALF_OPEN);
     const stats = this.stats.get(serviceId);
 
@@ -462,6 +523,22 @@ export class CircuitBreakerService extends EventDrivenService {
 
     this.logger.log(`Circuit breaker HALF-OPEN for service: ${serviceId}`);
     this.emit("circuitHalfOpen", serviceId);
+  }
+
+  private emitStateEventWithCooldown(
+    eventName: "circuitClosed" | "circuitOpened" | "circuitHalfOpen",
+    serviceId: string
+  ) {
+    const now = Date.now();
+    const key = `${eventName}:${serviceId}`;
+    const last = this.stateEventLastEmitted.get(key) || 0;
+
+    if (now - last < this.STATE_EVENT_COOLDOWN_MS) {
+      return;
+    }
+
+    this.stateEventLastEmitted.set(key, now);
+    this.emit(eventName, serviceId);
   }
 
   // Track last cleanup time to avoid excessive cleanup operations

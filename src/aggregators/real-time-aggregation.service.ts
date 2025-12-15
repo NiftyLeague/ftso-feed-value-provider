@@ -394,13 +394,30 @@ export class RealTimeAggregationService
         const lastLogged = this.staleDropLastLogged.get(feedKey) || 0;
         if (now - lastLogged > this.STALE_DROP_COOLDOWN_MS) {
           const maxAge = Math.max(...updatedList.map(u => now - u.timestamp));
-          this.logger.warn(`Dropped stale updates for ${feedId.name}`, {
-            feed: feedId.name,
-            dropped: updatedList.length - freshUpdates.length,
-            kept: freshUpdates.length,
-            maxAgeMs: maxAge,
-            thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
-          });
+          const dropped = updatedList.length - freshUpdates.length;
+          const kept = freshUpdates.length;
+          const dropRatio = dropped / Math.max(1, updatedList.length);
+
+          // Stale drops are expected occasionally (network jitter / batching). Only warn when severe.
+          if (kept === 0 || dropRatio >= 0.9) {
+            this.logger.warn(`Dropped stale updates for ${feedId.name}`, {
+              feed: feedId.name,
+              dropped,
+              kept,
+              dropRatio,
+              maxAgeMs: maxAge,
+              thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+            });
+          } else {
+            this.logger.debug(`Dropped stale updates for ${feedId.name}`, {
+              feed: feedId.name,
+              dropped,
+              kept,
+              dropRatio,
+              maxAgeMs: maxAge,
+              thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+            });
+          }
           this.staleDropLastLogged.set(feedKey, now);
         }
       }
@@ -904,11 +921,53 @@ export class RealTimeAggregationService
       for (const [feedKey, updates] of this.batchProcessor.entries()) {
         if (updates.length === 0) continue;
 
-        // Get the most recent update for each source
-        const latestUpdates = this.getLatestUpdatesBySource(updates);
+        // Get existing updates and merge with the new batch
+        const existingUpdates = this.activePriceUpdates.get(feedKey) || [];
+        const combinedUpdates = [...existingUpdates, ...updates];
+
+        // Get the most recent update for each source from the combined list
+        const latestUpdates = this.getLatestUpdatesBySource(combinedUpdates);
+
+        // Filter out stale updates to ensure data freshness
+        const now = Date.now();
+        const freshUpdates = latestUpdates.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
+
+        // Log if any updates were dropped due to staleness
+        if (freshUpdates.length < latestUpdates.length) {
+          const lastLogged = this.staleDropLastLogged.get(feedKey) || 0;
+          if (now - lastLogged > this.STALE_DROP_COOLDOWN_MS) {
+            const maxAge = Math.max(...latestUpdates.map(u => now - u.timestamp));
+            const dropped = latestUpdates.length - freshUpdates.length;
+            const kept = freshUpdates.length;
+            const dropRatio = dropped / Math.max(1, latestUpdates.length);
+
+            // Stale drops are expected occasionally. Only warn when the feed effectively has no fresh data.
+            if (kept === 0 || dropRatio >= 0.9) {
+              this.logger.warn(`Dropped stale updates for ${feedKey} during batch processing`, {
+                feed: feedKey,
+                dropped,
+                kept,
+                dropRatio,
+                maxAgeMs: maxAge,
+                thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+              });
+            } else {
+              this.logger.debug(`Dropped stale updates for ${feedKey} during batch processing`, {
+                feed: feedKey,
+                dropped,
+                kept,
+                dropRatio,
+                maxAgeMs: maxAge,
+                thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+              });
+            }
+            this.staleDropLastLogged.set(feedKey, now);
+          }
+        }
 
         // Update active price data
         this.activePriceUpdates.set(feedKey, latestUpdates);
+        this.activePriceUpdates.set(feedKey, freshUpdates);
 
         // Notify subscribers
         const feedId = this.parseFeedKey(feedKey);
