@@ -122,11 +122,35 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
       }
 
       if (missing.length > 0) {
+        const missingDiagnostics = missing.slice(0, 25).map(key => {
+          const name = key.split(":")[1];
+          const feed = feeds.find(f => f.name === name);
+          if (!feed) {
+            return { feed: key, cache: "no_feed_match" };
+          }
+
+          const cached = this.cacheService.getPrice(feed);
+          if (!cached) {
+            return { feed: key, cache: "empty" };
+          }
+
+          const ageMs = Date.now() - cached.timestamp;
+          return {
+            feed: key,
+            cache: {
+              ageMs,
+              sourcesCount: Array.isArray(cached.sources) ? cached.sources.length : 0,
+              confidence: cached.confidence,
+            },
+          };
+        });
+
         this.logger.warn("Partial getValues response: some feeds had no aggregated price", {
           requested: feeds.length,
           received: aggregatedPrices.length,
           resolved: results.length,
           missingFeeds: missing,
+          missingDiagnostics,
         });
       }
 

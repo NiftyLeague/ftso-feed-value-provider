@@ -49,9 +49,33 @@ kill_port_processes() {
     pids=$(lsof -ti:"$port" 2>/dev/null)
     
     if [ -n "$pids" ]; then
-        echo "🛑 Killing processes on port $port: $pids"
-        echo "$pids" | xargs kill -9 2>/dev/null || true
-        sleep 1
+        local kill_pids=""
+        local skipped_pids=""
+
+        for pid in $pids; do
+            local command
+            command=$(ps -p "$pid" -o command= 2>/dev/null || true)
+
+            # Never kill Docker Desktop / vpnkit / docker-proxy processes.
+            # Some tests use dynamic ports, but still call cleanup on the default port (3101).
+            # Killing Docker-owned listeners can take Docker down and break subsequent docker-based tests.
+            if echo "$command" | grep -qiE "com\\.docker|Docker Desktop|vpnkit|docker-proxy"; then
+                skipped_pids="$skipped_pids $pid"
+                continue
+            fi
+
+            kill_pids="$kill_pids $pid"
+        done
+
+        if [ -n "$skipped_pids" ]; then
+            echo "⚠️  Skipping Docker-related process(es) on port $port:$skipped_pids"
+        fi
+
+        if [ -n "$kill_pids" ]; then
+            echo "🛑 Killing processes on port $port:$kill_pids"
+            echo "$kill_pids" | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
     fi
 }
 

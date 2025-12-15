@@ -35,6 +35,8 @@ export class RealTimeCacheService extends EventDrivenService implements RealTime
   constructor() {
     // Use consistent cache configuration for all environments
     super({
+      // Global max TTL cap for generic cache entries.
+      // Price entries use a separate cap (see set()).
       ttl: ENV.CACHE.TTL_MS,
       maxSize: ENV.CACHE.MAX_ENTRIES,
       evictionPolicy: "LRU",
@@ -82,8 +84,12 @@ export class RealTimeCacheService extends EventDrivenService implements RealTime
   set(key: string, value: CacheEntry, ttl: number): void {
     const startTime = performance.now();
 
+    const isPriceKey = key.startsWith("price:");
+    const maxTtlForKey = isPriceKey ? ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS : this.cacheConfig.ttl;
+
     // Adaptive TTL based on access patterns
-    const effectiveTTL = this.adaptiveTTL ? this.calculateAdaptiveTTL(key, ttl) : Math.min(ttl, this.cacheConfig.ttl);
+    const requestedTTL = this.adaptiveTTL && !isPriceKey ? this.calculateAdaptiveTTL(key, ttl) : ttl;
+    const effectiveTTL = Math.min(requestedTTL, maxTtlForKey);
 
     if (effectiveTTL <= 0) {
       this.logger.debug(`Cache set: ${key} with TTL ${effectiveTTL}ms - not cached due to zero/negative TTL`);
@@ -218,8 +224,8 @@ export class RealTimeCacheService extends EventDrivenService implements RealTime
   // Real-time price caching with immediate invalidation
   setPrice(feedId: CoreFeedId, value: CacheEntry): void {
     const key = this.generatePriceKey(feedId);
-    // Use maximum allowed TTL for price data
-    this.set(key, value, this.cacheConfig.ttl);
+    // Keep last-known price long enough to support stale-cache fallback behavior.
+    this.set(key, value, ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS);
 
     // Invalidate any existing voting round cache for this feed
     this.invalidateFeedCache(feedId);

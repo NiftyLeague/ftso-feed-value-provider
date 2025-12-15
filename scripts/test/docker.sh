@@ -15,7 +15,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-CONTAINER_NAME="ftso-feed-value-provider"
+# Keep in sync with docker-compose.yml / docker-compose.registry.yml
+# (service: ftso-provider, container_name: ftso)
+CONTAINER_NAME="ftso"
 MAX_WAIT_TIME=90
 HEALTH_CHECK_INTERVAL=5
 
@@ -81,8 +83,10 @@ check_error_logs() {
     # - error: (error field lines)
     # - HttpExceptionFilter (exception filter logs)
     # - HealthController (health check errors during startup)
+    # Match actual error-level log lines, not words like "ErrorHandlingModule".
+    # NestJS logs typically include "ERROR"/"FATAL" as a standalone level token.
     local error_count=$(docker logs "$CONTAINER_NAME" 2>&1 | \
-        grep -iE "(error|fatal|exception)" | \
+        grep -E "(\] (ERROR|FATAL)\b|\bERROR:|\bFATAL:|\bException\b)" | \
         grep -v "OnPingInterval" | \
         grep -v "Readiness check failed" | \
         grep -v "System not ready" | \
@@ -102,7 +106,7 @@ check_error_logs() {
         echo -e "${RED}✗ Found $error_count unexpected error(s) in logs${NC}"
         echo -e "${YELLOW}Recent errors:${NC}"
         docker logs "$CONTAINER_NAME" 2>&1 | \
-            grep -iE "(error|fatal|exception)" | \
+            grep -E "(\] (ERROR|FATAL)\b|\bERROR:|\bFATAL:|\bException\b)" | \
             grep -v "OnPingInterval" | \
             grep -v "Readiness check failed" | \
             grep -v "System not ready" | \
