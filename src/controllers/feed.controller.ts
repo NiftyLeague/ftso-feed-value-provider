@@ -42,16 +42,28 @@ import {
 } from "./dto/feed.dto";
 import { HttpErrorResponseDto, ValidationErrorResponseDto } from "./dto/common-error.dto";
 
-// Maximum allowed feeds per request to avoid DoS via loop bound injection
-const MAX_FEEDS = 1000;
-
+import feedsConfigJson from "@/config/feeds.json";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-
 import { ENV } from "@/config/environment.constants";
 import { StandardizedErrorHandlerService } from "../error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "../error-handling/universal-retry.service";
 import { ApiMonitorService } from "../monitoring/api-monitor.service";
+
+// Maximum allowed feeds per request to avoid DoS via loop bound injection
+const MAX_FEEDS = 1000;
+
+type FeedsConfigEntry = {
+  feed: FeedId;
+};
+
+const ALL_SUPPORTED_FEEDS: FeedId[] = Array.from(
+  new Map(
+    (feedsConfigJson as FeedsConfigEntry[])
+      .map(entry => entry.feed)
+      .map(feed => [`${feed.category}:${feed.name}`, feed] as const)
+  ).values()
+);
 @ApiTags("FTSO Feed Values")
 @Controller()
 @UseGuards(RateLimitGuard)
@@ -189,7 +201,18 @@ export class FeedController extends BaseController {
     type: "number",
     example: 12345,
   })
-  @ApiBody({ type: FeedValuesRequestDto })
+  @ApiBody({
+    type: FeedValuesRequestDto,
+    examples: {
+      allSupportedFeeds: {
+        summary: "All supported feeds",
+        description: "Request data for every feed this provider supports",
+        value: {
+          feeds: ALL_SUPPORTED_FEEDS,
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: "Feed values retrieved successfully",
@@ -247,7 +270,7 @@ export class FeedController extends BaseController {
         );
 
         // Get fresh data for any missing feeds
-        const missingFeeds = body.feeds.filter((_, index) => !cachedResults[index]);
+        const missingFeeds = body.feeds.filter((_, index) => cachedResults[index]?.value === undefined);
         let freshData: FeedValueData[] = [];
 
         if (missingFeeds.length > 0) {
@@ -450,14 +473,8 @@ export class FeedController extends BaseController {
           this.logger.debug(`Fallback service for ${feed.name}: ${responseTime.toFixed(2)}ms`);
 
           if (!fallbackResult) {
-            // Return error result if fallback service also fails
             return {
               feed,
-              error: {
-                code: "FEED_NOT_FOUND",
-                message: `Unable to retrieve data for feed: ${JSON.stringify(feed)}`,
-                timestamp: Date.now(),
-              },
             };
           }
 
@@ -493,7 +510,9 @@ export class FeedController extends BaseController {
           this.logger.warn(`Used fallback service for failed feed ${feed.name}`);
 
           if (!fallbackResult) {
-            throw new Error("Fallback service returned undefined");
+            return {
+              feed,
+            };
           }
 
           return {
@@ -517,14 +536,8 @@ export class FeedController extends BaseController {
             this.logger.warn(`Fallback also failed for feed ${JSON.stringify(feed)}:`, fallbackError);
           }
 
-          // Return error result instead of throwing to allow partial success
           return {
             feed,
-            error: {
-              code: "FEED_NOT_FOUND",
-              message: `Unable to retrieve data for feed: ${JSON.stringify(feed)}`,
-              timestamp: Date.now(),
-            },
           };
         }
       }
@@ -534,61 +547,36 @@ export class FeedController extends BaseController {
     try {
       const feedResults = await Promise.allSettled(feedPromises);
 
-      // Process results and separate successful from failed
-      const successfulResults: FeedValueData[] = [];
-      const failedFeeds: Array<{
-        feed: FeedId;
-        error: { code: string; message: string; timestamp: number };
-      }> = [];
+      // Preserve request order and always return the requested feed object.
+      // If a value can't be produced, omit `value` rather than omitting the feed.
+      const orderedResults: FeedValueData[] = new Array(feeds.length);
+      let missingCount = 0;
 
       feedResults.forEach((result, index) => {
         if (result.status === "fulfilled") {
-          if (result.value.error) {
-            failedFeeds.push({ feed: feeds[index], error: result.value.error });
-          } else {
-            successfulResults.push(result.value);
-          }
+          orderedResults[index] = result.value;
         } else {
-          failedFeeds.push({
-            feed: feeds[index],
-            error: {
-              code: "PROCESSING_ERROR",
-              message: result.reason?.message || "Unknown error processing feed",
-              timestamp: Date.now(),
-            },
-          });
+          orderedResults[index] = { feed: feeds[index] };
+        }
+
+        if (orderedResults[index]?.value === undefined) {
+          missingCount++;
         }
       });
 
       // Log performance metrics
       totalResponseTime = this.endTimer("getRealTimeFeedValues");
       this.logger.log(
-        `Processed ${feeds.length} feeds in ${totalResponseTime.toFixed(2)}ms (${successfulResults.length} successful, ${failedFeeds.length} failed)`
+        `Processed ${feeds.length} feeds in ${totalResponseTime.toFixed(2)}ms (${feeds.length - missingCount} with values, ${missingCount} missing)`
       );
 
-      // If all feeds failed, throw an error
-      if (successfulResults.length === 0) {
-        throw new HttpException(
-          {
-            error: "ALL_FEEDS_FAILED",
-            code: 5002,
-            message: "Unable to retrieve data for any requested feeds",
-            timestamp: Date.now(),
-            requestId: this.generateRequestId(),
-            failedFeeds: failedFeeds,
-          },
-          HttpStatus.SERVICE_UNAVAILABLE
-        );
-      }
-
-      // If some feeds failed, log warning but return successful results
-      if (failedFeeds.length > 0) {
-        this.logger.warn(`${failedFeeds.length} out of ${feeds.length} feeds failed to retrieve data`, {
-          failedFeeds: failedFeeds.map(f => f.feed.name),
+      if (missingCount > 0) {
+        this.logger.warn(`${missingCount} out of ${feeds.length} feeds returned without values`, {
+          missingFeeds: orderedResults.filter(r => r.value === undefined).map(r => r.feed.name),
         });
       }
 
-      return successfulResults;
+      return orderedResults;
     } catch (error) {
       // Only end timer if it hasn't been ended yet
       if (totalResponseTime === 0) {
@@ -613,8 +601,8 @@ export class FeedController extends BaseController {
     }
   }
 
-  private async getCachedHistoricalData(feeds: FeedId[], votingRoundId: number): Promise<(FeedValueData | null)[]> {
-    const results: (FeedValueData | null)[] = [];
+  private async getCachedHistoricalData(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
+    const results: FeedValueData[] = [];
 
     for (const feed of feeds) {
       const cachedEntry = this.cacheService.getForVotingRound(feed, votingRoundId);
@@ -625,7 +613,7 @@ export class FeedController extends BaseController {
           value: cachedEntry.value,
         });
       } else {
-        results.push(null);
+        results.push({ feed });
       }
     }
 
@@ -636,7 +624,7 @@ export class FeedController extends BaseController {
     // Cache based on the feed attached to each data entry to avoid
     // index-based mismatches when some feeds fail to return data
     for (const feedData of data) {
-      if (!feedData?.feed) {
+      if (!feedData?.feed || feedData.value === undefined) {
         continue;
       }
 
@@ -657,7 +645,7 @@ export class FeedController extends BaseController {
 
   private combineHistoricalResults(
     allFeeds: FeedId[],
-    cachedResults: (FeedValueData | null)[],
+    cachedResults: FeedValueData[],
     missingFeeds: FeedId[],
     freshData: FeedValueData[]
   ): FeedValueData[] {
@@ -667,14 +655,15 @@ export class FeedController extends BaseController {
     // First, fill in all cached results
     for (let i = 0; i < allFeeds.length; i++) {
       if (cachedResults && cachedResults[i]) {
-        results[i] = cachedResults[i] as FeedValueData;
+        results[i] = cachedResults[i];
+      } else {
+        results[i] = { feed: allFeeds[i] };
       }
     }
 
-    // If there are no missing feeds, filter out any nulls and return
+    // If there are no missing feeds, return as-is
     if (missingFeeds.length === 0) {
-      const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
-      return validResults;
+      return results;
     }
 
     const missingFeedKeys = missingFeeds.map(feedKey);
@@ -686,8 +675,7 @@ export class FeedController extends BaseController {
         expected: missingFeeds.length,
         received: 0,
       });
-      const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
-      return validResults;
+      return results;
     }
 
     // Map fresh data by feed key for deterministic lookup
@@ -702,7 +690,7 @@ export class FeedController extends BaseController {
 
     // Fill any gaps with matching fresh data
     for (let i = 0; i < allFeeds.length; i++) {
-      if (!results[i]) {
+      if (results[i]?.value === undefined) {
         const key = feedKey(allFeeds[i]);
         const freshEntry = freshMap.get(key);
         if (freshEntry) {
@@ -722,7 +710,7 @@ export class FeedController extends BaseController {
       });
     }
 
-    return results.filter(result => result !== null && result !== undefined) as FeedValueData[];
+    return results;
   }
 
   private async getOptimizedVolumes(feeds: FeedId[], windowSec: number): Promise<FeedVolumeData[]> {
