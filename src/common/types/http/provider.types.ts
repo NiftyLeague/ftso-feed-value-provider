@@ -27,7 +27,7 @@ export interface VolumesRequest {
 export interface FeedValueData {
   feed: FeedId;
   /** Value in base units as float */
-  value: number;
+  value?: number;
 }
 
 export interface FeedVolumeData {

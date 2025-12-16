@@ -12,7 +12,6 @@ services:
     environment:
       # Minimal environment configuration - most defaults are optimized in environment.constants.ts
       # Core settings
-      - NODE_OPTIONS=${NODE_OPTIONS:---trace-gc --trace-gc-verbose --max-old-space-size=2048}
       - NODE_ENV=${NODE_ENV:-production}
       - LOG_LEVEL=${LOG_LEVEL:-log}
       - APP_PORT=${APP_PORT:-3101}
@@ -55,6 +54,7 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
+    command: ['node', '--max-old-space-size=2048', 'dist/src/main.js']
     # Optional: Uncomment and configure these labels if using Traefik as reverse proxy
     # labels:
     #   - "traefik.enable=true"

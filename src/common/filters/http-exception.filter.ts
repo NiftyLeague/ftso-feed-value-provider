@@ -401,7 +401,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (status >= 500) {
       logLevel = "error";
     } else if (status >= 400) {
-      logLevel = "warn";
+      // Client errors are often expected in public APIs; avoid WARN spam.
+      // Keep higher visibility for auth/rate-limit signals.
+      if (
+        status === HttpStatus.TOO_MANY_REQUESTS ||
+        status === HttpStatus.UNAUTHORIZED ||
+        status === HttpStatus.FORBIDDEN
+      ) {
+        logLevel = "warn";
+      } else {
+        logLevel = "debug";
+      }
     } else {
       logLevel = "log";
     }

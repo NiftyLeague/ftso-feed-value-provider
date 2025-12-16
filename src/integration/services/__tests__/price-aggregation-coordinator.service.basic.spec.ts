@@ -29,17 +29,29 @@ describe("PriceAggregationCoordinatorService Basic Tests", () => {
 describe("PriceAggregationCoordinatorService Feed Tracking", () => {
   let service: PriceAggregationCoordinatorService;
   let mockConfigService: jest.Mocked<ConfigService>;
+  let mockAggregationService: {
+    processPriceUpdate: jest.Mock;
+    on: jest.Mock;
+    getCacheStats: jest.Mock;
+    getActiveFeedCount: jest.Mock;
+  };
+  let mockCacheService: {
+    getPrice: jest.Mock;
+    setPrice: jest.Mock;
+    invalidateOnPriceUpdate: jest.Mock;
+    getStats: jest.Mock;
+  };
 
   beforeEach(async () => {
     // Create mock services
-    const mockAggregationService = {
+    mockAggregationService = {
       processPriceUpdate: jest.fn().mockResolvedValue(undefined),
       on: jest.fn(),
       getCacheStats: jest.fn().mockReturnValue({}),
       getActiveFeedCount: jest.fn().mockReturnValue(0),
     };
 
-    const mockCacheService = {
+    mockCacheService = {
       getPrice: jest.fn(),
       setPrice: jest.fn(),
       invalidateOnPriceUpdate: jest.fn(),
@@ -89,6 +101,29 @@ describe("PriceAggregationCoordinatorService Feed Tracking", () => {
     }).compile();
 
     service = module.get<PriceAggregationCoordinatorService>(PriceAggregationCoordinatorService);
+  });
+
+  it("should return stale cached price when no fresh data is available", async () => {
+    await service.initialize();
+
+    const now = Date.now();
+    const cachedTimestamp = now - 10_000; // stale vs default FRESH_DATA_MS (2s), but within MAX_DATA_AGE_MS (5m)
+
+    mockCacheService.getPrice.mockReturnValue({
+      value: 1.001,
+      timestamp: cachedTimestamp,
+      sources: [ExchangeId.Binance],
+      confidence: 0.9,
+    });
+
+    // Ensure aggregation won't provide fresh data
+    (service as any).aggregationService.getAggregatedPrice = jest.fn().mockResolvedValue(null);
+
+    const result = await service.getCurrentPrice({ category: 1, name: "USDT/USD" });
+
+    expect(result.symbol).toBe("USDT/USD");
+    expect(result.price).toBe(1.001);
+    expect(result.timestamp).toBe(cachedTimestamp);
   });
 
   it("should initialize with correct feed count from config service", async () => {

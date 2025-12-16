@@ -23,6 +23,7 @@ export interface ErrorHandlingCapabilities {
       shouldThrow?: boolean;
       fallback?: () => Promise<T>;
       onError?: (error: Error, attempt: number) => void;
+      retryLogLevel?: "warn" | "debug" | "silent";
     }
   ): Promise<T | undefined>;
   getErrorCount(context: string): number;
@@ -84,9 +85,10 @@ export function WithErrorHandling<TBase extends Constructor | AbstractConstructo
         shouldThrow?: boolean;
         fallback?: () => Promise<T>;
         onError?: (error: Error, attempt: number) => void;
+        retryLogLevel?: "warn" | "debug" | "silent";
       } = {}
     ): Promise<T | undefined> {
-      const { retries = 0, retryDelay = 1000, shouldThrow = true, fallback, onError } = options;
+      const { retries = 0, retryDelay = 1000, shouldThrow = true, fallback, onError, retryLogLevel = "warn" } = options;
 
       let lastError: Error | undefined;
 
@@ -101,13 +103,19 @@ export function WithErrorHandling<TBase extends Constructor | AbstractConstructo
           }
 
           if (attempt < retries) {
-            (this as unknown as IBaseService).logWarning(
-              `Operation failed, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${retries + 1})`,
-              context,
-              {
-                error: lastError.message,
-              }
-            );
+            if (retryLogLevel === "warn") {
+              (this as unknown as IBaseService).logWarning(
+                `Operation failed, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${retries + 1})`,
+                context,
+                {
+                  error: lastError.message,
+                }
+              );
+            } else if (retryLogLevel === "debug") {
+              (this as unknown as IBaseService).logger.debug(
+                `[${context}] Operation failed, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${retries + 1}): ${lastError.message}`
+              );
+            }
             // Use sleep for retry delay (this mixin doesn't have waitForCondition)
             await this.sleep(retryDelay);
           }

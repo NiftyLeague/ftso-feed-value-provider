@@ -32,8 +32,12 @@ export class DataSourceIntegrationService extends EventDrivenService {
   private healthWarningLastLogged = new Map<string, number>();
   private readonly HEALTH_WARNING_COOLDOWN_MS = 30000; // 30 seconds
 
+  private everHealthySources = new Set<string>();
+
   // Periodic circuit health check
   private circuitHealthCheckInterval?: NodeJS.Timeout;
+
+  private readonly registeredDataSources = new Map<string, DataSource>();
 
   constructor(
     private readonly dataManager: ProductionDataManagerService,
@@ -64,7 +68,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
         this.triggerGarbageCollection("after_adapter_registration");
 
         // Step 2: Initialize WebSocket orchestrator (handles connections centrally)
-        await this.wsOrchestrator.initialize();
+        await this.initializeDependency(this.wsOrchestrator, "wsOrchestrator");
 
         // Wire WebSocket orchestrator events
         this.wsOrchestrator.on(
@@ -97,7 +101,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
         this.triggerGarbageCollection("after_data_flow_wiring");
 
         // Initialize the ProductionDataManagerService using standard pattern
-        await this.dataManager.initialize();
+        await this.initializeDependency(this.dataManager, "dataManager");
 
         // Start periodic circuit health check to prevent stuck circuits
         this.startCircuitHealthCheck();
@@ -116,6 +120,24 @@ export class DataSourceIntegrationService extends EventDrivenService {
         },
       }
     );
+  }
+
+  private async initializeDependency(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dependency: any,
+    name: string
+  ): Promise<void> {
+    if (typeof dependency?.onModuleInit === "function") {
+      await dependency.onModuleInit();
+      return;
+    }
+
+    if (typeof dependency?.initialize === "function") {
+      await dependency.initialize();
+      return;
+    }
+
+    throw new TypeError(`Dependency ${name} does not support initialization (no onModuleInit/initialize)`);
   }
 
   private triggerGarbageCollection(phase: string): void {
@@ -138,6 +160,8 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
   async shutdown(): Promise<void> {
     this.logger.log("Shutting down Data Source Integration...");
+
+    this.everHealthySources.clear();
 
     // Stop circuit health check
     if (this.circuitHealthCheckInterval) {
@@ -316,13 +340,18 @@ export class DataSourceIntegrationService extends EventDrivenService {
     try {
       // Connect error handler to data manager events
       this.dataManager.on("sourceError", (sourceId: string, error: Error) => {
-        this.logger.error(`Data source error from ${sourceId}:`, error);
+        const hasBeenHealthy = this.everHealthySources.has(sourceId);
+        if (hasBeenHealthy) {
+          this.logger.debug(`Data source error from ${sourceId}: ${error?.message ?? error}`);
+        } else {
+          this.logger.debug(`Data source error from ${sourceId} during startup: ${error?.message ?? error}`);
+        }
         void this.handleSourceError(sourceId, error);
       });
 
       // Connect connection recovery to data manager disconnection events
       this.dataManager.on("sourceDisconnected", (sourceId: string) => {
-        this.logger.warn(`Data source ${sourceId} disconnected`);
+        this.logger.debug(`Data source ${sourceId} disconnected`);
         this.handleSourceDisconnection(sourceId);
       });
 
@@ -333,7 +362,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
         const lastLogged = this.healthWarningLastLogged.get(sourceId) || 0;
 
         if (now - lastLogged > this.HEALTH_WARNING_COOLDOWN_MS) {
-          this.logger.warn(`Data source ${sourceId} is unhealthy`);
+          this.logger.debug(`Data source ${sourceId} is unhealthy`);
           this.healthWarningLastLogged.set(sourceId, now);
         }
 
@@ -343,6 +372,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
       // Connect data manager health events
       this.dataManager.on("sourceHealthy", (sourceId: string) => {
         this.logger.log(`Data source ${sourceId} is healthy`);
+        this.everHealthySources.add(sourceId);
         this.handleSourceHealthy(sourceId);
       });
 
@@ -414,6 +444,9 @@ export class DataSourceIntegrationService extends EventDrivenService {
         try {
           // Create data source from adapter (but don't connect - orchestrator handles this)
           const dataSource = this.createDataSourceFromAdapter(adapter);
+
+          // Track for reliable shutdown, even if source is currently disconnected
+          this.registeredDataSources.set(dataSource.id, dataSource);
 
           // Register with connection recovery service for error handling
           await this.connectionRecovery.registerDataSource(dataSource);
@@ -503,15 +536,31 @@ export class DataSourceIntegrationService extends EventDrivenService {
 
   private async disconnectDataSources(): Promise<void> {
     try {
-      const connectedSources = this.dataManager.getConnectedSources();
+      const allSources =
+        this.registeredDataSources.size > 0
+          ? Array.from(this.registeredDataSources.values())
+          : this.dataManager.getConnectedSources();
 
-      for (const source of connectedSources) {
+      for (const source of allSources) {
         // Unregister from error handling services
         await this.connectionRecovery.unregisterDataSource(source.id);
         this.circuitBreaker.unregisterCircuit(source.id);
 
         // Remove from data manager
         await this.dataManager.removeDataSource(source.id);
+
+        // Disconnect sockets after listeners are removed to avoid shutdown-time warning churn
+        try {
+          await source.disconnect();
+        } catch (disconnectError) {
+          this.logger.debug(`Error disconnecting data source ${source.id} during shutdown: ${disconnectError}`);
+        }
+
+        this.registeredDataSources.delete(source.id);
+      }
+
+      if (this.registeredDataSources.size > 0) {
+        this.registeredDataSources.clear();
       }
     } catch (error) {
       this.logger.error("Error disconnecting data sources:", error);

@@ -371,7 +371,10 @@ export class ConsensusAggregator extends EventDrivenService {
       return acc;
     }, {});
 
-    this.logger.warn(`Rejected ${rejected.length} updates for ${feedName}`, {
+    const shouldWarn = kept === 0 || rejected.length >= 3;
+    const log = shouldWarn ? this.logger.warn.bind(this.logger) : this.logger.debug.bind(this.logger);
+
+    log(`Rejected ${rejected.length} updates for ${feedName}`, {
       feed: feedName,
       total,
       kept,

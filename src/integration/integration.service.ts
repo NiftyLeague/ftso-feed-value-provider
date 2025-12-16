@@ -43,16 +43,20 @@ export class IntegrationService
       async () => {
         this.logger.log("Starting Integration Orchestrator initialization");
 
+        // IMPORTANT: Wire the price update flow first so we don't miss early updates
+        // while other initialization steps are still running.
+        this.wirePriceUpdateFlow();
+
         // Step 1: Initialize data source integration
-        await this.dataSourceIntegration.initialize();
+        await this.initializeDependency(this.dataSourceIntegration, "dataSourceIntegration");
         this.triggerGarbageCollection("after_data_source_init");
 
         // Step 2: Initialize price aggregation coordination
-        await this.priceAggregationCoordinator.initialize();
+        await this.initializeDependency(this.priceAggregationCoordinator, "priceAggregationCoordinator");
         this.triggerGarbageCollection("after_aggregation_init");
 
         // Step 3: Initialize system health monitoring
-        await this.systemHealth.initialize();
+        await this.initializeDependency(this.systemHealth, "systemHealth");
         this.triggerGarbageCollection("after_health_init");
 
         // Step 4: Wire service interactions
@@ -75,6 +79,40 @@ export class IntegrationService
         },
       }
     );
+  }
+
+  private async initializeDependency(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dependency: any,
+    name: string
+  ): Promise<void> {
+    // Prefer Nest lifecycle initialization (guarded by WithLifecycle) when available.
+    if (typeof dependency?.onModuleInit === "function") {
+      await dependency.onModuleInit();
+      return;
+    }
+
+    // Fallback for unit tests and non-lifecycle-managed dependencies.
+    if (typeof dependency?.initialize === "function") {
+      await dependency.initialize();
+      return;
+    }
+
+    throw new TypeError(`Dependency ${name} does not support initialization (no onModuleInit/initialize)`);
+  }
+
+  private priceUpdateFlowWired = false;
+
+  private wirePriceUpdateFlow(): void {
+    if (this.priceUpdateFlowWired) {
+      return;
+    }
+
+    this.dataSourceIntegration.on("priceUpdate", (update: unknown) => {
+      this.priceAggregationCoordinator.handlePriceUpdate(update as PriceUpdate);
+    });
+
+    this.priceUpdateFlowWired = true;
   }
 
   private triggerGarbageCollection(phase: string): void {
@@ -194,13 +232,12 @@ export class IntegrationService
 
   // Lifecycle methods
   override async onModuleInit(): Promise<void> {
-    // Perform initialization synchronously to ensure service is ready for health checks
-    // This ensures health endpoints return accurate status immediately
-    await this.performInitialization();
+    // Delegate to WithLifecycle's guarded initialization.
+    await super.onModuleInit();
   }
 
   override async onModuleDestroy(): Promise<void> {
-    await this.performCleanup();
+    await super.onModuleDestroy();
   }
 
   // Override performInitialization to emit initialized event
@@ -213,10 +250,8 @@ export class IntegrationService
   private async wireServiceInteractions(): Promise<void> {
     this.logDebug("Wiring service interactions...", "wireServiceInteractions");
 
-    // Connect data source events to price aggregation
-    this.dataSourceIntegration.on("priceUpdate", (update: unknown) => {
-      this.priceAggregationCoordinator.handlePriceUpdate(update as PriceUpdate);
-    });
+    // Ensure price update flow is wired before attaching the rest.
+    this.wirePriceUpdateFlow();
 
     // Connect price aggregation events to system health
     this.priceAggregationCoordinator.on("aggregatedPrice", (aggregatedPrice: AggregatedPrice) => {

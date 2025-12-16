@@ -207,7 +207,8 @@ export class EnhancedLoggerService implements ILogger {
     operation: string,
     component: string,
     details: Record<string, unknown>,
-    success: boolean = true
+    success: boolean = true,
+    status?: "started" | "completed" | "failed"
   ): void {
     const context: EnhancedLogContext = {
       component,
@@ -216,7 +217,11 @@ export class EnhancedLoggerService implements ILogger {
       metadata: details,
     };
 
-    const message = `Critical Operation: ${operation} ${success ? "completed successfully" : "failed"}`;
+    const effectiveStatus = status ?? (success ? "completed" : "failed");
+    const statusText =
+      effectiveStatus === "started" ? "started" : effectiveStatus === "completed" ? "completed successfully" : "failed";
+
+    const message = `Critical Operation: ${operation} ${statusText}`;
 
     if (success) {
       this.log(message, context);

@@ -27,6 +27,9 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   private feedToExchangeMap = new Map<string, Array<{ exchange: string; symbol: string }>>();
   public override isInitialized = false;
 
+  private connectInitTimer?: NodeJS.Timeout;
+  private subscribeInitTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly adapterRegistry: ExchangeAdapterRegistry,
     private readonly configService: ConfigService
@@ -70,9 +73,17 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
    * Initialize WebSocket connections asynchronously to avoid blocking server startup
    */
   private initializeConnectionsAsync(): void {
-    // Use setTimeout to ensure this runs after the current call stack
-    setTimeout(async () => {
+    // Use managed timeout so we don't leak timers across module restarts
+    if (this.connectInitTimer) {
+      clearTimeout(this.connectInitTimer);
+      this.connectInitTimer = undefined;
+    }
+
+    this.connectInitTimer = this.createTimeout(async () => {
       try {
+        if (!this.isInitialized) {
+          return;
+        }
         this.logger.log("Starting asynchronous WebSocket connections...");
 
         // Step 3: Connect to all required exchanges once
@@ -93,8 +104,16 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
    * Subscribe to required symbols asynchronously to avoid blocking
    */
   private subscribeToRequiredSymbolsAsync(): void {
-    setTimeout(async () => {
+    if (this.subscribeInitTimer) {
+      clearTimeout(this.subscribeInitTimer);
+      this.subscribeInitTimer = undefined;
+    }
+
+    this.subscribeInitTimer = this.createTimeout(async () => {
       try {
+        if (!this.isInitialized) {
+          return;
+        }
         await this.subscribeToRequiredSymbols();
         this.logger.log("Asynchronous symbol subscription completed");
       } catch (error) {
@@ -240,7 +259,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   async reconnectExchange(exchangeName: string): Promise<boolean> {
     const state = this.exchangeStates.get(exchangeName);
     if (!state) {
-      this.logger.warn(`Exchange ${exchangeName} not found in orchestrator`);
+      this.logger.debug(`Exchange ${exchangeName} not found in orchestrator`);
       return false;
     }
 
@@ -505,6 +524,15 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
 
   override async cleanup(): Promise<void> {
     this.logger.log("Cleaning up WebSocket orchestrator...");
+
+    if (this.connectInitTimer) {
+      clearTimeout(this.connectInitTimer);
+      this.connectInitTimer = undefined;
+    }
+    if (this.subscribeInitTimer) {
+      clearTimeout(this.subscribeInitTimer);
+      this.subscribeInitTimer = undefined;
+    }
 
     for (const [exchangeName, state] of this.exchangeStates) {
       try {

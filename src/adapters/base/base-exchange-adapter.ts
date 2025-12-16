@@ -345,10 +345,18 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
       this.reconnectTimer = undefined;
     }
 
+    if (this.pongTimer) {
+      clearTimeout(this.pongTimer);
+      this.pongTimer = undefined;
+    }
+
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = undefined;
     }
+
+    // Clear health recovery timer (setInterval) to avoid leaks across shutdown/restarts
+    this.stopHealthRecoveryTimer();
 
     // Clear all maps and sets
     this.subscriptions.clear();
@@ -883,15 +891,15 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         this.ws = new WebSocket(config.url, config.protocols, wsOptions);
 
         // Use condition-based connection waiting instead of timeout
-        const connectionTimeout = config.connectionTimeout || 10000;
+        const connectionTimeoutMs = config.connectionTimeout || 10000;
         void this.waitForCondition(() => this.ws?.readyState === WebSocket.OPEN, {
-          maxAttempts: connectionTimeout / 100,
+          maxAttempts: connectionTimeoutMs / 100,
           checkInterval: 100,
-          timeout: connectionTimeout,
+          timeout: connectionTimeoutMs,
         }).then(connected => {
           if (!connected && this.ws?.readyState === WebSocket.CONNECTING) {
             this.ws.terminate();
-            this.logger.warn(`WebSocket connection timeout for ${this.exchangeName}, falling back to REST API`);
+            this.logger.debug(`WebSocket connection timeout for ${this.exchangeName}, falling back to REST API`);
             resolve(); // Always resolve to allow REST-only mode
           }
         });
@@ -923,8 +931,6 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         });
 
         this.ws.on("close", (code: number, reason: string) => {
-          clearTimeout(connectionTimeout);
-
           // Track disconnection for health monitoring
           this.trackDisconnection();
 
@@ -935,13 +941,13 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           if (!handled) {
             // Handle different close codes appropriately
             if (code === 1006) {
-              this.logger.warn(
+              this.logger.debug(
                 `WebSocket closed for ${this.exchangeName}: ${code} - abnormal closure (connection lost)`
               );
             } else if (code === 1000) {
               this.logger.log(`WebSocket closed for ${this.exchangeName}: ${code} - normal closure`);
             } else {
-              this.logger.warn(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
+              this.logger.debug(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
             }
           }
 
@@ -958,7 +964,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
             if (this.isConnectionUnstable()) {
               const backoffMultiplier = Math.min(Math.pow(2, this.reconnectAttempts), 8); // Cap at 8x
               reconnectDelay = Math.min(reconnectDelay * backoffMultiplier, 60000); // Cap at 1 minute
-              this.logger.warn(
+              this.logger.debug(
                 `Connection unstable for ${this.exchangeName}, using exponential backoff: ${reconnectDelay}ms`
               );
             }
@@ -968,8 +974,6 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         });
 
         this.ws.on("error", (error: Error) => {
-          clearTimeout(connectionTimeout);
-
           // During shutdown, suppress WebSocket connection errors as they're expected
           if (this.isShuttingDown) {
             resolve(); // Allow graceful shutdown without error logging
@@ -1039,9 +1043,21 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
     // Stop health recovery timer
     this.stopHealthRecoveryTimer();
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.close(code, reason);
-      this.ws = undefined;
+    if (this.ws) {
+      try {
+        if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close(code, reason);
+        }
+      } catch {
+        // If close fails, ensure termination to avoid leaking handles
+        try {
+          this.ws.terminate();
+        } catch {
+          // ignore
+        }
+      } finally {
+        this.ws = undefined;
+      }
     }
   }
 

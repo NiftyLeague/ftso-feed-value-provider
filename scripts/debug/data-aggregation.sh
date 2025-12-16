@@ -40,21 +40,25 @@ if wait_for_debug_service_readiness; then
     
     # Test actual data aggregation endpoints
     echo "🧪 Testing feed values endpoint..."
-    if curl -s "http://localhost:3101/feed-values?feeds=BTC/USD,ETH/USD" | jq . >/dev/null 2>&1; then
+    if curl -s -X POST -H "Content-Type: application/json" \
+        -d '{"feeds":[{"category":1,"name":"BTC/USD"},{"category":1,"name":"ETH/USD"}]}' \
+        "http://localhost:3101/feed-values" | jq . >/dev/null 2>&1; then
         echo "  ✅ Feed values endpoint working"
     else
         echo "  ❌ Feed values endpoint failed"
     fi
     
     echo "🧪 Testing metrics endpoint..."
-    if curl -s "http://localhost:3101/metrics" | jq . >/dev/null 2>&1; then
+    if curl -s -f "http://localhost:3101/metrics" >/dev/null 2>&1; then
         echo "  ✅ Metrics endpoint working"
     else
         echo "  ❌ Metrics endpoint failed"
     fi
     
     echo "🧪 Testing volume data endpoint..."
-    if curl -s "http://localhost:3101/feed-volumes?feeds=BTC/USD&window=3600" | jq . >/dev/null 2>&1; then
+    if curl -s -X POST -H "Content-Type: application/json" \
+        -d '{"feeds":[{"category":1,"name":"BTC/USD"}]}' \
+        "http://localhost:3101/volumes?window=3600" | jq . >/dev/null 2>&1; then
         echo "  ✅ Volume data endpoint working"
     else
         echo "  ❌ Volume data endpoint failed"

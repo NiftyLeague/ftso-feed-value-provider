@@ -65,6 +65,10 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   private subscriptionBatchTimer: Map<string, NodeJS.Timeout> = new Map(); // exchange -> timer
   private readonly SUBSCRIPTION_BATCH_DELAY_MS = 200; // 200ms delay to batch subscriptions (reduced for faster response)
 
+  private isExchangeWebSocketConnected(exchangeId: string): boolean {
+    return this.ccxtConnectionStatus.get(exchangeId) === true && this.watchTradesActive.get(exchangeId) === true;
+  }
+
   constructor(
     config?: CcxtMultiExchangeConnectionConfig,
     private configService?: {
@@ -87,10 +91,12 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   /**
-   * Check CCXT-specific connection status instead of base adapter WebSocket
-   * Returns true when any CCXT exchange has active connections
+   * Check CCXT-specific connection status instead of base adapter WebSocket.
+   *
+   * Note: this is intentionally public so it can be used by orchestrators/health/metrics
+   * without forcing them to infer CCXT state from BaseExchangeAdapter's internal WebSocket.
    */
-  private isCcxtWebSocketConnected(): boolean {
+  public isCcxtWebSocketConnected(): boolean {
     // Handle edge case when no exchanges are configured
     if (this.ccxtConnectionStatus.size === 0) {
       return false;
@@ -198,6 +204,15 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
     // Clear subscriptions
     this.exchangeSubscriptions.clear();
+
+    // Clear subscription batching state (disconnects can happen without full cleanup)
+    for (const timer of this.subscriptionBatchTimer.values()) {
+      clearTimeout(timer);
+    }
+    this.subscriptionBatchTimer.clear();
+    this.pendingSubscriptions.clear();
+    this.lastSubscriptionAttempt.clear();
+    this.recentSubscriptionCalls = [];
 
     // Clear price cache
     this.latestPrices.clear();
@@ -831,6 +846,9 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
     }
 
     // Check if we already have subscriptions for these specific symbols
+    if (!this.exchangeSubscriptions.has(exchangeId)) {
+      this.exchangeSubscriptions.set(exchangeId, new Set());
+    }
     const existingSubscriptions = this.exchangeSubscriptions.get(exchangeId) || new Set();
     const newSymbols = symbols.filter(symbol => !existingSubscriptions.has(symbol));
 
@@ -868,6 +886,17 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
       if (symbolsForSubscription.length === 0) {
         this.logger.warn(`No valid markets found for ${exchangeId}`);
+        return;
+      }
+
+      // Avoid spawning duplicate watch loops for the same exchange.
+      // New symbols will be picked up by the existing loop (for watchTradesForSymbols) and
+      // in the worst case will be included on the next reconnect.
+      if (this.watchTradesActive.get(exchangeId)) {
+        this.logger.debug(
+          `Already watching trades for ${exchangeId}; skipping starting another watch loop (requested ${symbolsForSubscription.length} new symbols)`
+        );
+        this.resetCircuitBreaker(exchangeId);
         return;
       }
 
@@ -1018,7 +1047,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
     this.logger.log(`Starting watchTradesForSymbols for ${exchangeId} with ${symbols.length} markets`);
 
-    while (this.isCcxtWebSocketConnected() && this.watchTradesActive.get(exchangeId)) {
+    while (this.isExchangeWebSocketConnected(exchangeId)) {
       try {
         const trades = await exchange.watchTradesForSymbols(symbols);
 
@@ -1119,7 +1148,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
             // Log trade data parsing issues with context
             context: {
               marketCount: symbols.length,
-              connectionActive: this.isCcxtWebSocketConnected(),
+              connectionActive: this.isExchangeWebSocketConnected(exchangeId),
               watchingActive: this.watchTradesActive.get(exchangeId),
               lastProcessedCount: totalTradesProcessed,
             },
@@ -1149,7 +1178,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
     this.logger.debug(`Starting watchTradesForSymbol for ${exchangeId}/${symbol}`);
 
-    while (this.isCcxtWebSocketConnected() && this.watchTradesActive.get(exchangeId)) {
+    while (this.isExchangeWebSocketConnected(exchangeId)) {
       try {
         const trades = await exchange.watchTrades(symbol, since);
 
@@ -1201,7 +1230,7 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
           timestamp: new Date().toISOString(),
           // Log trade data parsing issues with context
           context: {
-            connectionActive: this.isCcxtWebSocketConnected(),
+            connectionActive: this.isExchangeWebSocketConnected(exchangeId),
             watchingActive: this.watchTradesActive.get(exchangeId),
             lastSince: since,
             lastProcessedCount: tradesProcessedForSymbol,
@@ -1244,7 +1273,13 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
 
     // ✅ Use adaptive polling based on data freshness instead of fixed intervals
     const adaptivePolling = async () => {
-      if (!this.isCcxtWebSocketConnected()) {
+      // REST polling should run even when no WebSocket is active.
+      if (!this.isConnected()) {
+        return;
+      }
+
+      // Stop polling if the exchange has been removed/unavailable
+      if (!this.exchanges.has(exchangeId)) {
         return;
       }
 
