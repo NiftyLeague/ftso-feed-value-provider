@@ -1,6 +1,6 @@
 {
   "name": "ftso-feed-value-provider",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Retrieves data from exchanges and supplies current feed values (prices)",
   "author": "0xPlayerOne",
   "private": true,
