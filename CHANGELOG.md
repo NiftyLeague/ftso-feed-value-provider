@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.1](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.1.0...v1.1.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* **cache:** enhance cache TTL handling and support stale-cache fallback behavior ([011f843](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/011f843132f58b041fb9768dce940d9ffed9b48d))
+* enhance connection management & cleanup across services to avoid resource leaks ([a5c9ca4](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/a5c9ca40802e62df48b04474b6cfa1397a5ce4cc))
+* **feed:** improve price aggregation and caching logic for feeds ([5c7e651](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/5c7e6519a8307b76ef8d31a75d628a25f36701dc))
+* **feed:** return feeds with optional values & add all feeds to swagger default ([43b6024](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/43b60249049daa0b1afe3e04b142def23e22bc5c))
+* **integration:** streamline initialization and enhance price update flow handling ([07c7404](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/07c7404dbedc8d8d0686fffd67e607891ab7331a))
+* **logging:** adjust log levels to reduce WARN spam and improve clarity ([e7c3c8a](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/e7c3c8aee0c5f56eacaa588ffff2449326359124))
+* **tests:** enhance Jest configuration and cleanup for HTTP(S) agents to prevent hanging ([a609233](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/a609233ff2311eecbeb3fca1d17388af7414d636))
+
 ## [1.1.0](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.0.0...v1.1.0) (2025-12-11)
 
 
