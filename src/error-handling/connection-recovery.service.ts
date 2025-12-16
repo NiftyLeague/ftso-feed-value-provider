@@ -59,6 +59,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
   private monitoringStarted = false;
   private failoverEventHandlersAttached = false;
 
+  private shutdownInProgress = false;
+
   // Rate limiting for reconnection attempts
   private lastReconnectAttempt = new Map<string, number>();
   private readonly RECONNECT_COOLDOWN_MS = ENV.CONNECTION_RECOVERY.RECONNECT_COOLDOWN_MS;
@@ -101,6 +103,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
    * Register a data source for connection recovery management
    */
   async registerDataSource(source: DataSource): Promise<void> {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     this.logger.log(`Registering data source for connection recovery: ${source.id}`);
 
     // Register with circuit breaker - very lenient for WebSocket sources
@@ -466,6 +471,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private handleConnectionChange(sourceId: string, connected: boolean): void {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     const health = this.connectionHealth.get(sourceId);
     if (!health) return;
 
@@ -482,13 +490,17 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private async handleConnectionLost(sourceId: string): Promise<void> {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     const health = this.connectionHealth.get(sourceId);
     if (health) {
+      const previousDisconnected = health.lastDisconnected;
       health.lastDisconnected = Date.now();
       health.consecutiveFailures++;
 
       // Only warn on first failure or after significant time
-      const timeSinceLastDisconnect = health.lastDisconnected - (health.lastDisconnected || 0);
+      const timeSinceLastDisconnect = previousDisconnected ? health.lastDisconnected - previousDisconnected : Infinity;
       if (health.consecutiveFailures === 1 || timeSinceLastDisconnect > 60000) {
         // 1 minute
         this.logger.warn(`Connection lost for source: ${sourceId} (attempt ${health.consecutiveFailures})`);
@@ -502,6 +514,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private handleConnectionRestored(sourceId: string): void {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     this.logger.log(`Connection restored for source: ${sourceId}`);
 
     const health = this.connectionHealth.get(sourceId);
@@ -519,9 +534,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
       this.reconnectTimers.delete(sourceId);
     }
 
-    // CRITICAL FIX: Reset circuit breaker stats to prevent immediate re-opening
-    // This ensures that subscription failures during reconnection don't immediately
-    // re-open the circuit that we just closed
+    // CRITICAL FIX: Reset circuit breaker stats to prevent immediate re-opening.
+    // Safe during shutdown: resetStats is a no-op when unregistered and closeCircuit silently no-ops.
     this.circuitBreaker.resetStats(sourceId);
     this.circuitBreaker.closeCircuit(sourceId, "Connection restored");
 
@@ -529,6 +543,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private scheduleRecovery(sourceId: string, errorType?: string): void {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     const health = this.connectionHealth.get(sourceId);
     const source = this.dataSources.get(sourceId);
 
@@ -719,6 +736,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
    * Handle disconnection event with optional error information
    */
   async handleDisconnection(sourceId: string, error?: Error): Promise<void> {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     try {
       const errorType = error ? this.categorizeConnectionError(error) : "unknown";
       this.logger.debug(`Handling disconnection for source: ${sourceId}${error ? ` (${errorType})` : ""}`);
@@ -771,5 +791,10 @@ export class ConnectionRecoveryService extends EventDrivenService {
 
     // Remove all event listeners to prevent memory leaks
     this.removeAllListeners();
+  }
+
+  override async cleanup(): Promise<void> {
+    this.shutdownInProgress = true;
+    this.destroy();
   }
 }

@@ -8,6 +8,19 @@ set -e
 echo "🐳 Testing FTSO Feed Value Provider in Docker..."
 echo ""
 
+# Preflight: skip cleanly if Docker isn't available/running.
+# This allows `test:all` to run on developer machines without Docker,
+# while still exercising Docker deployment in CI where Docker is available.
+if ! command -v docker >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠ Docker CLI not found; skipping Docker Deployment Test${NC}"
+    exit 0
+fi
+
+if ! docker info >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠ Docker daemon not running; skipping Docker Deployment Test${NC}"
+    exit 0
+fi
+
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'

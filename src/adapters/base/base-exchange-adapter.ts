@@ -899,7 +899,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
         }).then(connected => {
           if (!connected && this.ws?.readyState === WebSocket.CONNECTING) {
             this.ws.terminate();
-            this.logger.warn(`WebSocket connection timeout for ${this.exchangeName}, falling back to REST API`);
+            this.logger.debug(`WebSocket connection timeout for ${this.exchangeName}, falling back to REST API`);
             resolve(); // Always resolve to allow REST-only mode
           }
         });
@@ -941,13 +941,13 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
           if (!handled) {
             // Handle different close codes appropriately
             if (code === 1006) {
-              this.logger.warn(
+              this.logger.debug(
                 `WebSocket closed for ${this.exchangeName}: ${code} - abnormal closure (connection lost)`
               );
             } else if (code === 1000) {
               this.logger.log(`WebSocket closed for ${this.exchangeName}: ${code} - normal closure`);
             } else {
-              this.logger.warn(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
+              this.logger.debug(`WebSocket closed for ${this.exchangeName}: ${code} - ${reason}`);
             }
           }
 
@@ -964,7 +964,7 @@ export abstract class BaseExchangeAdapter extends DataProviderService implements
             if (this.isConnectionUnstable()) {
               const backoffMultiplier = Math.min(Math.pow(2, this.reconnectAttempts), 8); // Cap at 8x
               reconnectDelay = Math.min(reconnectDelay * backoffMultiplier, 60000); // Cap at 1 minute
-              this.logger.warn(
+              this.logger.debug(
                 `Connection unstable for ${this.exchangeName}, using exponential backoff: ${reconnectDelay}ms`
               );
             }

@@ -52,6 +52,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   // Data source initialization tracking
   private dataSourcesInitialized = new Set<string>();
 
+  // Track whether a source has ever connected successfully
+  private sourceEverConnected = new Set<string>();
+
   private readonly sourceEventHandlers = new Map<
     string,
     {
@@ -64,6 +67,10 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   // Rate limiting for quality warnings only
   private qualityWarningLastLogged = new Map<string, number>();
   private readonly QUALITY_WARNING_COOLDOWN_MS = ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS; // 5 minutes - much less frequent for quality warnings
+
+  // Rate limiting for connection churn logs
+  private connectionChurnLastLogged = new Map<string, number>();
+  private readonly CONNECTION_CHURN_COOLDOWN_MS = ENV.ERROR_HANDLING.WARNING_COOLDOWN_MS;
 
   constructor() {
     super({
@@ -233,6 +240,10 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
     // Clear rate limiting maps to free memory
     this.qualityWarningLastLogged.clear();
+    this.connectionChurnLastLogged.clear();
+
+    // Clear source tracking
+    this.sourceEverConnected.clear();
 
     // Clear connection metrics
     this.connectionMetrics.clear();
@@ -240,6 +251,16 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
     // Clear stored handler references
     this.sourceEventHandlers.clear();
+  }
+
+  private shouldLogConnectionChurn(key: string): boolean {
+    const now = Date.now();
+    const lastLogged = this.connectionChurnLastLogged.get(key) || 0;
+    if (now - lastLogged < this.CONNECTION_CHURN_COOLDOWN_MS) {
+      return false;
+    }
+    this.connectionChurnLastLogged.set(key, now);
+    return true;
   }
 
   /**
@@ -494,20 +515,22 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     const configuredExchanges = this.getConfiguredExchangesForFeed(feedId);
     const priceUpdates: PriceUpdate[] = [];
 
+    const missingSources: string[] = [];
+
     this.logger.debug(`Getting price updates for ${feedId.name} from exchanges: ${configuredExchanges.join(", ")}`);
 
     for (const exchange of configuredExchanges) {
       try {
         const source = this.getDataSourceForExchange(exchange);
         if (!source) {
-          this.logger.warn(`Source not found for exchange ${exchange} for feed ${feedId.name}`);
+          missingSources.push(exchange);
           continue;
         }
 
         if (hasRestFallbackCapability(source)) {
           this.logger.debug(`Source ${exchange} has REST fallback capability`);
         } else {
-          this.logger.warn(`Source ${exchange} does not have REST fallback capability`);
+          this.logger.debug(`Source ${exchange} does not have REST fallback capability`);
         }
 
         // Check if this is a CCXT exchange
@@ -561,6 +584,15 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         }
       } catch (error) {
         this.logger.error(`Failed to get price from ${exchange} for ${feedId.name}:`, error);
+      }
+    }
+
+    if (missingSources.length > 0) {
+      const churnKey = `missing_source:${feedId.name}`;
+      if (this.shouldLogConnectionChurn(churnKey)) {
+        this.logger.debug(
+          `Missing data source mapping for ${missingSources.length} exchange(s) for feed ${feedId.name}: ${missingSources.join(", ")}`
+        );
       }
     }
 
@@ -1019,6 +1051,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         // Wait for actual connection readiness instead of assuming success
         await this.waitForSourceReadiness(source);
 
+        // Mark as ever connected once readiness is confirmed
+        this.sourceEverConnected.add(sourceId);
+
         // Update metrics on successful connection
         metrics.isHealthy = true;
         metrics.reconnectAttempts = 0;
@@ -1029,8 +1064,21 @@ export class ProductionDataManagerService extends EventDrivenService implements 
         retries: 10,
         retryDelay: this.calculateAdaptiveDelay(metrics.reconnectAttempts),
         shouldThrow: false,
+        retryLogLevel: "debug",
         onError: (error, attempt) => {
-          this.logger.error(`Connection failed for ${sourceId} (attempt ${attempt}):`, error);
+          const everConnected = this.sourceEverConnected.has(sourceId) || this.dataSourcesInitialized.has(sourceId);
+          const churnKey = `connect_failed:${sourceId}`;
+
+          // External exchanges can legitimately be unavailable; treat as churn unless we've previously been healthy.
+          if (this.shouldLogConnectionChurn(churnKey)) {
+            if (everConnected) {
+              this.logger.debug(`Connection failed for ${sourceId} (attempt ${attempt}): ${error?.message ?? error}`);
+            } else {
+              this.logger.debug(
+                `Connection failed for ${sourceId} during startup (attempt ${attempt}): ${error?.message ?? error}`
+              );
+            }
+          }
 
           // Emit error event for error handling services
           this.emit("sourceError", sourceId, error);
@@ -1051,6 +1099,7 @@ export class ProductionDataManagerService extends EventDrivenService implements 
 
     if (connected) {
       this.logger.log(`Data source ${sourceId} connected`);
+      this.sourceEverConnected.add(sourceId);
       metrics.reconnectAttempts = 0;
       metrics.consecutiveFailures = 0; // Reset on successful connection
       metrics.lastError = undefined; // Clear error on success
@@ -1068,7 +1117,10 @@ export class ProductionDataManagerService extends EventDrivenService implements 
       this.emit("sourceConnected", sourceId);
       this.emit("sourceHealthy", sourceId);
     } else {
-      this.logger.warn(`Data source ${sourceId} disconnected`);
+      const churnKey = `disconnected:${sourceId}`;
+      if (this.shouldLogConnectionChurn(churnKey)) {
+        this.logger.debug(`Data source ${sourceId} disconnected`);
+      }
 
       // Schedule reconnection for WebSocket sources
       const source = this.dataSources.get(sourceId);

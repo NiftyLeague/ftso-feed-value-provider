@@ -265,7 +265,7 @@ export class CircuitBreakerService extends EventDrivenService {
    */
   closeCircuit(serviceId: string, reason?: string): void {
     if (!this.circuits.has(serviceId)) {
-      this.logger.warn(`Cannot close circuit - not registered: ${serviceId}`);
+      this.logger.debug(`Cannot close circuit - not registered: ${serviceId}`);
       return;
     }
 
@@ -277,6 +277,10 @@ export class CircuitBreakerService extends EventDrivenService {
 
     this.logger.log(`Manually closing circuit for ${serviceId}: ${reason || "Manual trigger"}`);
     this.transitionToClosed(serviceId);
+  }
+
+  isRegistered(serviceId: string): boolean {
+    return this.circuits.has(serviceId);
   }
 
   /**

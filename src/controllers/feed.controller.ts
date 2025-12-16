@@ -96,6 +96,8 @@ export class FeedController extends BaseController {
     this.universalRetryService = universalRetryService;
   }
 
+  private readonly missingValuesWarningLastLogged = new Map<string, number>();
+
   @Post("feed-values")
   @HttpCode(200)
   @Header("Content-Type", "application/json")
@@ -571,9 +573,28 @@ export class FeedController extends BaseController {
       );
 
       if (missingCount > 0) {
-        this.logger.warn(`${missingCount} out of ${feeds.length} feeds returned without values`, {
-          missingFeeds: orderedResults.filter(r => r.value === undefined).map(r => r.feed.name),
-        });
+        const missingFeeds = orderedResults.filter(r => r.value === undefined).map(r => r.feed.name);
+        const warningKey = missingFeeds.slice().sort().join(",");
+        const now = Date.now();
+        const lastLogged = this.missingValuesWarningLastLogged.get(warningKey) || 0;
+
+        if (now - lastLogged >= ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS) {
+          const message = `${missingCount} out of ${feeds.length} feeds returned without values`;
+          const payload = {
+            missingFeeds,
+            cooldownMs: ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS,
+          };
+
+          // Partial misses are expected in degraded conditions; warn only when *all* values are missing.
+          if (missingCount === feeds.length) {
+            this.logger.warn(message, payload);
+          } else {
+            this.logger.debug(message, payload);
+          }
+          this.missingValuesWarningLastLogged.set(warningKey, now);
+        } else {
+          this.logger.debug(`${missingCount} out of ${feeds.length} feeds returned without values`, { missingFeeds });
+        }
       }
 
       return orderedResults;

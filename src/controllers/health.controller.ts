@@ -44,6 +44,10 @@ export class HealthController extends EventDrivenController {
   private integrationServiceReady = false;
   private isInitializingStartup = true;
 
+  private readinessWarnLastLogged = 0;
+  private readinessFailureCountSinceLastWarning = 0;
+  private readonly READINESS_WARNING_COOLDOWN_MS = 60000;
+
   constructor(
     @Inject("FTSO_PROVIDER_SERVICE") private readonly providerService: FtsoProviderService,
     private readonly integrationService: IntegrationService,
@@ -69,7 +73,6 @@ export class HealthController extends EventDrivenController {
     // Check current state first
     if (this.integrationService.isServiceInitialized()) {
       this.integrationServiceReady = true;
-      this.isInitializingStartup = false;
       this.logger.log("Integration service already initialized at controller construction");
       return;
     }
@@ -77,7 +80,6 @@ export class HealthController extends EventDrivenController {
     // Listen for integration service initialization using base event mixin
     this.integrationService.on("initialized", () => {
       this.integrationServiceReady = true;
-      this.isInitializingStartup = false;
       this.logger.debug("Integration service initialization event received");
     });
 
@@ -90,7 +92,6 @@ export class HealthController extends EventDrivenController {
       .then(success => {
         if (success && !this.integrationServiceReady) {
           this.integrationServiceReady = true;
-          this.isInitializingStartup = false;
           this.logger.debug("Integration service initialization detected via waitForCondition");
         } else if (!success) {
           // Keep isInitializingStartup = true even after timeout
@@ -461,11 +462,26 @@ export class HealthController extends EventDrivenController {
           startup: checks.startup.ready ? "ready" : "not ready",
         };
 
-        // Use event-driven state to determine appropriate logging level
-        if (this.isInitializingStartup) {
+        // Treat readiness failures as expected until the system has *ever* been ready.
+        // After that, rate-limit WARNs to avoid log spam from orchestrators probing /health/ready.
+        const isStillInitializing = !this.readyTime;
+        if (isStillInitializing) {
           this.logger.debug(errorMessage, errorDetails);
         } else {
-          this.logger.warn(errorMessage, errorDetails);
+          const now = Date.now();
+          this.readinessFailureCountSinceLastWarning++;
+
+          if (now - this.readinessWarnLastLogged >= this.READINESS_WARNING_COOLDOWN_MS) {
+            this.logger.warn(errorMessage, {
+              ...errorDetails,
+              failuresSinceLastWarning: this.readinessFailureCountSinceLastWarning,
+              cooldownMs: this.READINESS_WARNING_COOLDOWN_MS,
+            });
+            this.readinessWarnLastLogged = now;
+            this.readinessFailureCountSinceLastWarning = 0;
+          } else {
+            this.logger.debug(errorMessage, errorDetails);
+          }
         }
 
         // Create a proper error response with meaningful message

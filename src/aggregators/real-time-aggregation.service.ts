@@ -87,6 +87,8 @@ export class RealTimeAggregationService
   private performanceWarningLastLogged = new Map<string, number>();
   private readonly PERFORMANCE_WARNING_COOLDOWN_MS = 60000; // 1 minute
 
+  private readonly serviceStartTime = Date.now();
+
   // Rate limiting for aggregation failure warnings
   private aggregationFailureLastLogged = new Map<string, number>();
   private readonly AGGREGATION_FAILURE_COOLDOWN_MS = ENV.AGGREGATION.FAILURE_COOLDOWN_MS;
@@ -236,11 +238,13 @@ export class RealTimeAggregationService
         : baseThreshold * startupMultiplier;
 
       // Only warn for extremely degraded performance (5x threshold)
-      const criticalThreshold = dynamicThreshold * 5;
+      // More conservative critical threshold to avoid false positives in short runs
+      const criticalThreshold = dynamicThreshold * 10;
+      const hasStabilized = now - this.serviceStartTime > 120_000;
 
       if (responseTime > criticalThreshold) {
         // Only warn for truly critical performance issues when service is initialized
-        if (isServiceInitialized && this.activeAggregations.size <= 50) {
+        if (isServiceInitialized && hasStabilized && this.activeAggregations.size <= 50) {
           const warningKey = `perf_critical_${feedId.name}`;
           const lastLogged = this.performanceWarningLastLogged.get(warningKey) || 0;
           const cooldownPeriod = this.PERFORMANCE_WARNING_COOLDOWN_MS * 5; // Much longer cooldown

@@ -254,7 +254,7 @@ echo "-----------------------"
 
 # Test host header injection
 run_security_test "Host Header Injection" \
-    "curl -s -H 'Host: malicious-host.com' -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health" \
+    "curl -s -H 'Host: malicious-host.com' -o /dev/null -w '%{http_code}' http://localhost:$TEST_PORT/health/live" \
     "success"
 
 echo ""
@@ -265,11 +265,13 @@ echo "-------------------------"
 echo "Testing rate limiting..."
 
 # Make multiple rapid requests to test rate limiting
-RATE_LIMIT_REQUESTS=1005  # Slightly exceed the 1000 requests per minute limit
+# Note: default rate limiter config is 2000 requests/minute in this repo.
+# Use a guarded endpoint and exceed that limit to ensure we observe 429.
+RATE_LIMIT_REQUESTS=2100
 RATE_LIMITED=0
 
 for i in $(seq 1 $RATE_LIMIT_REQUESTS); do
-    RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:$TEST_PORT/health 2>/dev/null)
+    RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null http://localhost:$TEST_PORT/metrics 2>/dev/null)
     if [ "$RESPONSE" = "429" ]; then
         RATE_LIMITED=$((RATE_LIMITED + 1))
     fi
@@ -289,7 +291,7 @@ echo "📝 Response Analysis:"
 echo "--------------------"
 
 # Analyze responses for information disclosure
-HEALTH_RESPONSE=$(curl -s http://localhost:$TEST_PORT/health 2>/dev/null)
+HEALTH_RESPONSE=$(curl -s http://localhost:$TEST_PORT/health/live 2>/dev/null)
 
 if echo "$HEALTH_RESPONSE" | grep -qi "version\|build\|debug"; then
     echo "  ⚠️  Potential information disclosure in health endpoint"

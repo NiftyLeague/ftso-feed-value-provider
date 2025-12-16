@@ -259,7 +259,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   async reconnectExchange(exchangeName: string): Promise<boolean> {
     const state = this.exchangeStates.get(exchangeName);
     if (!state) {
-      this.logger.warn(`Exchange ${exchangeName} not found in orchestrator`);
+      this.logger.debug(`Exchange ${exchangeName} not found in orchestrator`);
       return false;
     }
 

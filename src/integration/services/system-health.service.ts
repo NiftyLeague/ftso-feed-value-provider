@@ -23,7 +23,9 @@ export class SystemHealthService extends EventDrivenService {
   private aggregationErrors: Error[] = [];
   private healthMetrics: DetailedSystemHealthMetrics;
   private alertCooldowns = new Map<string, number>();
+  private everHealthySources = new Set<string>();
   private readonly ALERT_COOLDOWN_MS = 30000; // 30 seconds between duplicate alerts
+  private readonly serviceStartTime = Date.now();
 
   constructor(
     private readonly accuracyMonitor: AccuracyMonitorService,
@@ -130,6 +132,12 @@ export class SystemHealthService extends EventDrivenService {
         healthStatus.errorCount++;
       } else if (status === "recovered") {
         healthStatus.recoveryCount++;
+      }
+
+      // Track whether the source has ever been healthy during this process lifetime.
+      // This helps avoid elevating expected "never-connected" sources to WARN.
+      if (status === "healthy" || status === "recovered") {
+        this.everHealthySources.add(sourceId);
       }
 
       this.sourceHealthMap.set(sourceId, healthStatus);
@@ -353,7 +361,14 @@ export class SystemHealthService extends EventDrivenService {
       let alertMessage = `Data source ${sourceId} status changed to ${status}`;
 
       if (status === "unhealthy") {
-        alertSeverity = "warning";
+        // During initial bootstrap, transient connection churn is expected.
+        // Escalate to warning only after the service has had time to stabilize.
+        const isBootstrapWindow = now - this.serviceStartTime < 60_000;
+        const hasEverBeenHealthy = this.everHealthySources.has(sourceId);
+
+        // If the source has never been healthy since process start, treat it as informational.
+        // This avoids noisy warnings for optional sources during short-lived test runs.
+        alertSeverity = isBootstrapWindow || !hasEverBeenHealthy ? "log" : "warning";
         alertMessage = `Data source ${sourceId} is unhealthy`;
       } else if (status === "recovered") {
         alertSeverity = "log";

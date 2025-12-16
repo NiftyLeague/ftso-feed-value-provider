@@ -221,6 +221,8 @@ describe("CachePerformanceMonitorService", () => {
 
       // Mock the service as initialized to enable warnings
       (performanceMonitor as any).isInitialized = true;
+      // Skip the startup stabilization window so WARN emission is testable
+      (performanceMonitor as any).serviceStartTime = Date.now() - 121_000;
 
       // Create poor performance scenario with significant activity (>1000 requests)
       for (let i = 0; i < 1100; i++) {
