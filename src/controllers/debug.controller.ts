@@ -1,8 +1,28 @@
 import { Controller, Get } from "@nestjs/common";
+import { ApiExtraModels, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { HttpErrorResponseDto } from "./dto/common-error.dto";
+import { HeapDumpResponseDto } from "./dto/debug.dto";
 
+@ApiTags("Debug")
 @Controller("debug")
+@ApiExtraModels(HeapDumpResponseDto, HttpErrorResponseDto)
 export class DebugController {
   @Get("/heapdump")
+  @ApiOperation({
+    summary: "Trigger and save a V8 heap dump",
+    description:
+      "Generates a V8 heap snapshot and saves it to a file. This is a debugging tool for memory leak analysis. The file is saved to the `/logs` directory if writable (in a container), otherwise to a local `logs/` directory.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Heap dump operation completed. The response indicates success or failure.",
+    type: HeapDumpResponseDto,
+  })
+  @ApiResponse({
+    status: 500,
+    description: "An unexpected error occurred while trying to generate the heap dump.",
+    type: HttpErrorResponseDto,
+  })
   async heapdump(): Promise<{ path?: string; error?: string }> {
     try {
       const v8 = await import("v8");

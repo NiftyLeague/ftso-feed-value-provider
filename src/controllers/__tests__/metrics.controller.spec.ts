@@ -155,6 +155,16 @@ describe("MetricsController - Metrics and Monitoring Endpoints", () => {
     });
   });
 
+  describe("getApiMetricsGet", () => {
+    it("delegates to getApiMetrics", async () => {
+      const response = { ok: true } as any;
+      const spy = jest.spyOn(controller as any, "getApiMetrics").mockResolvedValueOnce(response);
+
+      await expect(controller.getApiMetricsGet()).resolves.toEqual(response);
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("getPerformanceMetrics", () => {
     it("should return detailed performance metrics", async () => {
       const mockPerformanceMetrics = {
@@ -270,6 +280,117 @@ describe("MetricsController - Metrics and Monitoring Endpoints", () => {
       expect((result as any).errors).toEqual(mockErrorAnalysis);
       expect((result as any).timestamp).toBeDefined();
       expect((result as any).requestId).toBeDefined();
+    });
+  });
+
+  describe("getPrometheusMetrics", () => {
+    it("returns Prometheus text including percentiles and endpoint metrics", async () => {
+      apiMonitor.getApiHealthMetrics.mockReturnValue({
+        timestamp: Date.now(),
+        totalRequests: 10,
+        requestsPerMinute: 1,
+        averageResponseTime: 20,
+        errorRate: 0.1,
+        slowRequestRate: 0.2,
+        criticalRequestRate: 0.3,
+        topEndpoints: [],
+        recentErrors: [],
+      } as any);
+
+      apiMonitor.getPerformanceMetrics.mockReturnValue({
+        requestCount: 10,
+        averageResponseTime: 20,
+        errorRate: 0.1,
+        throughput: 0.5,
+        responseTimes: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+      } as any);
+
+      apiMonitor.getAllEndpointStats.mockReturnValue([
+        {
+          endpoint: "/feed-values",
+          method: "POST",
+          totalRequests: 5,
+          averageResponseTime: 12,
+          errorRate: 0.0,
+        },
+        {
+          endpoint: "/metrics",
+          method: "GET",
+          totalRequests: 5,
+          averageResponseTime: 34,
+          errorRate: 0.2,
+        },
+      ] as any);
+
+      const result = await controller.getPrometheusMetrics();
+      expect(typeof result).toBe("string");
+
+      // core health metrics
+      expect(result).toContain("# HELP ftso_api_requests_total");
+      expect(result).toContain("ftso_api_requests_total 10");
+
+      // percentiles (sorted list already)
+      expect(result).toContain("ftso_api_response_time_p50_ms 60");
+      expect(result).toContain("ftso_api_response_time_p95_ms 100");
+      expect(result).toContain("ftso_api_response_time_p99_ms 100");
+
+      // endpoint metrics
+      expect(result).toContain('ftso_endpoint_requests_total{endpoint="/feed-values",method="POST"} 5');
+      expect(result).toContain('ftso_endpoint_response_time_ms{endpoint="/metrics",method="GET"} 34');
+      expect(result).toContain('ftso_endpoint_error_rate{endpoint="/metrics",method="GET"} 0.2');
+    });
+
+    it("handles missing responseTimes by using 0 percentiles", async () => {
+      apiMonitor.getApiHealthMetrics.mockReturnValue({
+        timestamp: Date.now(),
+        totalRequests: 1,
+        requestsPerMinute: 1,
+        averageResponseTime: 1,
+        errorRate: 0,
+        slowRequestRate: 0,
+        criticalRequestRate: 0,
+        topEndpoints: [],
+        recentErrors: [],
+      } as any);
+
+      apiMonitor.getPerformanceMetrics.mockReturnValue({
+        requestCount: 1,
+        averageResponseTime: 1,
+        errorRate: 0,
+        throughput: 1,
+      } as any);
+
+      apiMonitor.getAllEndpointStats.mockReturnValue([] as any);
+
+      const result = await controller.getPrometheusMetrics();
+      expect(result).toContain("ftso_api_response_time_p50_ms 0");
+      expect(result).toContain("ftso_api_response_time_p95_ms 0");
+      expect(result).toContain("ftso_api_response_time_p99_ms 0");
+    });
+
+    it("bubbles up errors from the API monitor", async () => {
+      apiMonitor.getApiHealthMetrics.mockImplementation(() => {
+        throw new Error("boom");
+      });
+
+      await expect(controller.getPrometheusMetrics()).rejects.toThrow("boom");
+    });
+  });
+
+  describe("logApiResponse override", () => {
+    it("records requests via ApiMonitorService", () => {
+      (controller as any).logApiResponse("GET", "/health", 200, 12, 34, "req-1");
+
+      expect(apiMonitor.recordApiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: "/health",
+          method: "GET",
+          statusCode: 200,
+          responseTime: 12,
+          responseSize: 34,
+          requestId: "req-1",
+        })
+      );
     });
   });
 });

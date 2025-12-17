@@ -141,6 +141,18 @@ describe("DataSourceIntegrationService", () => {
   });
 
   describe("initialize", () => {
+    it("should skip initialization when already initialized", async () => {
+      (service as any).isInitialized = true;
+
+      const registerSpy = jest.spyOn(service as any, "registerExchangeAdapters");
+      const logSpy = jest.spyOn((service as any).logger, "log").mockImplementation(() => undefined);
+
+      await service.initialize();
+
+      expect(logSpy).toHaveBeenCalledWith("Data source integration already initialized, skipping");
+      expect(registerSpy).not.toHaveBeenCalled();
+    });
+
     it("should verify exchange adapters via registry presence checks", async () => {
       // Arrange
       adapterRegistry.getFiltered.mockReturnValue([]);
@@ -246,6 +258,38 @@ describe("DataSourceIntegrationService", () => {
       expect(connectionRecovery.registerDataSource).toHaveBeenCalledWith(mockDataSource);
       expect(circuitBreaker.registerCircuit).toHaveBeenCalledWith(ExchangeId.Binance, expect.any(Object));
       expect(dataManager.addDataSource).toHaveBeenCalledWith(mockDataSource);
+    });
+  });
+
+  describe("internal helpers", () => {
+    it("initializeDependency throws when dependency does not support initialization", async () => {
+      await expect((service as any).initializeDependency({}, "unknown")).rejects.toThrow(TypeError);
+    });
+
+    it("performCircuitHealthCheck resets circuits when source is connected", () => {
+      // Arrange
+      (circuitBreaker as any).getAllStates = jest
+        .fn()
+        .mockReturnValue(new Map<string, string>([[ExchangeId.Binance, "open"]]));
+      (circuitBreaker as any).resetStats = jest.fn();
+
+      dataManager.getConnectedSources.mockReturnValue([
+        {
+          id: ExchangeId.Binance,
+          isConnected: jest.fn().mockReturnValue(true),
+        } as any,
+      ]);
+
+      // Act
+      (service as any).performCircuitHealthCheck();
+
+      // Assert
+      expect((circuitBreaker as any).resetStats).toHaveBeenCalledWith(ExchangeId.Binance);
+      expect(circuitBreaker.closeCircuit).toHaveBeenCalledWith(
+        ExchangeId.Binance,
+        "Periodic health check - source is connected"
+      );
+      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith(ExchangeId.Binance, "healthy");
     });
   });
 

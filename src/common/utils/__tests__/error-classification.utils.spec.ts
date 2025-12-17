@@ -51,6 +51,47 @@ describe("Error Classification Utils", () => {
       expect(category.severity).toBe("critical");
       expect(category.retryable).toBe(false);
     });
+
+    it("should categorize common HTTP status codes", () => {
+      expect(categorizeConnectionError(new Error("HTTP 502 Bad Gateway")).type).toBe("bad_gateway");
+      expect(categorizeConnectionError(new Error("Status code: 500")).type).toBe("server_error");
+      expect(categorizeConnectionError(new Error("Server response: 429"))).toMatchObject({ type: "rate_limit" });
+      expect(categorizeConnectionError(new Error("404 Not Found"))).toMatchObject({
+        type: "not_found",
+        retryable: false,
+      });
+      expect(categorizeConnectionError(new Error("401 Unauthorized"))).toMatchObject({
+        type: "authentication",
+        retryable: false,
+      });
+      expect(categorizeConnectionError(new Error("403 Forbidden"))).toMatchObject({
+        type: "authorization",
+        retryable: false,
+      });
+      expect(categorizeConnectionError(new Error("418 I'm a teapot"))).toMatchObject({ type: "client_error" });
+    });
+
+    it("should categorize common text patterns", () => {
+      expect(categorizeConnectionError(new Error("Service temporarily unavailable"))).toMatchObject({
+        type: "service_unavailable",
+        retryable: true,
+      });
+      expect(categorizeConnectionError(new Error("Bad Gateway from upstream"))).toMatchObject({ type: "bad_gateway" });
+      expect(categorizeConnectionError(new Error("Too many requests"))).toMatchObject({ type: "rate_limit" });
+      expect(categorizeConnectionError(new Error("Request timed out"))).toMatchObject({ type: "timeout" });
+      expect(categorizeConnectionError(new Error("ECONNREFUSED"))).toMatchObject({ type: "network" });
+      expect(categorizeConnectionError(new Error("Unauthorized"))).toMatchObject({ type: "authentication" });
+      expect(categorizeConnectionError(new Error("Access denied"))).toMatchObject({ type: "authorization" });
+      expect(categorizeConnectionError(new Error("Resource not found"))).toMatchObject({ type: "not_found" });
+      expect(categorizeConnectionError(new Error("Unexpected server response"))).toMatchObject({
+        type: "unexpected_response",
+        retryable: true,
+      });
+      expect(categorizeConnectionError(new Error("some weird error"))).toMatchObject({
+        type: "unknown",
+        retryable: true,
+      });
+    });
   });
 
   describe("classifyError", () => {
@@ -67,6 +108,44 @@ describe("Error Classification Utils", () => {
     it("should classify timeout errors correctly", () => {
       const error = new Error("Connection timeout");
       expect(classifyError(error)).toBe(ErrorClass.TIMEOUT_ERROR);
+    });
+
+    it("should classify common HTTP status codes", () => {
+      expect(classifyError(new Error("HTTP 400 Bad Request"))).toBe(ErrorClass.VALIDATION_ERROR);
+      expect(classifyError(new Error("HTTP 401 Unauthorized"))).toBe(ErrorClass.AUTHENTICATION_ERROR);
+      expect(classifyError(new Error("HTTP 403 Forbidden"))).toBe(ErrorClass.AUTHORIZATION_ERROR);
+      expect(classifyError(new Error("HTTP 404 Not Found"))).toBe(ErrorClass.NOT_FOUND_ERROR);
+      expect(classifyError(new Error("HTTP 429 Too Many Requests"))).toBe(ErrorClass.RATE_LIMIT_ERROR);
+      expect(classifyError(new Error("HTTP 500 Internal Server Error"))).toBe(ErrorClass.EXTERNAL_SERVICE_ERROR);
+      expect(classifyError(new Error("HTTP 502 Bad Gateway"))).toBe(ErrorClass.EXTERNAL_SERVICE_ERROR);
+      expect(classifyError(new Error("Unexpected server response: 503"))).toBe(ErrorClass.SERVICE_UNAVAILABLE_ERROR);
+    });
+
+    it("should classify unexpected server response using categorization", () => {
+      expect(classifyError(new Error("Unexpected server response"))).toBe(ErrorClass.EXTERNAL_SERVICE_ERROR);
+      expect(classifyError(new Error("Unexpected server response: 429"))).toBe(ErrorClass.RATE_LIMIT_ERROR);
+      expect(classifyError(new Error("Unexpected server response: 401"))).toBe(ErrorClass.AUTHENTICATION_ERROR);
+      expect(classifyError(new Error("Unexpected server response: 403"))).toBe(ErrorClass.AUTHORIZATION_ERROR);
+    });
+
+    it("should classify other text patterns and name-based hints", () => {
+      expect(classifyError(new Error("Data corrupt"))).toBe(ErrorClass.DATA_ERROR);
+      expect(classifyError(new Error("Configuration missing"))).toBe(ErrorClass.CONFIGURATION_ERROR);
+      expect(classifyError(new Error("Circuit is open"))).toBe(ErrorClass.CIRCUIT_BREAKER_ERROR);
+      expect(classifyError(new Error("Aggregation calculation failed"))).toBe(ErrorClass.PROCESSING_ERROR);
+      expect(classifyError(new Error("Upstream adapter error"))).toBe(ErrorClass.EXTERNAL_SERVICE_ERROR);
+
+      const authByName = new Error("nope");
+      authByName.name = "AuthError";
+      expect(classifyError(authByName)).toBe(ErrorClass.AUTHENTICATION_ERROR);
+
+      const timeoutByName = new Error("nope");
+      timeoutByName.name = "TimeoutError";
+      expect(classifyError(timeoutByName)).toBe(ErrorClass.TIMEOUT_ERROR);
+
+      const notFoundByName = new Error("nope");
+      notFoundByName.name = "NotFoundError";
+      expect(classifyError(notFoundByName)).toBe(ErrorClass.NOT_FOUND_ERROR);
     });
   });
 

@@ -775,8 +775,8 @@ export class RealTimeAggregationService
 
   private evictLRU(): void {
     // Find least recently used entry
-    let oldestKey = "";
-    let oldestTime = Date.now();
+    let oldestKey: string | undefined;
+    let oldestTime = Number.POSITIVE_INFINITY;
 
     for (const [key, accessTime] of this.cacheAccessOrder) {
       if (accessTime < oldestTime) {

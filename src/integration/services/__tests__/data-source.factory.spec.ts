@@ -3,6 +3,8 @@ import { DataSourceFactory } from "../data-source.factory";
 import { EventEmitter } from "events";
 import type { IExchangeAdapter } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
+import { Logger } from "@nestjs/common";
+import { TestHelpers } from "@/__tests__/utils";
 
 // Mock exchange adapter
 const createMockAdapter = (exchangeName: string): IExchangeAdapter => ({
@@ -220,6 +222,25 @@ describe("AdapterDataSource", () => {
       expect(dataSource.subscriptions.has("BTC/USD")).toBe(true);
       expect(dataSource.subscriptions.has("INVALID")).toBe(false);
     });
+
+    it("should throw and emit error when no valid symbols", async () => {
+      (mockAdapter.validateSymbol as jest.Mock).mockReturnValue(false);
+
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      await expect(dataSource.subscribe(["BAD1", "BAD2"])).rejects.toThrow("No valid symbols");
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("should warn when invalid symbols are present", async () => {
+      const warnSpy = jest.spyOn(Logger.prototype, "warn");
+      (mockAdapter.validateSymbol as jest.Mock).mockImplementation((symbol: string) => symbol === "BTC/USD");
+
+      await dataSource.subscribe(["BTC/USD", "BAD"]);
+
+      expect(warnSpy).toHaveBeenCalled();
+    });
   });
 
   describe("unsubscribe", () => {
@@ -311,6 +332,424 @@ describe("AdapterDataSource", () => {
 
       dataSource.connected = true;
       expect(dataSource.isConnected()).toBe(true);
+    });
+  });
+
+  describe("health monitoring", () => {
+    it("uses adapter healthCheck when available", async () => {
+      const adapterWithHealth = {
+        ...mockAdapter,
+        healthCheck: jest.fn().mockResolvedValue(true),
+      } as unknown as IExchangeAdapter;
+
+      dataSource = factory.createFromAdapter(adapterWithHealth, 1);
+
+      await expect(dataSource.performHealthCheck()).resolves.toBe(true);
+      expect((adapterWithHealth as any).healthCheck).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns false when not connected and no adapter healthCheck", async () => {
+      await expect(dataSource.performHealthCheck()).resolves.toBe(false);
+    });
+
+    it("returns true when connected and latency indicates recent activity", async () => {
+      (dataSource as any).connected = true;
+      (dataSource as any).lastLatency = 1000;
+      await expect(dataSource.performHealthCheck()).resolves.toBe(true);
+    });
+
+    it("returns false when connected but last activity is stale", async () => {
+      (dataSource as any).connected = true;
+      (dataSource as any).lastLatency = 60001;
+      await expect(dataSource.performHealthCheck()).resolves.toBe(false);
+    });
+  });
+
+  describe("REST fallback", () => {
+    it("returns null if reconnect fails before REST fetch", async () => {
+      const adapter = {
+        ...mockAdapter,
+        connect: jest.fn().mockRejectedValue(new Error("no")),
+      } as unknown as IExchangeAdapter;
+
+      dataSource = factory.createFromAdapter(adapter, 1);
+
+      await expect(dataSource.fetchPriceViaREST("BTC/USD")).resolves.toBeNull();
+    });
+
+    it("uses adapter fetchTickerREST when available", async () => {
+      const ticker = { symbol: "BTC/USD", price: 1, timestamp: Date.now(), source: "x", confidence: 1 };
+      const adapter = {
+        ...mockAdapter,
+        fetchTickerREST: jest.fn().mockResolvedValue(ticker),
+      } as unknown as IExchangeAdapter;
+
+      dataSource = factory.createFromAdapter(adapter, 1);
+      (dataSource as any).connected = true;
+
+      await expect(dataSource.fetchPriceViaREST("BTC/USD")).resolves.toEqual(ticker);
+      expect((adapter as any).fetchTickerREST).toHaveBeenCalledWith("BTC/USD");
+    });
+
+    it("returns null when adapter has no REST fallback", async () => {
+      const adapter = { ...mockAdapter } as any;
+      delete adapter.fetchTickerREST;
+
+      dataSource = factory.createFromAdapter(adapter as IExchangeAdapter, 1);
+      (dataSource as any).connected = true;
+
+      await expect(dataSource.fetchPriceViaREST("BTC/USD")).resolves.toBeNull();
+    });
+
+    it("returns null when REST fallback throws", async () => {
+      const adapter = {
+        ...mockAdapter,
+        fetchTickerREST: jest.fn().mockRejectedValue(new Error("boom")),
+      } as unknown as IExchangeAdapter;
+
+      dataSource = factory.createFromAdapter(adapter, 1);
+      (dataSource as any).connected = true;
+
+      await expect(dataSource.fetchPriceViaREST("BTC/USD")).resolves.toBeNull();
+    });
+
+    it("fetchTickerREST throws when not available", async () => {
+      const adapter = { ...mockAdapter } as any;
+      delete adapter.fetchTickerREST;
+      dataSource = factory.createFromAdapter(adapter as IExchangeAdapter, 1);
+
+      await expect(dataSource.fetchTickerREST("BTC/USD")).rejects.toThrow("fetchTickerREST not available");
+    });
+  });
+
+  describe("reconnection", () => {
+    it("reconnects and clears subscriptions if resubscribe fails", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (mockAdapter.subscribe as jest.Mock).mockRejectedValueOnce(new Error("subfail"));
+
+        // Keep subscriptions present (disconnect would clear them).
+        (dataSource as any).connected = false;
+        (dataSource as any).subscriptions.add("BTC/USD");
+
+        const promise = dataSource.attemptReconnection();
+        await jest.advanceTimersByTimeAsync(1000);
+        await expect(promise).resolves.toBe(true);
+
+        expect((dataSource as any).subscriptions.size).toBe(0);
+      });
+    });
+
+    it("reconnects and keeps subscriptions when resubscribe succeeds", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (dataSource as any).connected = false;
+        (dataSource as any).subscriptions.add("BTC/USD");
+
+        const promise = dataSource.attemptReconnection();
+        await jest.advanceTimersByTimeAsync(1000);
+        await expect(promise).resolves.toBe(true);
+
+        expect(mockAdapter.subscribe).toHaveBeenCalledWith(["BTC/USD"]);
+        expect((dataSource as any).subscriptions.has("BTC/USD")).toBe(true);
+      });
+    });
+
+    it("disconnects first when already connected", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (dataSource as any).connected = true;
+        const disconnectSpy = jest.spyOn(dataSource, "disconnect");
+
+        const promise = dataSource.attemptReconnection();
+        await jest.advanceTimersByTimeAsync(1000);
+        await expect(promise).resolves.toBe(true);
+
+        expect(disconnectSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("returns false when reconnection fails", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (mockAdapter.connect as jest.Mock).mockRejectedValueOnce(new Error("no"));
+
+        (dataSource as any).connected = false;
+
+        const promise = dataSource.attemptReconnection();
+        await jest.advanceTimersByTimeAsync(1000);
+        await expect(promise).resolves.toBe(false);
+      });
+    });
+  });
+
+  describe("adapter event handlers", () => {
+    it("emits priceUpdate for valid updates and normalizes seconds timestamps", () => {
+      const nowMs = 1_700_000_000_000;
+      const nowSec = Math.floor(nowMs / 1000);
+
+      const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+      expect(typeof priceCb).toBe("function");
+
+      const priceUpdateSpy = jest.fn();
+      dataSource.on("priceUpdate", priceUpdateSpy);
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        priceCb({
+          symbol: "BTC/USD",
+          price: 1,
+          timestamp: nowSec,
+          source: "TestExchange",
+          confidence: 1,
+        });
+
+        expect(priceUpdateSpy).toHaveBeenCalledTimes(1);
+        const emitted = priceUpdateSpy.mock.calls[0][0];
+        expect(emitted.timestamp).toBe(nowSec * 1000);
+      });
+    });
+
+    it("normalizes microseconds timestamps", () => {
+      const nowMs = 1_700_000_000_000;
+      const nowMicros = nowMs * 1000;
+
+      const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+      const priceUpdateSpy = jest.fn();
+      dataSource.on("priceUpdate", priceUpdateSpy);
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        priceCb({
+          symbol: "BTC/USD",
+          price: 1,
+          timestamp: nowMicros,
+          source: "TestExchange",
+          confidence: 1,
+        });
+
+        expect(priceUpdateSpy).toHaveBeenCalledTimes(1);
+        const emitted = priceUpdateSpy.mock.calls[0][0];
+        expect(emitted.timestamp).toBe(Math.floor(nowMicros / 1000));
+      });
+    });
+
+    it("emits classified error for invalid price updates", () => {
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+      priceCb({
+        symbol: "",
+        price: -1,
+        timestamp: Date.now(),
+        source: "TestExchange",
+        confidence: 1,
+      });
+
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      const err = errorSpy.mock.calls[0][0] as any;
+      expect(err.errorType).toBe("VALIDATION_ERROR");
+      expect(err.severity).toBe("WARNING");
+    });
+
+    it("emits classified error when confidence is out of range", () => {
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      const nowMs = 1_700_000_000_000;
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+        priceCb({
+          symbol: "BTC/USD",
+          price: 1,
+          timestamp: nowMs - 1000,
+          source: "TestExchange",
+          confidence: 2,
+        });
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        const err = errorSpy.mock.calls[0][0] as any;
+        expect(err.errorType).toBe("VALIDATION_ERROR");
+        expect(err.severity).toBe("WARNING");
+      });
+    });
+
+    it("emits classified error when source is missing", () => {
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      const nowMs = 1_700_000_000_000;
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+        priceCb({
+          symbol: "BTC/USD",
+          price: 1,
+          timestamp: nowMs - 1000,
+          source: "",
+          confidence: 1,
+        });
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        const err = errorSpy.mock.calls[0][0] as any;
+        expect(err.errorType).toBe("VALIDATION_ERROR");
+        expect(err.severity).toBe("WARNING");
+      });
+    });
+
+    it("emits classified error when timestamp is too old", () => {
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      const nowMs = 1_700_000_000_000;
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+        priceCb({
+          symbol: "BTC/USD",
+          price: 1,
+          timestamp: nowMs - 1_800_001,
+          source: "TestExchange",
+          confidence: 1,
+        });
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        const err = errorSpy.mock.calls[0][0] as any;
+        expect(err.errorType).toBe("VALIDATION_ERROR");
+        expect(err.severity).toBe("WARNING");
+      });
+    });
+
+    it("emits classified error when timestamp is too far in the future", () => {
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      const nowMs = 1_700_000_000_000;
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+        priceCb({
+          symbol: "BTC/USD",
+          price: 1,
+          timestamp: nowMs + 120_001,
+          source: "TestExchange",
+          confidence: 1,
+        });
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        const err = errorSpy.mock.calls[0][0] as any;
+        expect(err.errorType).toBe("VALIDATION_ERROR");
+        expect(err.severity).toBe("WARNING");
+      });
+    });
+
+    it("emits raw error when price handler throws before validation", () => {
+      const errorSpy = jest.fn();
+      dataSource.on("error", errorSpy);
+
+      const priceCb = (mockAdapter.onPriceUpdate as jest.Mock).mock.calls[0]?.[0];
+      priceCb(undefined as any);
+
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy.mock.calls[0][0]).toBeInstanceOf(Error);
+    });
+
+    it("emits connectionChange only when state changes and resets latency", () => {
+      const connCb = (mockAdapter.onConnectionChange as jest.Mock).mock.calls[0]?.[0];
+      expect(typeof connCb).toBe("function");
+
+      (dataSource as any).connected = true;
+      (dataSource as any).lastLatency = 123;
+
+      const connSpy = jest.fn();
+      dataSource.on("connectionChange", connSpy);
+
+      connCb(true);
+      expect(connSpy).not.toHaveBeenCalled();
+
+      connCb(false);
+      expect(connSpy).toHaveBeenCalledWith(false);
+      expect((dataSource as any).lastLatency).toBe(0);
+    });
+
+    it("classifies adapter errors and marks disconnected on connection errors", () => {
+      const errorCb = (mockAdapter.onError as jest.Mock).mock.calls[0]?.[0];
+      expect(typeof errorCb).toBe("function");
+
+      const emittedErrorSpy = jest.fn();
+      const connSpy = jest.fn();
+      dataSource.on("error", emittedErrorSpy);
+      dataSource.on("connectionChange", connSpy);
+
+      (dataSource as any).connected = true;
+
+      errorCb(new Error("WebSocket connection closed"));
+
+      expect(emittedErrorSpy).toHaveBeenCalledTimes(1);
+      const classified = emittedErrorSpy.mock.calls[0][0] as any;
+      expect(classified.exchangeName).toBe("TestExchange");
+      expect(classified.errorType).toBe("CONNECTION_ERROR");
+      expect((dataSource as any).connected).toBe(false);
+      expect(connSpy).toHaveBeenCalledWith(false);
+    });
+  });
+
+  describe("validation and classification helpers", () => {
+    it("validatePriceUpdate returns false for non-object updates", () => {
+      const result = (dataSource as any).validatePriceUpdate(undefined);
+      expect(result).toBe(false);
+    });
+
+    it("validatePriceUpdate returns false for non-string symbols", () => {
+      const nowMs = 1_700_000_000_000;
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        const result = (dataSource as any).validatePriceUpdate({
+          symbol: 123,
+          price: 1,
+          timestamp: nowMs - 1000,
+          source: "TestExchange",
+          confidence: 1,
+        });
+        expect(result).toBe(false);
+      });
+    });
+
+    it("validatePriceUpdate catches exceptions and returns false", () => {
+      const errorSpy = jest.spyOn(Logger.prototype, "error");
+      const nowMs = 1_700_000_000_000;
+
+      TestHelpers.withMockedNow(nowMs, () => {
+        const update: any = {
+          price: 1,
+          timestamp: nowMs - 1000,
+          source: "TestExchange",
+          confidence: 1,
+        };
+        Object.defineProperty(update, "symbol", {
+          enumerable: true,
+          get() {
+            throw new Error("boom");
+          },
+        });
+
+        const result = (dataSource as any).validatePriceUpdate(update);
+        expect(result).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Error validating price update:"),
+          expect.anything()
+        );
+      });
+    });
+
+    it("classifyAdapterError selects timeout/rate-limit/parsing/default types", () => {
+      const classify = (dataSource as any).classifyAdapterError.bind(dataSource);
+
+      expect((classify(new Error("Request timed out")) as any).errorType).toBe("TIMEOUT_ERROR");
+      expect((classify(new Error("Too many requests")) as any).errorType).toBe("RATE_LIMIT_ERROR");
+      expect((classify(new Error("Invalid JSON")) as any).errorType).toBe("PARSING_ERROR");
+      expect((classify(new Error("Something else")) as any).errorType).toBe("EXCHANGE_ERROR");
+    });
+
+    it("isConnectionError returns false for unrelated messages", () => {
+      const result = (dataSource as any).isConnectionError(new Error("not related"));
+      expect(result).toBe(false);
     });
   });
 

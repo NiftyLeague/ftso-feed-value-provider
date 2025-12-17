@@ -3,6 +3,7 @@ import { ExecutionContext, CallHandler } from "@nestjs/common";
 import { of, throwError } from "rxjs";
 import { ResponseTimeInterceptor } from "../response-time.interceptor";
 import { ClientIdentificationUtils } from "../../utils/client-identification.utils";
+import { TestHelpers } from "@/__tests__/utils";
 
 // Mock the ClientIdentificationUtils
 jest.mock("../../utils/client-identification.utils", () => ({
@@ -103,16 +104,10 @@ describe("ResponseTimeInterceptor", () => {
       });
     });
 
-    it("should log slow responses (>1000ms)", done => {
+    it("should log slow responses (>1000ms)", async () => {
       const responseData = { message: "slow response" };
 
-      // Mock Date.now to simulate slow response
-      const originalNow = Date.now;
       let callCount = 0;
-      Date.now = jest.fn(() => {
-        callCount++;
-        return callCount === 1 ? 0 : 1500; // 1.5 second response
-      });
 
       mockCallHandler.handle = jest.fn().mockReturnValue(of(responseData));
 
@@ -124,38 +119,42 @@ describe("ResponseTimeInterceptor", () => {
       };
       (interceptor as any).logger = mockLogger;
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-        next: data => {
-          expect(data).toEqual(responseData);
-          expect(mockLogger.warn).toHaveBeenCalledWith(
-            expect.stringContaining("SLOW RESPONSE"),
-            expect.objectContaining({
-              method: "GET",
-              url: "/api/test",
-              statusCode: 200,
-              responseTime: 1500,
-            })
-          );
-          Date.now = originalNow;
-          done();
+      await TestHelpers.withMockedNowAsync(
+        () => {
+          callCount++;
+          return callCount === 1 ? 0 : 1500; // 1.5 second response
         },
-        error: err => {
-          Date.now = originalNow;
-          done(err);
-        },
-      });
+        async () => {
+          await new Promise<void>((resolve, reject) => {
+            interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
+              next: data => {
+                try {
+                  expect(data).toEqual(responseData);
+                  expect(mockLogger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining("SLOW RESPONSE"),
+                    expect.objectContaining({
+                      method: "GET",
+                      url: "/api/test",
+                      statusCode: 200,
+                      responseTime: 1500,
+                    })
+                  );
+                  resolve();
+                } catch (e) {
+                  reject(e);
+                }
+              },
+              error: err => reject(err),
+            });
+          });
+        }
+      );
     });
 
-    it("should log responses above target (>100ms)", done => {
+    it("should log responses above target (>100ms)", async () => {
       const responseData = { message: "above target response" };
 
-      // Mock Date.now to simulate response above target
-      const originalNow = Date.now;
       let callCount = 0;
-      Date.now = jest.fn(() => {
-        callCount++;
-        return callCount === 1 ? 0 : 150; // 150ms response
-      });
 
       mockCallHandler.handle = jest.fn().mockReturnValue(of(responseData));
 
@@ -167,26 +166,36 @@ describe("ResponseTimeInterceptor", () => {
       };
       (interceptor as any).logger = mockLogger;
 
-      interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
-        next: data => {
-          expect(data).toEqual(responseData);
-          expect(mockLogger.warn).toHaveBeenCalledWith(
-            expect.stringContaining("Above Target"),
-            expect.objectContaining({
-              method: "GET",
-              url: "/api/test",
-              statusCode: 200,
-              responseTime: 150,
-            })
-          );
-          Date.now = originalNow;
-          done();
+      await TestHelpers.withMockedNowAsync(
+        () => {
+          callCount++;
+          return callCount === 1 ? 0 : 150; // 150ms response
         },
-        error: err => {
-          Date.now = originalNow;
-          done(err);
-        },
-      });
+        async () => {
+          await new Promise<void>((resolve, reject) => {
+            interceptor.intercept(mockExecutionContext, mockCallHandler).subscribe({
+              next: data => {
+                try {
+                  expect(data).toEqual(responseData);
+                  expect(mockLogger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining("Above Target"),
+                    expect.objectContaining({
+                      method: "GET",
+                      url: "/api/test",
+                      statusCode: 200,
+                      responseTime: 150,
+                    })
+                  );
+                  resolve();
+                } catch (e) {
+                  reject(e);
+                }
+              },
+              error: err => reject(err),
+            });
+          });
+        }
+      );
     });
 
     it("should log server errors (5xx)", done => {

@@ -9,6 +9,7 @@ import {
   PerformanceLogger,
   PerformanceUtils,
 } from "../performance.utils";
+import { TestHelpers } from "@/__tests__/utils";
 
 // Mock performance.now
 const mockPerformanceNow = jest.fn();
@@ -407,12 +408,11 @@ describe("Performance Utils - Comprehensive Tests", () => {
     it("should calculate duration with current time", () => {
       const start = 1000;
       const mockNow = 1500;
-      jest.spyOn(Date, "now").mockReturnValue(mockNow);
 
-      const duration = PerformanceUtils.duration(start);
-      expect(duration).toBe(500);
-
-      jest.restoreAllMocks();
+      TestHelpers.withMockedNow(mockNow, () => {
+        const duration = PerformanceUtils.duration(start);
+        expect(duration).toBe(500);
+      });
     });
 
     it("should format duration in milliseconds", () => {

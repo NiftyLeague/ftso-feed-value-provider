@@ -207,6 +207,113 @@ describe("ValidationService", () => {
     });
   });
 
+  describe("Internal helpers (coverage)", () => {
+    it("should compute consensus median for odd and even recent prices", () => {
+      const svc = service as any;
+      const feedId = mockFeedId;
+
+      // Seed historical prices
+      const baseTimestamp = Date.now() - 1000;
+      const seed = (price: number, offset: number) =>
+        TestDataBuilder.createPriceUpdate({
+          symbol: feedId.name,
+          price,
+          source: "seed",
+          timestamp: baseTimestamp + offset,
+        });
+
+      // Odd count => middle
+      svc.updateHistoricalData(seed(10, 1), feedId);
+      svc.updateHistoricalData(seed(30, 2), feedId);
+      svc.updateHistoricalData(seed(20, 3), feedId);
+      expect(svc.getConsensusMedian(feedId)).toBe(20);
+
+      // Even count (take last 10; here 4) => average of middle two
+      svc.updateHistoricalData(seed(40, 4), feedId);
+      expect(svc.getConsensusMedian(feedId)).toBe(25);
+    });
+
+    it("should return undefined consensus median when there is no historical data", () => {
+      const svc = service as any;
+
+      const otherFeed = TestDataBuilder.createCoreFeedId({ category: FeedCategory.Crypto, name: "ETH/USD" });
+      expect(svc.getConsensusMedian(otherFeed)).toBeUndefined();
+    });
+
+    it("should evict oldest cached validation result when cache is full", () => {
+      const svc = service as any;
+      svc.validationConfig.validationCacheSize = 1;
+
+      svc.cacheDataValidatorResult("k1", TestDataBuilder.createValidatorResult({ isValid: true }));
+      svc.cacheDataValidatorResult("k2", TestDataBuilder.createValidatorResult({ isValid: true }));
+
+      expect(svc.validationCache.size).toBe(1);
+      expect(svc.validationCache.has("k1")).toBe(false);
+      expect(svc.validationCache.has("k2")).toBe(true);
+    });
+
+    it("should cleanup expired cache entries and log when something is removed", () => {
+      const svc = service as any;
+      const debugSpy = jest.spyOn(svc.logger, "debug").mockImplementation(() => undefined);
+
+      svc.validationConfig.validationCacheTTL = 100;
+      svc.validationCache.set("old", {
+        result: TestDataBuilder.createValidatorResult({ isValid: true }),
+        timestamp: 0,
+      });
+      svc.validationCache.set("fresh", {
+        result: TestDataBuilder.createValidatorResult({ isValid: true }),
+        timestamp: Date.now(),
+      });
+
+      svc.cleanupCache();
+      expect(svc.validationCache.has("old")).toBe(false);
+      expect(svc.validationCache.has("fresh")).toBe(true);
+      expect(debugSpy).toHaveBeenCalled();
+
+      debugSpy.mockRestore();
+    });
+
+    it("should cleanup historical cross-source prices outside the window", () => {
+      const svc = service as any;
+      const debugSpy = jest.spyOn(svc.logger, "debug").mockImplementation(() => undefined);
+
+      svc.validationConfig.crossSourceWindow = 100;
+      const feedKey = `${mockFeedId.category}-${mockFeedId.name}`;
+
+      svc.crossSourcePrices.set(feedKey, [
+        TestDataBuilder.createPriceUpdate({ symbol: mockFeedId.name, source: "a", timestamp: 0 }),
+        TestDataBuilder.createPriceUpdate({ symbol: mockFeedId.name, source: "b", timestamp: Date.now() }),
+      ]);
+
+      svc.cleanupHistoricalData();
+      expect(svc.crossSourcePrices.get(feedKey)).toHaveLength(1);
+      expect(debugSpy).toHaveBeenCalled();
+
+      debugSpy.mockRestore();
+    });
+
+    it("validate() should fall back to inferred feedId when not provided", async () => {
+      const validateRealTimeSpy = jest.spyOn(service, "validateRealTime" as any).mockResolvedValue({
+        isValid: true,
+        errors: [],
+        warnings: [],
+        confidence: 1,
+        timestamp: Date.now(),
+        adjustedUpdate: mockUpdate,
+      });
+
+      const result = await service.validate(mockUpdate);
+      expect(result.isValid).toBe(true);
+      expect(validateRealTimeSpy).toHaveBeenCalledWith(
+        mockUpdate,
+        expect.objectContaining({ category: 0, name: mockUpdate.symbol })
+      );
+
+      validateRealTimeSpy.mockRestore();
+    });
+  });
+
   describe("Configuration", () => {
     it("should work with custom configuration", async () => {
       // Using default config; ensure service constructs successfully
