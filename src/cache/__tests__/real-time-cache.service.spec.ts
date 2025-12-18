@@ -263,6 +263,176 @@ describe("RealTimeCacheService", () => {
       expect(config.evictionPolicy).toBe("LRU");
     });
 
+    describe("Branch coverage helpers", () => {
+      it("does not cache when effective TTL is zero/negative", () => {
+        service.set("test-key", mockCacheEntry, 0);
+        expect(service.size()).toBe(0);
+        expect(service.get("test-key")).toBeNull();
+      });
+
+      it("increments access count only when update threshold exceeded", () => {
+        const key = "test-key";
+        service.set(key, mockCacheEntry, 1000);
+
+        const item = ((service as any).cache as Map<string, any>).get(key);
+        expect(item).toBeDefined();
+
+        // Force lastAccessed to be old enough to trigger the update branch.
+        item.lastAccessed = 0;
+        item.accessCount = 0;
+
+        service.get(key);
+        expect(item.accessCount).toBe(1);
+      });
+
+      it("triggers batch cleanup randomly when encountering expired items", () => {
+        const cleanupSpy = jest.spyOn(service as any, "cleanupExpiredEntries");
+        const randomSpy = jest.spyOn(Math, "random").mockReturnValue(0);
+
+        // Insert an expired cache item directly.
+        ((service as any).cache as Map<string, any>).set("expired", {
+          entry: mockCacheEntry,
+          expiresAt: 0,
+          accessCount: 0,
+          lastAccessed: 0,
+        });
+
+        expect(service.get("expired")).toBeNull();
+        expect(cleanupSpy).toHaveBeenCalled();
+
+        randomSpy.mockRestore();
+      });
+
+      it("calculates adaptive TTL for frequently accessed items", () => {
+        const key = "adaptive";
+        service.set(key, mockCacheEntry, 1000);
+
+        const item = ((service as any).cache as Map<string, any>).get(key);
+        item.accessCount = 100;
+        item.lastAccessed = Date.now() - 10_000;
+
+        const ttl = (service as any).calculateAdaptiveTTL(key, 1000);
+        expect(ttl).toBeGreaterThan(1000);
+      });
+
+      it("evicts entries via intelligentEviction and emits eviction events", () => {
+        // Use enough entries so evictionCount (floor(size * evictionPercentage)) is >= 1.
+        const small = RealTimeCacheService.withConfig({ maxSize: 10 });
+        const emitSpy = jest.spyOn(small as any, "emit");
+
+        for (let i = 0; i < 10; i++) {
+          small.set(`k${i}`, mockCacheEntry, 1000);
+        }
+        // Next set triggers eviction before insert.
+        small.set("k10", mockCacheEntry, 1000);
+
+        expect(emitSpy).toHaveBeenCalledWith("cacheEviction", expect.any(Object));
+        expect(small.getStats().evictions).toBeGreaterThan(0);
+
+        small.clear();
+        small.destroy();
+      });
+
+      it("produces performance insights and recommendations for stressed cache", () => {
+        const stressed = RealTimeCacheService.withConfig({ memoryLimit: 1024 });
+        // Simulate enough activity to bypass low-usage defaults.
+        (stressed as any).stats.totalRequests = 100;
+        (stressed as any).stats.hitRate = 0.5;
+
+        // Force high response times.
+        (stressed as any).maxBufferSize = 10;
+        for (let i = 0; i < 10; i++) (stressed as any).recordPerformanceMetric(10);
+
+        // Add entries so estimateMemoryUsage overwhelms memoryLimit.
+        for (let i = 0; i < 10; i++) stressed.set(`m:${i}`, mockCacheEntry, 1000);
+
+        const insights = stressed.getPerformanceInsights();
+        expect(insights.recommendations.length).toBeGreaterThan(0);
+
+        stressed.clear();
+        stressed.destroy();
+      });
+
+      it("optimizePerformance adjusts TTL and enables compression when needed", () => {
+        const stressed = RealTimeCacheService.withConfig({ memoryLimit: 1024, ttl: 1000 });
+        const logSpy = jest.spyOn((stressed as any).logger, "log");
+        const debugSpy = jest.spyOn((stressed as any).logger, "debug");
+
+        jest.spyOn(stressed, "getPerformanceInsights").mockReturnValue({
+          averageResponseTime: 10,
+          p95ResponseTime: 10,
+          hitRateEfficiency: 0.5,
+          memoryEfficiency: 0.2,
+          evictionRate: 0.2,
+          recommendations: [],
+        });
+
+        stressed.optimizePerformance();
+
+        expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("Cache hit rate below target"));
+        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Reduced TTL"));
+        expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Enabled compression"));
+        expect((stressed as any).compressionEnabled).toBe(true);
+        expect((stressed as any).adaptiveTTL).toBe(true);
+
+        stressed.clear();
+        stressed.destroy();
+      });
+
+      it("computes efficiency score for startup and active phases", () => {
+        // Startup (low requests): baseline path
+        const startupScore = service.getEfficiencyScore();
+        expect(startupScore).toBeGreaterThan(0);
+        expect(startupScore).toBeLessThanOrEqual(1);
+
+        // Active path: force stats.totalRequests >= 10
+        (service as any).stats.totalRequests = 20;
+        (service as any).stats.hitRate = 0.9;
+        const activeScore = service.getEfficiencyScore();
+        expect(activeScore).toBeGreaterThan(0);
+        expect(activeScore).toBeLessThanOrEqual(1);
+      });
+
+      it("reports cache health status for startup and active scenarios", () => {
+        // Startup healthy: low requests and reasonable memory.
+        service.set("k", mockCacheEntry, 1000);
+        service.get("k");
+        const startupHealthy = service.getCacheHealthStatus();
+        expect(startupHealthy.status).toBe("healthy");
+
+        // Startup degraded: low requests but terrible memory efficiency.
+        const lowMem = RealTimeCacheService.withConfig({ memoryLimit: 1024 });
+        lowMem.get("miss");
+        for (let i = 0; i < 10; i++) lowMem.set(`m:${i}`, mockCacheEntry, 1000);
+        const startupDegraded = lowMem.getCacheHealthStatus();
+        expect(startupDegraded.status).toBe("degraded");
+        lowMem.clear();
+        lowMem.destroy();
+
+        // Active degraded (single failure): hit rate below target, memory ok, response time not enforced (few samples).
+        const active = RealTimeCacheService.withConfig({ memoryLimit: 10 * 1024 * 1024 });
+        active.set("hit", mockCacheEntry, 1000);
+        // Ensure we cross the warmup threshold (MIN_REQUESTS_FOR_HIT_RATE is typically 50).
+        for (let i = 0; i < 60; i++) {
+          active.get(i % 2 === 0 ? "hit" : `miss:${i}`);
+        }
+        const activeDegraded = active.getCacheHealthStatus();
+        expect(activeDegraded.status).toBe("degraded");
+
+        // Active unhealthy (2+ failures): low hit rate + bad memory + slow p95 with enough samples.
+        const unhealthy = RealTimeCacheService.withConfig({ memoryLimit: 1024 });
+        unhealthy.set("hit", mockCacheEntry, 1000);
+        for (let i = 0; i < 60; i++) unhealthy.get(`miss:${i}`);
+        for (let i = 0; i < 30; i++) (unhealthy as any).recordPerformanceMetric(10_000);
+        const activeUnhealthy = unhealthy.getCacheHealthStatus();
+        expect(activeUnhealthy.status).toBe("unhealthy");
+
+        active.clear();
+        active.destroy();
+        unhealthy.clear();
+        unhealthy.destroy();
+      });
+    });
     it("should accept custom configuration", () => {
       const customConfig = {
         ttl: 500,

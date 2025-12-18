@@ -5,6 +5,91 @@ import { TestingModule } from "@nestjs/testing";
  */
 export class TestHelpers {
   /**
+   * Run a test block with Date.now mocked.
+   * Always restores the spy, even if the callback throws.
+   */
+  static withMockedNow<T>(now: number | (() => number), fn: () => T): T {
+    const nowImpl = typeof now === "function" ? now : () => now;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(nowImpl);
+    try {
+      return fn();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  }
+
+  /**
+   * Async variant of withMockedNow.
+   */
+  static async withMockedNowAsync<T>(now: number | (() => number), fn: () => Promise<T>): Promise<T> {
+    const nowImpl = typeof now === "function" ? now : () => now;
+    const nowSpy = jest.spyOn(Date, "now").mockImplementation(nowImpl);
+    try {
+      return await fn();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  }
+
+  /**
+   * Run a block with Jest fake timers enabled.
+   * Ensures timers are cleared and real timers are restored, even if the callback throws.
+   */
+  static withFakeTimers<T>(fn: () => T, config?: Parameters<typeof jest.useFakeTimers>[0]): T {
+    if (config === undefined) {
+      jest.useFakeTimers();
+    } else {
+      jest.useFakeTimers(config);
+    }
+
+    try {
+      return fn();
+    } finally {
+      try {
+        jest.clearAllTimers();
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      try {
+        jest.useRealTimers();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  /**
+   * Async variant of withFakeTimers.
+   */
+  static async withFakeTimersAsync<T>(
+    fn: () => Promise<T>,
+    config?: Parameters<typeof jest.useFakeTimers>[0]
+  ): Promise<T> {
+    if (config === undefined) {
+      jest.useFakeTimers();
+    } else {
+      jest.useFakeTimers(config);
+    }
+
+    try {
+      return await fn();
+    } finally {
+      try {
+        jest.clearAllTimers();
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      try {
+        jest.useRealTimers();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
+  /**
    * Wait for a specified amount of time
    */
   static async wait(ms: number): Promise<void> {

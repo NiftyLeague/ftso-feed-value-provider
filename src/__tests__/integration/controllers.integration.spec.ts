@@ -114,6 +114,14 @@ describe("Controllers Integration", () => {
         console.error("Error closing app:", err);
       }
     }
+
+    if (module) {
+      try {
+        await module.close();
+      } catch (err) {
+        console.error("Error closing module:", err);
+      }
+    }
   });
 
   describe("FeedController Integration", () => {

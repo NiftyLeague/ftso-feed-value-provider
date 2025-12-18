@@ -29,8 +29,7 @@ describe("FTSO API Compliance Integration Tests", () => {
 
     jest.spyOn(configService, "getFeedConfigurations").mockReturnValue(mockFeeds as any);
 
-    // Verify the mock is working
-    console.log("Mock feeds:", configService.getFeedConfigurations());
+    // Avoid noisy console output during coverage runs
 
     await app.init();
   });
@@ -38,6 +37,10 @@ describe("FTSO API Compliance Integration Tests", () => {
   afterAll(async () => {
     if (app) {
       await app.close();
+    }
+
+    if (module) {
+      await module.close();
     }
   });
 
@@ -107,8 +110,11 @@ describe("FTSO API Compliance Integration Tests", () => {
 
       validNames.forEach(name => {
         it(`should accept valid feed name: ${name}`, async () => {
+          const category =
+            name === "EUR/USD" || name === "GBP/USD" ? 2 : name === "XAU/USD" ? 3 : name === "AAPL/USD" ? 4 : 1;
+
           const requestBody: FeedValuesRequest = {
-            feeds: [{ category: 1, name }],
+            feeds: [{ category, name }],
           };
 
           const response = await request(app.getHttpServer()).post("/feed-values").send(requestBody);

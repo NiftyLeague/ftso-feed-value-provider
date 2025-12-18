@@ -29,6 +29,7 @@ const mockCircuitBreakerService = {
   getCircuitBreakerState: jest.fn(),
   resetCircuitBreaker: jest.fn(),
   getCircuitBreakerStatistics: jest.fn(),
+  getStats: jest.fn(() => ({ state: "closed" })),
   registerCircuit: jest.fn(),
   configureRetrySettings: jest.fn(),
   setupErrorMonitoring: jest.fn(),
@@ -246,6 +247,125 @@ describe("ErrorHandlingModule", () => {
     it("should monitor errors", () => {
       // Test that error monitoring is available
       expect(mockStandardizedErrorHandler.getErrorStatistics).toBeDefined();
+    });
+  });
+
+  describe("Event Listener Wiring", () => {
+    beforeEach(() => {
+      jest.spyOn(console, "error").mockImplementation(() => undefined);
+      jest.spyOn(console, "warn").mockImplementation(() => undefined);
+      jest.spyOn(console, "info").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      (console.error as jest.Mock).mockRestore();
+      (console.warn as jest.Mock).mockRestore();
+      (console.info as jest.Mock).mockRestore();
+    });
+
+    it("registers default retry settings and circuit breakers", () => {
+      expect(mockUniversalRetryService.configureRetrySettings).toHaveBeenCalled();
+      expect(mockCircuitBreakerService.registerCircuit).toHaveBeenCalled();
+    });
+
+    it("logs critical standardized errors", () => {
+      const standardizedHandler = mockStandardizedErrorHandler.on.mock.calls.find(
+        (c: unknown[]) => c[0] === "standardizedError"
+      )?.[1] as ((evt: any) => void) | undefined;
+
+      expect(typeof standardizedHandler).toBe("function");
+
+      standardizedHandler?.({
+        error: new Error("boom"),
+        response: { requestId: "req-1" },
+        metadata: { severity: "critical", component: "X", operation: "Y" },
+        timestamp: 123,
+      });
+
+      expect(console.error).toHaveBeenCalledWith(
+        "CRITICAL ERROR DETECTED:",
+        expect.objectContaining({ requestId: "req-1" })
+      );
+    });
+
+    it("does not log non-critical standardized errors", () => {
+      const standardizedHandler = mockStandardizedErrorHandler.on.mock.calls.find(
+        (c: unknown[]) => c[0] === "standardizedError"
+      )?.[1] as ((evt: any) => void) | undefined;
+
+      standardizedHandler?.({
+        error: new Error("boom"),
+        response: { requestId: "req-2" },
+        metadata: { severity: "medium", component: "X", operation: "Y" },
+        timestamp: 123,
+      });
+
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    it("logs retry exhausted when attemptCount >= 3", () => {
+      const retryFailureHandler = mockUniversalRetryService.on.mock.calls.find(
+        (c: unknown[]) => c[0] === "retryFailure"
+      )?.[1] as ((evt: any) => void) | undefined;
+
+      expect(typeof retryFailureHandler).toBe("function");
+
+      retryFailureHandler?.({
+        serviceId: "S",
+        operationName: "op",
+        attemptCount: 3,
+        totalTime: 10,
+        error: "nope",
+        timestamp: 1,
+      });
+
+      expect(console.warn).toHaveBeenCalledWith(
+        "RETRY EXHAUSTED:",
+        expect.objectContaining({ serviceId: "S", attempts: 3 })
+      );
+    });
+
+    it("does not log retry exhausted when attemptCount < 3", () => {
+      const retryFailureHandler = mockUniversalRetryService.on.mock.calls.find(
+        (c: unknown[]) => c[0] === "retryFailure"
+      )?.[1] as ((evt: any) => void) | undefined;
+
+      retryFailureHandler?.({
+        serviceId: "S",
+        operationName: "op",
+        attemptCount: 2,
+        totalTime: 10,
+        error: "nope",
+        timestamp: 1,
+      });
+
+      expect(console.warn).not.toHaveBeenCalled();
+    });
+
+    it("logs circuit opened and closed events", () => {
+      const openedHandler = mockCircuitBreakerService.on.mock.calls.find(
+        (c: unknown[]) => c[0] === "circuitOpened"
+      )?.[1] as ((serviceId: string) => void) | undefined;
+
+      const closedHandler = mockCircuitBreakerService.on.mock.calls.find(
+        (c: unknown[]) => c[0] === "circuitClosed"
+      )?.[1] as ((serviceId: string) => void) | undefined;
+
+      expect(typeof openedHandler).toBe("function");
+      expect(typeof closedHandler).toBe("function");
+
+      openedHandler?.("X");
+      closedHandler?.("X");
+
+      expect(mockCircuitBreakerService.getStats).toHaveBeenCalledWith("X");
+      expect(console.error).toHaveBeenCalledWith(
+        "CIRCUIT BREAKER OPENED:",
+        expect.objectContaining({ serviceId: "X" })
+      );
+      expect(console.info).toHaveBeenCalledWith(
+        "CIRCUIT BREAKER RECOVERED:",
+        expect.objectContaining({ serviceId: "X" })
+      );
     });
   });
 

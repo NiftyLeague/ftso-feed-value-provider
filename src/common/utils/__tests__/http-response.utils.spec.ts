@@ -2,6 +2,7 @@ import {
   createSuccessResponse,
   createErrorResponse,
   throwHttpException,
+  HttpExceptions,
   handleAsyncOperation,
 } from "../http-response.utils";
 import { HttpException, HttpStatus } from "@nestjs/common";
@@ -77,6 +78,28 @@ describe("HTTP Response Utils", () => {
     });
   });
 
+  describe("HttpExceptions", () => {
+    it("badRequest throws a standardized HttpException", () => {
+      try {
+        HttpExceptions.badRequest("Invalid input", { requestId: "req-1" });
+        throw new Error("expected HttpException");
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        const ex = e as HttpException;
+        expect(ex.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect(ex.getResponse()).toEqual(
+          expect.objectContaining({
+            status: "error",
+            error: "Bad Request",
+            message: "Invalid input",
+            requestId: "req-1",
+            timestamp: expect.any(Number),
+          })
+        );
+      }
+    });
+  });
+
   describe("handleAsyncOperation", () => {
     it("should handle successful async operation", async () => {
       const operation = async () => "success";
@@ -91,6 +114,17 @@ describe("HTTP Response Utils", () => {
       };
 
       await expect(handleAsyncOperation(operation, "test operation")).rejects.toThrow("test error");
+    });
+
+    it("rethrows HttpException unchanged", async () => {
+      const operation = async () => {
+        throw new HttpException({ status: "error", message: "boom" }, HttpStatus.I_AM_A_TEAPOT);
+      };
+
+      await expect(handleAsyncOperation(operation, "test operation")).rejects.toBeInstanceOf(HttpException);
+      await expect(handleAsyncOperation(operation, "test operation")).rejects.toMatchObject({
+        status: HttpStatus.I_AM_A_TEAPOT,
+      });
     });
   });
 });

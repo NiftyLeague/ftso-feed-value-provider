@@ -426,4 +426,197 @@ describe("ValidationUtils", () => {
       });
     });
   });
+
+  describe("validateRequestBody", () => {
+    it("should accept a valid object body", () => {
+      const body = { feeds: [{ category: 1, name: "BTC/USD" }] };
+      expect(ValidationUtils.validateRequestBody(body)).toEqual(body);
+    });
+
+    it("should reject null/undefined and arrays", () => {
+      expect(() => ValidationUtils.validateRequestBody(null)).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody(undefined)).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody([])).toThrow(BadRequestException);
+    });
+
+    it("should reject common SQL injection indicators", () => {
+      expect(() => ValidationUtils.validateRequestBody({ q: "DROP TABLE users" })).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody({ q: "union select * from x" })).toThrow(BadRequestException);
+    });
+
+    it("should reject common XSS indicators", () => {
+      expect(() => ValidationUtils.validateRequestBody({ html: "<script>alert(1)</script>" })).toThrow(
+        BadRequestException
+      );
+      expect(() => ValidationUtils.validateRequestBody({ url: "javascript:alert(1)" })).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody({ html: '<iframe src="x"></iframe>' })).toThrow(
+        BadRequestException
+      );
+    });
+
+    it("should reject inline event handler attributes", () => {
+      expect(() => ValidationUtils.validateRequestBody({ html: '<div onclick="x()">' })).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody({ html: "onload = alert(1)" })).toThrow(BadRequestException);
+    });
+
+    it("should reject path traversal indicators", () => {
+      expect(() => ValidationUtils.validateRequestBody({ path: "../etc/passwd" })).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody({ path: "..\\windows" })).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequestBody({ path: "%2e%2e%2fsecret" })).toThrow(BadRequestException);
+    });
+
+    it("should reject excessively large payloads", () => {
+      const body = { data: "a".repeat(10001) };
+      expect(() => ValidationUtils.validateRequestBody(body)).toThrow(/payload too large/i);
+    });
+  });
+
+  describe("validatePagination", () => {
+    it("should use defaults when args are undefined", () => {
+      const result = ValidationUtils.validatePagination(undefined, undefined);
+      expect(result).toEqual({ page: 1, limit: 10, offset: 0 });
+    });
+
+    it("should compute offset from page and limit", () => {
+      const result = ValidationUtils.validatePagination(3, 25);
+      expect(result).toEqual({ page: 3, limit: 25, offset: 50 });
+    });
+
+    it("should validate integer constraints", () => {
+      expect(() => ValidationUtils.validatePagination(0, 10)).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validatePagination(1.5, 10)).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validatePagination(1, 101)).toThrow(BadRequestException);
+    });
+  });
+
+  describe("validateRequired", () => {
+    it("should return the value when present", () => {
+      expect(ValidationUtils.validateRequired("x", "field")).toBe("x");
+    });
+
+    it("should reject null/undefined/empty string", () => {
+      expect(() => ValidationUtils.validateRequired(null as any, "field")).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequired(undefined as any, "field")).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateRequired("" as any, "field")).toThrow(BadRequestException);
+    });
+  });
+
+  describe("validateArray", () => {
+    it("should validate array length constraints", () => {
+      expect(() => ValidationUtils.validateArray("nope", "items")).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateArray([], "items", { minLength: 1 })).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateArray([1, 2, 3], "items", { maxLength: 2 })).toThrow(BadRequestException);
+    });
+
+    it("should validate items using itemValidator and wrap item errors", () => {
+      const ok = ValidationUtils.validateArray(["a", "b"], "items", {
+        itemValidator: (item: unknown) => ValidationUtils.sanitizeString(item, "item"),
+      });
+      expect(ok).toEqual(["a", "b"]);
+
+      expect(() =>
+        ValidationUtils.validateArray(["ok", "<bad>"], "items", {
+          itemValidator: (item: unknown) => ValidationUtils.sanitizeString(item, "item"),
+        })
+      ).toThrow(/items\[1\]/);
+    });
+  });
+
+  describe("validateEmail", () => {
+    it("should accept and normalize email", () => {
+      expect(ValidationUtils.validateEmail("TEST@Example.com", "email")).toBe("test@example.com");
+    });
+
+    it("should reject invalid email format", () => {
+      expect(() => ValidationUtils.validateEmail("not-an-email", "email")).toThrow(BadRequestException);
+    });
+  });
+
+  describe("validateUrl", () => {
+    it("should accept valid http/https URLs", () => {
+      expect(ValidationUtils.validateUrl("https://example.com", "url")).toBe("https://example.com");
+    });
+
+    it("should reject invalid URLs", () => {
+      expect(() => ValidationUtils.validateUrl("notaurl", "url")).toThrow(BadRequestException);
+    });
+
+    it("should reject disallowed protocols", () => {
+      expect(() => ValidationUtils.validateUrl("ftp://example.com", "url")).toThrow(BadRequestException);
+      expect(ValidationUtils.validateUrl("ftp://example.com", "url", ["ftp"]).toString()).toBe("ftp://example.com");
+    });
+  });
+
+  describe("validateEnum", () => {
+    enum TestEnum {
+      A = "A",
+      B = "B",
+    }
+
+    it("should accept valid enum values", () => {
+      expect(ValidationUtils.validateEnum("A", TestEnum as any, "e")).toBe("A");
+    });
+
+    it("should reject invalid enum values", () => {
+      expect(() => ValidationUtils.validateEnum("C", TestEnum as any, "e")).toThrow(BadRequestException);
+    });
+  });
+
+  describe("validateDate", () => {
+    it("should accept number, string, and Date inputs", () => {
+      expect(ValidationUtils.validateDate(Date.now(), "d")).toBeInstanceOf(Date);
+      expect(ValidationUtils.validateDate(new Date().toISOString(), "d")).toBeInstanceOf(Date);
+      expect(ValidationUtils.validateDate(new Date(), "d")).toBeInstanceOf(Date);
+    });
+
+    it("should reject invalid dates and types", () => {
+      expect(() => ValidationUtils.validateDate("not-a-date", "d")).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateDate({} as any, "d")).toThrow(BadRequestException);
+    });
+  });
+
+  describe("validateObject", () => {
+    it("should reject non-object values and arrays", () => {
+      expect(() => ValidationUtils.validateObject(null, "obj", () => ({}) as any)).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateObject([], "obj", () => ({}) as any)).toThrow(BadRequestException);
+    });
+
+    it("should run validator and wrap errors", () => {
+      const ok = ValidationUtils.validateObject({ a: 1 }, "obj", v => v as any);
+      expect(ok).toEqual({ a: 1 });
+
+      expect(() =>
+        ValidationUtils.validateObject({ a: 1 }, "obj", () => {
+          throw new Error("nope");
+        })
+      ).toThrow(/obj: nope/);
+    });
+  });
+
+  describe("validateBoolean", () => {
+    it("should accept booleans, strings, and numbers", () => {
+      expect(ValidationUtils.validateBoolean(true, "b")).toBe(true);
+      expect(ValidationUtils.validateBoolean("true", "b")).toBe(true);
+      expect(ValidationUtils.validateBoolean("false", "b")).toBe(false);
+      expect(ValidationUtils.validateBoolean(1, "b")).toBe(true);
+      expect(ValidationUtils.validateBoolean(0, "b")).toBe(false);
+    });
+
+    it("should reject invalid boolean representations", () => {
+      expect(() => ValidationUtils.validateBoolean("yes", "b")).toThrow(BadRequestException);
+      expect(() => ValidationUtils.validateBoolean(2, "b")).toThrow(BadRequestException);
+    });
+  });
+
+  describe("validateFeedName with configured feeds", () => {
+    it("should accept configured feeds and reject unknown ones", () => {
+      const configured = [
+        { category: 1, name: "BTC/USD" },
+        { category: 1, name: "ETH/USD" },
+      ];
+
+      expect(ValidationUtils.validateFeedName("btc/usd", "name", configured as any)).toBe("BTC/USD");
+      expect(() => ValidationUtils.validateFeedName("XRP/USD", "name", configured as any)).toThrow(/not configured/i);
+    });
+  });
 });
