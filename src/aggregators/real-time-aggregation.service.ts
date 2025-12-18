@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { getFeedIdFromSymbol } from "@/common/utils";
+import { getFeedConfiguration, getFeedIdFromSymbol } from "@/common/utils";
 import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
 import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
@@ -190,15 +190,30 @@ export class RealTimeAggregationService
       }
 
       if (updates.length === 0) {
-        this.logger.warn(
-          `No price updates available for ${feedId.name} - this should not happen if REST fallback is working`
-        );
-        this.enhancedLogger?.warn(`No price updates available for ${feedId.name}`, {
-          component: "RealTimeAggregation",
-          operation: "get_aggregated_price",
-          symbol: feedId.name,
-          metadata: { availableUpdates: 0 },
-        });
+        const hasConfig = !!getFeedConfiguration(feedId);
+        if (!hasConfig) {
+          // Requests can include feeds that are not configured in feeds.json.
+          // Treat this as an unsupported feed (not a REST fallback failure) to avoid log spam.
+          this.logger.debug(
+            `Unsupported feed requested (not configured in feeds.json): ${feedId.name} (category ${feedId.category})`
+          );
+          this.enhancedLogger?.debug(`Feed not configured: ${feedId.name}`, {
+            component: "RealTimeAggregation",
+            operation: "get_aggregated_price",
+            symbol: feedId.name,
+            metadata: { availableUpdates: 0, reason: "feed_not_configured" },
+          });
+        } else {
+          this.logger.warn(
+            `No price updates available for ${feedId.name} - this should not happen if REST fallback is working`
+          );
+          this.enhancedLogger?.warn(`No price updates available for ${feedId.name}`, {
+            component: "RealTimeAggregation",
+            operation: "get_aggregated_price",
+            symbol: feedId.name,
+            metadata: { availableUpdates: 0 },
+          });
+        }
 
         this.endTimer(operationId);
         this.activeAggregations.delete(feedKey);

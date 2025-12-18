@@ -3,6 +3,7 @@
  */
 
 import { ConfigService } from "../config.service";
+import feedsJson from "../feeds.json";
 
 describe("Feeds Loading and Counting", () => {
   let configService: ConfigService;
@@ -14,12 +15,12 @@ describe("Feeds Loading and Counting", () => {
   describe("ConfigService feeds methods", () => {
     it("should load feeds count correctly", () => {
       const count = configService.getFeedsCount();
-      expect(count).toBe(63);
+      expect(count).toBe((feedsJson as unknown as unknown[]).length);
     });
 
     it("should load feeds count with fallback", () => {
       const count = configService.getFeedsCountWithFallback();
-      expect(count).toBe(63);
+      expect(count).toBe((feedsJson as unknown as unknown[]).length);
     });
 
     it("should return fallback count when feeds loading fails", () => {
@@ -35,7 +36,7 @@ describe("Feeds Loading and Counting", () => {
     it("should load feed configurations", () => {
       const feeds = configService.getFeedConfigurations();
       expect(Array.isArray(feeds)).toBe(true);
-      expect(feeds.length).toBe(63);
+      expect(feeds.length).toBe((feedsJson as unknown as unknown[]).length);
 
       // Verify structure of first feed
       if (feeds.length > 0) {
@@ -67,7 +68,7 @@ describe("Feeds Loading and Counting", () => {
       const feedsArrayLength = configService.getFeedConfigurations().length;
 
       expect(configServiceCount).toBe(feedsArrayLength);
-      expect(configServiceCount).toBe(63);
+      expect(configServiceCount).toBe((feedsJson as unknown as unknown[]).length);
     });
   });
 });

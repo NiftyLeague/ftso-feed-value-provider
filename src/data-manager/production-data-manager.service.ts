@@ -52,6 +52,9 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   // Data source initialization tracking
   private dataSourcesInitialized = new Set<string>();
 
+  // Log missing feed configuration only once per feed (per process)
+  private missingFeedConfigEverLogged = new Set<string>();
+
   // Track whether a source has ever connected successfully
   private sourceEverConnected = new Set<string>();
 
@@ -449,7 +452,16 @@ export class ProductionDataManagerService extends EventDrivenService implements 
   private getConfiguredExchangesForFeed(feedId: CoreFeedId): string[] {
     const feedConfig = getFeedConfiguration(feedId);
     if (!feedConfig) {
-      this.logger.warn(`No configuration found for feed: ${feedId.name}`);
+      const missingKey = `${feedId.category}:${feedId.name}`;
+      if (!this.missingFeedConfigEverLogged.has(missingKey)) {
+        this.missingFeedConfigEverLogged.add(missingKey);
+        this.logger.warn(
+          `Feed not configured in feeds.json: ${feedId.name} (category ${feedId.category}). ` +
+            `No sources can be selected; add it to src/config/feeds.json to enable pricing.`
+        );
+      } else {
+        this.logger.debug(`Feed not configured in feeds.json: ${feedId.name} (category ${feedId.category})`);
+      }
       return [];
     }
 
@@ -671,7 +683,16 @@ export class ProductionDataManagerService extends EventDrivenService implements 
     // Get feed configuration to get exchange-specific symbols
     const feedConfig = getFeedConfiguration(feedId);
     if (!feedConfig) {
-      this.logger.warn(`No configuration found for feed: ${feedId.name}`);
+      const missingKey = `${feedId.category}:${feedId.name}`;
+      if (!this.missingFeedConfigEverLogged.has(missingKey)) {
+        this.missingFeedConfigEverLogged.add(missingKey);
+        this.logger.warn(
+          `Feed not configured in feeds.json: ${feedId.name} (category ${feedId.category}). ` +
+            `Nothing to unsubscribe; add it to src/config/feeds.json to enable pricing.`
+        );
+      } else {
+        this.logger.debug(`Feed not configured in feeds.json: ${feedId.name} (category ${feedId.category})`);
+      }
       return;
     }
 

@@ -534,7 +534,7 @@ describe("ProductionDataManagerService", () => {
       (getFeedConfiguration as unknown as jest.Mock).mockReturnValueOnce(undefined);
       const updates = await dataManager.getPriceUpdatesForFeed(mockFeedId);
       expect(updates).toEqual([]);
-      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining("No configuration found for feed"));
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining("Feed not configured in feeds.json"));
     });
 
     it("getPriceUpdatesForFeed uses CCXT adapter for non-custom exchanges and REST for custom exchanges", async () => {

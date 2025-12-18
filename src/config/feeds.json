@@ -243,6 +243,7 @@
   {
     "feed": { "category": 1, "name": "BTC/USD" },
     "sources": [
+      { "exchange": "binance", "symbol": "BTC/USD" },
       { "exchange": "binance", "symbol": "BTC/USDT" },
       { "exchange": "bitget", "symbol": "BTC/USDT" },
       { "exchange": "bitmart", "symbol": "BTC/USDT" },
@@ -320,6 +321,7 @@
       { "exchange": "bitget", "symbol": "ENA/USDT" },
       { "exchange": "bitmart", "symbol": "ENA/USDT" },
       { "exchange": "bitrue", "symbol": "ENA/USDT" },
+      { "exchange": "bitstamp", "symbol": "ENA/USD" },
       { "exchange": "bybit", "symbol": "ENA/USDT" },
       { "exchange": "coinbase", "symbol": "ENA/USD" },
       { "exchange": "coinex", "symbol": "ENA/USDT" },
@@ -506,6 +508,7 @@
       { "exchange": "bitget", "symbol": "HYPE/USDT" },
       { "exchange": "bitmart", "symbol": "HYPE/USDT" },
       { "exchange": "bitrue", "symbol": "HYPE/USDT" },
+      { "exchange": "bitstamp", "symbol": "HYPE/USD" },
       { "exchange": "bybit", "symbol": "HYPE/USDT" },
       { "exchange": "coinex", "symbol": "HYPE/USDT" },
       { "exchange": "gate", "symbol": "HYPE/USDT" },
@@ -613,6 +616,23 @@
       { "exchange": "mexc", "symbol": "LTC/USDT" },
       { "exchange": "okx", "symbol": "LTC/USD" },
       { "exchange": "okx", "symbol": "LTC/USDT" }
+    ]
+  },
+  {
+    "feed": { "category": 1, "name": "MON/USD" },
+    "sources": [
+      { "exchange": "bitget", "symbol": "MON/USDT" },
+      { "exchange": "bitmart", "symbol": "MON/USDT" },
+      { "exchange": "bitrue", "symbol": "MON/USDT" },
+      { "exchange": "bybit", "symbol": "MON/USDT" },
+      { "exchange": "coinbase", "symbol": "MON/USD" },
+      { "exchange": "coinex", "symbol": "MON/USDT" },
+      { "exchange": "cryptocom", "symbol": "MON/USD" },
+      { "exchange": "gate", "symbol": "MON/USDT" },
+      { "exchange": "kraken", "symbol": "MON/USD" },
+      { "exchange": "kucoin", "symbol": "MON/USDT" },
+      { "exchange": "mexc", "symbol": "MON/USDT" },
+      { "exchange": "upbit", "symbol": "MON/USDT" }
     ]
   },
   {
@@ -1092,6 +1112,7 @@
     "sources": [
       { "exchange": "binance", "symbol": "USDC/USD" },
       { "exchange": "binance", "symbol": "USDC/USDT" },
+      { "exchange": "bitget", "symbol": "USDC/USD" },
       { "exchange": "bitget", "symbol": "USDC/USDT" },
       { "exchange": "bitmart", "symbol": "USDC/USDT" },
       { "exchange": "bitrue", "symbol": "USDC/USDT" },
@@ -1121,6 +1142,7 @@
     "feed": { "category": 1, "name": "USDT/USD" },
     "sources": [
       { "exchange": "binance", "symbol": "USDT/USD" },
+      { "exchange": "bitget", "symbol": "USDT/USD" },
       { "exchange": "bitstamp", "symbol": "USDT/USD" },
       { "exchange": "coinbase", "symbol": "USDT/USD" },
       { "exchange": "cryptocom", "symbol": "USDT/USD" },
@@ -1202,6 +1224,7 @@
       { "exchange": "bitrue", "symbol": "XPL/USDT" },
       { "exchange": "bitstamp", "symbol": "XPL/USD" },
       { "exchange": "bybit", "symbol": "XPL/USDT" },
+      { "exchange": "coinbase", "symbol": "XPL/USD" },
       { "exchange": "coinex", "symbol": "XPL/USDT" },
       { "exchange": "cryptocom", "symbol": "XPL/USD" },
       { "exchange": "gate", "symbol": "XPL/USDT" },

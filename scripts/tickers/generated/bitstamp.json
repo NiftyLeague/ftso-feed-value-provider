@@ -1,7 +1,7 @@
 {
   "exchange": "bitstamp",
-  "timestamp": 1763746437279,
-  "count": 250,
+  "timestamp": 1766015988223,
+  "count": 260,
   "symbols": [
     "1INCH/EUR",
     "1INCH/USD",
@@ -28,6 +28,8 @@
     "BAT/USD",
     "BCH/EUR",
     "BCH/USD",
+    "BIO/EUR",
+    "BIO/USD",
     "BLUR/EUR",
     "BLUR/USD",
     "BOME/EUR",
@@ -65,6 +67,8 @@
     "DOT/USD",
     "EGLD/EUR",
     "EGLD/USD",
+    "ENA/EUR",
+    "ENA/USD",
     "ENJ/EUR",
     "ENJ/USD",
     "ENS/EUR",
@@ -105,6 +109,8 @@
     "GYEN/USD",
     "HBAR/EUR",
     "HBAR/USD",
+    "HYPE/EUR",
+    "HYPE/USD",
     "ICP/EUR",
     "ICP/USD",
     "IMX/EUR",
@@ -182,6 +188,8 @@
     "SOL/EUR",
     "SOL/USD",
     "SOL/USDC",
+    "SPK/EUR",
+    "SPK/USD",
     "STORJ/EUR",
     "STORJ/USD",
     "STRK/EUR",
@@ -224,6 +232,8 @@
     "WEN/USD",
     "WIF/EUR",
     "WIF/USD",
+    "WLFI/EUR",
+    "WLFI/USD",
     "WOO/EUR",
     "WOO/USD",
     "XCHNG/EUR",
@@ -1253,6 +1263,86 @@
         "trading": "Enabled",
         "instant_and_market_orders": "Enabled",
         "description": "Bitcoin Cash / U.S. dollar"
+      }
+    },
+    "BIO/EUR": {
+      "id": "bioeur",
+      "symbol": "BIO/EUR",
+      "base": "BIO",
+      "quote": "EUR",
+      "baseId": "bio",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "BIO/EUR",
+        "url_symbol": "bioeur",
+        "base_decimals": 1,
+        "counter_decimals": 6,
+        "instant_order_counter_decimals": 6,
+        "minimum_order": "10.000000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Disabled",
+        "description": "Bio Protocol / Euro"
+      }
+    },
+    "BIO/USD": {
+      "id": "biousd",
+      "symbol": "BIO/USD",
+      "base": "BIO",
+      "quote": "USD",
+      "baseId": "bio",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "BIO/USD",
+        "url_symbol": "biousd",
+        "base_decimals": 1,
+        "counter_decimals": 6,
+        "instant_order_counter_decimals": 6,
+        "minimum_order": "10.000000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Disabled",
+        "description": "Bio Protocol / U.S. dollar"
       }
     },
     "BLUR/EUR": {
@@ -2733,6 +2823,86 @@
         "trading": "Enabled",
         "instant_and_market_orders": "Enabled",
         "description": "MultiversX / U.S. dollar"
+      }
+    },
+    "ENA/EUR": {
+      "id": "enaeur",
+      "symbol": "ENA/EUR",
+      "base": "ENA",
+      "quote": "EUR",
+      "baseId": "ena",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "ENA/EUR",
+        "url_symbol": "enaeur",
+        "base_decimals": 2,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Ethena / Euro"
+      }
+    },
+    "ENA/USD": {
+      "id": "enausd",
+      "symbol": "ENA/USD",
+      "base": "ENA",
+      "quote": "USD",
+      "baseId": "ena",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "ENA/USD",
+        "url_symbol": "enausd",
+        "base_decimals": 2,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Ethena / U.S. dollar"
       }
     },
     "ENJ/EUR": {
@@ -4333,6 +4503,86 @@
         "trading": "Enabled",
         "instant_and_market_orders": "Enabled",
         "description": "Hedera / U.S. dollar"
+      }
+    },
+    "HYPE/EUR": {
+      "id": "hypeeur",
+      "symbol": "HYPE/EUR",
+      "base": "HYPE",
+      "quote": "EUR",
+      "baseId": "hype",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "HYPE/EUR",
+        "url_symbol": "hypeeur",
+        "base_decimals": 4,
+        "counter_decimals": 3,
+        "instant_order_counter_decimals": 3,
+        "minimum_order": "10.000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Hyperliquid / Euro"
+      }
+    },
+    "HYPE/USD": {
+      "id": "hypeusd",
+      "symbol": "HYPE/USD",
+      "base": "HYPE",
+      "quote": "USD",
+      "baseId": "hype",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.0001,
+        "price": 0.001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "HYPE/USD",
+        "url_symbol": "hypeusd",
+        "base_decimals": 4,
+        "counter_decimals": 3,
+        "instant_order_counter_decimals": 3,
+        "minimum_order": "10.000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Hyperliquid / U.S. dollar"
       }
     },
     "ICP/EUR": {
@@ -7415,6 +7665,86 @@
         "description": "Solana / USDC"
       }
     },
+    "SPK/EUR": {
+      "id": "spkeur",
+      "symbol": "SPK/EUR",
+      "base": "SPK",
+      "quote": "EUR",
+      "baseId": "spk",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "SPK/EUR",
+        "url_symbol": "spkeur",
+        "base_decimals": 1,
+        "counter_decimals": 6,
+        "instant_order_counter_decimals": 6,
+        "minimum_order": "10.000000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Spark / Euro"
+      }
+    },
+    "SPK/USD": {
+      "id": "spkusd",
+      "symbol": "SPK/USD",
+      "base": "SPK",
+      "quote": "USD",
+      "baseId": "spk",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.1,
+        "price": 0.000001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "SPK/USD",
+        "url_symbol": "spkusd",
+        "base_decimals": 1,
+        "counter_decimals": 6,
+        "instant_order_counter_decimals": 6,
+        "minimum_order": "10.000000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Enabled",
+        "description": "Spark / U.S. dollar"
+      }
+    },
     "STORJ/EUR": {
       "id": "storjeur",
       "symbol": "STORJ/EUR",
@@ -9093,6 +9423,86 @@
         "trading": "Enabled",
         "instant_and_market_orders": "Enabled",
         "description": "dogwifhat / U.S. dollar"
+      }
+    },
+    "WLFI/EUR": {
+      "id": "wlfieur",
+      "symbol": "WLFI/EUR",
+      "base": "WLFI",
+      "quote": "EUR",
+      "baseId": "wlfi",
+      "quoteId": "eur",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "WLFI/EUR",
+        "url_symbol": "wlfieur",
+        "base_decimals": 2,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 EUR",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Disabled",
+        "description": "World Liberty Financial / Euro"
+      }
+    },
+    "WLFI/USD": {
+      "id": "wlfiusd",
+      "symbol": "WLFI/USD",
+      "base": "WLFI",
+      "quote": "USD",
+      "baseId": "wlfi",
+      "quoteId": "usd",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.004,
+      "maker": 0.004,
+      "precision": {
+        "amount": 0.01,
+        "price": 0.00001
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {
+          "min": 10
+        }
+      },
+      "info": {
+        "name": "WLFI/USD",
+        "url_symbol": "wlfiusd",
+        "base_decimals": 2,
+        "counter_decimals": 5,
+        "instant_order_counter_decimals": 5,
+        "minimum_order": "10.00000 USD",
+        "trading": "Enabled",
+        "instant_and_market_orders": "Disabled",
+        "description": "World Liberty Financial / U.S. dollar"
       }
     },
     "WOO/EUR": {

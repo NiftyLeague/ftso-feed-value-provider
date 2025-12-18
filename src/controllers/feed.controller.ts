@@ -159,11 +159,13 @@ export class FeedController extends BaseController {
   async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
     return this.handleControllerOperation(
       async () => {
-        // Validate feed requests - this will throw BadRequestException for invalid input
-        this.validateFeedRequest(body);
+        // Validate feed requests (format + normalization only).
+        // Do NOT enforce configured feeds here: batch callers may include feeds
+        // we haven't added yet, and we should return partial results.
+        const { feeds } = this.validateFeedRequest(body);
 
         // Get real-time data with caching and retry logic using our own executeWithRetry
-        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(body.feeds), {
+        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(feeds), {
           operationName: "getRealTimeFeedValues",
           serviceType: "external-api",
           endpoint: "getCurrentFeedValues",
@@ -245,16 +247,11 @@ export class FeedController extends BaseController {
         // Additional validation using our utility for business rules
         ValidationUtils.validateVotingRoundId(votingRoundId);
 
-        // Validate feed requests - this will throw BadRequestException for invalid input
-        this.validateFeedRequest(body);
+        // Validate feed requests (format + normalization only). Keep partial results on unknown feeds.
+        const { feeds } = this.validateFeedRequest(body);
 
-        // Explicitly validate feeds array structure and length to prevent loop bound injection
-        if (
-          !Array.isArray(body.feeds) ||
-          typeof body.feeds.length !== "number" ||
-          body.feeds.length < 0 ||
-          body.feeds.length > MAX_FEEDS
-        ) {
+        // Explicitly validate feeds length to prevent loop bound injection
+        if (feeds.length > MAX_FEEDS) {
           throw new HttpException(
             `Invalid feeds array in request body. Must be an array with at most ${MAX_FEEDS} items.`,
             HttpStatus.BAD_REQUEST
@@ -262,17 +259,14 @@ export class FeedController extends BaseController {
         }
 
         // Try to get cached historical data first with retry logic
-        const cachedResults = await this.executeWithRetry(
-          () => this.getCachedHistoricalData(body.feeds, votingRoundId),
-          {
-            operationName: "getCachedHistoricalData",
-            serviceType: "cache",
-            retryConfig: { maxRetries: 1, initialDelayMs: 100 },
-          }
-        );
+        const cachedResults = await this.executeWithRetry(() => this.getCachedHistoricalData(feeds, votingRoundId), {
+          operationName: "getCachedHistoricalData",
+          serviceType: "cache",
+          retryConfig: { maxRetries: 1, initialDelayMs: 100 },
+        });
 
         // Get fresh data for any missing feeds
-        const missingFeeds = body.feeds.filter((_, index) => cachedResults[index]?.value === undefined);
+        const missingFeeds = feeds.filter((_, index) => cachedResults[index]?.value === undefined);
         let freshData: FeedValueData[] = [];
 
         if (missingFeeds.length > 0) {
@@ -292,7 +286,7 @@ export class FeedController extends BaseController {
         }
 
         // Combine cached and fresh data
-        const values = this.combineHistoricalResults(body.feeds, cachedResults, missingFeeds, freshData);
+        const values = this.combineHistoricalResults(feeds, cachedResults, missingFeeds, freshData);
 
         this.logger.log(`Feed values for voting round ${votingRoundId}: ${values.length} feeds`, {
           votingRoundId,
@@ -401,9 +395,10 @@ export class FeedController extends BaseController {
 
   // Private helper methods
 
-  private validateFeedRequest(body: FeedValuesRequest): void {
-    // Use basic validation for FTSO API compliance
-    ValidationUtils.validateFeedValuesRequest(body);
+  private validateFeedRequest(body: FeedValuesRequest): { feeds: FeedId[] } {
+    // Only validate structure + normalize casing.
+    // Unknown feeds should not fail the whole request (batch use-case).
+    return ValidationUtils.validateFeedValuesRequest(body);
   }
 
   private validateVolumeRequest(body: VolumesRequest, windowSec: number): void {
