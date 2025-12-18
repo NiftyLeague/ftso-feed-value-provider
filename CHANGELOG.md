@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.1.1...v1.2.0) (2025-12-18)
+
+
+### Features
+
+* **feeds:** Add support for MON/USD ([3961e08](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/3961e08013c3ae5dad0c93c16097b2965448f678))
+
 ## [1.1.1](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.1.0...v1.1.1) (2025-12-16)
 
 
