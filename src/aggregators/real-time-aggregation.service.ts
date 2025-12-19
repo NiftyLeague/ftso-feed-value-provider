@@ -2,8 +2,9 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { getFeedConfiguration, getFeedIdFromSymbol } from "@/common/utils";
 import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
-import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
+import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
+import type { AggregationCacheStats } from "@/common/types/aggregators";
 import { ENV } from "@/config/environment.constants";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
@@ -11,11 +12,11 @@ import { ProductionDataManagerService } from "@/data-manager/production-data-man
 
 interface IAggregationService {
   getActiveFeedCount(): number;
-  getCacheStats(): IAggregationCacheStats;
+  getCacheStats(): AggregationCacheStats;
   getSubscriptionCount(): number;
 }
 
-export interface CacheEntry {
+interface AggregationCacheEntry {
   value: AggregatedPrice;
   timestamp: number;
   ttl: number;
@@ -24,18 +25,10 @@ export interface CacheEntry {
   votingRound?: number;
 }
 
-export interface IAggregationCacheStats {
-  totalEntries: number;
-  hitRate: number;
-  missRate: number;
-  evictionCount: number;
-  averageAge: number;
-}
-
 /**
  * Configuration interface for RealTimeAggregationService
  */
-export interface RealTimeAggregationConfig extends BaseServiceConfig {
+interface RealTimeAggregationConfig extends BaseServiceConfig {
   cacheTTLMs: number; // Maximum 1-second TTL for price data
   maxCacheSize: number; // LRU cache size limit
   aggregationIntervalMs: number; // How often to recalculate prices
@@ -43,7 +36,7 @@ export interface RealTimeAggregationConfig extends BaseServiceConfig {
   performanceTargetMs: number; // Target response time (100ms)
 }
 
-export interface PriceSubscription {
+interface PriceSubscription {
   feedId: CoreFeedId;
   callback: (price: AggregatedPrice) => void;
   lastUpdate?: number;
@@ -55,7 +48,7 @@ export class RealTimeAggregationService
   implements OnModuleInit, OnModuleDestroy, IAggregationService
 {
   // Real-time cache with 1-second TTL
-  private readonly cache = new Map<string, CacheEntry>();
+  private readonly cache = new Map<string, AggregationCacheEntry>();
   private readonly cacheAccessOrder = new Map<string, number>(); // For LRU eviction
   private cacheStats = {
     hits: 0,
@@ -523,7 +516,7 @@ export class RealTimeAggregationService
   /**
    * Get cache statistics
    */
-  getCacheStats(): IAggregationCacheStats {
+  getCacheStats(): AggregationCacheStats {
     const totalRequests = this.cacheStats.totalRequests;
     const hitRate = totalRequests > 0 ? this.cacheStats.hits / totalRequests : 0;
     const missRate = totalRequests > 0 ? this.cacheStats.misses / totalRequests : 0;
@@ -728,8 +721,7 @@ export class RealTimeAggregationService
   /**
    * Listen for events (uses EventDrivenService implementation)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this {
     return super.on(event, listener);
   }
 
@@ -739,7 +731,7 @@ export class RealTimeAggregationService
     return `${feedId.category}:${feedId.name}`;
   }
 
-  private getCachedPrice(feedKey: string): CacheEntry | null {
+  private getCachedPrice(feedKey: string): AggregationCacheEntry | null {
     const entry = this.cache.get(feedKey);
     if (!entry) {
       return null;
@@ -762,7 +754,7 @@ export class RealTimeAggregationService
 
   private setCachedPrice(feedKey: string, price: AggregatedPrice): void {
     const now = Date.now();
-    const entry: CacheEntry = {
+    const entry: AggregationCacheEntry = {
       value: price,
       timestamp: now,
       ttl: this.aggregationConfig.cacheTTLMs,

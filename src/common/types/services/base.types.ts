@@ -1,6 +1,5 @@
 import type { HealthCheckResult } from "../monitoring";
-import type { LoggingCapabilities } from "../../base/mixins/logging.mixin";
-import type { ConfigurableCapabilities } from "../../base/mixins/configurable.mixin";
+import type { LoggingCapabilities, ConfigurableCapabilities } from "./mixin-capabilities.types";
 import type { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
 
 /**

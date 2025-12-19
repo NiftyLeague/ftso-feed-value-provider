@@ -2,54 +2,22 @@ import { Injectable } from "@nestjs/common";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
 import { ExchangeId } from "@/common/types/adapters";
 import { EventDrivenService } from "@/common/base/composed.service";
-import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
-import { CircuitBreakerState } from "@/common/types/error-handling";
+import {
+  CircuitBreakerState,
+  ConnectionRecoveryConfig,
+  FailoverResult,
+  RecoveryStrategy,
+  SourceConnectionHealth,
+} from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ENV } from "@/config/environment.constants";
 import { getErrorCategoryString, getBackoffParameters } from "@/common/utils/error-classification.utils";
 
-export interface ConnectionRecoveryConfig extends BaseServiceConfig {
-  maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2
-  healthCheckInterval: number; // How often to check connection health (ms)
-  reconnectDelay: number; // Initial delay before reconnection attempt (ms)
-  maxReconnectDelay: number; // Maximum delay between reconnection attempts (ms)
-  backoffMultiplier: number; // Exponential backoff multiplier
-  maxReconnectAttempts: number; // Maximum number of reconnection attempts
-  gracefulDegradationThreshold: number; // Minimum sources needed to avoid degradation
-}
-
-export interface ConnectionHealth {
-  sourceId: string;
-  isConnected: boolean;
-  isHealthy: boolean;
-  lastConnected?: number;
-  lastDisconnected?: number;
-  reconnectAttempts: number;
-  consecutiveFailures: number;
-  averageLatency: number;
-  circuitBreakerState: CircuitBreakerState;
-}
-
-export interface FailoverResult {
-  success: boolean;
-  failoverTime: number;
-  activatedSources: (ExchangeId | string)[];
-  deactivatedSources: (ExchangeId | string)[];
-  degradationLevel: "none" | "partial" | "severe";
-}
-
-export interface RecoveryStrategy {
-  sourceId: string;
-  strategy: "reconnect" | "failover" | "circuit_breaker" | "graceful_degradation";
-  priority: number;
-  estimatedRecoveryTime: number;
-}
-
 @Injectable()
 export class ConnectionRecoveryService extends EventDrivenService {
   private dataSources = new Map<string, DataSource>();
-  private connectionHealth = new Map<string, ConnectionHealth>();
+  private connectionHealth = new Map<string, SourceConnectionHealth>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthCheckTimer?: NodeJS.Timeout;
   private feedSourceMapping = new Map<string, (ExchangeId | string)[]>(); // feedId -> sourceIds
@@ -409,7 +377,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
   /**
    * Get connection health for all sources
    */
-  getConnectionHealth(): Map<string, ConnectionHealth> {
+  getConnectionHealth(): Map<string, SourceConnectionHealth> {
     // Update circuit breaker states
     for (const [sourceId, health] of this.connectionHealth.entries()) {
       health.circuitBreakerState = this.circuitBreaker.getState(sourceId) || CircuitBreakerState.CLOSED;

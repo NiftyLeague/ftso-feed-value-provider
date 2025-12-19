@@ -1,55 +1,13 @@
 import { BadRequestException } from "@nestjs/common";
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-
-/**
- * Validation rule interface
- */
-export interface ValidationRule<T = unknown> {
-  /**
-   * Name of the validation rule
-   */
-  name: string;
-
-  /**
-   * Function to validate the value
-   */
-  validate: (value: T) => boolean;
-
-  /**
-   * Optional error message template
-   */
-  message?: string;
-}
-
-/**
- * Validation capabilities interface
- */
-export interface ValidationCapabilities {
-  /**
-   * Add a validation rule
-   */
-  addValidationRule<T>(rule: ValidationRule<T>): void;
-
-  /**
-   * Remove a validation rule by name
-   */
-  removeValidationRule(name: string): void;
-
-  /**
-   * Get all validation rules
-   */
-  getValidationRules(): ReadonlyArray<ValidationRule>;
-
-  /**
-   * Validate a value against all rules
-   */
-  validate<T>(value: T): boolean;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { ValidationCapabilities, ValidationRule } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds validation capabilities to a service
  */
-export function WithValidation<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
+export function WithValidation<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & ValidationCapabilities> {
   return class ValidationMixin extends Base implements ValidationCapabilities {
     public _validationRules: ValidationRule[] = [];
     public _failedRules: Set<string> = new Set();
@@ -139,5 +97,5 @@ export function WithValidation<TBase extends Constructor | AbstractConstructor>(
       this._validationRules = [];
       (this as unknown as IBaseService).logDebug("Cleared all validation rules");
     }
-  };
+  } as unknown as AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & ValidationCapabilities>;
 }

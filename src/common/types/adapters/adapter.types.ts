@@ -2,10 +2,6 @@
  * Adapter type definitions
  */
 
-// PriceUpdate import removed - no longer needed after removing AdapterWithRestFallback
-import { FeedCategory } from "../core/feed.types";
-import { IExchangeAdapter, ExchangeCapabilities } from "./exchange.types";
-
 export interface RawExchangeData {
   symbol?: string;
   price?: number | string;
@@ -49,18 +45,6 @@ export interface RestApiResponse {
   message?: string;
   timestamp?: number;
   [key: string]: unknown;
-}
-
-export interface IAdapterRegistryEntry {
-  adapter: IExchangeAdapter;
-  registeredAt: Date;
-  lastActivity: Date;
-  isActive: boolean;
-}
-
-export interface IAdapterFilter {
-  category?: FeedCategory;
-  capabilities?: Partial<ExchangeCapabilities>;
 }
 
 export interface AdapterHealthMetrics {

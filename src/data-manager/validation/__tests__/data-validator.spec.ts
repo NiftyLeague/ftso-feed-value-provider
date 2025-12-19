@@ -2,7 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { type PriceUpdate, FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";
 import { ValidationErrorType } from "@/common/types/error-handling";
-import { DataValidator, ValidationContext } from "../data-validator";
+import type { ValidationContext } from "@/common/types/data-manager";
+import { DataValidator } from "../data-validator";
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 
 describe("DataValidator", () => {

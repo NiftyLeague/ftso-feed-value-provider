@@ -14,6 +14,7 @@ import type { AggregatedPrice } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type { IntegrationServiceInterface } from "@/common/types/services/provider.types";
 import type { AdapterStats } from "@/common/types/monitoring";
+import type { Initializable } from "@/common/types/utils";
 
 @Injectable()
 export class IntegrationService
@@ -81,11 +82,7 @@ export class IntegrationService
     );
   }
 
-  private async initializeDependency(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dependency: any,
-    name: string
-  ): Promise<void> {
+  private async initializeDependency(dependency: Initializable, name: string): Promise<void> {
     // Prefer Nest lifecycle initialization (guarded by WithLifecycle) when available.
     if (typeof dependency?.onModuleInit === "function") {
       await dependency.onModuleInit();

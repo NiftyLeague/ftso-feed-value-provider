@@ -28,23 +28,23 @@ export const Mixins = {
  */
 
 // Service with lifecycle management
-export abstract class LifecycleService extends WithLifecycle(BaseService) {}
+export class LifecycleService extends WithLifecycle(BaseService) {}
 
 // Service with monitoring
-export abstract class MonitoringService extends WithMonitoring(BaseService) {}
+export class MonitoringService extends WithMonitoring(BaseService) {}
 
 // Service with error handling
-export abstract class ErrorHandlingService extends WithErrorHandling(BaseService) {}
+export class ErrorHandlingService extends WithErrorHandling(BaseService) {}
 
 // Service with events
-export abstract class EventService extends WithEvents(BaseService) {}
+export class EventService extends WithEvents(BaseService) {}
 
 // Common combinations
-export abstract class StandardService extends WithErrorHandling(WithMonitoring(WithLifecycle(BaseService))) {}
+export class StandardService extends WithErrorHandling(WithMonitoring(WithLifecycle(BaseService))) {}
 
-export abstract class EventDrivenService extends WithEvents(StandardService) {}
+export class EventDrivenService extends WithEvents(StandardService) {}
 
 /**
  * Service class with data provider capabilities and validation support.
  */
-export abstract class DataProviderService extends WithValidation(WithDataProvider(StandardService)) {}
+export class DataProviderService extends WithValidation(WithDataProvider(StandardService)) {}

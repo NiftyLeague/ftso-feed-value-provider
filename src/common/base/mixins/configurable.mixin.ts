@@ -1,31 +1,23 @@
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-
-/**
- * Configuration management capabilities
- */
-export interface ConfigurableCapabilities<TConfig extends Record<string, unknown>> {
-  updateConfig(newConfig: Partial<TConfig>): void;
-  getConfig(): Readonly<TConfig>;
-  resetConfig(): void;
-  validateConfig(): void;
-  onConfigUpdated?(oldConfig: TConfig, newConfig: TConfig): void;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { ConfigurableCapabilities } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds configuration management to a service
  */
 export function WithConfiguration<TConfig extends Record<string, unknown>>(defaultConfig: TConfig) {
-  return function <TBase extends Constructor | AbstractConstructor>(Base: TBase) {
-    return class ConfigurableMixin extends Base implements ConfigurableCapabilities<TConfig> {
-      public config: TConfig;
-      public readonly defaultConfig: TConfig;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      constructor(...args: any[]) {
-        super(...args);
-        this.defaultConfig = { ...defaultConfig };
-        this.config = { ...defaultConfig };
+  return function <TBase extends AnyConstructor>(
+    Base: TBase
+  ): AnyConstructor<
+    ConstructorArgs<TBase>,
+    ConstructorInstance<TBase> &
+      ConfigurableCapabilities<TConfig> & {
+        config: TConfig;
+        readonly defaultConfig: TConfig;
       }
+  > {
+    return class ConfigurableMixin extends Base implements ConfigurableCapabilities<TConfig> {
+      public readonly defaultConfig: TConfig = { ...defaultConfig };
+      public config: TConfig = { ...defaultConfig };
 
       updateConfig(newConfig: Partial<TConfig>): void {
         const oldConfig = { ...this.config };
@@ -76,6 +68,13 @@ export function WithConfiguration<TConfig extends Record<string, unknown>>(defau
 
         return changes;
       }
-    };
+    } as unknown as AnyConstructor<
+      ConstructorArgs<TBase>,
+      ConstructorInstance<TBase> &
+        ConfigurableCapabilities<TConfig> & {
+          config: TConfig;
+          readonly defaultConfig: TConfig;
+        }
+    >;
   };
 }

@@ -1,36 +1,13 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type {
+  CoinbaseRestTickerData,
+  CoinbaseTickerData,
+  ExchangeCapabilities,
+  ExchangeConnectionConfig,
+} from "@/common/types/adapters";
 import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
-
-export interface CoinbaseTickerData {
-  type: "ticker";
-  sequence: number;
-  product_id: string;
-  price: string;
-  open_24h: string;
-  volume_24h: string;
-  low_24h: string;
-  high_24h: string;
-  volume_30d: string;
-  best_bid: string;
-  best_ask: string;
-  side: "buy" | "sell";
-  time: string;
-  trade_id: number;
-  last_size: string;
-}
-
-export interface CoinbaseRestTickerData {
-  ask: string;
-  bid: string;
-  volume: string;
-  trade_id: number;
-  price: string;
-  size: string;
-  time: string;
-}
 
 export class CoinbaseAdapter extends BaseExchangeAdapter {
   readonly exchangeName = ExchangeId.Coinbase;

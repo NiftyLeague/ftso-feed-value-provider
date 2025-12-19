@@ -413,8 +413,7 @@ export class ApiMonitorService extends EventDrivenService {
   override emit(event: "slowResponse", data: SlowResponseData): boolean;
   override emit(event: "serverError", data: ServerErrorData): boolean;
   override emit(event: "highErrorRate", data: HighErrorRateData): boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override emit(event: string | symbol, ...args: any[]): boolean {
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
     return super.emit(event, ...args);
   }
 
@@ -425,8 +424,7 @@ export class ApiMonitorService extends EventDrivenService {
   override on(event: "slowResponse", callback: (data: SlowResponseData) => void): this;
   override on(event: "serverError", callback: (data: ServerErrorData) => void): this;
   override on(event: "highErrorRate", callback: (data: HighErrorRateData) => void): this;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this {
     return super.on(event, listener);
   }
 }

@@ -7,6 +7,7 @@
  */
 
 export * from "./performance.types";
+export * from "./initializable.types";
 export * from "./rate-limit.types";
 export * from "./test.types";
 export * from "./timer.types";

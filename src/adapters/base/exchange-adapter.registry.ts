@@ -1,21 +1,11 @@
-import type { IExchangeAdapter, ExchangeCapabilities } from "@/common/types/adapters";
+import type {
+  IExchangeAdapter,
+  ExchangeCapabilities,
+  IAdapterRegistryEntry,
+  IAdapterFilter,
+} from "@/common/types/adapters";
 import type { AdapterStats } from "@/common/types/monitoring";
 import { FeedCategory } from "@/common/types/core";
-
-export interface IAdapterRegistryEntry {
-  adapter: IExchangeAdapter;
-  registeredAt: Date;
-  isActive: boolean;
-  lastHealthCheck?: Date;
-  healthStatus?: "healthy" | "degraded" | "unhealthy";
-}
-
-export interface IAdapterFilter {
-  category?: FeedCategory;
-  capabilities?: Partial<ExchangeCapabilities>;
-  isActive?: boolean;
-  healthStatus?: "healthy" | "degraded" | "unhealthy";
-}
 
 export class ExchangeAdapterRegistry {
   private adapters = new Map<string, IAdapterRegistryEntry>();

@@ -4,7 +4,12 @@ import { OnModuleDestroy } from "@nestjs/common";
 import { DataProviderService } from "@/common/base/composed.service";
 import { FeedCategory } from "@/common/types/core";
 import type { BaseServiceConfig } from "@/common/types/services";
-import type { ExchangeCapabilities, ExchangeConnectionConfig, IExchangeAdapter } from "@/common/types/adapters";
+import type {
+  ExchangeCapabilities,
+  ExchangeConnectionConfig,
+  IExchangeAdapter,
+  IExchangeAdapterConfig,
+} from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import type { WSConnectionConfig } from "@/common/types/data-manager";
 import { ENV, ENV_HELPERS } from "@/config/environment.constants";
@@ -13,14 +18,6 @@ import {
   extractStatusCode,
   getBackoffParameters,
 } from "@/common/utils/error-classification.utils";
-
-/**
- * Extended configuration for exchange adapters
- */
-export interface IExchangeAdapterConfig extends BaseServiceConfig {
-  useEnhancedLogging?: boolean;
-  connection?: ExchangeConnectionConfig;
-}
 
 /**
  * Base exchange adapter class that eliminates adapter boilerplate

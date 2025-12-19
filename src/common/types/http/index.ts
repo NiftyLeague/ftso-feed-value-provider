@@ -9,5 +9,6 @@
 
 export * from "./client.types";
 export * from "./http.types";
+export * from "./request.types";
 export * from "./websocket.types";
 export * from "./provider.types";

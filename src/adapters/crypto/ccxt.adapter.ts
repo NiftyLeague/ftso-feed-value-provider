@@ -1,8 +1,9 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { ServiceStatus } from "@/common/base/mixins/data-provider.mixin";
+import { ServiceStatus } from "@/common/types/services";
 import type {
+  CcxtMultiExchangeConnectionConfig,
   ExchangeCapabilities,
-  ExchangeConnectionConfig,
+  ExchangePriceData,
   RawPriceData,
   RawVolumeData,
 } from "@/common/types/adapters";
@@ -12,21 +13,6 @@ import { FeedCategory } from "@/common/types/core";
 import { ENV } from "@/config/environment.constants";
 import { getFeedConfiguration } from "@/common/utils";
 import * as ccxt from "ccxt";
-
-export interface CcxtMultiExchangeConnectionConfig extends ExchangeConnectionConfig {
-  tradesLimit?: number; // CCXT trades limit (default: 1000)
-  lambda?: number; // Exponential decay parameter (default: 0.00005)
-  retryBackoffMs?: number; // Retry backoff in milliseconds (default: 10000)
-  useEnhancedLogging?: boolean; // Enable enhanced logging (default: false)
-}
-
-export interface ExchangePriceData {
-  exchange: string;
-  price: number;
-  timestamp: number;
-  confidence: number;
-  volume?: number;
-}
 
 export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   readonly exchangeName = ExchangeId.CcxtMultiExchange;

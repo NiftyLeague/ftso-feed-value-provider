@@ -1,38 +1,23 @@
 import { EventEmitter } from "events";
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-
-/**
- * Event handling capabilities
- */
-export interface EventCapabilities {
-  emit(event: string | symbol, ...args: unknown[]): boolean;
-  on<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this;
-  once<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this;
-  off<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this;
-  removeAllListeners(event?: string | symbol): this;
-  listenerCount(event: string | symbol): number;
-  listeners(event: string | symbol): Function[];
-  setMaxListeners(n: number): this;
-  getMaxListeners(): number;
-  emitWithLogging(event: string, ...args: unknown[]): boolean;
-  getEventStats(): Record<string, number>;
-  logEventStats(): void;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { EventCapabilities } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds event handling to a service
  */
-export function WithEvents<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
+export function WithEvents<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & EventCapabilities> {
   return class EventsMixin extends Base implements EventCapabilities {
     public readonly eventListeners = new Map<string, number>();
-    public eventEmitter: EventEmitter;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(...args: any[]) {
-      super(...args);
-      this.eventEmitter = new EventEmitter();
-      this.setupEventTracking();
-    }
+    public eventEmitter: EventEmitter = (() => {
+      const emitter = new EventEmitter();
+      emitter.on("error", (error: Error) => {
+        (this as unknown as IBaseService).logError(error, "EventEmitter");
+      });
+      emitter.setMaxListeners(20); // Reasonable default
+      return emitter;
+    })();
 
     // EventEmitter delegation methods
     emit(event: string | symbol, ...args: unknown[]): boolean {
@@ -102,14 +87,6 @@ export function WithEvents<TBase extends Constructor | AbstractConstructor>(Base
       (this as unknown as IBaseService).logDebug("Event listener statistics:", undefined, stats);
     }
 
-    public setupEventTracking(): void {
-      this.eventEmitter.on("error", (error: Error) => {
-        (this as unknown as IBaseService).logError(error, "EventEmitter");
-      });
-
-      this.setMaxListeners(20); // Reasonable default
-    }
-
     public trackListener(event: string): void {
       const current = this.eventListeners.get(event) || 0;
       this.eventListeners.set(event, current + 1);
@@ -123,5 +100,5 @@ export function WithEvents<TBase extends Constructor | AbstractConstructor>(Base
         this.eventListeners.delete(event);
       }
     }
-  };
+  } as unknown as AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & EventCapabilities>;
 }

@@ -23,7 +23,8 @@ jest.mock("ws", () => {
   return MockWebSocketConstructor;
 });
 
-import { CoinbaseAdapter, CoinbaseTickerData } from "../coinbase.adapter";
+import { CoinbaseAdapter } from "../coinbase.adapter";
+import type { CoinbaseTickerData } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";
 import { MockSetup } from "@/__tests__/utils";

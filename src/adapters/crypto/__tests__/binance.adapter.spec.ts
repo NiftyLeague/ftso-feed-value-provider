@@ -12,7 +12,8 @@ jest.mock("ws", () => {
   return MockWebSocketConstructor;
 });
 
-import { BinanceAdapter, BinanceTickerData } from "../binance.adapter";
+import { BinanceAdapter } from "../binance.adapter";
+import type { BinanceTickerData } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";
 // @ts-ignore - MockFactory is used in jest.mock below

@@ -1,4 +1,5 @@
-import { CcxtMultiExchangeAdapter, CcxtMultiExchangeConnectionConfig } from "../ccxt.adapter";
+import { CcxtMultiExchangeAdapter } from "../ccxt.adapter";
+import type { CcxtMultiExchangeConnectionConfig } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { TestModuleBuilder } from "@/__tests__/utils/test-module.builder";

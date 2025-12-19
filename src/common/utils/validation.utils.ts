@@ -184,7 +184,7 @@ export class ValidationUtils {
    * Validate time range for volume requests
    */
   static validateTimeRange(startTime?: unknown, endTime?: unknown): ValidatedTimeRange {
-    const result: { startTime?: number; endTime?: number } = {};
+    const result: ValidatedTimeRange = {};
 
     if (startTime !== undefined) {
       result.startTime = this.validateTimestamp(startTime, "startTime");

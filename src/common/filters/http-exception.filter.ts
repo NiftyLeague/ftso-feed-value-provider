@@ -2,12 +2,7 @@ import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Injec
 import { Request, Response } from "express";
 import type { EnhancedErrorResponse, StandardErrorMetadata } from "@/common/types/error-handling";
 import { StandardErrorClassification, createEnhancedErrorResponse, ErrorSeverity } from "@/common/types/error-handling";
-
-// Extended Request interface for authentication and session data
-interface IExtendedRequest extends Request {
-  user?: { id: string; [key: string]: unknown };
-  session?: { id: string; [key: string]: unknown };
-}
+import type { IExtendedRequest } from "@/common/types/http";
 
 // Type for HTTP exception response objects
 interface HttpExceptionResponse {

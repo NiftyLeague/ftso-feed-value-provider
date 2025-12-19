@@ -1,38 +1,18 @@
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-
-/**
- * Monitoring and metrics capabilities
- */
-export interface MonitoringCapabilities {
-  recordMetric(name: string, value: number): void;
-  incrementCounter(name: string, increment?: number): void;
-  startTimer(operationName: string): void;
-  endTimer(operationName: string): number;
-  setHealthStatus(status: "healthy" | "unhealthy" | "degraded"): void;
-  getHealthStatus(): {
-    status: "healthy" | "unhealthy" | "degraded";
-    lastCheck: number;
-    uptime: number;
-  };
-  getMetrics(): Record<string, number>;
-  getCounters(): Record<string, number>;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { MonitoringCapabilities } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds monitoring and metrics to a service
  */
-export function WithMonitoring<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
+export function WithMonitoring<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & MonitoringCapabilities> {
   return class MonitoringMixin extends Base implements MonitoringCapabilities {
     public serviceMetrics = new Map<string, number>();
     public serviceCounters = new Map<string, number>();
     public serviceOperationTimers = new Map<string, number>();
     public serviceHealthStatus: "healthy" | "unhealthy" | "degraded" = "healthy";
     public lastHealthCheck = Date.now();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(...args: any[]) {
-      super(...args);
-    }
 
     recordMetric(name: string, value: number): void {
       this.serviceMetrics.set(name, value);
@@ -97,5 +77,5 @@ export function WithMonitoring<TBase extends Constructor | AbstractConstructor>(
     getCounters(): Record<string, number> {
       return Object.fromEntries(this.serviceCounters);
     }
-  };
+  } as unknown as AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & MonitoringCapabilities>;
 }
