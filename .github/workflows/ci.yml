@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 60
     env:
       DISABLED_CUSTOM_ADAPTERS: binance
-      DISABLED_CCXT_EXCHANGES: binance
+      DISABLED_CCXT_EXCHANGES: binance, bybit
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 45
     env:
       DISABLED_CUSTOM_ADAPTERS: binance
-      DISABLED_CCXT_EXCHANGES: binance
+      DISABLED_CCXT_EXCHANGES: binance, bybit
     strategy:
       fail-fast: false
       matrix:

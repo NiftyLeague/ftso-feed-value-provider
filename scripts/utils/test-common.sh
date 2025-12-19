@@ -3,6 +3,11 @@
 # Common utilities for test scripts
 # This file provides shared functions for consistent logging behavior
 
+# When a script sources this file, treat it as a test-script and enforce
+# non-zero exit codes if the script reports failures or the log contains
+# actual errors (see scripts/utils/cleanup.sh).
+export FTSO_ENFORCE_TEST_EXIT_CODE=${FTSO_ENFORCE_TEST_EXIT_CODE:-true}
+
 # Function to set up logging directories and files
 setup_test_logging() {
     local script_name=$1
@@ -57,6 +62,16 @@ cleanup_old_test_logs() {
         done
     fi
 }
+
+
+
+# Load log parsing utilities early so the EXIT handler can use them.
+# Individual scripts may still source this again later; that's fine.
+SCRIPT_UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_UTILS_DIR/parse-logs.sh" ]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_UTILS_DIR/parse-logs.sh"
+fi
 
 
 

@@ -3,6 +3,7 @@ import { EventDrivenService } from "@/common/base/composed.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
 import { hasCustomAdapter } from "@/common/utils";
+import { ENV } from "@/config/environment.constants";
 import { ExchangeId, type IExchangeAdapter } from "@/common/types/adapters";
 import type { CoreFeedId } from "@/common/types/core";
 
@@ -328,11 +329,23 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   private async initializeExchangeStates(): Promise<void> {
     this.logger.log("Initializing exchange connection states...");
 
+    const disabledCcxtExchanges = new Set(ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES);
+
     // Get all unique exchanges from feed mappings
     const requiredExchanges = new Set<string>();
     for (const exchangeConfigs of this.feedToExchangeMap.values()) {
       for (const config of exchangeConfigs) {
         requiredExchanges.add(config.exchange);
+      }
+    }
+
+    // If an exchange would be handled by CCXT, and it's disabled for CCXT, skip it entirely.
+    // This prevents the orchestrator from attempting CCXT subscriptions/polling for disabled exchanges.
+    for (const exchangeName of Array.from(requiredExchanges)) {
+      const normalizedExchange = exchangeName.toLowerCase();
+      if (!hasCustomAdapter(exchangeName) && disabledCcxtExchanges.has(normalizedExchange)) {
+        this.logger.warn(`Skipping exchange disabled for CCXT: ${exchangeName}`);
+        requiredExchanges.delete(exchangeName);
       }
     }
 
