@@ -116,8 +116,10 @@ cleanup_ftso_processes() {
     # and avoid killing the current script/runner process.
     local patterns=(
         "nest start"
-        "npm.*start"
-        "pnpm.*start"
+        # Match actual start commands (with a space) to avoid matching pnpm script names like
+        # 'debug:startup' which would otherwise terminate the runner (exit code 143).
+        "npm.* start"
+        "pnpm.* start"
         "node.*dist/main"
         "node.*jest"
         "ts-jest"
@@ -126,12 +128,37 @@ cleanup_ftso_processes() {
     local self_pid=$$
     local parent_pid=${PPID:-}
 
+    # Build a set of ancestor PIDs (self -> init) so we never kill the current
+    # runner process chain (e.g., pnpm/node/sh) during cleanup.
+    declare -a ancestor_pids=()
+    local current_pid="$self_pid"
+    while [ -n "$current_pid" ] && [ "$current_pid" -gt 1 ] 2>/dev/null; do
+        ancestor_pids+=("$current_pid")
+        local next_ppid
+        next_ppid=$(ps -o ppid= -p "$current_pid" 2>/dev/null | tr -d ' ' || echo "")
+        if [ -z "$next_ppid" ] || [ "$next_ppid" = "$current_pid" ]; then
+            break
+        fi
+        current_pid="$next_ppid"
+    done
+
+    is_ancestor_pid() {
+        local candidate="$1"
+        for apid in "${ancestor_pids[@]}"; do
+            if [ "$candidate" = "$apid" ]; then
+                return 0
+            fi
+        done
+        return 1
+    }
+
     # Graceful stop first
     for pattern in "${patterns[@]}"; do
         while read -r pid; do
             [ -z "$pid" ] && continue
             [ "$pid" = "$self_pid" ] && continue
             [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+            is_ancestor_pid "$pid" && continue
             kill -TERM "$pid" 2>/dev/null || true
         done < <(pgrep -f "$pattern" 2>/dev/null || true)
     done
@@ -144,6 +171,7 @@ cleanup_ftso_processes() {
             [ -z "$pid" ] && continue
             [ "$pid" = "$self_pid" ] && continue
             [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+            is_ancestor_pid "$pid" && continue
             kill -9 "$pid" 2>/dev/null || true
         done < <(pgrep -f "$pattern" 2>/dev/null || true)
     done
