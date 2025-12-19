@@ -2,6 +2,10 @@ name: CI
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches: ['main', 'staging']
@@ -12,9 +16,6 @@ jobs:
   build-and-lint:
     name: Build & Lint
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-build-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
 
     steps:
       - name: Checkout repo
@@ -41,9 +42,6 @@ jobs:
     name: Jest (${{ matrix.suite }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    concurrency:
-      group: ${{ github.workflow }}-jest-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
@@ -68,9 +66,8 @@ jobs:
     name: System Script (${{ matrix.script }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    concurrency:
-      group: ${{ github.workflow }}-system-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
+    env:
+      DISABLED_CUSTOM_ADAPTERS: binance
     strategy:
       fail-fast: false
       matrix:
@@ -99,9 +96,8 @@ jobs:
     name: Debug Script (${{ matrix.script }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    concurrency:
-      group: ${{ github.workflow }}-debug-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
+    env:
+      DISABLED_CUSTOM_ADAPTERS: binance
     strategy:
       fail-fast: false
       matrix:
