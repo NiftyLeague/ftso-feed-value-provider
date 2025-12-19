@@ -51,6 +51,7 @@
     "debug:config": "./scripts/run.sh debug config",
     "debug:integration": "./scripts/run.sh debug integration",
     "debug:resilience": "./scripts/run.sh debug resilience",
+    "debug:resilience-consistency": "./scripts/run.sh debug resilience-consistency",
     "debug:data-aggregation": "./scripts/run.sh debug data-aggregation",
     "_comment_audit": "================== SYSTEM AUDIT ==================",
     "audit:summary": "./scripts/run.sh utils audit summary",

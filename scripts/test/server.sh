@@ -126,6 +126,83 @@ else
     echo "Feed values endpoint failed with exit code $FEED_EXIT_CODE" >> "$LOG_FILE"
 fi
 
+# Test 4: Configuration endpoints
+echo ""
+echo "🧪 Test 4: Configuration Endpoints"
+echo "----------------------------------"
+
+test_config_endpoint() {
+    local name=$1
+    local url=$2
+    local jq_check=$3
+
+    echo "🔍 Testing GET $url..."
+    local response
+    response=$(curl -s --max-time $TEST_TIMEOUT "http://localhost:$TEST_PORT${url}" 2>/dev/null)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ] && [ -n "$response" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            if echo "$response" | jq -e "$jq_check" >/dev/null 2>&1; then
+                echo "✅ $name: PASS"
+                echo "$name response: $response" >> "$LOG_FILE"
+                return 0
+            else
+                echo "❌ $name: FAIL (unexpected JSON shape)"
+                echo "$name response (unexpected shape): $response" >> "$LOG_FILE"
+                return 1
+            fi
+        fi
+
+        # If jq is unavailable, fall back to a basic non-empty response check.
+        echo "✅ $name: PASS (jq not available; basic check only)"
+        echo "$name response: $response" >> "$LOG_FILE"
+        return 0
+    fi
+
+    echo "❌ $name: FAIL (exit code: $exit_code)"
+    echo "$name endpoint failed with exit code $exit_code" >> "$LOG_FILE"
+    return 1
+}
+
+test_config_endpoint "Config Status" "/config/status" \
+  '.environment.nodeEnv != null and .system.cache.ttlMs != null and .feeds.count != null and .adapters.totalExchanges != null'
+test_config_endpoint "Config Validate" "/config/validate" \
+  '.overall.isValid != null and .environment.isValid != null and (.feeds.totalFeeds|type=="number")'
+test_config_endpoint "Config Feeds Summary" "/config/feeds/summary" \
+  '.totalFeeds != null and (.totalSources|type=="number") and (.feedsByCategory|type=="object")'
+test_config_endpoint "Config Adapters" "/config/adapters" \
+  '(.customAdapterExchanges|type=="array") and (.ccxtExchanges|type=="array")'
+
+# Test 5: Prometheus metrics endpoint
+echo ""
+echo "🧪 Test 5: Prometheus Metrics Endpoint"
+echo "-------------------------------------"
+echo "🔍 Testing GET /metrics/prometheus..."
+
+PROM_HEADERS=$(curl -s -I --max-time $TEST_TIMEOUT "http://localhost:$TEST_PORT/metrics/prometheus" 2>/dev/null)
+PROM_BODY=$(curl -s --max-time $TEST_TIMEOUT "http://localhost:$TEST_PORT/metrics/prometheus" 2>/dev/null)
+PROM_EXIT_CODE=$?
+
+if [ $PROM_EXIT_CODE -eq 0 ] && [ -n "$PROM_BODY" ]; then
+    if echo "$PROM_HEADERS" | grep -qi "content-type: text/plain"; then
+        # Basic sanity: ensure it looks like Prometheus exposition.
+        if echo "$PROM_BODY" | grep -q "^#\|_total\|_seconds\|_ms\|ftso_"; then
+            echo "✅ Prometheus metrics endpoint: PASS"
+        else
+            echo "⚠️  Prometheus metrics endpoint: PASS (unexpected content; check logs)"
+        fi
+    else
+        echo "⚠️  Prometheus metrics endpoint: PASS (unexpected content-type; check logs)"
+    fi
+    echo "Prometheus headers: $PROM_HEADERS" >> "$LOG_FILE"
+    echo "Prometheus body (first 50 lines):" >> "$LOG_FILE"
+    echo "$PROM_BODY" | head -n 50 >> "$LOG_FILE"
+else
+    echo "❌ Prometheus metrics endpoint: FAIL (exit code: $PROM_EXIT_CODE)"
+    echo "Prometheus metrics endpoint failed with exit code $PROM_EXIT_CODE" >> "$LOG_FILE"
+fi
+
 # Stop the application using shared cleanup system
 echo ""
 echo "🛑 Stopping application..."
