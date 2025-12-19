@@ -111,28 +111,41 @@ cleanup_temp_files() {
 
 # Function to cleanup FTSO-related processes by pattern
 cleanup_ftso_processes() {
-    # Common FTSO process patterns
+    # Common FTSO process patterns.
+    # IMPORTANT: avoid matching the repo name/path (it appears in many process command lines on CI)
+    # and avoid killing the current script/runner process.
     local patterns=(
-        "ftso-feed-value-provider"
         "nest start"
         "npm.*start"
-        "node.*dist/main"
         "pnpm.*start"
-        "jest"
-        "ts-jest"
+        "node.*dist/main"
         "node.*jest"
+        "ts-jest"
     )
-    
+
+    local self_pid=$$
+    local parent_pid=${PPID:-}
+
+    # Graceful stop first
     for pattern in "${patterns[@]}"; do
-        pkill -f "$pattern" 2>/dev/null || true
+        while read -r pid; do
+            [ -z "$pid" ] && continue
+            [ "$pid" = "$self_pid" ] && continue
+            [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+            kill -TERM "$pid" 2>/dev/null || true
+        done < <(pgrep -f "$pattern" 2>/dev/null || true)
     done
-    
-    # Wait for processes to die
+
     sleep 2
-    
-    # Force kill any remaining processes
+
+    # Force kill any remaining (excluding ourselves)
     for pattern in "${patterns[@]}"; do
-        pkill -9 -f "$pattern" 2>/dev/null || true
+        while read -r pid; do
+            [ -z "$pid" ] && continue
+            [ "$pid" = "$self_pid" ] && continue
+            [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+            kill -9 "$pid" 2>/dev/null || true
+        done < <(pgrep -f "$pattern" 2>/dev/null || true)
     done
 }
 
@@ -170,7 +183,7 @@ cleanup_all() {
     fi
     
     # Check if there are FTSO processes running
-    if pgrep -f "ftso-feed-value-provider\|nest start\|pnpm.*start\|node.*dist/main" >/dev/null 2>&1; then
+    if pgrep -f "nest start\|pnpm.*start\|node.*dist/main" >/dev/null 2>&1; then
         has_cleanup=true
     fi
     

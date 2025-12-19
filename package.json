@@ -39,6 +39,7 @@
     "test:load": "./scripts/run.sh test load",
     "test:shutdown": "./scripts/run.sh test shutdown",
     "test:feeds": "./scripts/run.sh test feeds",
+    "test:data-flow": "./scripts/run.sh test data-flow",
     "test:docker": "./scripts/run.sh test docker",
     "_comment_debug": "=============== DEBUG & MONITORING ===============",
     "debug:all": "./scripts/run.sh debug all",

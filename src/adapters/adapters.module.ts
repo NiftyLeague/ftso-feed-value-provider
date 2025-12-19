@@ -36,7 +36,12 @@ import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
             });
             const allExchanges = Array.from(exchanges);
             const customAdapterExchanges = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
-            return allExchanges.filter(exchange => !customAdapterExchanges.includes(exchange as ExchangeId));
+            const disabledCcxtExchanges = ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES;
+            return allExchanges.filter(
+              exchange =>
+                !customAdapterExchanges.includes(exchange as ExchangeId) &&
+                !disabledCcxtExchanges.includes(exchange.toLowerCase())
+            );
           },
           getFeedConfigurations: () => getAllFeedConfigurations(),
         });

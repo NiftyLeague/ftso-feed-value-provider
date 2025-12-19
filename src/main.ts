@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-dotenv.config();
+dotenv.config({ override: false });
 
 import helmet from "helmet";
 import { NestFactory } from "@nestjs/core";
