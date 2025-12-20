@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.1](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.2.0...v1.2.1) (2025-12-20)
+
+
+### Bug Fixes
+
+* **ci:** concurrency issues & Binance geo-blocked ([a487bff](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/a487bffcf480bc6cf3bb55877736fe960aa64eef))
+* **ci:** enforce script failures, fix unit tests, enhance CCXT filtering. ([a635418](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/a6354185f9ecf44fc863c753d174fc7c703a05db))
+* **ci:** potential fixes for remaining script failures ([3e287ac](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/3e287ac65785fe46ba3d5d3bcfb95774cf3d6fb1))
+* **ci:** script cleanup process & add DISABLED_CCXT_EXCHANGES for binance ([d7d4fe0](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/d7d4fe0f09b7fccf3fbc866cfed173acb0c41791))
+* **load:** ignore memory monitor startup line ([a937c4c](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/a937c4c52a0bdfe278ae5194dd8bc1a2ffb47e18))
+* **scripts:** don't treat summary lines as errors ([b496bac](https://github.com/NiftyLeague/ftso-feed-value-provider/commit/b496bacc9f1321558c7f878c4228a4fb62043a0f))
+
 ## [1.2.0](https://github.com/NiftyLeague/ftso-feed-value-provider/compare/v1.1.1...v1.2.0) (2025-12-18)
 
 
