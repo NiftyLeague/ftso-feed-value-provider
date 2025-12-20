@@ -1,4 +1,5 @@
-import { ServiceStatus, WithDataProvider } from "../data-provider.mixin";
+import { WithDataProvider } from "../data-provider.mixin";
+import { ServiceStatus } from "@/common/types/services";
 
 class TestBase {
   public logDebug = jest.fn();

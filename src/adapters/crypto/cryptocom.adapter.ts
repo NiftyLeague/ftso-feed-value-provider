@@ -1,73 +1,16 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type {
+  ExchangeCapabilities,
+  ExchangeConnectionConfig,
+  ICryptocomHeartbeatMessage,
+  ICryptocomRestResponse,
+  ICryptocomSubscriptionMessage,
+  ICryptocomTickerData,
+  ICryptocomTickerMessage,
+} from "@/common/types/adapters";
 import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
-
-export interface ICryptocomTickerData {
-  i: string; // Instrument name (symbol)
-  b: string; // Best bid price
-  k: string; // Best ask price
-  a: string; // Last traded price
-  t: number; // Timestamp
-  v: string; // 24h volume
-  h: string; // 24h high
-  l: string; // 24h low
-  c: string; // 24h change
-}
-
-export interface ICryptocomWebSocketMessage {
-  id?: number;
-  method: string;
-  code?: number;
-  result?: {
-    channel: string;
-    subscription: string;
-    data: ICryptocomTickerData[];
-  };
-}
-
-export interface ICryptocomHeartbeatMessage {
-  id?: number;
-  method: "public/heartbeat";
-}
-
-export interface ICryptocomSubscriptionMessage {
-  id?: number;
-  method: "subscribe";
-  result: {
-    channel: string;
-  };
-}
-
-export interface ICryptocomTickerMessage {
-  id?: number;
-  method: "ticker";
-  result: {
-    data: ICryptocomTickerData[];
-  };
-}
-
-export interface ICryptocomRestTickerData {
-  i: string; // Instrument name
-  b: string; // Best bid price
-  k: string; // Best ask price
-  a: string; // Last traded price
-  t: number; // Timestamp
-  v: string; // 24h volume
-  h: string; // 24h high
-  l: string; // 24h low
-  c: string; // 24h change
-}
-
-export interface ICryptocomRestResponse {
-  id: number;
-  method: string;
-  code: number;
-  result: {
-    data: ICryptocomRestTickerData[];
-  };
-}
 
 export class CryptocomAdapter extends BaseExchangeAdapter {
   readonly exchangeName = ExchangeId.Cryptocom;

@@ -95,14 +95,14 @@ WEBSOCKET_PROXY_URL=socks5://proxy.example.com:1080
 
 ```bash
 # Stop the current container
-docker-compose -f docker-compose.registry.yml down
+docker compose -f docker-compose.registry.yml down
 
 # Start with new configuration
 WEBSOCKET_PROXY_ENABLED=true WEBSOCKET_PROXY_URL=http://your-proxy:8080 \
-  docker-compose -f docker-compose.registry.yml up -d
+  docker compose -f docker-compose.registry.yml up -d
 
 # Check logs
-docker-compose -f docker-compose.registry.yml logs -f ftso-provider
+docker compose -f docker-compose.registry.yml logs -f ftso-provider
 ```
 
 You should see log messages indicating proxy usage:
@@ -173,13 +173,13 @@ After implementing a solution, verify it's working:
 
 ```bash
 # Check logs for successful connections
-docker-compose -f docker-compose.registry.yml logs -f ftso-provider | grep "WebSocket connected"
+docker compose -f docker-compose.registry.yml logs -f ftso-provider | grep "WebSocket connected"
 
 # Check for HTTP 451 errors (should be none)
-docker-compose -f docker-compose.registry.yml logs ftso-provider | grep "451"
+docker compose -f docker-compose.registry.yml logs ftso-provider | grep "451"
 
 # Monitor circuit breaker status
-docker-compose -f docker-compose.registry.yml logs ftso-provider | grep "Circuit breaker"
+docker compose -f docker-compose.registry.yml logs ftso-provider | grep "Circuit breaker"
 ```
 
 ## Testing Proxy Configuration Locally

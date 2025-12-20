@@ -33,8 +33,16 @@ const parseDisabledCustomAdapters = (): ExchangeId[] => {
     .filter(adapter => validAdapters.has(adapter));
 };
 
+const parseDisabledCcxtExchanges = (): string[] => {
+  return EnvironmentUtils.parseList("DISABLED_CCXT_EXCHANGES", [])
+    .map(value => value.toLowerCase())
+    .map(value => value.trim())
+    .filter(Boolean);
+};
+
 const DISABLED_CUSTOM_ADAPTERS = parseDisabledCustomAdapters();
 const ACTIVE_CUSTOM_ADAPTERS = DEFAULT_CUSTOM_ADAPTERS.filter(adapter => !DISABLED_CUSTOM_ADAPTERS.includes(adapter));
+const DISABLED_CCXT_EXCHANGES = parseDisabledCcxtExchanges();
 
 export const ENV = {
   // Application Settings
@@ -64,6 +72,7 @@ export const ENV = {
     CUSTOM_ADAPTERS: DEFAULT_CUSTOM_ADAPTERS,
     DISABLED_CUSTOM_ADAPTERS,
     ACTIVE_CUSTOM_ADAPTERS,
+    DISABLED_CCXT_EXCHANGES,
   },
 
   // Data Freshness

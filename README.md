@@ -68,7 +68,7 @@ pnpm docker:registry:down
 run:
 
 ```bash
-docker-compose -f docker-compose.registry.yml up -d
+docker compose -f docker-compose.registry.yml up -d
 ```
 
 #### Local Development
@@ -201,16 +201,16 @@ to keep output clean and focused on actual failures.
 pnpm test
 
 # Run tests with verbose logging (shows all logs)
-pnpm run test:verbose
+pnpm test:verbose
 
 # Run tests without log suppression (shows expected errors)
-pnpm run test:no-suppress
+pnpm test:no-suppress
 
 # Run specific test types
-pnpm run test:unit          # Unit tests only
-pnpm run test:integration   # Integration tests
-pnpm run test:performance   # Performance tests
-pnpm run test:endurance     # Long-running endurance tests
+pnpm test:unit          # Unit tests only
+pnpm test:integration   # Integration tests
+pnpm test:performance   # Performance tests
+pnpm test:endurance     # Long-running endurance tests
 ```
 
 ### Test Logging Control
@@ -334,7 +334,7 @@ Start the full monitoring stack with Prometheus and Grafana:
 
 ```bash
 # Start with monitoring
-docker-compose --profile monitoring up -d
+docker compose --profile monitoring up -d
 
 # Access monitoring tools
 # - Prometheus: http://localhost:9091

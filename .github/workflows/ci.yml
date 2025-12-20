@@ -2,6 +2,10 @@ name: CI
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     branches: ['main', 'staging']
@@ -12,9 +16,6 @@ jobs:
   build-and-lint:
     name: Build & Lint
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-build-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
 
     steps:
       - name: Checkout repo
@@ -37,13 +38,14 @@ jobs:
       - name: Build
         run: pnpm build
 
-  test:
-    name: Jest Tests
+  jest:
+    name: Jest (${{ matrix.suite }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    concurrency:
-      group: ${{ github.workflow }}-test-${{ github.ref == format('refs/heads/{0}', github.event.pull_request.base.ref) && github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [unit, integration, accuracy, performance, endurance]
 
     steps:
       - name: Checkout repo
@@ -56,6 +58,81 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm install
-      - name: Run tests
-        run: pnpm jest --colors --passWithNoTests --forceExit --maxWorkers=2 --testPathIgnorePatterns="src/adapters/__tests__/integration/"
+        run: pnpm install --frozen-lockfile
+      - name: Run Jest suite
+        run: pnpm test:${{ matrix.suite }}
+
+  system-scripts:
+    name: System Script (${{ matrix.script }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DISABLED_CUSTOM_ADAPTERS: binance
+      DISABLED_CCXT_EXCHANGES: binance, bybit
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [data-flow, docker, feeds, load, readiness, security, server, shutdown]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run system script
+        run: pnpm test:${{ matrix.script }}
+
+  debug-scripts:
+    name: Debug Script (${{ matrix.script }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DISABLED_CUSTOM_ADAPTERS: binance
+      DISABLED_CCXT_EXCHANGES: binance, bybit
+    strategy:
+      fail-fast: false
+      matrix:
+        script:
+          [
+            cache,
+            config,
+            data-aggregation,
+            errors,
+            feeds,
+            integration,
+            performance,
+            resilience,
+            resilience-consistency,
+            startup,
+            websockets,
+          ]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq bc
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run debug script
+        run: pnpm debug:${{ matrix.script }}

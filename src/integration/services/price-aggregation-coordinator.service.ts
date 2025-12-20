@@ -571,12 +571,12 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
 
     try {
       // Connect aggregation service events to cache and monitoring
-      this.aggregationService.on("aggregatedPrice", (aggregatedPrice: AggregatedPrice) => {
+      this.aggregationService.on<[AggregatedPrice]>("aggregatedPrice", aggregatedPrice => {
         this.handleAggregatedPrice(aggregatedPrice);
       });
 
       // Connect aggregation service errors
-      this.aggregationService.on("error", (error: Error) => {
+      this.aggregationService.on<[Error]>("error", error => {
         this.logger.error("Aggregation service error:", error);
         this.emit("aggregationError", error);
       });

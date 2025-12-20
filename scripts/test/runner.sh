@@ -319,6 +319,11 @@ main() {
         show_help
         exit 0
     fi
+
+    # The Jest process exit code is the source of truth for pass/fail.
+    # Disable log-based EXIT-trap enforcement here to avoid false positives
+    # from expected/intentional ERROR logs printed during tests.
+    export FTSO_ENFORCE_TEST_EXIT_CODE=false
     
     # Set up cleanup handlers
     setup_cleanup_handlers

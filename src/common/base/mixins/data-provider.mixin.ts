@@ -1,72 +1,24 @@
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-import type { RateLimitConfig } from "../../types/rate-limiting";
-
-// Define ServiceStatus enum (since it's not available in the monitoring types)
-export enum ServiceStatus {
-  Unknown = "unknown",
-  Connected = "connected",
-  Disconnected = "disconnected",
-  Error = "error",
-  RateLimited = "rate_limited",
-}
-
-/**
- * Data provider capabilities interface
- */
-export interface DataProviderCapabilities {
-  /**
-   * Get the current status of the data provider connection
-   */
-  getConnectionStatus(): ServiceStatus;
-
-  /**
-   * Get current rate limit configuration
-   */
-  getRateLimitConfig(): RateLimitConfig;
-
-  /**
-   * Update rate limit configuration
-   */
-  updateRateLimitConfig(config: Partial<RateLimitConfig>): void;
-
-  /**
-   * Get current request count within rate limit window
-   */
-  getCurrentRequestCount(): number;
-
-  /**
-   * Check if requests are currently being rate limited
-   */
-  isRateLimited(): boolean;
-
-  /**
-   * Get time until next rate limit window reset
-   */
-  getTimeToRateLimitReset(): number;
-
-  /**
-   * Get the error rate for this provider (errors/total requests)
-   */
-  getErrorRate(): number;
-
-  /**
-   * Get the success rate for this provider (successful/total requests)
-   */
-  getSuccessRate(): number;
-
-  /**
-   * Reset rate limit counters
-   */
-  resetRateLimitCounters(): void;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { ProviderRateLimitConfig } from "../../types/rate-limiting";
+import type { DataProviderCapabilities } from "../../types/services/mixin-capabilities.types";
+import { ServiceStatus } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds data provider capabilities to a service
  */
-export function WithDataProvider<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
+export function WithDataProvider<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & DataProviderCapabilities> {
   return class DataProviderMixin extends Base implements DataProviderCapabilities {
+    // TypeScript mixin constraint: constructor must be `(...args: any[])`.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(...args: any[]) {
+      super(...(args as unknown[]));
+      this._ensureRateLimitResetScheduled();
+    }
+
     _connectionStatus: ServiceStatus = ServiceStatus.Unknown;
-    _rateLimitConfig: RateLimitConfig = {
+    _rateLimitConfig: ProviderRateLimitConfig = {
       maxRequestsPerWindow: 100,
       windowMs: 60000, // 1 minute
       burstLimit: 10,
@@ -77,9 +29,19 @@ export function WithDataProvider<TBase extends Constructor | AbstractConstructor
     _lastResetTime = Date.now();
     _resetInterval?: NodeJS.Timeout;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(...args: any[]) {
-      super(...args);
+    private _ensureRateLimitResetScheduled(): void {
+      if (this._resetInterval) {
+        return;
+      }
+
+      const maybeCreateTimeout = (
+        this as unknown as { createTimeout?: (cb: () => void, delay: number) => NodeJS.Timeout }
+      ).createTimeout;
+      if (!maybeCreateTimeout) {
+        // If the base class doesn't provide lifecycle timers, skip scheduling.
+        return;
+      }
+
       this._scheduleRateLimitReset();
     }
 
@@ -106,11 +68,11 @@ export function WithDataProvider<TBase extends Constructor | AbstractConstructor
       (this as unknown as IBaseService).logDebug(`Connection status changed to: ${status}`);
     }
 
-    public getRateLimitConfig(): RateLimitConfig {
+    public getRateLimitConfig(): ProviderRateLimitConfig {
       return { ...this._rateLimitConfig };
     }
 
-    public updateRateLimitConfig(config: Partial<RateLimitConfig>): void {
+    public updateRateLimitConfig(config: Partial<ProviderRateLimitConfig>): void {
       this._rateLimitConfig = {
         ...this._rateLimitConfig,
         ...config,
@@ -163,13 +125,15 @@ export function WithDataProvider<TBase extends Constructor | AbstractConstructor
     }
 
     public recordSuccessfulRequest(): void {
+      this._ensureRateLimitResetScheduled();
       this._requestCount++;
       this._successCount++;
     }
 
     public recordFailedRequest(): void {
+      this._ensureRateLimitResetScheduled();
       this._requestCount++;
       this._errorCount++;
     }
-  };
+  } as unknown as AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & DataProviderCapabilities>;
 }

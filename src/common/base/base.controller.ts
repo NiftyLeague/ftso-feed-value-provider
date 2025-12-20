@@ -5,9 +5,11 @@ import { MonitoringService } from "./composed.service";
 import { ValidationUtils } from "../utils/validation.utils";
 import { createSuccessResponse, handleAsyncOperation } from "../utils/http-response.utils";
 import type { ApiResponse } from "../types/http/http.types";
+import type { IExtendedRequest } from "../types/http";
 import type { StandardErrorMetadata, RetryConfig } from "../types/error-handling";
 import { ErrorCode } from "../types/error-handling";
 import { createTimer, PerformanceUtils } from "../utils/performance.utils";
+import type { ValidatedPagination } from "../types/utils";
 
 /**
  * Controller operation options interface
@@ -28,12 +30,6 @@ interface ControllerOperationOptions {
 }
 import type { StandardizedErrorHandlerService } from "@/error-handling/standardized-error-handler.service";
 import type { UniversalRetryService } from "@/error-handling/universal-retry.service";
-
-// Extended Request interface for authentication and session data
-interface IExtendedRequest extends Request {
-  user?: { id: string; [key: string]: unknown };
-  session?: { id: string; [key: string]: unknown };
-}
 
 /**
  * Base controller class consolidates common controller patterns
@@ -197,7 +193,7 @@ export abstract class BaseController extends MonitoringService {
   /**
    * Handle pagination parameters using ValidationUtils
    */
-  protected validatePagination(page?: number, limit?: number): { page: number; limit: number; offset: number } {
+  protected validatePagination(page?: number, limit?: number): ValidatedPagination {
     return ValidationUtils.validatePagination(page, limit);
   }
 

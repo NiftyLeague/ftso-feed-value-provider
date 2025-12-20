@@ -34,6 +34,22 @@ CONTAINER_NAME="ftso"
 MAX_WAIT_TIME=90
 HEALTH_CHECK_INTERVAL=5
 
+# Support both docker-compose v1 and docker compose v2 plugin.
+compose() {
+    if command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+        return $?
+    fi
+
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+        return $?
+    fi
+
+    echo -e "${YELLOW}⚠ docker-compose not available; skipping Docker Deployment Test${NC}"
+    exit 0
+}
+
 # Function to check if container exists
 container_exists() {
     docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"
@@ -148,7 +164,7 @@ check_error_logs() {
 echo "0️⃣  Checking container status..."
 if ! container_exists; then
     echo -e "${YELLOW}⚠ Container does not exist, building and starting...${NC}"
-    docker-compose up -d --build
+    compose up -d --build
     if ! wait_for_healthy; then
         echo -e "${RED}✗ Failed to start container${NC}"
         echo -e "${YELLOW}Container logs:${NC}"
@@ -157,7 +173,7 @@ if ! container_exists; then
     fi
 elif ! container_running; then
     echo -e "${YELLOW}⚠ Container exists but is not running, starting...${NC}"
-    docker-compose start
+    compose start
     if ! wait_for_healthy; then
         echo -e "${RED}✗ Failed to start container${NC}"
         echo -e "${YELLOW}Container logs:${NC}"
@@ -178,9 +194,9 @@ echo ""
 
 # Test 1: Check container status
 echo "1️⃣  Verifying container status..."
-if docker-compose ps | grep -q "Up"; then
+if compose ps | grep -q "Up"; then
     echo -e "${GREEN}✓ Container is running${NC}"
-    docker-compose ps
+    compose ps
 else
     echo -e "${RED}✗ Container is not running${NC}"
     exit 1

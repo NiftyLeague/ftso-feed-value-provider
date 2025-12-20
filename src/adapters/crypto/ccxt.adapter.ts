@@ -1,8 +1,9 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import { ServiceStatus } from "@/common/base/mixins/data-provider.mixin";
+import { ServiceStatus } from "@/common/types/services";
 import type {
+  CcxtMultiExchangeConnectionConfig,
   ExchangeCapabilities,
-  ExchangeConnectionConfig,
+  ExchangePriceData,
   RawPriceData,
   RawVolumeData,
 } from "@/common/types/adapters";
@@ -12,21 +13,6 @@ import { FeedCategory } from "@/common/types/core";
 import { ENV } from "@/config/environment.constants";
 import { getFeedConfiguration } from "@/common/utils";
 import * as ccxt from "ccxt";
-
-export interface CcxtMultiExchangeConnectionConfig extends ExchangeConnectionConfig {
-  tradesLimit?: number; // CCXT trades limit (default: 1000)
-  lambda?: number; // Exponential decay parameter (default: 0.00005)
-  retryBackoffMs?: number; // Retry backoff in milliseconds (default: 10000)
-  useEnhancedLogging?: boolean; // Enable enhanced logging (default: false)
-}
-
-export interface ExchangePriceData {
-  exchange: string;
-  price: number;
-  timestamp: number;
-  confidence: number;
-  volume?: number;
-}
 
 export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   readonly exchangeName = ExchangeId.CcxtMultiExchange;
@@ -636,6 +622,8 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   private groupSymbolsByExchange(symbols: string[]): Map<string, string[]> {
     const exchangeToSymbols = new Map<string, string[]>();
 
+    const disabledCcxtExchanges = new Set(ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES);
+
     // Get all feeds from config to map symbols to exchanges
     const feeds = this.configService?.getFeedConfigurations?.() ?? [];
 
@@ -646,6 +634,11 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
         for (const source of feed.sources) {
           if (source.symbol === symbol) {
             const exchange = source.exchange;
+            // Respect CCXT exchange disable list even if feeds.json contains the exchange.
+            // This prevents subscriptions/polling for geo-blocked or otherwise disabled exchanges.
+            if (disabledCcxtExchanges.has(exchange.toLowerCase())) {
+              continue;
+            }
             if (!this.configService?.hasCustomAdapter?.(exchange) && !processedExchanges.has(exchange)) {
               // This is a CCXT exchange and we haven't processed it yet for this symbol
               if (!exchangeToSymbols.has(exchange)) {
@@ -1573,6 +1566,12 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
    * Get price from a specific exchange (for feed-specific requests)
    */
   async getPriceFromExchange(exchangeId: string, feedId: CoreFeedId): Promise<PriceUpdate | null> {
+    const normalizedExchangeId = exchangeId.toLowerCase();
+    if (ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES.includes(normalizedExchangeId)) {
+      this.logger.debug(`Exchange ${exchangeId} is disabled for CCXT; skipping getPriceFromExchange`);
+      return null;
+    }
+
     // Get the exchange-specific symbol from feed configuration
     const feedConfig = getFeedConfiguration(feedId);
     const sourceConfig = feedConfig?.sources.find(s => s.exchange === exchangeId);
@@ -1649,6 +1648,11 @@ export class CcxtMultiExchangeAdapter extends BaseExchangeAdapter {
   }
 
   private async initializeSingleExchange(exchangeId: string): Promise<void> {
+    const normalizedExchangeId = exchangeId.toLowerCase();
+    if (ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES.includes(normalizedExchangeId)) {
+      this.logger.debug(`Exchange ${exchangeId} is disabled for CCXT; skipping reinitialization`);
+      return;
+    }
     try {
       let exchange: ccxt.Exchange | null = null;
 

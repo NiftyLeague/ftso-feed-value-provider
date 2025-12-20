@@ -26,13 +26,13 @@ cd ftso-feed-value-provider
 echo "YOUR_GITHUB_TOKEN" | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
 # Deploy with optimal VM settings
-NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
 
 # Check container status
-docker-compose -f docker-compose.registry.yml ps
+docker compose -f docker-compose.registry.yml ps
 
 # View logs
-docker-compose -f docker-compose.registry.yml logs -f ftso-provider
+docker compose -f docker-compose.registry.yml logs -f ftso-provider
 ```
 
 ### 2. Local Build Deployment
@@ -45,23 +45,23 @@ git clone <repository-url>
 cd ftso-feed-value-provider
 
 # Build and start the production container
-docker-compose up -d
+docker compose up -d
 
 # Check container status
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f ftso-provider
+docker compose logs -f ftso-provider
 ```
 
 ### 3. With Monitoring Stack
 
 ```bash
 # From registry with monitoring (Prometheus + Grafana)
-docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+docker compose -f docker-compose.registry.yml --profile monitoring up -d
 
 # Or from local build
-docker-compose --profile monitoring up -d
+docker compose --profile monitoring up -d
 
 # Access Grafana at http://localhost:3000 (admin/admin)
 # Access Prometheus at http://localhost:9091
@@ -82,7 +82,7 @@ APP_PORT=3101
 
 # Monitoring
 MONITORING_ENABLED=true
-MONITORING_METRICS_PORT=9090
+MONITORING_METRICS_PORT=9090 # reserved; metrics are served on APP_PORT at /metrics/prometheus
 
 # Logging
 ENABLE_FILE_LOGGING=true
@@ -163,11 +163,14 @@ server {
 
 ### Metrics Endpoint
 
-The application exposes Prometheus metrics at `/metrics` on port 9090:
+The application exposes metrics on the API port:
+
+- JSON metrics: `GET /metrics`
+- Prometheus metrics: `GET /metrics/prometheus`
 
 ```bash
-# Check metrics
-curl http://localhost:9090/metrics
+# Check Prometheus metrics
+curl http://localhost:3101/metrics/prometheus
 ```
 
 ### Key Metrics
@@ -183,7 +186,8 @@ curl http://localhost:9090/metrics
 Import the provided dashboards for comprehensive monitoring:
 
 1. Access Grafana at `http://localhost:3000`
-2. Import dashboard JSON files from `monitoring/grafana/dashboards/`
+2. Import dashboard JSON files from
+   `monitoring/grafana/provisioning/dashboards/`
 3. Configure Prometheus as data source
 
 ## Security Considerations
@@ -203,8 +207,10 @@ The Dockerfile implements several security best practices:
 # Use custom network for isolation
 docker network create ftso-network
 
-# Restrict container communication
-docker-compose -f docker-compose.prod.yml up -d
+# Deploy using your chosen compose file
+# - Registry: docker compose -f docker-compose.registry.yml up -d
+# - Local build: docker compose up -d
+docker compose -f docker-compose.registry.yml up -d
 ```
 
 ### Secrets Management
@@ -216,7 +222,7 @@ For production, use Docker secrets or external secret management:
 echo "your-smtp-password" | docker secret create smtp_password -
 echo "your-webhook-token" | docker secret create webhook_token -
 
-# Update docker-compose.prod.yml to use secrets
+# Update your compose file to use secrets (e.g., docker-compose.registry.yml)
 ```
 
 ## Scaling
@@ -225,7 +231,7 @@ echo "your-webhook-token" | docker secret create webhook_token -
 
 ```bash
 # Scale the application
-docker-compose up -d --scale ftso-provider=3
+docker compose up -d --scale ftso-provider=3
 ```
 
 ### Resource Limits
@@ -256,7 +262,7 @@ docker run --rm -v ftso-feed-value-provider_ftso-logs:/data -v $(pwd):/backup de
 
 ```bash
 # Backup configuration
-tar czf config-backup.tar.gz docker-compose.prod.yml monitoring/ .env.production
+tar czf config-backup.tar.gz docker-compose.registry.yml monitoring/ .env.production
 ```
 
 ## Troubleshooting
@@ -267,7 +273,7 @@ tar czf config-backup.tar.gz docker-compose.prod.yml monitoring/ .env.production
 
    ```bash
    # Check logs
-   docker-compose logs ftso-provider
+   docker compose logs ftso-provider
 
    # Check resource usage
    docker stats ftso-provider
@@ -298,7 +304,7 @@ For debugging, run with debug logging:
 
 ```bash
 # Override environment for debugging
-docker-compose run --rm -e LOG_LEVEL=debug ftso-provider
+docker compose run --rm -e LOG_LEVEL=debug ftso-provider
 ```
 
 ## Maintenance
@@ -310,8 +316,8 @@ docker-compose run --rm -e LOG_LEVEL=debug ftso-provider
 git pull origin main
 
 # Rebuild and restart
-docker-compose build --no-cache
-docker-compose up -d
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ### Log Rotation
@@ -344,7 +350,7 @@ docker volume prune
 # Adjust Node.js heap size
 export NODE_OPTIONS="--max-old-space-size=2048"
 
-# Update docker-compose.prod.yml
+# Update your compose file (e.g., docker-compose.registry.yml)
 environment:
   - NODE_OPTIONS=--max-old-space-size=2048
 ```
@@ -362,9 +368,10 @@ environment:
 
 For issues and support:
 
-1. Check the logs: `docker-compose -f docker-compose.prod.yml logs -f`
+1. Check the logs:
+   `docker compose -f docker-compose.registry.yml logs -f ftso-provider`
 2. Review health endpoints: `curl http://localhost:3101/health`
-3. Monitor metrics: `curl http://localhost:9090/metrics`
+3. Monitor metrics: `curl http://localhost:3101/metrics/prometheus`
 4. Check GitHub issues for known problems
 
 ## Production Checklist

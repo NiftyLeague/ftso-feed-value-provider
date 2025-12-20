@@ -1,4 +1,5 @@
-import { CryptocomAdapter, ICryptocomTickerData, ICryptocomRestResponse } from "../cryptocom.adapter";
+import { CryptocomAdapter } from "../cryptocom.adapter";
+import type { ICryptocomRestResponse, ICryptocomTickerData } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";
 

@@ -4,7 +4,7 @@ import { ErrorCode } from "@/common/types/error-handling";
 import { getFeedConfiguration, hasCustomAdapter } from "@/common/utils";
 import { ENV } from "@/config/environment.constants";
 
-import type { AggregatedPrice } from "@/common/types/services";
+import type { AggregatedPrice, ServicePerformanceMetrics } from "@/common/types/services";
 import type { CoreFeedId, DataSource, PriceUpdate } from "@/common/types/core";
 import type {
   ProductionDataManager,
@@ -15,17 +15,6 @@ import type {
 } from "@/common/types/data-manager";
 import { hasRestFallbackCapability, hasHealthCheckCapability } from "@/common/types/data-manager";
 import { ExchangeId } from "@/common/types/adapters/exchange.types";
-
-interface ServicePerformanceMetrics {
-  uptime: number;
-  responseTime: {
-    average: number;
-    p95: number;
-    max: number;
-  };
-  requestsPerSecond: number;
-  errorRate: number;
-}
 
 @Injectable()
 export class ProductionDataManagerService extends EventDrivenService implements ProductionDataManager {

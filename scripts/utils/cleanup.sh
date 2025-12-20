@@ -111,28 +111,69 @@ cleanup_temp_files() {
 
 # Function to cleanup FTSO-related processes by pattern
 cleanup_ftso_processes() {
-    # Common FTSO process patterns
+    # Common FTSO process patterns.
+    # IMPORTANT: avoid matching the repo name/path (it appears in many process command lines on CI)
+    # and avoid killing the current script/runner process.
     local patterns=(
-        "ftso-feed-value-provider"
         "nest start"
-        "npm.*start"
+        # Match actual start commands (with a space) to avoid matching pnpm script names like
+        # 'debug:startup' which would otherwise terminate the runner (exit code 143).
+        "npm.* start"
+        "pnpm.* start"
         "node.*dist/main"
-        "pnpm.*start"
-        "jest"
-        "ts-jest"
         "node.*jest"
+        "ts-jest"
     )
-    
-    for pattern in "${patterns[@]}"; do
-        pkill -f "$pattern" 2>/dev/null || true
+
+    local self_pid=$$
+    local parent_pid=${PPID:-}
+
+    # Build a set of ancestor PIDs (self -> init) so we never kill the current
+    # runner process chain (e.g., pnpm/node/sh) during cleanup.
+    declare -a ancestor_pids=()
+    local current_pid="$self_pid"
+    while [ -n "$current_pid" ] && [ "$current_pid" -gt 1 ] 2>/dev/null; do
+        ancestor_pids+=("$current_pid")
+        local next_ppid
+        next_ppid=$(ps -o ppid= -p "$current_pid" 2>/dev/null | tr -d ' ' || echo "")
+        if [ -z "$next_ppid" ] || [ "$next_ppid" = "$current_pid" ]; then
+            break
+        fi
+        current_pid="$next_ppid"
     done
-    
-    # Wait for processes to die
-    sleep 2
-    
-    # Force kill any remaining processes
+
+    is_ancestor_pid() {
+        local candidate="$1"
+        for apid in "${ancestor_pids[@]}"; do
+            if [ "$candidate" = "$apid" ]; then
+                return 0
+            fi
+        done
+        return 1
+    }
+
+    # Graceful stop first
     for pattern in "${patterns[@]}"; do
-        pkill -9 -f "$pattern" 2>/dev/null || true
+        while read -r pid; do
+            [ -z "$pid" ] && continue
+            [ "$pid" = "$self_pid" ] && continue
+            [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+            is_ancestor_pid "$pid" && continue
+            kill -TERM "$pid" 2>/dev/null || true
+        done < <(pgrep -f "$pattern" 2>/dev/null || true)
+    done
+
+    sleep 2
+
+    # Force kill any remaining (excluding ourselves)
+    for pattern in "${patterns[@]}"; do
+        while read -r pid; do
+            [ -z "$pid" ] && continue
+            [ "$pid" = "$self_pid" ] && continue
+            [ -n "$parent_pid" ] && [ "$pid" = "$parent_pid" ] && continue
+            is_ancestor_pid "$pid" && continue
+            kill -9 "$pid" 2>/dev/null || true
+        done < <(pgrep -f "$pattern" 2>/dev/null || true)
     done
 }
 
@@ -152,9 +193,15 @@ CLEANUP_EXECUTED=${CLEANUP_EXECUTED:-false}
 
 # Comprehensive cleanup function
 cleanup_all() {
+    # Capture the script's exit code at the moment the trap fired.
+    # This is used to avoid masking real failures, while still allowing
+    # test scripts to promote detected failures (e.g., TESTS_FAILED>0) to exit 1.
+    local original_exit_code=$?
+
     # Prevent duplicate cleanup
     if [ "$CLEANUP_EXECUTED" = "true" ]; then
-        return 0
+        # If cleanup already ran, still honor original exit code.
+        return "$original_exit_code"
     fi
     
     # Mark as executed to prevent duplicates
@@ -170,7 +217,7 @@ cleanup_all() {
     fi
     
     # Check if there are FTSO processes running
-    if pgrep -f "ftso-feed-value-provider\|nest start\|pnpm.*start\|node.*dist/main" >/dev/null 2>&1; then
+    if pgrep -f "nest start\|pnpm.*start\|node.*dist/main" >/dev/null 2>&1; then
         has_cleanup=true
     fi
     
@@ -194,6 +241,64 @@ cleanup_all() {
         
         echo "✅ Cleanup completed"
     fi
+
+    # -------------------------------------------------------------------------
+    # Test-script enforcement: fail the script if it recorded failures or if
+    # the test log contains actual errors.
+    #
+    # This runs after cleanup so resources are released even on failure.
+    # It only triggers when the script would otherwise exit 0.
+    # -------------------------------------------------------------------------
+    if [ "${FTSO_ENFORCE_TEST_EXIT_CODE:-false}" = "true" ] && [ "$original_exit_code" -eq 0 ]; then
+        local enforce_fail=false
+
+        # Prefer explicit counters when scripts provide them.
+        if [ -n "${TESTS_FAILED+x}" ] && [ "${TESTS_FAILED:-0}" -gt 0 ] 2>/dev/null; then
+            enforce_fail=true
+        fi
+
+        # Some scripts track failures via other counters; treat non-zero as failure.
+        if [ "$enforce_fail" = "false" ]; then
+            if [ -n "${FAILED_CHECKS+x}" ] && [ "${FAILED_CHECKS:-0}" -gt 0 ] 2>/dev/null; then
+                enforce_fail=true
+            elif [ -n "${FAILURES+x}" ] && [ "${FAILURES:-0}" -gt 0 ] 2>/dev/null; then
+                enforce_fail=true
+            fi
+        fi
+
+        # Fall back to log parsing if available.
+        if [ "$enforce_fail" = "false" ] && [ -n "${TEST_LOG_FILE:-}" ] && [ -f "${TEST_LOG_FILE:-}" ]; then
+            # If parse-logs functions are available, use them to avoid false positives.
+            if type -t count_actual_errors >/dev/null 2>&1; then
+                local actual_errors
+                actual_errors=$(count_actual_errors "$TEST_LOG_FILE" 2>/dev/null | tr -d ' \t\n' | head -1)
+                actual_errors=${actual_errors:-0}
+                if [ "$actual_errors" -gt 0 ] 2>/dev/null; then
+                    enforce_fail=true
+                fi
+            fi
+
+            # As a last resort, look for explicit FAIL markers written by our scripts.
+            if [ "$enforce_fail" = "false" ]; then
+                local explicit_fail_markers
+                explicit_fail_markers=$(grep -E "(^|\s)(FAIL:|❌\s*FAIL:)" "$TEST_LOG_FILE" 2>/dev/null | wc -l | tr -d ' \t\n')
+                explicit_fail_markers=${explicit_fail_markers:-0}
+                if [ "$explicit_fail_markers" -gt 0 ] 2>/dev/null; then
+                    enforce_fail=true
+                fi
+            fi
+        fi
+
+        if [ "$enforce_fail" = "true" ]; then
+            echo "❌ Test script reported failures; exiting with code 1"
+            # Prevent recursive trap invocation.
+            trap - EXIT INT TERM QUIT
+            exit 1
+        fi
+    fi
+
+    # Preserve the original exit code when no enforcement triggered.
+    return "$original_exit_code"
 }
 
 # Global flag to prevent duplicate cleanup handler setup

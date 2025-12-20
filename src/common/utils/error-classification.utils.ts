@@ -1,17 +1,10 @@
 import { StandardErrorClassification } from "@/common/types/error-handling";
 import { StandardErrorClassification as ErrorClass } from "@/common/types/error-handling";
+import type { ErrorCategory } from "@/common/types/error-handling";
 
 /**
  * Centralized error classification and categorization utilities
  */
-
-export interface ErrorCategory {
-  type: string;
-  severity: "low" | "medium" | "high" | "critical";
-  retryable: boolean;
-  backoffMultiplier?: number;
-  minDelay?: number;
-}
 
 /**
  * Extract HTTP status code from error message

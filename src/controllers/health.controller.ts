@@ -33,7 +33,9 @@ import {
 } from "./dto";
 
 // Create a composed base class with event and lifecycle capabilities
-const EventDrivenController = WithLifecycle(WithEvents(BaseController));
+const EventDrivenController = WithLifecycle(
+  WithEvents(BaseController as unknown as new (...args: unknown[]) => BaseController)
+);
 
 @ApiTags("System Health")
 @Controller()

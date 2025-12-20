@@ -139,11 +139,7 @@ export class ValidationService extends EventDrivenService implements IDataValida
       results: Map<string, DataValidatorResult>;
     }) => void
   ): this;
-  // Base signature overload to ensure compatibility with implementation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override on(event: string | symbol, listener: (...args: any[]) => void): this;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this {
     return super.on(event, listener);
   }
 

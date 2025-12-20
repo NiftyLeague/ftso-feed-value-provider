@@ -20,6 +20,7 @@ import type { IExchangeAdapter } from "@/common/types/adapters";
 import { ExchangeId } from "@/common/types/adapters";
 import { ENV } from "@/config/environment.constants";
 import type { AdapterStats } from "@/common/types/monitoring";
+import type { Initializable } from "@/common/types/utils";
 
 // Data source factory
 import { DataSourceFactory } from "./data-source.factory";
@@ -122,11 +123,7 @@ export class DataSourceIntegrationService extends EventDrivenService {
     );
   }
 
-  private async initializeDependency(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dependency: any,
-    name: string
-  ): Promise<void> {
+  private async initializeDependency(dependency: Initializable, name: string): Promise<void> {
     if (typeof dependency?.onModuleInit === "function") {
       await dependency.onModuleInit();
       return;

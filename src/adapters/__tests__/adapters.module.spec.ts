@@ -10,6 +10,7 @@ describe("AdaptersModule provider factories", () => {
       ENV: {
         ADAPTERS: {
           ACTIVE_CUSTOM_ADAPTERS: activeCustomAdapters,
+          DISABLED_CCXT_EXCHANGES: [],
         },
       },
     }));

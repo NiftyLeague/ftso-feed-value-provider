@@ -1,52 +1,17 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type {
+  ExchangeCapabilities,
+  ExchangeConnectionConfig,
+  OkxErrorMessage,
+  OkxPongMessage,
+  OkxRestResponse,
+  OkxSubscriptionMessage,
+  OkxTickerData,
+  OkxWebSocketMessage,
+} from "@/common/types/adapters";
 import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
-
-export interface OkxTickerData {
-  instType: string; // Instrument type
-  instId: string; // Instrument ID (symbol)
-  last: string; // Last traded price
-  lastSz: string; // Last traded size
-  askPx: string; // Best ask price
-  askSz: string; // Best ask size
-  bidPx: string; // Best bid price
-  bidSz: string; // Best bid size
-  open24h: string; // Open price in the past 24 hours
-  high24h: string; // Highest price in the past 24 hours
-  low24h: string; // Lowest price in the past 24 hours
-  volCcy24h: string; // 24h trading volume in quote currency
-  vol24h: string; // 24h trading volume in base currency
-  ts: string; // Ticker data generation time
-  sodUtc0: string; // Open price at UTC 0
-  sodUtc8: string; // Open price at UTC 8
-}
-
-export interface OkxWebSocketMessage {
-  arg: {
-    channel: string;
-    instId: string;
-  };
-  data: OkxTickerData[];
-}
-
-export interface OkxPongMessage {
-  event?: "pong";
-  op?: "pong";
-}
-
-export interface OkxSubscriptionMessage {
-  event: "subscribe" | "subscription";
-}
-
-export interface OkxErrorMessage {
-  event: "error";
-  msg?: string;
-  code?: string;
-}
-
-export type OkxMessage = OkxWebSocketMessage | OkxPongMessage | OkxSubscriptionMessage | OkxErrorMessage;
 
 // Type guard functions
 function isOkxPongMessage(message: unknown): message is OkxPongMessage {
@@ -90,31 +55,6 @@ function isOkxWebSocketMessage(message: unknown): message is OkxWebSocketMessage
     "channel" in (msg.arg as Record<string, unknown>) &&
     Array.isArray(msg.data)
   );
-}
-
-export interface OkxRestTickerData {
-  instType: string;
-  instId: string;
-  last: string;
-  lastSz: string;
-  askPx: string;
-  askSz: string;
-  bidPx: string;
-  bidSz: string;
-  open24h: string;
-  high24h: string;
-  low24h: string;
-  volCcy24h: string;
-  vol24h: string;
-  ts: string;
-  sodUtc0: string;
-  sodUtc8: string;
-}
-
-export interface OkxRestResponse {
-  code: string;
-  msg: string;
-  data: OkxRestTickerData[];
 }
 
 export class OkxAdapter extends BaseExchangeAdapter {

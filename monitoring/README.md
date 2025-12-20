@@ -25,7 +25,7 @@ monitoring/
 
 ```bash
 # From project root
-docker-compose --profile monitoring up -d
+docker compose --profile monitoring up -d
 ```
 
 This will start:
@@ -206,7 +206,7 @@ curl http://localhost:9091/api/v1/rules
 2. Go to Alerts tab
 3. Check alert state and evaluation
 
--### Log Pruning
+### Log Pruning
 
 - Application logs under `/logs` are shared via the `ftso-logs` volume and
   pruned by the `log-pruner` sidecar (see `monitoring/log-prune.cron`). Files
@@ -220,14 +220,14 @@ curl http://localhost:9091/api/v1/rules
 
 ```bash
 # Stop Prometheus
-docker-compose stop prometheus
+docker compose stop prometheus
 
 # Backup data directory
 docker run --rm -v ftso-prometheus-data:/data -v $(pwd):/backup \
   debian:bookworm-slim tar czf /backup/prometheus-backup.tar.gz /data
 
 # Restart Prometheus
-docker-compose start prometheus
+docker compose start prometheus
 ```
 
 ### Update Grafana Dashboards
@@ -237,7 +237,7 @@ docker-compose start prometheus
 # Save to grafana/provisioning/dashboards/
 
 # Restart Grafana to load changes
-docker-compose restart grafana
+docker compose restart grafana
 ```
 
 ### Clean Old Data
@@ -245,7 +245,7 @@ docker-compose restart grafana
 ```bash
 # Prometheus automatically manages retention
 # To manually clean:
-docker-compose exec prometheus \
+docker compose exec prometheus \
   promtool tsdb clean-tombstones /prometheus
 ```
 

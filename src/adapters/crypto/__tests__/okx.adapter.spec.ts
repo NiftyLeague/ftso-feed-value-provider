@@ -5,7 +5,8 @@ jest.mock("ws", () => {
   return MockWebSocket;
 });
 
-import { OkxAdapter, OkxTickerData } from "../okx.adapter";
+import { OkxAdapter } from "../okx.adapter";
+import type { OkxTickerData } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";
 

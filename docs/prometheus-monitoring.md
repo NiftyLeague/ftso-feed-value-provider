@@ -13,10 +13,10 @@ monitoring, alerting, and performance analysis.
 
 ```bash
 # Start with Prometheus + Grafana
-docker-compose --profile monitoring up -d
+docker compose --profile monitoring up -d
 
 # Or with registry deployment
-docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+docker compose -f docker-compose.registry.yml --profile monitoring up -d
 ```
 
 ### 2. Access Monitoring Tools

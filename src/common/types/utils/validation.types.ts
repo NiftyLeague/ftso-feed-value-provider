@@ -1,4 +1,4 @@
-import type { FeedId } from "@/common/types/http";
+import type { FeedValuesRequest, VolumesRequest } from "@/common/types/http";
 
 /**
  * Validation utility type definitions
@@ -12,15 +12,9 @@ export interface ArrayValidationOptions<T = unknown> {
   itemValidator?: (item: unknown, index: number) => T;
 }
 
-export interface ValidatedFeedValuesRequest {
-  feeds: FeedId[];
-}
+export type ValidatedFeedValuesRequest = FeedValuesRequest;
 
-export interface ValidatedVolumesRequest {
-  feeds: FeedId[];
-  startTime?: number;
-  endTime?: number;
-}
+export type ValidatedVolumesRequest = VolumesRequest;
 
 export interface ValidatedPagination {
   page: number;
@@ -28,10 +22,7 @@ export interface ValidatedPagination {
   offset: number;
 }
 
-export interface ValidatedTimeRange {
-  startTime?: number;
-  endTime?: number;
-}
+export type ValidatedTimeRange = Pick<VolumesRequest, "startTime" | "endTime">;
 
 export interface ValidationResult {
   isValid: boolean;
@@ -51,7 +42,7 @@ export interface Validator<T> {
   isValid(data: unknown): data is T;
 }
 
-export interface ValidationRule {
+export interface SchemaValidationRule {
   field: string;
   type: "string" | "number" | "boolean" | "array" | "object";
   required?: boolean;
@@ -61,14 +52,14 @@ export interface ValidationRule {
   maxValue?: number;
   pattern?: RegExp;
   enum?: unknown[];
-  schema?: ValidationRule[];
-  items?: ValidationRule;
+  schema?: SchemaValidationRule[];
+  items?: SchemaValidationRule;
   customValidator?: (value: unknown) => boolean;
   errorMessage?: string;
 }
 
 export interface ValidationSchema {
-  [key: string]: ValidationRule;
+  [key: string]: SchemaValidationRule;
 }
 
 export interface ValidationReport {
@@ -86,6 +77,6 @@ export interface ValidationRuleError extends IErrorDetails {
 
 export interface IValidationService {
   validate(schema: ValidationSchema, data: unknown): ValidationReport;
-  validateWithRules(rules: ValidationRule[], data: unknown): ValidationReport;
+  validateWithRules(rules: SchemaValidationRule[], data: unknown): ValidationReport;
   sanitize(schema: ValidationSchema, data: unknown): unknown;
 }

@@ -7,18 +7,12 @@ import { ErrorSeverity, ValidationErrorType } from "@/common/types/error-handlin
 import { ErrorCode } from "@/common/types/error-handling/error.types";
 import type { DataValidationError as BaseDataValidationError } from "@/common/types/error-handling";
 import type { PriceUpdate } from "@/common/types/core";
-import type { DataValidatorConfig, DataValidatorResult, ValidationContext } from "@/common/types/data-manager";
-export type { ValidationContext } from "@/common/types/data-manager";
-
-// Extended validation error type with optional fields used across methods
-// Keeps strict typing while removing inline import() usages.
-export type ExtendedDataValidationError = BaseDataValidationError & {
-  type?: ValidationErrorType;
-  field?: string;
-  value?: unknown;
-  path?: string;
-  rule?: string;
-};
+import type {
+  DataValidatorConfig,
+  DataValidatorResult,
+  ExtendedDataValidationError,
+  ValidationContext,
+} from "@/common/types/data-manager";
 
 @Injectable()
 export class DataValidator extends StandardService {

@@ -7,4 +7,7 @@
  */
 
 export * from "./adapter.types";
+export * from "./adapter-registry.types";
+export * from "./exchange-adapter-config.types";
+export * from "./exchange-payloads.types";
 export * from "./exchange.types";

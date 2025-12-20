@@ -5,7 +5,8 @@ jest.mock("ws", () => {
   return MockWebSocket;
 });
 
-import { KrakenAdapter, KrakenTickerData } from "../kraken.adapter";
+import { KrakenAdapter } from "../kraken.adapter";
+import type { KrakenTickerData } from "@/common/types/adapters";
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { FeedCategory } from "@/common/types/core";
 import { ExchangeId } from "@/common/types/adapters";

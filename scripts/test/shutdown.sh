@@ -70,15 +70,11 @@ if [ "$APP_RUNNING" = true ]; then
     # Record start time for shutdown measurement
     SHUTDOWN_START=$(date +%s)
     
-    # Find the actual Node.js process running the application
-    # The APP_PID might be npm/nest wrapper, we need the actual node process
-    # Find the actual Node.js process - get the first match only
-    NODE_PID=$(pgrep -f "node.*--max-old-space-size.*dist/src/main" | head -1)
+    # Find the actual process bound to the dynamic port (most reliable).
+    NODE_PID=$(lsof -ti:$AVAILABLE_PORT 2>/dev/null | head -1)
     if [ -z "$NODE_PID" ]; then
+        # Fallbacks (less reliable when other node processes exist on CI)
         NODE_PID=$(pgrep -f "node.*dist/main" | head -1)
-    fi
-    if [ -z "$NODE_PID" ]; then
-        NODE_PID=$(pgrep -f "node.*nest" | head -1)
     fi
     if [ -z "$NODE_PID" ]; then
         NODE_PID="$APP_PID"
@@ -99,7 +95,7 @@ if [ "$APP_RUNNING" = true ]; then
     
     # Use timeout to prevent hanging (macOS compatible)
     WAIT_COUNT=0
-    MAX_WAIT=30  # Increased timeout for graceful shutdown
+    MAX_WAIT=60  # CI can be slower to shutdown cleanly
     
     while kill -0 $NODE_PID 2>/dev/null && [ $WAIT_COUNT -lt $MAX_WAIT ]; do
         # Check if process is still responsive during shutdown

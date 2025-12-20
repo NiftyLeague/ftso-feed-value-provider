@@ -1,6 +1,7 @@
 import { BadRequestException } from "@nestjs/common";
 
-import { WithValidation, type ValidationRule } from "../validation.mixin";
+import { WithValidation } from "../validation.mixin";
+import type { ValidationRule } from "@/common/types/services";
 
 class TestBase {
   public logDebug = jest.fn();
