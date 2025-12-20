@@ -2,16 +2,16 @@
 # This is optimized for production/VM deployments
 #
 # Usage:
-#   docker-compose -f docker-compose.registry.yml up -d
+#   docker compose -f docker-compose.registry.yml up -d
 #
 # With custom tag:
-#   TAG=v1.2.3 docker-compose -f docker-compose.registry.yml up -d
+#   TAG=v1.2.3 docker compose -f docker-compose.registry.yml up -d
 #
 # With environment overrides:
-#   LOG_LEVEL=debug docker-compose -f docker-compose.registry.yml up -d
+#   LOG_LEVEL=debug docker compose -f docker-compose.registry.yml up -d
 #
 # VM deployment with host network:
-#   NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+#   NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
 
 services:
   ftso-provider:
@@ -21,9 +21,8 @@ services:
     # Port mapping (ignored if using host network)
     ports:
       - '${API_PORT:-3101}:3101'
-      - '${METRICS_PORT:-9090}:9090'
     # Network mode: Use 'host' for VM deployments, 'bridge' for standard
-    # Set via: NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+    # Set via: NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
     network_mode: ${NETWORK_MODE:-bridge}
     environment:
       # Core settings
@@ -70,7 +69,7 @@ services:
     command: ['node', '--trace-gc', '--max-old-space-size=2048', 'dist/src/main.js']
 
   # Optional: Prometheus for metrics collection
-  # Enable with: docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+  # Enable with: docker compose -f docker-compose.registry.yml --profile monitoring up -d
   prometheus:
     image: prom/prometheus:latest
     container_name: ftso-prometheus
@@ -94,7 +93,7 @@ services:
       - monitoring
 
   # Optional: Grafana for visualization
-  # Enable with: docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+  # Enable with: docker compose -f docker-compose.registry.yml --profile monitoring up -d
   grafana:
     image: grafana/grafana:latest
     container_name: ftso-grafana

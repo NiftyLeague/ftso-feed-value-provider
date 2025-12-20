@@ -56,23 +56,23 @@ The ticker system consists of:
 
 ```bash
 # Generate feeds directly
-npx tsx generate-feeds.ts
+npx tsx scripts/tickers/generate-feeds.ts
 ```
 
-### Via npm scripts
+### Via pnpm scripts (recommended)
 
 ```bash
 # Full pipeline: fetch exchange data and generate feeds
-npm run tickers:generate
+pnpm tickers:generate
 
 # Only fetch exchange data
-npm run tickers:fetch
+pnpm tickers:fetch
 
 # Only generate feeds (using existing exchange data)
-npm run tickers:feeds
+pnpm tickers:feeds
 
 # Show help
-npm run tickers:help
+pnpm tickers:help
 ```
 
 ## Exchange Categories
@@ -99,7 +99,7 @@ Each exchange JSON file contains:
 ## Requirements
 
 - Node.js
-- CCXT library (`npm install ccxt`)
+- Project dependencies installed (`pnpm install`)
 - TypeScript support (`npx tsx`)
 
 ## How It Works
@@ -138,7 +138,7 @@ Each exchange JSON file contains:
 ```bash
 ./generate.sh --feeds-only
 # or
-npm run tickers:feeds
+pnpm tickers:feeds
 ```
 
 ## Adding New Exchanges

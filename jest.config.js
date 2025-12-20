@@ -6,7 +6,7 @@ module.exports = {
     "^.+\\.(t|j)s$": "ts-jest",
   },
   collectCoverageFrom: [
-    "**/*.(t|j)s",
+    "**/*.{ts,js}",
     // Exclude test files
     "!**/*.spec.ts",
     "!**/__tests__/**",
@@ -22,6 +22,9 @@ module.exports = {
     "!main.ts",
   ],
   coverageDirectory: "../coverage",
+  // Ensure `collectCoverageFrom` can include files not executed by tests.
+  // (V8 coverage only reports executed files, which can hide untested modules.)
+  coverageProvider: "babel",
   coverageThreshold: {
     global: {
       branches: 80,

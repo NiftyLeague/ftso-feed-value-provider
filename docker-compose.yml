@@ -8,7 +8,6 @@ services:
     restart: unless-stopped
     ports:
       - '3101:3101' # API port
-      - '9090:9090' # Metrics port
     environment:
       # Minimal environment configuration - most defaults are optimized in environment.constants.ts
       # Core settings

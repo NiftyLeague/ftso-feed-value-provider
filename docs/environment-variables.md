@@ -336,10 +336,11 @@ injection with proper error handling, validation, and comprehensive logging.
 
 ### MONITORING_METRICS_PORT
 
-- **Description**: Port for metrics endpoint (Prometheus format)
+- **Description**: Reserved metrics port setting. Metrics are currently served
+  on `APP_PORT` via `/metrics` and `/metrics/prometheus`.
 - **Type**: Integer
 - **Default**: `9090`
-- **Valid Range**: 1-65535 (must be different from main port)
+- **Valid Range**: 1-65535
 - **Example**: `MONITORING_METRICS_PORT=9090`
 - **Required**: No
 

@@ -15,7 +15,7 @@ architecture explanation, setup, and troubleshooting.
 
 ## 🚀 Quick Start
 
-### Using npm/pnpm Scripts (Recommended)
+### Using pnpm Scripts (Recommended)
 
 ```bash
 # Start the application
@@ -37,16 +37,16 @@ pnpm docker:down
 
 ```bash
 # Start in detached mode
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f ftso-provider
+docker compose logs -f ftso-provider
 
 # Check status
-docker-compose ps
+docker compose ps
 
 # Stop
-docker-compose down
+docker compose down
 ```
 
 ### Available Docker Scripts
@@ -63,7 +63,6 @@ docker-compose down
 | `pnpm docker:logs:tail`                  | View recent logs   | Shows last 100 log lines             |
 | `pnpm docker:ps`                         | Container status   | Shows running containers             |
 | `pnpm docker:test` or `pnpm test:docker` | Run tests          | Executes Docker deployment tests     |
-| `pnpm docker:rebuild`                    | Full rebuild       | Stops, rebuilds from scratch, starts |
 | `pnpm docker:shell`                      | Access shell       | Opens shell inside container         |
 
 #### Production/VM (docker-compose.registry.yml)
@@ -107,22 +106,22 @@ pnpm docker:registry:down
 
 ```bash
 # Standard deployment
-docker-compose -f docker-compose.registry.yml up -d
+docker compose -f docker-compose.registry.yml up -d
 
 # VM deployment with host network
-NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
 
 # With custom tag
-TAG=v1.2.3 docker-compose -f docker-compose.registry.yml up -d
+TAG=v1.2.3 docker compose -f docker-compose.registry.yml up -d
 
 # With monitoring stack (Prometheus + Grafana)
-docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+docker compose -f docker-compose.registry.yml --profile monitoring up -d
 
 # View logs
-docker-compose -f docker-compose.registry.yml logs -f
+docker compose -f docker-compose.registry.yml logs -f
 
 # Stop
-docker-compose -f docker-compose.registry.yml down
+docker compose -f docker-compose.registry.yml down
 ```
 
 ### VM Deployment Workflow
@@ -137,7 +136,8 @@ git clone <repo-url> && cd <repo>
 echo "YOUR_GITHUB_TOKEN" | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 
 # 3. Deploy with desired configuration
-NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
+
 ```
 
 ### Configuration Options
@@ -149,7 +149,6 @@ All settings can be overridden via environment variables:
 | `TAG`          | `latest`     | Image tag to pull                 |
 | `NETWORK_MODE` | `bridge`     | Network mode (`bridge` or `host`) |
 | `API_PORT`     | `3101`       | API port mapping                  |
-| `METRICS_PORT` | `9090`       | Metrics port mapping              |
 | `NODE_ENV`     | `production` | Node environment                  |
 | `LOG_LEVEL`    | `warn`       | Logging level                     |
 | `MEMORY_LIMIT` | `1G`         | Memory limit                      |
@@ -292,14 +291,15 @@ copy the runtime config files. The build process doesn't include JSON files in
 
 ## 📊 Service Endpoints
 
-| Endpoint      | URL                                   | Description                                              |
-| ------------- | ------------------------------------- | -------------------------------------------------------- |
-| **API**       | http://localhost:3101                 | Main API endpoint                                        |
-| **Health**    | http://localhost:3101/health          | Docker HEALTHCHECK (simplified response, full diagnosis) |
-| **Detailed**  | http://localhost:3101/health/detailed | Full system diagnostics (all components)                 |
-| **Liveness**  | http://localhost:3101/health/live     | Kubernetes liveness probe                                |
-| **Readiness** | http://localhost:3101/health/ready    | Kubernetes readiness probe                               |
-| **Metrics**   | http://localhost:9090/metrics         | Prometheus metrics                                       |
+| Endpoint       | URL                                      | Description                                              |
+| -------------- | ---------------------------------------- | -------------------------------------------------------- |
+| **API**        | http://localhost:3101                    | Main API endpoint                                        |
+| **Health**     | http://localhost:3101/health             | Docker HEALTHCHECK (simplified response, full diagnosis) |
+| **Detailed**   | http://localhost:3101/health/detailed    | Full system diagnostics (all components)                 |
+| **Liveness**   | http://localhost:3101/health/live        | Kubernetes liveness probe                                |
+| **Readiness**  | http://localhost:3101/health/ready       | Kubernetes readiness probe                               |
+| **Metrics**    | http://localhost:3101/metrics            | JSON metrics snapshot                                    |
+| **Prometheus** | http://localhost:3101/metrics/prometheus | Prometheus text exposition format                        |
 
 ## 📝 Example API Usage
 
@@ -365,10 +365,12 @@ deploy:
 
 ## 🧪 Testing
 
-Run the automated test suite:
+Run the automated Docker deployment test:
 
 ```bash
-./test-docker.sh
+pnpm docker:test
+# or
+pnpm test:docker
 ```
 
 This tests:
@@ -377,7 +379,7 @@ This tests:
 - ✅ Liveness endpoint
 - ✅ Health endpoint
 - ✅ Feed values API
-- ✅ Metrics endpoint
+- ✅ Metrics endpoints (`/metrics` and `/metrics/prometheus`)
 
 ## 🐛 Troubleshooting
 
@@ -389,10 +391,9 @@ pnpm docker:logs:tail
 
 # Check for port conflicts
 lsof -i :3101
-lsof -i :9090
 
-# Rebuild from scratch
-pnpm docker:rebuild
+# Restart with a rebuild
+pnpm docker:restart
 ```
 
 ### Health Check Shows "Unhealthy"
@@ -421,14 +422,14 @@ pnpm docker:test
 If you see errors about missing files:
 
 1. Ensure `src/config/feeds.json` exists
-2. Rebuild: `docker-compose build --no-cache`
+2. Rebuild: `docker compose build --no-cache`
 3. Check Dockerfile COPY commands
 
 ### No Data Returned
 
 ```bash
 # Check exchange connections in logs
-docker-compose logs ftso-provider | grep -i "connected\|websocket"
+docker compose logs ftso-provider | grep -i "connected\|websocket"
 
 # Verify feed name is correct
 curl -X POST http://localhost:3101/feed-values \
@@ -442,11 +443,12 @@ curl -X POST http://localhost:3101/feed-values \
 
 ```bash
 # Start with Prometheus and Grafana
-docker-compose --profile monitoring up -d
+docker compose --profile monitoring up -d
 
 # Access services
 # - Application: http://localhost:3101
-# - Metrics: http://localhost:9090
+# - Metrics (JSON): http://localhost:3101/metrics
+# - Metrics (Prometheus): http://localhost:3101/metrics/prometheus
 # - Prometheus: http://localhost:9091
 # - Grafana: http://localhost:3000 (admin/admin)
 ```
@@ -456,12 +458,13 @@ docker-compose --profile monitoring up -d
 View available metrics:
 
 ```bash
-curl http://localhost:9090/metrics
+curl http://localhost:3101/metrics/prometheus
 ```
 
 ### Grafana Dashboards
 
-Import dashboards from `monitoring/grafana/dashboards/` for visualization.
+Import dashboards from `monitoring/grafana/provisioning/dashboards/` for
+visualization.
 
 ## 🔒 Security Features
 
@@ -476,7 +479,7 @@ Import dashboards from `monitoring/grafana/dashboards/` for visualization.
 ### Network Security
 
 - ✅ Custom Docker network for isolation
-- ✅ Only necessary ports exposed (3101, 9090)
+- ✅ Only necessary ports exposed (3101, 9091, 3000)
 - ✅ Health check endpoints for load balancers
 
 ## 🔄 Updates and Rebuilds
@@ -485,12 +488,12 @@ After making code changes:
 
 ```bash
 # Quick rebuild and restart
-docker-compose up -d --build
+docker compose up -d --build
 
 # Or full rebuild
-docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+docker compose down
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ## 🚀 Production Considerations
@@ -553,7 +556,7 @@ Current config uses console logging only.
 
 For issues:
 
-1. Check logs: `docker-compose logs -f ftso-provider`
-2. Run tests: `./test-docker.sh`
+1. Check logs: `docker compose logs -f ftso-provider`
+2. Run tests: `pnpm test:docker`
 3. Verify health: `curl http://localhost:3101/health`
 4. Check resources: `docker stats ftso-provider`
