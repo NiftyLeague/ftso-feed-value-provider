@@ -2,6 +2,7 @@ import { BinanceAdapter } from "@/adapters/crypto/binance.adapter";
 import { CoinbaseAdapter } from "@/adapters/crypto/coinbase.adapter";
 import { MockSetup, MockFactory } from "@/__tests__/utils";
 import type { PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock WebSocket globally
 (global as any).WebSocket = jest.fn().mockImplementation(() => MockFactory.createWebSocket());
@@ -141,8 +142,8 @@ describe("Adapter Integration Tests", () => {
       // Verify updates - should have at least 2 updates (one from each adapter)
       expect(priceUpdates.length).toBeGreaterThanOrEqual(2);
 
-      const binanceUpdate = priceUpdates.find(u => u.source === "binance" && u.price === 50000);
-      const coinbaseUpdate = priceUpdates.find(u => u.source === "coinbase" && u.price === 50100);
+      const binanceUpdate = priceUpdates.find(u => u.source === ExchangeId.Binance && u.price === 50000);
+      const coinbaseUpdate = priceUpdates.find(u => u.source === ExchangeId.Coinbase && u.price === 50100);
 
       expect(binanceUpdate).toBeDefined();
       expect(binanceUpdate!.symbol).toBe("BTC/USDT");
@@ -187,11 +188,11 @@ describe("Adapter Integration Tests", () => {
 
       expect(binanceResult.symbol).toBe("BTC/USDT");
       expect(binanceResult.price).toBe(50000);
-      expect(binanceResult.source).toBe("binance");
+      expect(binanceResult.source).toBe(ExchangeId.Binance);
 
       expect(coinbaseResult.symbol).toBe("BTC/USD");
       expect(coinbaseResult.price).toBe(50000);
-      expect(coinbaseResult.source).toBe("coinbase");
+      expect(coinbaseResult.source).toBe(ExchangeId.Coinbase);
     }, 3000);
 
     it("should handle error scenarios gracefully", async () => {

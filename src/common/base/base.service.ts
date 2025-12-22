@@ -8,8 +8,7 @@ const defaultConfig: BaseServiceConfig = {
 
 // Create a simple base class
 class SimpleBase {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(..._args: any[]) {
+  constructor(..._args: unknown[]) {
     // Empty constructor
   }
 }
@@ -22,7 +21,7 @@ const LoggingBase = WithLogging(ConfigurableBase);
  * Base service class that provides common logging functionality with configurable enhanced logging
  * All logging methods are inherited from WithLogging mixin
  */
-export abstract class BaseService extends LoggingBase implements IBaseService {
+export class BaseService extends LoggingBase implements IBaseService {
   constructor(config?: Partial<BaseServiceConfig>) {
     super();
     // Update config with any provided overrides

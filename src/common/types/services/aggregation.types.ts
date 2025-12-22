@@ -5,12 +5,13 @@
 import { CoreFeedId } from "../core/feed.types";
 import { PriceUpdate } from "../core/data-source.types";
 import { IBaseService } from "./base.types";
+import { ExchangeId } from "@/common/types/adapters";
 
 export interface AggregatedPrice {
   symbol: string;
   price: number;
   timestamp: number;
-  sources: string[];
+  sources: (ExchangeId | string)[];
   confidence: number;
   consensusScore: number;
   votingRound?: number;

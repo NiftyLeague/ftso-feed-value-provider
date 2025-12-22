@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ExchangeAdapterRegistry } from "./base/exchange-adapter.registry";
 import { hasCustomAdapter, getAllFeedConfigurations } from "@/common/utils";
+import { ENV } from "@/config/environment.constants";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Import all crypto adapters
 import { BinanceAdapter } from "./crypto/binance.adapter";
@@ -33,13 +35,17 @@ import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
               });
             });
             const allExchanges = Array.from(exchanges);
-            const customAdapterExchanges = ["binance", "coinbase", "cryptocom", "kraken", "okx"];
-            return allExchanges.filter(exchange => !customAdapterExchanges.includes(exchange));
+            const customAdapterExchanges = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
+            const disabledCcxtExchanges = ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES;
+            return allExchanges.filter(
+              exchange =>
+                !customAdapterExchanges.includes(exchange as ExchangeId) &&
+                !disabledCcxtExchanges.includes(exchange.toLowerCase())
+            );
           },
           getFeedConfigurations: () => getAllFeedConfigurations(),
         });
       },
-      scope: 1, // Make it a singleton
     },
 
     // Adapter initialization - this factory ensures all adapters are registered
@@ -56,12 +62,22 @@ import { CcxtMultiExchangeAdapter } from "./crypto/ccxt.adapter";
         const registry = new ExchangeAdapterRegistry();
 
         // Register all adapters
-        registry.register("binance", binance);
-        registry.register("coinbase", coinbase);
-        registry.register("kraken", kraken);
-        registry.register("okx", okx);
-        registry.register("cryptocom", cryptocom);
-        registry.register("ccxt-multi-exchange", ccxt);
+        if (ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(ExchangeId.Binance)) {
+          registry.register(ExchangeId.Binance, binance);
+        }
+        if (ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(ExchangeId.Coinbase)) {
+          registry.register(ExchangeId.Coinbase, coinbase);
+        }
+        if (ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(ExchangeId.Kraken)) {
+          registry.register(ExchangeId.Kraken, kraken);
+        }
+        if (ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(ExchangeId.Okx)) {
+          registry.register(ExchangeId.Okx, okx);
+        }
+        if (ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(ExchangeId.Cryptocom)) {
+          registry.register(ExchangeId.Cryptocom, cryptocom);
+        }
+        registry.register(ExchangeId.CcxtMultiExchange, ccxt);
 
         return registry;
       },

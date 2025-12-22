@@ -373,7 +373,11 @@ if [ -f "$LOG_FILE" ]; then
     echo "📈 Performance-related log entries: $PERFORMANCE_LOGS"
     
     # Memory warnings
-    MEMORY_WARNINGS=$(grep -c "memory.*warning\|Memory.*warning\|out of memory" "$LOG_FILE")
+    # Avoid counting initialization/config lines like:
+    #   "Memory monitoring started - checkInterval: ... warningThreshold: ... criticalThreshold: ..."
+    MEMORY_WARNINGS=$(grep -i -E "out of memory|memory[^\n]*warning|warning[^\n]*memory" "$LOG_FILE" 2>/dev/null | \
+        grep -v -E "Memory monitoring started|warningThreshold|criticalThreshold|checkInterval" | \
+        wc -l | tr -d ' ')
     echo "🧠 Memory warnings: $MEMORY_WARNINGS"
     
     # Error rate during load test - Only count actual ERROR level logs
@@ -391,7 +395,9 @@ if [ -f "$LOG_FILE" ]; then
     if [ $MEMORY_WARNINGS -gt 0 ]; then
         echo ""
         echo "Memory warnings detected:"
-        grep -E "(memory.*warning|Memory.*warning)" "$LOG_FILE" | head -3
+        grep -i -E "out of memory|memory[^\n]*warning|warning[^\n]*memory" "$LOG_FILE" 2>/dev/null | \
+            grep -v -E "Memory monitoring started|warningThreshold|criticalThreshold|checkInterval" | \
+            head -3
     fi
     
     if [ $CIRCUIT_BREAKER_EVENTS -gt 0 ]; then

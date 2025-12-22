@@ -94,7 +94,9 @@ if wait_for_debug_service_readiness "http://localhost:3101" 10 20 "FTSO Service"
     for i in $(seq 1 10); do
         curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/health/ready" >/dev/null 2>&1 &
         pids+=($!)
-        curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/feed-values?feeds=BTC/USD" >/dev/null 2>&1 &
+        curl -s --max-time 5 --connect-timeout 2 -X POST -H "Content-Type: application/json" \
+            -d '{"feeds":[{"category":1,"name":"BTC/USD"}]}' \
+            "http://localhost:3101/feed-values" >/dev/null 2>&1 &
         pids+=($!)
     done
     
@@ -127,7 +129,9 @@ if wait_for_debug_service_readiness "http://localhost:3101" 10 20 "FTSO Service"
     
     # Test 3: Error handling
     echo "🧪 Test 3: Error handling (invalid requests)..."
-    curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/feed-values?feeds=INVALID" >/dev/null 2>&1
+    curl -s --max-time 5 --connect-timeout 2 -X POST -H "Content-Type: application/json" \
+        -d '{"feeds":[{"category":1,"name":"INVALID"}]}' \
+        "http://localhost:3101/feed-values" >/dev/null 2>&1
     curl -s --max-time 5 --connect-timeout 2 "http://localhost:3101/nonexistent" >/dev/null 2>&1
     echo "  ✅ Error handling test completed"
     

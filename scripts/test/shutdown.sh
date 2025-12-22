@@ -38,10 +38,10 @@ echo "📝 Using port: $AVAILABLE_PORT" >> "$LOG_FILE"
 
 # Build the application first to avoid watch mode issues
 echo "📦 Building application for production test..." >> "$LOG_FILE"
-npm run build >> "$LOG_FILE" 2>&1
+pnpm build >> "$LOG_FILE" 2>&1
 
 # Use production start instead of dev mode to avoid file watcher issues
-start_app_with_cleanup "npm run start:prod" $AVAILABLE_PORT >> "$LOG_FILE" 2>&1
+start_app_with_cleanup "pnpm start:prod" "$AVAILABLE_PORT" "$LOG_FILE"
 # Get the last registered PID safely
 if [ ${#TRACKED_PIDS[@]} -gt 0 ]; then
     # Get the last element of the array more safely
@@ -52,43 +52,17 @@ else
     exit 1
 fi
 
-# Wait for service to become ready
 source "$(dirname "$0")/../utils/readiness-utils.sh"
 
-if wait_for_debug_service_readiness "http://localhost:$AVAILABLE_PORT"; then
-    # Service is ready, proceed with shutdown testing
-    :
-else
+# Wait for service to become ready (health endpoints)
+if ! wait_for_service_health "http://localhost:$AVAILABLE_PORT" 60 1000 5000; then
+    echo "❌ Service failed to become ready within timeout"
     stop_tracked_apps
     exit 1
 fi
 
-# Check if the app is running and responding
-APP_RUNNING=false
-for i in {1..30}; do  # Increased attempts to 30 (1 minute total)
-    if ps -p $APP_PID > /dev/null 2>&1; then
-        # Try different health endpoints to see which one responds first
-        for endpoint in "health/live" "health" "health/ready"; do
-            if curl -s -f http://localhost:$AVAILABLE_PORT/$endpoint > /dev/null 2>&1; then
-                APP_RUNNING=true
-                echo "✅ Application started successfully (PID: $APP_PID) and responding on /$endpoint"
-                break 2  # Break out of both loops
-            fi
-        done
-    else
-        echo "❌ Application process died unexpectedly"
-        exit 1
-    fi
-    
-    # Show progress every 10 attempts
-    if [ $((i % 10)) -eq 0 ]; then
-        echo "⏳ Still waiting for application to be ready... (attempt $i/60, ${i}0s elapsed)"
-    fi
-    # Check service health instead of fixed delay
-    if ! wait_for_service_health "http://localhost:$AVAILABLE_PORT" 1 2000 2000; then
-        echo "⚠️  Service health check failed during readiness wait"
-    fi
-done
+APP_RUNNING=true
+echo "✅ Application started successfully (PID: $APP_PID) and responding on /health"
 
 if [ "$APP_RUNNING" = true ]; then
     echo "🛑 Sending SIGINT (Ctrl+C) signal to test graceful shutdown..."
@@ -96,15 +70,11 @@ if [ "$APP_RUNNING" = true ]; then
     # Record start time for shutdown measurement
     SHUTDOWN_START=$(date +%s)
     
-    # Find the actual Node.js process running the application
-    # The APP_PID might be npm/nest wrapper, we need the actual node process
-    # Find the actual Node.js process - get the first match only
-    NODE_PID=$(pgrep -f "node.*--max-old-space-size.*dist/src/main" | head -1)
+    # Find the actual process bound to the dynamic port (most reliable).
+    NODE_PID=$(lsof -ti:$AVAILABLE_PORT 2>/dev/null | head -1)
     if [ -z "$NODE_PID" ]; then
+        # Fallbacks (less reliable when other node processes exist on CI)
         NODE_PID=$(pgrep -f "node.*dist/main" | head -1)
-    fi
-    if [ -z "$NODE_PID" ]; then
-        NODE_PID=$(pgrep -f "node.*nest" | head -1)
     fi
     if [ -z "$NODE_PID" ]; then
         NODE_PID="$APP_PID"
@@ -125,7 +95,7 @@ if [ "$APP_RUNNING" = true ]; then
     
     # Use timeout to prevent hanging (macOS compatible)
     WAIT_COUNT=0
-    MAX_WAIT=30  # Increased timeout for graceful shutdown
+    MAX_WAIT=60  # CI can be slower to shutdown cleanly
     
     while kill -0 $NODE_PID 2>/dev/null && [ $WAIT_COUNT -lt $MAX_WAIT ]; do
         # Check if process is still responsive during shutdown

@@ -7,6 +7,7 @@ import { CoinbaseAdapter } from "@/adapters/crypto/coinbase.adapter";
 import { KrakenAdapter } from "@/adapters/crypto/kraken.adapter";
 import { MockSetup, MockFactory } from "@/__tests__/utils";
 import type { PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock WebSocket globally with proper cleanup
 const mockWebSockets: any[] = [];
@@ -83,11 +84,11 @@ describe("WebSocket Integration Tests (Fixed)", () => {
     const mockAdapterRegistry = {
       get: jest.fn((name: string) => {
         switch (name) {
-          case "binance":
+          case ExchangeId.Binance:
             return binanceAdapter;
-          case "coinbase":
+          case ExchangeId.Coinbase:
             return coinbaseAdapter;
-          case "kraken":
+          case ExchangeId.Kraken:
             return krakenAdapter;
           default:
             return undefined;
@@ -103,16 +104,16 @@ describe("WebSocket Integration Tests (Fixed)", () => {
         {
           feed: { category: 1, name: "BTC/USD" },
           sources: [
-            { exchange: "binance", symbol: "BTCUSDT" },
-            { exchange: "coinbase", symbol: "BTC-USD" },
-            { exchange: "kraken", symbol: "BTC/USD" },
+            { exchange: ExchangeId.Binance, symbol: "BTCUSDT" },
+            { exchange: ExchangeId.Coinbase, symbol: "BTC-USD" },
+            { exchange: ExchangeId.Kraken, symbol: "BTC/USD" },
           ],
         },
         {
           feed: { category: 1, name: "ETH/USD" },
           sources: [
-            { exchange: "binance", symbol: "ETHUSDT" },
-            { exchange: "coinbase", symbol: "ETH-USD" },
+            { exchange: ExchangeId.Binance, symbol: "ETHUSDT" },
+            { exchange: ExchangeId.Coinbase, symbol: "ETH-USD" },
           ],
         },
       ]),
@@ -327,8 +328,8 @@ describe("WebSocket Integration Tests (Fixed)", () => {
       // Verify price updates were generated (currently only Binance and Coinbase work)
       expect(priceUpdates.length).toBeGreaterThanOrEqual(2);
 
-      const binanceUpdate = priceUpdates.find(u => u.source === "binance");
-      const coinbaseUpdate = priceUpdates.find(u => u.source === "coinbase");
+      const binanceUpdate = priceUpdates.find(u => u.source === ExchangeId.Binance);
+      const coinbaseUpdate = priceUpdates.find(u => u.source === ExchangeId.Coinbase);
 
       expect(binanceUpdate).toBeDefined();
       expect(binanceUpdate!.symbol).toBe("BTC/USDT");
@@ -394,7 +395,7 @@ describe("WebSocket Integration Tests (Fixed)", () => {
       expect(status.binance.connected).toBe(false);
 
       // Trigger reconnection (may or may not succeed depending on mock behavior)
-      const reconnectResult = await orchestrator.reconnectExchange("binance");
+      const reconnectResult = await orchestrator.reconnectExchange(ExchangeId.Binance);
 
       // Just check it doesn't throw and returns a boolean
       expect(typeof reconnectResult).toBe("boolean");
@@ -406,7 +407,7 @@ describe("WebSocket Integration Tests (Fixed)", () => {
 
     it("should handle reconnection attempts during active connections", async () => {
       // Attempt reconnection while already connected
-      const result = await orchestrator.reconnectExchange("binance");
+      const result = await orchestrator.reconnectExchange(ExchangeId.Binance);
       expect(typeof result).toBe("boolean"); // Should return boolean without throwing
     }, 2000);
   });
@@ -431,7 +432,7 @@ describe("WebSocket Integration Tests (Fixed)", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("binance");
+      expect(result.source).toBe(ExchangeId.Binance);
     }, 2000);
 
     it("should handle rate limiting scenarios", async () => {

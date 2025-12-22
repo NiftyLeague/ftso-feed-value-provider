@@ -13,6 +13,7 @@ import { CachePerformanceMonitorService } from "@/cache/cache-performance-monito
 import { getFeedIdFromSymbol } from "@/common/utils";
 import { type FeedConfiguration } from "@/common/types/core";
 import { ConfigService } from "@/config/config.service";
+import { ENV } from "@/config/environment.constants";
 
 // Types and interfaces
 import type { AggregatedPrice } from "@/common/types/services";
@@ -153,12 +154,15 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
       );
     }
 
+    // Keep a reference to any cached value so we can optionally fall back to it
+    // when fresh aggregation isn't available.
+    const cachedPrice = this.cacheService.getPrice(feedId);
+
     try {
       // Track feed access for cache warming
       this.cacheWarmerService.trackFeedAccess(feedId);
 
       // Check cache first
-      const cachedPrice = this.cacheService.getPrice(feedId);
       if (cachedPrice && this.isFreshData(cachedPrice.timestamp)) {
         // Record cache hit performance
         const responseTime = this.endTimer(`getCurrentPrice_${feedId.name}`);
@@ -202,6 +206,39 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
       const isDataUnavailable = error instanceof Error && error.message.includes("No price data available");
       const isSystemInitializing = error instanceof Error && error.message.includes("system initializing");
 
+      // If we have a cached value (even if stale), prefer returning it over returning nothing.
+      // Guard with MAX_DATA_AGE_MS so we don't serve arbitrarily old prices.
+      if (isDataUnavailable && cachedPrice) {
+        const ageMs = Date.now() - cachedPrice.timestamp;
+        if (ageMs <= ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS) {
+          // Record error response time as we are completing the request here.
+          const responseTime = this.endTimer(`getCurrentPrice_${feedId.name}`);
+          this.cachePerformanceMonitor.recordResponseTime(responseTime);
+
+          const logPayload = {
+            feed: feedId.name,
+            ageMs,
+            maxAgeMs: ENV.DATA_FRESHNESS.MAX_DATA_AGE_MS,
+            responseTime: responseTime.toFixed(2),
+          };
+
+          if (ageMs > ENV.DATA_FRESHNESS.STALE_WARNING_MS) {
+            this.logger.warn(`Returning stale cached price for ${feedId.name} (${ageMs}ms old)`, logPayload);
+          } else {
+            this.logger.debug(`Returning cached price for ${feedId.name} despite missing fresh data`, logPayload);
+          }
+
+          return {
+            symbol: feedId.name,
+            price: cachedPrice.value,
+            timestamp: cachedPrice.timestamp,
+            sources: cachedPrice.sources,
+            confidence: Math.max(0, Math.min(1, cachedPrice.confidence * 0.85)),
+            consensusScore: 0,
+          };
+        }
+      }
+
       // During system initialization or when data is unavailable, log appropriately
       if (isSystemInitializing) {
         this.logger.warn(`Price data not yet available during initialization for ${feedId.name}`);
@@ -231,6 +268,29 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
     }
 
     const results = await Promise.allSettled(feedIds.map(feedId => this.getCurrentPrice(feedId)));
+
+    const rejected = results
+      .map((result, index) => ({ result, feedId: feedIds[index] }))
+      .filter(
+        (entry): entry is { result: PromiseRejectedResult; feedId: CoreFeedId } => entry.result.status === "rejected"
+      )
+      .map(entry => ({
+        feed: `${entry.feedId.category}:${entry.feedId.name}`,
+        reason:
+          entry.result.reason instanceof Error
+            ? entry.result.reason.message
+            : typeof entry.result.reason === "string"
+              ? entry.result.reason
+              : "Unknown rejection",
+      }));
+
+    if (rejected.length > 0) {
+      this.logger.warn("Partial getCurrentPrices response: some feeds failed", {
+        requested: feedIds.length,
+        failed: rejected.length,
+        failedFeeds: rejected.slice(0, 25),
+      });
+    }
 
     return results
       .filter((result): result is PromiseFulfilledResult<AggregatedPrice> => result.status === "fulfilled")
@@ -511,12 +571,12 @@ export class PriceAggregationCoordinatorService extends EventDrivenService {
 
     try {
       // Connect aggregation service events to cache and monitoring
-      this.aggregationService.on("aggregatedPrice", (aggregatedPrice: AggregatedPrice) => {
+      this.aggregationService.on<[AggregatedPrice]>("aggregatedPrice", aggregatedPrice => {
         this.handleAggregatedPrice(aggregatedPrice);
       });
 
       // Connect aggregation service errors
-      this.aggregationService.on("error", (error: Error) => {
+      this.aggregationService.on<[Error]>("error", error => {
         this.logger.error("Aggregation service error:", error);
         this.emit("aggregationError", error);
       });

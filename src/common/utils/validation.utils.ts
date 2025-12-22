@@ -184,7 +184,7 @@ export class ValidationUtils {
    * Validate time range for volume requests
    */
   static validateTimeRange(startTime?: unknown, endTime?: unknown): ValidatedTimeRange {
-    const result: { startTime?: number; endTime?: number } = {};
+    const result: ValidatedTimeRange = {};
 
     if (startTime !== undefined) {
       result.startTime = this.validateTimestamp(startTime, "startTime");
@@ -216,27 +216,38 @@ export class ValidationUtils {
     // Check for malicious patterns in the JSON string
     const bodyStr = JSON.stringify(body);
 
-    // Check for SQL injection patterns
-    const sqlPatterns = [
-      /drop\s+table/i,
-      /delete\s+from/i,
-      /insert\s+into/i,
-      /update\s+\S+\s+set/i,
-      /union\s+select/i,
-      /;\s*--/,
-      /'\s*or\s*'1'\s*=\s*'1/i,
-    ];
+    // Perform fast, linear-time checks for common malicious indicators.
+    // Regexes with nested or repeated quantifiers can be vulnerable to
+    // catastrophic backtracking on pathological inputs; using simple
+    // substring checks and short-window scans avoids that.
+    const lowerBody = bodyStr.toLowerCase();
 
-    // Check for XSS patterns
-    const xssPatterns = [/<script[^>]*>/i, /<\/script>/i, /javascript:/i, /on\w+\s*=/i, /<iframe[^>]*>/i];
+    // SQL injection indicators (simple substr checks)
+    const sqlIndicators = ["drop table", "delete from", "insert into", "update ", "union select", "; --", "or '1'='1"];
+    for (const ind of sqlIndicators) {
+      if (lowerBody.includes(ind)) {
+        throw new TimestampedBadRequestException("Request contains potentially malicious content");
+      }
+    }
 
-    // Check for path traversal patterns
-    const pathTraversalPatterns = [/\.\.\//, /\.\.\\/, /%2e%2e%2f/i, /%2e%2e%5c/i];
+    // XSS indicators: use includes for tags/urls and a small scanner for event attributes
+    if (
+      lowerBody.includes("<script") ||
+      lowerBody.includes("</script>") ||
+      lowerBody.includes("javascript:") ||
+      lowerBody.includes("<iframe")
+    ) {
+      throw new TimestampedBadRequestException("Request contains potentially malicious content");
+    }
 
-    const allPatterns = [...sqlPatterns, ...xssPatterns, ...pathTraversalPatterns];
+    if (this.containsEventHandlerAttribute(lowerBody)) {
+      throw new TimestampedBadRequestException("Request contains potentially malicious content");
+    }
 
-    for (const pattern of allPatterns) {
-      if (pattern.test(bodyStr)) {
+    // Path traversal indicators
+    const pathIndicators = ["../", "..\\", "%2e%2e%2f", "%2e%2e%5c"];
+    for (const ind of pathIndicators) {
+      if (lowerBody.includes(ind)) {
         throw new TimestampedBadRequestException("Request contains potentially malicious content");
       }
     }
@@ -648,5 +659,30 @@ export class ValidationUtils {
     }
 
     return name;
+  }
+
+  /**
+   * Scan for inline event handler attributes like "onclick=", "onload =", etc.
+   * Implemented as a simple linear scan to avoid regex backtracking.
+   */
+  private static containsEventHandlerAttribute(s: string): boolean {
+    let idx = 0;
+    while ((idx = s.indexOf("on", idx)) !== -1) {
+      const nextChar = s.charAt(idx + 2);
+      if (!nextChar || nextChar < "a" || nextChar > "z") {
+        idx += 2;
+        continue;
+      }
+
+      // Look ahead a short distance for an '=' sign (attribute assignment),
+      // allowing for at most a few characters (e.g., "onclick =").
+      const lookahead = s.slice(idx + 2, idx + 22); // 20-char window
+      if (lookahead.includes("=")) {
+        return true;
+      }
+
+      idx += 2;
+    }
+    return false;
   }
 }

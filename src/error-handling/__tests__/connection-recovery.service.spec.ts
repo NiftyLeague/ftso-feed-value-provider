@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
 import { type DataSource, type CoreFeedId, FeedCategory } from "@/common/types/core";
+import { TestHelpers } from "@/__tests__/utils";
 
 import { ConnectionRecoveryService } from "../connection-recovery.service";
 import { CircuitBreakerService } from "../circuit-breaker.service";
@@ -82,6 +83,14 @@ class MockDataSource implements DataSource {
   setLatency(latency: number): void {
     this.latency = latency;
   }
+}
+
+class MockEmitterDataSource extends MockDataSource {
+  off = jest.fn();
+}
+
+class MockRemoveListenerDataSource extends MockDataSource {
+  removeListener = jest.fn();
 }
 
 describe("ConnectionRecoveryService", () => {
@@ -181,6 +190,38 @@ describe("ConnectionRecoveryService", () => {
       const health = service.getConnectionHealth().get("test-source");
       expect(health!.isConnected).toBe(true);
     });
+
+    it("detaches connection handler via off/removeListener on unregister", async () => {
+      const srcOff = new MockEmitterDataSource("src-off");
+      const srcRemove = new MockRemoveListenerDataSource("src-remove");
+
+      await service.registerDataSource(srcOff);
+      await service.registerDataSource(srcRemove);
+
+      await service.unregisterDataSource("src-off");
+      await service.unregisterDataSource("src-remove");
+
+      expect(srcOff.off).toHaveBeenCalledWith("connectionChange", expect.any(Function));
+      expect(srcRemove.removeListener).toHaveBeenCalledWith("connectionChange", expect.any(Function));
+    });
+
+    it("cleans up feed source mapping on unregister (remove-one vs remove-all)", async () => {
+      const feedId: CoreFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
+      const s1 = new MockEmitterDataSource("s1");
+      const s2 = new MockEmitterDataSource("s2");
+
+      await service.registerDataSource(s1);
+      await service.registerDataSource(s2);
+
+      service.configureFeedSources(feedId, ["s1", "s2"], []);
+      const feedKey = (service as any).getFeedKey(feedId);
+
+      await service.unregisterDataSource("s1");
+      expect(((service as any).feedSourceMapping as Map<string, any>).get(feedKey)).toEqual(["s2"]);
+
+      await service.unregisterDataSource("s2");
+      expect(((service as any).feedSourceMapping as Map<string, any>).has(feedKey)).toBe(false);
+    });
   });
 
   describe("Feed Source Configuration", () => {
@@ -198,6 +239,281 @@ describe("ConnectionRecoveryService", () => {
       // Verify configuration was applied
       // Check that the failover manager was configured with the correct sources
       expect(failoverManager.configureFailoverGroup).toHaveBeenCalledWith(feedId, primarySources, backupSources);
+    });
+  });
+
+  describe("System health and recovery strategies", () => {
+    it("getRecoveryStrategies returns empty for unknown sources", () => {
+      expect(service.getRecoveryStrategies("missing")).toEqual([]);
+    });
+
+    it("getRecoveryStrategies includes reconnect for websocket sources and circuit_breaker when open", async () => {
+      const src = new MockDataSource("ws-source", "websocket");
+      await service.registerDataSource(src);
+
+      const healthMap = (service as any).connectionHealth as Map<string, any>;
+      const h = healthMap.get("ws-source");
+      h.reconnectAttempts = 0;
+      h.circuitBreakerState = "open";
+
+      const strategies = service.getRecoveryStrategies("ws-source");
+      expect(strategies.map(s => s.strategy)).toEqual(
+        expect.arrayContaining(["reconnect", "circuit_breaker", "failover", "graceful_degradation"])
+      );
+
+      // Ensure sorted by priority ascending
+      const priorities = strategies.map(s => s.priority);
+      expect(priorities).toEqual([...priorities].sort((a, b) => a - b));
+    });
+
+    it("getSystemHealth classifies overall health across threshold bands", () => {
+      const m = (service as any).connectionHealth as Map<string, any>;
+
+      m.set("a", {
+        sourceId: "a",
+        isConnected: true,
+        isHealthy: true,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+      m.set("b", {
+        sourceId: "b",
+        isConnected: true,
+        isHealthy: true,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+      m.set("c", {
+        sourceId: "c",
+        isConnected: true,
+        isHealthy: false,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+      m.set("d", {
+        sourceId: "d",
+        isConnected: false,
+        isHealthy: false,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+
+      // 2/4 healthy => 50% => degraded
+      expect(service.getSystemHealth().overallHealth).toBe("degraded");
+
+      // 4/4 healthy => healthy
+      m.get("c").isHealthy = true;
+      m.get("d").isConnected = true;
+      m.get("d").isHealthy = true;
+      expect(service.getSystemHealth().overallHealth).toBe("healthy");
+
+      // 1/4 healthy => critical
+      m.get("a").isHealthy = false;
+      m.get("b").isHealthy = false;
+      m.get("c").isHealthy = false;
+      m.get("d").isHealthy = true;
+      expect(service.getSystemHealth().overallHealth).toBe("critical");
+    });
+  });
+
+  describe("Disconnection handling", () => {
+    it("handleDisconnection categorizes errors, schedules recovery, and triggers failover", async () => {
+      const src = new MockDataSource("source-x", "websocket");
+      await service.registerDataSource(src);
+
+      const scheduleSpy = jest.spyOn(service as any, "scheduleRecovery");
+      const failoverSpy = jest.spyOn(service, "triggerFailover");
+
+      await service.handleDisconnection("source-x", new Error("HTTP 429 too many"));
+
+      expect(scheduleSpy).toHaveBeenCalled();
+      expect(failoverSpy).toHaveBeenCalledWith("source-x", expect.stringContaining("Disconnection detected"));
+    });
+
+    it("performHealthCheck marks sources unhealthy after long inactivity", () => {
+      const now = Date.now();
+      const m = (service as any).connectionHealth as Map<string, any>;
+      const sources = (service as any).dataSources as Map<string, any>;
+
+      const src = new MockDataSource("inactive", "websocket");
+      src.simulateConnection();
+      sources.set("inactive", src);
+      m.set("inactive", {
+        sourceId: "inactive",
+        isConnected: true,
+        isHealthy: true,
+        lastConnected: now - 600000 - 1,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+
+      const emitSpy = jest.spyOn(service, "emit");
+      (service as any).performHealthCheck();
+      expect(m.get("inactive").isHealthy).toBe(false);
+      expect(emitSpy).toHaveBeenCalledWith("sourceUnhealthy", "inactive");
+    });
+
+    it("scheduleRecovery returns early for non-websocket sources and respects cooldown", async () => {
+      jest.useRealTimers();
+      const restSource = new MockDataSource("rest-src", "rest");
+      await service.registerDataSource(restSource);
+
+      // Non-websocket should not schedule.
+      (service as any).scheduleRecovery("rest-src");
+      expect(((service as any).reconnectTimers as Map<string, any>).has("rest-src")).toBe(false);
+
+      const wsSource = new MockDataSource("ws-src", "websocket");
+      await service.registerDataSource(wsSource);
+
+      // Cooldown branch should skip.
+      ((service as any).lastReconnectAttempt as Map<string, number>).set("ws-src", Date.now());
+      const debugSpy = jest.spyOn((service as any).logger, "debug");
+      (service as any).scheduleRecovery("ws-src");
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("too soon"));
+      expect(((service as any).reconnectTimers as Map<string, any>).has("ws-src")).toBe(false);
+    });
+
+    it("attemptReconnection schedules another attempt when source lacks connect and remains disconnected", async () => {
+      // Force circuitBreaker.execute to actually invoke the provided function.
+      (circuitBreaker.execute as jest.Mock).mockImplementation(async (_id: string, fn: () => Promise<void>) => fn());
+
+      const scheduleSpy = jest.spyOn(service as any, "scheduleRecovery");
+
+      const sourceId = "no-connect";
+      (service as any).dataSources.set(sourceId, {
+        id: sourceId,
+        type: "websocket",
+        priority: 1,
+        category: FeedCategory.Crypto,
+        isConnected: () => false,
+        getLatency: () => 0,
+        subscribe: async () => {},
+        unsubscribe: async () => {},
+        onPriceUpdate: () => {},
+        onConnectionChange: () => {},
+      });
+      (service as any).connectionHealth.set(sourceId, {
+        sourceId,
+        isConnected: false,
+        isHealthy: true,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+
+      await (service as any).attemptReconnection(sourceId);
+      expect(scheduleSpy).toHaveBeenCalledWith(sourceId);
+    });
+
+    it("scheduleRecovery schedules a reconnection timer for websocket sources", async () => {
+      const src = new MockDataSource("ws-src", "websocket");
+      await service.registerDataSource(src);
+
+      await TestHelpers.withMockedNowAsync(1_700_000_000_000, async () => {
+        const timers = (service as any).reconnectTimers as Map<string, any>;
+        const healthMap = (service as any).connectionHealth as Map<string, any>;
+
+        expect(timers.has("ws-src")).toBe(false);
+        (service as any).scheduleRecovery("ws-src", "network");
+
+        expect(healthMap.get("ws-src").reconnectAttempts).toBe(1);
+        expect(timers.has("ws-src")).toBe(true);
+      });
+    });
+
+    it("scheduleRecovery logs error and does not schedule when max reconnect attempts reached", async () => {
+      const src = new MockDataSource("ws-src", "websocket");
+      await service.registerDataSource(src);
+
+      const errorSpy = jest.spyOn((service as any).logger, "error");
+      const timers = (service as any).reconnectTimers as Map<string, any>;
+      const healthMap = (service as any).connectionHealth as Map<string, any>;
+
+      // Make the limit deterministic
+      (service as any).config.maxReconnectAttempts = 1;
+      healthMap.get("ws-src").reconnectAttempts = 1;
+
+      (service as any).scheduleRecovery("ws-src");
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Max reconnection attempts reached"));
+      expect(timers.has("ws-src")).toBe(false);
+    });
+
+    it("attemptReconnection succeeds when source.connect works and reports connected", async () => {
+      // Force circuitBreaker.execute to invoke the provided function.
+      (circuitBreaker.execute as jest.Mock).mockImplementation(async (_id: string, fn: () => Promise<void>) => fn());
+
+      const scheduleSpy = jest.spyOn(service as any, "scheduleRecovery");
+
+      let connected = false;
+      const sourceId = "connect-ok";
+      (service as any).dataSources.set(sourceId, {
+        id: sourceId,
+        type: "websocket",
+        priority: 1,
+        category: FeedCategory.Crypto,
+        isConnected: () => connected,
+        getLatency: () => 0,
+        connect: async () => {
+          connected = true;
+        },
+        subscribe: async () => {},
+        unsubscribe: async () => {},
+        onPriceUpdate: () => {},
+        onConnectionChange: () => {},
+      });
+      (service as any).connectionHealth.set(sourceId, {
+        sourceId,
+        isConnected: false,
+        isHealthy: true,
+        reconnectAttempts: 0,
+        consecutiveFailures: 0,
+        averageLatency: 0,
+        circuitBreakerState: "closed",
+      });
+
+      await (service as any).attemptReconnection(sourceId);
+      expect(scheduleSpy).not.toHaveBeenCalled();
+    });
+
+    it("calculateReconnectDelay applies centralized backoff parameters when an error is provided", () => {
+      // attemptNumber=0 -> delay should be baseDelay (>= default minDelay=5000)
+      const delay = (service as any).calculateReconnectDelay(0, new Error("HTTP 429 too many"));
+      expect(delay).toBeGreaterThanOrEqual(5000);
+    });
+
+    it("handleConnectionLost warns on first failure and debug-logs on subsequent rapid failures", async () => {
+      const src = new MockDataSource("src", "websocket");
+      await service.registerDataSource(src);
+
+      jest.spyOn(service, "triggerFailover").mockResolvedValue({} as any);
+
+      const warnSpy = jest.spyOn((service as any).logger, "warn");
+      const debugSpy = jest.spyOn((service as any).logger, "debug");
+
+      let now = 1_700_000_000_000;
+
+      await TestHelpers.withMockedNowAsync(
+        () => now,
+        async () => {
+          await (service as any).handleConnectionLost("src");
+          expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Connection lost for source: src"));
+
+          now += 1;
+          await (service as any).handleConnectionLost("src");
+          expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("Connection lost for source: src"));
+        }
+      );
     });
   });
 
@@ -248,6 +564,53 @@ describe("ConnectionRecoveryService", () => {
 
       void service.triggerFailover("source1", "Test failover");
     });
+
+    it("opens circuit breaker for severe, non-normal failures", async () => {
+      const healthMap = (service as any).connectionHealth as Map<string, any>;
+      const h = healthMap.get("source1");
+      h.consecutiveFailures = 8;
+
+      await service.triggerFailover("source1", "Critical failure: auth denied");
+      expect(circuitBreaker.openCircuit).toHaveBeenCalledWith("source1", expect.stringContaining("Critical failure"));
+    });
+
+    it("does not open circuit breaker for normal disconnection reasons", async () => {
+      (circuitBreaker.openCircuit as jest.Mock).mockClear();
+      const healthMap = (service as any).connectionHealth as Map<string, any>;
+      const h = healthMap.get("source1");
+      h.consecutiveFailures = 99;
+
+      await service.triggerFailover("source1", "Connection lost");
+      expect(circuitBreaker.openCircuit).not.toHaveBeenCalled();
+    });
+
+    it("warns when failover time exceeds target", async () => {
+      const warnSpy = jest.spyOn((service as any).logger, "warn");
+      // Make threshold trivially small so the warning branch is deterministic.
+      (service as any).config.maxFailoverTime = 0;
+
+      // Ensure failoverTime > 0 even in fast test runs.
+      let t = 0;
+
+      await TestHelpers.withMockedNowAsync(
+        () => {
+          t += 1;
+          return t;
+        },
+        async () => {
+          await service.triggerFailover("source1", "Connection lost");
+
+          expect(warnSpy.mock.calls.some(([msg]) => String(msg).includes("Failover time"))).toBe(true);
+        }
+      );
+    });
+
+    it("returns success=false when failover manager throws", async () => {
+      (failoverManager.triggerFailover as jest.Mock).mockRejectedValueOnce(new Error("boom"));
+      const result = await service.triggerFailover("source1", "Connection lost");
+      expect(result.success).toBe(false);
+      expect(result.degradationLevel).toBe("severe");
+    });
   });
 
   describe("Graceful Degradation", () => {
@@ -297,6 +660,64 @@ describe("ConnectionRecoveryService", () => {
 
       await service.implementGracefulDegradation(feedId);
       expect(completeDegradationEmitted).toBe(true);
+    });
+
+    it("emits completeServiceDegradation when no sources are healthy", async () => {
+      const feedId: CoreFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
+      const source1 = new MockDataSource("source1");
+      const source2 = new MockDataSource("source2");
+
+      await service.registerDataSource(source1);
+      await service.registerDataSource(source2);
+      service.configureFeedSources(feedId, ["source1"], ["source2"]);
+
+      // Ensure both are unhealthy/disconnected
+      const healthMap = (service as any).connectionHealth as Map<string, any>;
+      healthMap.get("source1").isHealthy = false;
+      healthMap.get("source1").isConnected = false;
+      healthMap.get("source2").isHealthy = false;
+      healthMap.get("source2").isConnected = false;
+
+      const eventSpy = jest.fn();
+      service.on("completeServiceDegradation", eventSpy);
+
+      await service.implementGracefulDegradation(feedId);
+      expect(eventSpy).toHaveBeenCalledWith(feedId);
+    });
+
+    it("emits partialServiceDegradation when healthy sources below threshold", async () => {
+      const feedId: CoreFeedId = { category: FeedCategory.Crypto, name: "BTC/USD" };
+      const source1 = new MockDataSource("source1");
+      const source2 = new MockDataSource("source2");
+
+      await service.registerDataSource(source1);
+      await service.registerDataSource(source2);
+      service.configureFeedSources(feedId, ["source1"], ["source2"]);
+
+      // Override threshold for deterministic behavior.
+      (service as any).config.gracefulDegradationThreshold = 2;
+
+      const healthMap = (service as any).connectionHealth as Map<string, any>;
+      healthMap.get("source1").isHealthy = true;
+      healthMap.get("source1").isConnected = true;
+      healthMap.get("source2").isHealthy = false;
+      healthMap.get("source2").isConnected = false;
+
+      const partialSpy = jest.fn();
+      const implementedSpy = jest.fn();
+      service.on("partialServiceDegradation", partialSpy);
+      service.on("gracefulDegradationImplemented", implementedSpy);
+
+      await service.implementGracefulDegradation(feedId);
+
+      expect(partialSpy).toHaveBeenCalledWith(
+        feedId,
+        expect.objectContaining({ availableSources: 1, requiredSources: 2 })
+      );
+      expect(implementedSpy).toHaveBeenCalledWith(
+        feedId,
+        expect.objectContaining({ healthySources: 1, totalSources: 2 })
+      );
     });
   });
 

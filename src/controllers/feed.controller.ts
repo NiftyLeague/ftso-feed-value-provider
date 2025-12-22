@@ -42,16 +42,28 @@ import {
 } from "./dto/feed.dto";
 import { HttpErrorResponseDto, ValidationErrorResponseDto } from "./dto/common-error.dto";
 
-// Maximum allowed feeds per request to avoid DoS via loop bound injection
-const MAX_FEEDS = 1000;
-
+import feedsConfigJson from "@/config/feeds.json";
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { RealTimeAggregationService } from "@/aggregators/real-time-aggregation.service";
-
 import { ENV } from "@/config/environment.constants";
 import { StandardizedErrorHandlerService } from "../error-handling/standardized-error-handler.service";
 import { UniversalRetryService } from "../error-handling/universal-retry.service";
 import { ApiMonitorService } from "../monitoring/api-monitor.service";
+
+// Maximum allowed feeds per request to avoid DoS via loop bound injection
+const MAX_FEEDS = 1000;
+
+type FeedsConfigEntry = {
+  feed: FeedId;
+};
+
+const ALL_SUPPORTED_FEEDS: FeedId[] = Array.from(
+  new Map(
+    (feedsConfigJson as FeedsConfigEntry[])
+      .map(entry => entry.feed)
+      .map(feed => [`${feed.category}:${feed.name}`, feed] as const)
+  ).values()
+);
 @ApiTags("FTSO Feed Values")
 @Controller()
 @UseGuards(RateLimitGuard)
@@ -83,6 +95,8 @@ export class FeedController extends BaseController {
     this.standardizedErrorHandler = standardizedErrorHandler;
     this.universalRetryService = universalRetryService;
   }
+
+  private readonly missingValuesWarningLastLogged = new Map<string, number>();
 
   @Post("feed-values")
   @HttpCode(200)
@@ -145,11 +159,13 @@ export class FeedController extends BaseController {
   async getCurrentFeedValues(@Body() body: FeedValuesRequest): Promise<FeedValuesResponse> {
     return this.handleControllerOperation(
       async () => {
-        // Validate feed requests - this will throw BadRequestException for invalid input
-        this.validateFeedRequest(body);
+        // Validate feed requests (format + normalization only).
+        // Do NOT enforce configured feeds here: batch callers may include feeds
+        // we haven't added yet, and we should return partial results.
+        const { feeds } = this.validateFeedRequest(body);
 
         // Get real-time data with caching and retry logic using our own executeWithRetry
-        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(body.feeds), {
+        const values = await this.executeWithRetry(() => this.getRealTimeFeedValues(feeds), {
           operationName: "getRealTimeFeedValues",
           serviceType: "external-api",
           endpoint: "getCurrentFeedValues",
@@ -189,7 +205,18 @@ export class FeedController extends BaseController {
     type: "number",
     example: 12345,
   })
-  @ApiBody({ type: FeedValuesRequestDto })
+  @ApiBody({
+    type: FeedValuesRequestDto,
+    examples: {
+      allSupportedFeeds: {
+        summary: "All supported feeds",
+        description: "Request data for every feed this provider supports",
+        value: {
+          feeds: ALL_SUPPORTED_FEEDS,
+        },
+      },
+    },
+  })
   @ApiResponse({
     status: 200,
     description: "Feed values retrieved successfully",
@@ -220,16 +247,11 @@ export class FeedController extends BaseController {
         // Additional validation using our utility for business rules
         ValidationUtils.validateVotingRoundId(votingRoundId);
 
-        // Validate feed requests - this will throw BadRequestException for invalid input
-        this.validateFeedRequest(body);
+        // Validate feed requests (format + normalization only). Keep partial results on unknown feeds.
+        const { feeds } = this.validateFeedRequest(body);
 
-        // Explicitly validate feeds array structure and length to prevent loop bound injection
-        if (
-          !Array.isArray(body.feeds) ||
-          typeof body.feeds.length !== "number" ||
-          body.feeds.length < 0 ||
-          body.feeds.length > MAX_FEEDS
-        ) {
+        // Explicitly validate feeds length to prevent loop bound injection
+        if (feeds.length > MAX_FEEDS) {
           throw new HttpException(
             `Invalid feeds array in request body. Must be an array with at most ${MAX_FEEDS} items.`,
             HttpStatus.BAD_REQUEST
@@ -237,17 +259,14 @@ export class FeedController extends BaseController {
         }
 
         // Try to get cached historical data first with retry logic
-        const cachedResults = await this.executeWithRetry(
-          () => this.getCachedHistoricalData(body.feeds, votingRoundId),
-          {
-            operationName: "getCachedHistoricalData",
-            serviceType: "cache",
-            retryConfig: { maxRetries: 1, initialDelayMs: 100 },
-          }
-        );
+        const cachedResults = await this.executeWithRetry(() => this.getCachedHistoricalData(feeds, votingRoundId), {
+          operationName: "getCachedHistoricalData",
+          serviceType: "cache",
+          retryConfig: { maxRetries: 1, initialDelayMs: 100 },
+        });
 
         // Get fresh data for any missing feeds
-        const missingFeeds = body.feeds.filter((_, index) => !cachedResults[index]);
+        const missingFeeds = feeds.filter((_, index) => cachedResults[index]?.value === undefined);
         let freshData: FeedValueData[] = [];
 
         if (missingFeeds.length > 0) {
@@ -259,7 +278,7 @@ export class FeedController extends BaseController {
           });
 
           // Cache the fresh data for this voting round
-          await this.executeWithRetry(() => this.cacheHistoricalData(missingFeeds, freshData, votingRoundId), {
+          await this.executeWithRetry(() => this.cacheHistoricalData(freshData, votingRoundId), {
             operationName: "cacheHistoricalData",
             serviceType: "cache",
             retryConfig: { maxRetries: 1, initialDelayMs: 100 },
@@ -267,7 +286,7 @@ export class FeedController extends BaseController {
         }
 
         // Combine cached and fresh data
-        const values = this.combineHistoricalResults(body.feeds, cachedResults, missingFeeds, freshData);
+        const values = this.combineHistoricalResults(feeds, cachedResults, missingFeeds, freshData);
 
         this.logger.log(`Feed values for voting round ${votingRoundId}: ${values.length} feeds`, {
           votingRoundId,
@@ -376,9 +395,10 @@ export class FeedController extends BaseController {
 
   // Private helper methods
 
-  private validateFeedRequest(body: FeedValuesRequest): void {
-    // Use basic validation for FTSO API compliance
-    ValidationUtils.validateFeedValuesRequest(body);
+  private validateFeedRequest(body: FeedValuesRequest): { feeds: FeedId[] } {
+    // Only validate structure + normalize casing.
+    // Unknown feeds should not fail the whole request (batch use-case).
+    return ValidationUtils.validateFeedValuesRequest(body);
   }
 
   private validateVolumeRequest(body: VolumesRequest, windowSec: number): void {
@@ -450,14 +470,8 @@ export class FeedController extends BaseController {
           this.logger.debug(`Fallback service for ${feed.name}: ${responseTime.toFixed(2)}ms`);
 
           if (!fallbackResult) {
-            // Return error result if fallback service also fails
             return {
               feed,
-              error: {
-                code: "FEED_NOT_FOUND",
-                message: `Unable to retrieve data for feed: ${JSON.stringify(feed)}`,
-                timestamp: Date.now(),
-              },
             };
           }
 
@@ -493,7 +507,9 @@ export class FeedController extends BaseController {
           this.logger.warn(`Used fallback service for failed feed ${feed.name}`);
 
           if (!fallbackResult) {
-            throw new Error("Fallback service returned undefined");
+            return {
+              feed,
+            };
           }
 
           return {
@@ -517,14 +533,8 @@ export class FeedController extends BaseController {
             this.logger.warn(`Fallback also failed for feed ${JSON.stringify(feed)}:`, fallbackError);
           }
 
-          // Return error result instead of throwing to allow partial success
           return {
             feed,
-            error: {
-              code: "FEED_NOT_FOUND",
-              message: `Unable to retrieve data for feed: ${JSON.stringify(feed)}`,
-              timestamp: Date.now(),
-            },
           };
         }
       }
@@ -534,61 +544,55 @@ export class FeedController extends BaseController {
     try {
       const feedResults = await Promise.allSettled(feedPromises);
 
-      // Process results and separate successful from failed
-      const successfulResults: FeedValueData[] = [];
-      const failedFeeds: Array<{
-        feed: FeedId;
-        error: { code: string; message: string; timestamp: number };
-      }> = [];
+      // Preserve request order and always return the requested feed object.
+      // If a value can't be produced, omit `value` rather than omitting the feed.
+      const orderedResults: FeedValueData[] = new Array(feeds.length);
+      let missingCount = 0;
 
       feedResults.forEach((result, index) => {
         if (result.status === "fulfilled") {
-          if (result.value.error) {
-            failedFeeds.push({ feed: feeds[index], error: result.value.error });
-          } else {
-            successfulResults.push(result.value);
-          }
+          orderedResults[index] = result.value;
         } else {
-          failedFeeds.push({
-            feed: feeds[index],
-            error: {
-              code: "PROCESSING_ERROR",
-              message: result.reason?.message || "Unknown error processing feed",
-              timestamp: Date.now(),
-            },
-          });
+          orderedResults[index] = { feed: feeds[index] };
+        }
+
+        if (orderedResults[index]?.value === undefined) {
+          missingCount++;
         }
       });
 
       // Log performance metrics
       totalResponseTime = this.endTimer("getRealTimeFeedValues");
       this.logger.log(
-        `Processed ${feeds.length} feeds in ${totalResponseTime.toFixed(2)}ms (${successfulResults.length} successful, ${failedFeeds.length} failed)`
+        `Processed ${feeds.length} feeds in ${totalResponseTime.toFixed(2)}ms (${feeds.length - missingCount} with values, ${missingCount} missing)`
       );
 
-      // If all feeds failed, throw an error
-      if (successfulResults.length === 0) {
-        throw new HttpException(
-          {
-            error: "ALL_FEEDS_FAILED",
-            code: 5002,
-            message: "Unable to retrieve data for any requested feeds",
-            timestamp: Date.now(),
-            requestId: this.generateRequestId(),
-            failedFeeds: failedFeeds,
-          },
-          HttpStatus.SERVICE_UNAVAILABLE
-        );
+      if (missingCount > 0) {
+        const missingFeeds = orderedResults.filter(r => r.value === undefined).map(r => r.feed.name);
+        const warningKey = missingFeeds.slice().sort().join(",");
+        const now = Date.now();
+        const lastLogged = this.missingValuesWarningLastLogged.get(warningKey) || 0;
+
+        if (now - lastLogged >= ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS) {
+          const message = `${missingCount} out of ${feeds.length} feeds returned without values`;
+          const payload = {
+            missingFeeds,
+            cooldownMs: ENV.MONITORING.QUALITY_WARNING_COOLDOWN_MS,
+          };
+
+          // Partial misses are expected in degraded conditions; warn only when *all* values are missing.
+          if (missingCount === feeds.length) {
+            this.logger.warn(message, payload);
+          } else {
+            this.logger.debug(message, payload);
+          }
+          this.missingValuesWarningLastLogged.set(warningKey, now);
+        } else {
+          this.logger.debug(`${missingCount} out of ${feeds.length} feeds returned without values`, { missingFeeds });
+        }
       }
 
-      // If some feeds failed, log warning but return successful results
-      if (failedFeeds.length > 0) {
-        this.logger.warn(`${failedFeeds.length} out of ${feeds.length} feeds failed to retrieve data`, {
-          failedFeeds: failedFeeds.map(f => f.feed.name),
-        });
-      }
-
-      return successfulResults;
+      return orderedResults;
     } catch (error) {
       // Only end timer if it hasn't been ended yet
       if (totalResponseTime === 0) {
@@ -613,8 +617,8 @@ export class FeedController extends BaseController {
     }
   }
 
-  private async getCachedHistoricalData(feeds: FeedId[], votingRoundId: number): Promise<(FeedValueData | null)[]> {
-    const results: (FeedValueData | null)[] = [];
+  private async getCachedHistoricalData(feeds: FeedId[], votingRoundId: number): Promise<FeedValueData[]> {
+    const results: FeedValueData[] = [];
 
     for (const feed of feeds) {
       const cachedEntry = this.cacheService.getForVotingRound(feed, votingRoundId);
@@ -625,95 +629,104 @@ export class FeedController extends BaseController {
           value: cachedEntry.value,
         });
       } else {
-        results.push(null);
+        results.push({ feed });
       }
     }
 
     return results;
   }
 
-  private async cacheHistoricalData(feeds: FeedId[], data: FeedValueData[], votingRoundId: number): Promise<void> {
-    for (let i = 0; i < feeds.length; i++) {
-      const feed = feeds[i];
-      const feedData = data[i];
-
-      if (feedData) {
-        this.cacheService.setForVotingRound(
-          feed,
-          votingRoundId,
-          {
-            value: feedData.value,
-            timestamp: Date.now(),
-            sources: ["historical"],
-            confidence: 1.0,
-            votingRound: votingRoundId,
-          },
-          60000 // 1 minute TTL for historical data
-        );
+  private async cacheHistoricalData(data: FeedValueData[], votingRoundId: number): Promise<void> {
+    // Cache based on the feed attached to each data entry to avoid
+    // index-based mismatches when some feeds fail to return data
+    for (const feedData of data) {
+      if (!feedData?.feed || feedData.value === undefined) {
+        continue;
       }
+
+      this.cacheService.setForVotingRound(
+        feedData.feed,
+        votingRoundId,
+        {
+          value: feedData.value,
+          timestamp: Date.now(),
+          sources: ["historical"],
+          confidence: 1.0,
+          votingRound: votingRoundId,
+        },
+        60000 // 1 minute TTL for historical data
+      );
     }
   }
 
   private combineHistoricalResults(
     allFeeds: FeedId[],
-    cachedResults: (FeedValueData | null)[],
+    cachedResults: FeedValueData[],
     missingFeeds: FeedId[],
     freshData: FeedValueData[]
   ): FeedValueData[] {
     const results: FeedValueData[] = new Array(allFeeds.length);
+    const feedKey = (feed: FeedId) => `${feed.category}:${feed.name}`;
 
     // First, fill in all cached results
     for (let i = 0; i < allFeeds.length; i++) {
       if (cachedResults && cachedResults[i]) {
-        results[i] = cachedResults[i] as FeedValueData;
+        results[i] = cachedResults[i];
+      } else {
+        results[i] = { feed: allFeeds[i] };
       }
     }
 
-    // If there are no missing feeds, filter out any nulls and return
+    // If there are no missing feeds, return as-is
     if (missingFeeds.length === 0) {
-      const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
-      return validResults;
+      return results;
     }
+
+    const missingFeedKeys = missingFeeds.map(feedKey);
 
     // Handle case where we need fresh data but none is available
     if (!freshData || freshData.length === 0) {
-      if (missingFeeds.length > 0) {
-        throw new HttpException(
-          {
-            error: "DATA_UNAVAILABLE",
-            message: "Fresh data unavailable for requested feeds",
-            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-          },
-          HttpStatus.SERVICE_UNAVAILABLE
-        );
-      }
-      const validResults = results.filter(result => result !== null && result !== undefined) as FeedValueData[];
-      return validResults;
+      this.logger.warn("Partial historical data: no fresh data returned", {
+        missingFeeds: missingFeedKeys,
+        expected: missingFeeds.length,
+        received: 0,
+      });
+      return results;
     }
 
-    // Map each missing feed to its corresponding fresh data
-    let freshIndex = 0;
+    // Map fresh data by feed key for deterministic lookup
+    const freshMap = new Map<string, FeedValueData>();
+    for (const entry of freshData) {
+      if (entry?.feed) {
+        freshMap.set(feedKey(entry.feed), entry);
+      }
+    }
+
+    const unresolvedFeeds: string[] = [];
+
+    // Fill any gaps with matching fresh data
     for (let i = 0; i < allFeeds.length; i++) {
-      if (!results[i]) {
-        // This position needs fresh data
-        if (freshIndex >= freshData.length) {
-          throw new HttpException(
-            {
-              error: "INSUFFICIENT_DATA",
-              message: `Insufficient fresh data: expected ${missingFeeds.length} but received ${freshData.length}`,
-              statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-            },
-            HttpStatus.INTERNAL_SERVER_ERROR
-          );
+      if (results[i]?.value === undefined) {
+        const key = feedKey(allFeeds[i]);
+        const freshEntry = freshMap.get(key);
+        if (freshEntry) {
+          results[i] = freshEntry;
+        } else {
+          unresolvedFeeds.push(key);
         }
-        if (freshData && freshData[freshIndex]) {
-          results[i] = freshData[freshIndex];
-        }
-        freshIndex++;
       }
     }
 
-    return results.filter(result => result !== null && result !== undefined) as FeedValueData[];
+    if (unresolvedFeeds.length > 0) {
+      this.logger.warn("Partial historical data: missing fresh data for feeds", {
+        missingFeeds: unresolvedFeeds,
+        expected: missingFeeds.length,
+        received: freshData.length,
+        resolved: missingFeeds.length - unresolvedFeeds.length,
+      });
+    }
+
+    return results;
   }
 
   private async getOptimizedVolumes(feeds: FeedId[], windowSec: number): Promise<FeedVolumeData[]> {

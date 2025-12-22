@@ -1,34 +1,13 @@
 import { OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-
-/**
- * Lifecycle management capabilities
- */
-export interface LifecycleCapabilities {
-  isServiceInitialized(): boolean;
-  isServiceDestroyed(): boolean;
-  ensureInitialized(): void;
-  createTimeout(callback: () => void, delay: number): NodeJS.Timeout;
-  createInterval(callback: () => void, delay: number): NodeJS.Timeout;
-  clearTimer(timer: NodeJS.Timeout): void;
-  clearInterval(interval: NodeJS.Timeout): void;
-  createEventDrivenScheduler(callback: () => void, batchDelay?: number): () => void;
-  waitForCondition(
-    condition: () => boolean | Promise<boolean>,
-    options?: {
-      maxAttempts?: number;
-      checkInterval?: number;
-      timeout?: number;
-    }
-  ): Promise<boolean>;
-  initialize?(): Promise<void>;
-  cleanup?(): Promise<void>;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { LifecycleCapabilities } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds lifecycle management to a service
  */
-export function WithLifecycle<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
+export function WithLifecycle<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & LifecycleCapabilities> {
   return class LifecycleMixin extends Base implements OnModuleInit, OnModuleDestroy, LifecycleCapabilities {
     public isInitialized = false;
     public isDestroyed = false;
@@ -36,11 +15,6 @@ export function WithLifecycle<TBase extends Constructor | AbstractConstructor>(B
     public cleanupPromise?: Promise<void>;
     public managedTimers = new Set<NodeJS.Timeout>();
     public managedIntervals = new Set<NodeJS.Timeout>();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(...args: any[]) {
-      super(...args);
-    }
 
     async onModuleInit(): Promise<void> {
       if (this.isInitialized || this.initializationPromise) {
@@ -202,5 +176,5 @@ export function WithLifecycle<TBase extends Constructor | AbstractConstructor>(B
         throw error;
       }
     }
-  };
+  } as unknown as AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & LifecycleCapabilities>;
 }

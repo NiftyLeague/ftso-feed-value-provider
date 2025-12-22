@@ -5,8 +5,12 @@ jest.mock("ws", () => {
   return MockWebSocket;
 });
 
-import { KrakenAdapter, KrakenTickerData } from "../kraken.adapter";
+import { KrakenAdapter } from "../kraken.adapter";
+import type { KrakenTickerData } from "@/common/types/adapters";
+import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
+import { TestHelpers } from "@/__tests__/utils/test.helpers";
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -40,7 +44,7 @@ describe("KrakenAdapter", () => {
 
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
-      expect(adapter.exchangeName).toBe("kraken");
+      expect(adapter.exchangeName).toBe(ExchangeId.Kraken);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -135,7 +139,7 @@ describe("KrakenAdapter", () => {
 
       expect(result.symbol).toBe("XBT/USD");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("kraken");
+      expect(result.source).toBe(ExchangeId.Kraken);
       expect(result.volume).toBe(5000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -147,7 +151,7 @@ describe("KrakenAdapter", () => {
 
       expect(result.symbol).toBe("XBT/USD");
       expect(result.volume).toBe(5000);
-      expect(result.source).toBe("kraken");
+      expect(result.source).toBe(ExchangeId.Kraken);
       expect(typeof result.timestamp).toBe("number");
     });
 
@@ -309,7 +313,7 @@ describe("KrakenAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USD");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("kraken");
+      expect(result.source).toBe(ExchangeId.Kraken);
       expect(result.volume).toBe(2000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -337,6 +341,296 @@ describe("KrakenAdapter", () => {
       });
 
       await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Kraken API error");
+    });
+
+    it("should throw when Kraken returns no result field", async () => {
+      const mockResponse = {
+        error: [],
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      await expect(adapter.fetchTickerREST("BTC/USD")).rejects.toThrow("No result data returned");
+    });
+
+    it.each([
+      ["EService:Unavailable", "Service temporarily unavailable"],
+      ["EAPI:Rate limit exceeded", "Rate limit exceeded"],
+      ["SomeOtherError", "Kraken API error"],
+    ])("should handle Kraken error code: %s", async (krakenError, expectedMessagePart) => {
+      const mockResponse = {
+        error: [krakenError],
+        result: {},
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      await expect(adapter.fetchTickerREST("BTC/USD")).rejects.toThrow(expectedMessagePart);
+    });
+  });
+
+  describe("WebSocket handlers", () => {
+    it.each([
+      [1006, "closed abnormally"],
+      [1001, "pong timeout"],
+      [1000, "closed normally"],
+      [4004, "inactivity"],
+      [9999, "code 9999"],
+    ])("handleWebSocketClose logs and returns true for code %s", (code, expectedMessagePart) => {
+      (adapter as any).isShuttingDown = false;
+
+      const handled = (adapter as any).handleWebSocketClose(code, "reason");
+
+      expect(handled).toBe(true);
+      expect((adapter as any).logger.debug).toHaveBeenCalled();
+      const msgArg = ((adapter as any).logger.debug as jest.Mock).mock.calls[0][0] as string;
+      expect(msgArg.toLowerCase()).toContain("kraken websocket closed");
+      expect(msgArg.toLowerCase()).toContain(expectedMessagePart);
+    });
+
+    it("handleWebSocketClose defers to base when shutting down", () => {
+      const baseSpy = jest.spyOn((BaseExchangeAdapter as any).prototype, "handleWebSocketClose").mockReturnValue(false);
+
+      (adapter as any).isShuttingDown = true;
+      const handled = (adapter as any).handleWebSocketClose(1000, "normal");
+
+      expect(baseSpy).toHaveBeenCalled();
+      expect(handled).toBe(false);
+
+      baseSpy.mockRestore();
+    });
+
+    it("handleWebSocketError handles 503 with callbacks and returns early", () => {
+      const onConn = jest.fn();
+      const onErr = jest.fn();
+      (adapter as any).onConnectionChangeCallback = onConn;
+      (adapter as any).onErrorCallback = onErr;
+      (adapter as any).isConnected_ = true;
+
+      (adapter as any).handleWebSocketError(new Error("503 Service Unavailable"));
+
+      expect((adapter as any).logger.warn).toHaveBeenCalled();
+      expect((adapter as any).isConnected_).toBe(false);
+      expect(onConn).toHaveBeenCalledWith(false);
+      expect(onErr).toHaveBeenCalled();
+    });
+
+    it("handleWebSocketError handles unexpected server response >= 500", () => {
+      const onConn = jest.fn();
+      const onErr = jest.fn();
+      (adapter as any).onConnectionChangeCallback = onConn;
+      (adapter as any).onErrorCallback = onErr;
+      (adapter as any).isConnected_ = true;
+
+      (adapter as any).handleWebSocketError(new Error("Unexpected server response: 502"));
+
+      expect((adapter as any).logger.warn).toHaveBeenCalled();
+      expect((adapter as any).isConnected_).toBe(false);
+      expect(onConn).toHaveBeenCalledWith(false);
+      expect(onErr).toHaveBeenCalled();
+    });
+
+    it("handleWebSocketError defers to base for other errors", () => {
+      const baseSpy = jest
+        .spyOn((BaseExchangeAdapter as any).prototype, "handleWebSocketError")
+        .mockImplementation(() => undefined);
+
+      (adapter as any).handleWebSocketError(new Error("Some other error"));
+
+      expect(baseSpy).toHaveBeenCalled();
+      baseSpy.mockRestore();
+    });
+
+    it("handleWebSocketMessage processes array ticker updates", () => {
+      const onPriceUpdate = jest.fn();
+      (adapter as any).onPriceUpdateCallback = onPriceUpdate;
+
+      const message = JSON.stringify([
+        123,
+        {
+          a: ["50001.00", "1", "1.000"],
+          b: ["49999.00", "1", "1.000"],
+          c: ["50000.00", "0.1"],
+          v: ["1000.0", "5000.0"],
+          p: ["50000.0", "49500.0"],
+          t: [1, 2],
+          l: ["48000.0", "47000.0"],
+          h: ["51000.0", "52000.0"],
+          o: ["49000.0", "48000.0"],
+        },
+        "ticker",
+        "XBT/USD",
+      ]);
+
+      (adapter as any).handleWebSocketMessage(message);
+
+      expect(onPriceUpdate).toHaveBeenCalled();
+      const update = onPriceUpdate.mock.calls[0][0];
+      expect(update.source).toBe(ExchangeId.Kraken);
+      expect(update.symbol).toBe("XBT/USD");
+      expect(update.price).toBe(50000);
+    });
+
+    it("handleWebSocketMessage handles systemStatus and subscriptionStatus branches", () => {
+      (adapter as any).handleWebSocketMessage(JSON.stringify({ event: "systemStatus", status: "online" }));
+      expect((adapter as any).logger.debug).toHaveBeenCalled();
+
+      (adapter as any).handleWebSocketMessage(
+        JSON.stringify({ event: "subscriptionStatus", status: "subscribed", pair: "BTC/USD" })
+      );
+      expect((adapter as any).logger.debug).toHaveBeenCalled();
+
+      (adapter as any).handleWebSocketMessage(
+        JSON.stringify({
+          event: "subscriptionStatus",
+          status: "error",
+          pair: "BTC/USD",
+          errorMessage: "msg rate exceeded",
+        })
+      );
+      expect((adapter as any).logger.warn).not.toHaveBeenCalled();
+
+      (adapter as any).handleWebSocketMessage(
+        JSON.stringify({
+          event: "subscriptionStatus",
+          status: "error",
+          pair: "BTC/USD",
+          errorMessage: "some other error",
+        })
+      );
+      expect((adapter as any).logger.warn).toHaveBeenCalled();
+    });
+
+    it("handleWebSocketMessage handles pong and calls onPongReceived", () => {
+      const onPongReceived = jest.fn();
+      (adapter as any).onPongReceived = onPongReceived;
+
+      (adapter as any).handleWebSocketMessage(JSON.stringify({ event: "pong" }));
+
+      expect(onPongReceived).toHaveBeenCalled();
+    });
+
+    it("handleWebSocketMessage ignores non-parseable messages", () => {
+      (adapter as any).parseWebSocketData = jest.fn().mockReturnValue(null);
+
+      (adapter as any).handleWebSocketMessage("not json");
+
+      expect((adapter as any).logger.debug).toHaveBeenCalled();
+    });
+
+    it("handleWebSocketMessage treats JSON parse errors as non-critical", () => {
+      const onErr = jest.fn();
+      (adapter as any).onErrorCallback = onErr;
+
+      (adapter as any).handleWebSocketMessage("{");
+
+      expect((adapter as any).logger.debug).toHaveBeenCalled();
+      expect(onErr).not.toHaveBeenCalled();
+    });
+
+    it("handleWebSocketMessage calls onErrorCallback for non-parse errors", () => {
+      const onErr = jest.fn();
+      (adapter as any).onErrorCallback = onErr;
+      (adapter as any).parseWebSocketData = jest.fn(() => {
+        throw new Error("boom");
+      });
+
+      (adapter as any).handleWebSocketMessage("whatever");
+
+      expect((adapter as any).logger.warn).toHaveBeenCalled();
+      expect(onErr).toHaveBeenCalled();
+    });
+  });
+
+  describe("ping", () => {
+    it("sendPingMessage sends ping and occasionally logs", () => {
+      const randomSpy = jest.spyOn(Math, "random").mockReturnValue(0.05);
+      (adapter as any).isWebSocketConnected = jest.fn().mockReturnValue(true);
+      (adapter as any).sendWebSocketMessage = jest.fn().mockResolvedValue(undefined);
+
+      (adapter as any).sendPingMessage();
+
+      expect((adapter as any).sendWebSocketMessage).toHaveBeenCalledWith(JSON.stringify({ event: "ping" }));
+      expect((adapter as any).logger.log).toHaveBeenCalled();
+
+      randomSpy.mockRestore();
+    });
+
+    it("sendPingMessage warns when not connected", () => {
+      (adapter as any).isWebSocketConnected = jest.fn().mockReturnValue(false);
+
+      (adapter as any).sendPingMessage();
+
+      expect((adapter as any).logger.warn).toHaveBeenCalled();
+    });
+
+    it("sendPingMessage triggers error handling if send fails", () => {
+      (adapter as any).isWebSocketConnected = jest.fn().mockReturnValue(true);
+      (adapter as any).sendWebSocketMessage = jest.fn(() => {
+        throw new Error("send failed");
+      });
+
+      const handleErrorSpy = jest.spyOn(adapter as any, "handleWebSocketError").mockImplementation(() => undefined);
+
+      (adapter as any).sendPingMessage();
+
+      expect((adapter as any).logger.warn).toHaveBeenCalled();
+      expect(handleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription batching", () => {
+    it("doSubscribe sends in batches and waits between batches", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (adapter as any).sendWebSocketMessage = jest.fn().mockResolvedValue(undefined);
+
+        const symbols = ["BTC/USD", "ETH/USD", "SOL/USD", "FLR/USD", "XRP/USD", "DOGE/USD"]; // 6 symbols => 2 batches
+        const p = (adapter as any).doSubscribe(symbols);
+
+        // First batch delay
+        await Promise.resolve();
+        jest.advanceTimersByTime(2000);
+
+        await p;
+
+        expect((adapter as any).sendWebSocketMessage).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it("doSubscribe waits longer after a batch error", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (adapter as any).sendWebSocketMessage = jest
+          .fn()
+          .mockRejectedValueOnce(new Error("rate limited"))
+          .mockResolvedValueOnce(undefined);
+
+        const symbols = ["BTC/USD", "ETH/USD", "SOL/USD", "FLR/USD", "XRP/USD", "DOGE/USD"]; // 2 batches
+        const p = (adapter as any).doSubscribe(symbols);
+
+        // Error-path delay
+        await Promise.resolve();
+        jest.advanceTimersByTime(5000);
+
+        await p;
+
+        expect((adapter as any).logger.warn).toHaveBeenCalled();
+        expect((adapter as any).sendWebSocketMessage).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it("doUnsubscribe swallows send errors", async () => {
+      await TestHelpers.withFakeTimersAsync(async () => {
+        (adapter as any).sendWebSocketMessage = jest.fn().mockRejectedValue(new Error("send failed"));
+
+        await expect((adapter as any).doUnsubscribe(["BTC/USD"])).resolves.toBeUndefined();
+        expect((adapter as any).logger.warn).toHaveBeenCalled();
+      });
     });
   });
 

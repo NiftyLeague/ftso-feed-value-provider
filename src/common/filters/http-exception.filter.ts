@@ -2,12 +2,7 @@ import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Injec
 import { Request, Response } from "express";
 import type { EnhancedErrorResponse, StandardErrorMetadata } from "@/common/types/error-handling";
 import { StandardErrorClassification, createEnhancedErrorResponse, ErrorSeverity } from "@/common/types/error-handling";
-
-// Extended Request interface for authentication and session data
-interface IExtendedRequest extends Request {
-  user?: { id: string; [key: string]: unknown };
-  session?: { id: string; [key: string]: unknown };
-}
+import type { IExtendedRequest } from "@/common/types/http";
 
 // Type for HTTP exception response objects
 interface HttpExceptionResponse {
@@ -401,7 +396,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else if (status >= 500) {
       logLevel = "error";
     } else if (status >= 400) {
-      logLevel = "warn";
+      // Client errors are often expected in public APIs; avoid WARN spam.
+      // Keep higher visibility for auth/rate-limit signals.
+      if (
+        status === HttpStatus.TOO_MANY_REQUESTS ||
+        status === HttpStatus.UNAUTHORIZED ||
+        status === HttpStatus.FORBIDDEN
+      ) {
+        logLevel = "warn";
+      } else {
+        logLevel = "debug";
+      }
     } else {
       logLevel = "log";
     }

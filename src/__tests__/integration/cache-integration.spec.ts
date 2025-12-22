@@ -4,6 +4,8 @@ import { CacheWarmerService } from "@/cache/cache-warmer.service";
 import { CachePerformanceMonitorService } from "@/cache/cache-performance-monitor.service";
 import { type CoreFeedId, FeedCategory } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
+import { ExchangeId } from "@/common/types/adapters";
+import { ENV } from "@/config/environment.constants";
 
 describe("Cache Service Integration", () => {
   let cacheService: RealTimeCacheService;
@@ -19,7 +21,7 @@ describe("Cache Service Integration", () => {
     symbol: "BTC/USD",
     price: 50000,
     timestamp: Date.now(),
-    sources: ["binance", "coinbase"],
+    sources: [ExchangeId.Binance, ExchangeId.Coinbase],
     confidence: 0.95,
     consensusScore: 0.98,
   };
@@ -201,10 +203,11 @@ describe("Cache Service Integration", () => {
   });
 
   describe("Cache TTL and Freshness", () => {
-    it("should respect 3-second TTL maximum", () => {
+    it("should respect configured TTL maximum", () => {
       const now = Date.now();
+      const maxTtlMs = ENV.CACHE.TTL_MS;
 
-      // Set price with long TTL (should be capped at 3 seconds)
+      // Set entry with long TTL (should be capped at configured max)
       cacheService.set(
         "test-key",
         {
@@ -213,20 +216,20 @@ describe("Cache Service Integration", () => {
           sources: ["test"],
           confidence: 1.0,
         },
-        5000
-      ); // 5 seconds requested
+        maxTtlMs + 2000
+      );
 
       // Verify it's cached initially
       let cached = cacheService.get("test-key");
       expect(cached).toBeDefined();
 
-      // Wait for TTL to expire (slightly more than 3 seconds)
+      // Wait for TTL to expire (slightly more than configured max)
       return new Promise<void>(resolve => {
         setTimeout(() => {
           cached = cacheService.get("test-key");
-          expect(cached).toBeNull(); // Should be expired due to 3-second TTL cap
+          expect(cached).toBeNull(); // Should be expired due to max TTL cap
           resolve();
-        }, 3100);
+        }, maxTtlMs + 100);
       });
     }, 30000); // Increased timeout
 

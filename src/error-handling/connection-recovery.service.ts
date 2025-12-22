@@ -1,57 +1,33 @@
 import { Injectable } from "@nestjs/common";
 import { FailoverManager } from "@/data-manager/failover-manager.service";
+import { ExchangeId } from "@/common/types/adapters";
 import { EventDrivenService } from "@/common/base/composed.service";
-import type { BaseServiceConfig } from "@/common/types";
 import type { DataSource, CoreFeedId } from "@/common/types/core";
-import { CircuitBreakerState } from "@/common/types/error-handling";
+import {
+  CircuitBreakerState,
+  ConnectionRecoveryConfig,
+  FailoverResult,
+  RecoveryStrategy,
+  SourceConnectionHealth,
+} from "@/common/types/error-handling";
 import { CircuitBreakerService } from "./circuit-breaker.service";
 import { ENV } from "@/config/environment.constants";
 import { getErrorCategoryString, getBackoffParameters } from "@/common/utils/error-classification.utils";
 
-export interface ConnectionRecoveryConfig extends BaseServiceConfig {
-  maxFailoverTime: number; // Maximum time to complete failover (ms) - Requirement 7.2
-  healthCheckInterval: number; // How often to check connection health (ms)
-  reconnectDelay: number; // Initial delay before reconnection attempt (ms)
-  maxReconnectDelay: number; // Maximum delay between reconnection attempts (ms)
-  backoffMultiplier: number; // Exponential backoff multiplier
-  maxReconnectAttempts: number; // Maximum number of reconnection attempts
-  gracefulDegradationThreshold: number; // Minimum sources needed to avoid degradation
-}
-
-export interface ConnectionHealth {
-  sourceId: string;
-  isConnected: boolean;
-  isHealthy: boolean;
-  lastConnected?: number;
-  lastDisconnected?: number;
-  reconnectAttempts: number;
-  consecutiveFailures: number;
-  averageLatency: number;
-  circuitBreakerState: CircuitBreakerState;
-}
-
-export interface FailoverResult {
-  success: boolean;
-  failoverTime: number;
-  activatedSources: string[];
-  deactivatedSources: string[];
-  degradationLevel: "none" | "partial" | "severe";
-}
-
-export interface RecoveryStrategy {
-  sourceId: string;
-  strategy: "reconnect" | "failover" | "circuit_breaker" | "graceful_degradation";
-  priority: number;
-  estimatedRecoveryTime: number;
-}
-
 @Injectable()
 export class ConnectionRecoveryService extends EventDrivenService {
   private dataSources = new Map<string, DataSource>();
-  private connectionHealth = new Map<string, ConnectionHealth>();
+  private connectionHealth = new Map<string, SourceConnectionHealth>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private healthCheckTimer?: NodeJS.Timeout;
-  private feedSourceMapping = new Map<string, string[]>(); // feedId -> sourceIds
+  private feedSourceMapping = new Map<string, (ExchangeId | string)[]>(); // feedId -> sourceIds
+
+  private readonly connectionChangeHandlers = new Map<string, (connected: boolean) => void>();
+
+  private monitoringStarted = false;
+  private failoverEventHandlersAttached = false;
+
+  private shutdownInProgress = false;
 
   // Rate limiting for reconnection attempts
   private lastReconnectAttempt = new Map<string, number>();
@@ -70,8 +46,18 @@ export class ConnectionRecoveryService extends EventDrivenService {
       maxReconnectAttempts: ENV.CONNECTION_RECOVERY.MAX_RECONNECT_ATTEMPTS,
       gracefulDegradationThreshold: ENV.CONNECTION_RECOVERY.GRACEFUL_DEGRADATION_THRESHOLD,
     });
-    this.startHealthMonitoring();
-    this.setupEventHandlers();
+  }
+
+  override async initialize(): Promise<void> {
+    if (!this.failoverEventHandlersAttached) {
+      this.setupEventHandlers();
+      this.failoverEventHandlersAttached = true;
+    }
+
+    if (!this.monitoringStarted) {
+      this.startHealthMonitoring();
+      this.monitoringStarted = true;
+    }
   }
 
   /**
@@ -85,6 +71,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
    * Register a data source for connection recovery management
    */
   async registerDataSource(source: DataSource): Promise<void> {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     this.logger.log(`Registering data source for connection recovery: ${source.id}`);
 
     // Register with circuit breaker - very lenient for WebSocket sources
@@ -111,9 +100,12 @@ export class ConnectionRecoveryService extends EventDrivenService {
     this.dataSources.set(source.id, source);
 
     // Set up connection monitoring
-    source.onConnectionChange((connected: boolean) => {
+    this.detachConnectionChangeHandler(source.id, source);
+    const handler = (connected: boolean) => {
       this.handleConnectionChange(source.id, connected);
-    });
+    };
+    this.connectionChangeHandlers.set(source.id, handler);
+    source.onConnectionChange(handler);
 
     // Register with failover manager
     this.failoverManager.registerDataSource(source);
@@ -126,6 +118,11 @@ export class ConnectionRecoveryService extends EventDrivenService {
    */
   async unregisterDataSource(sourceId: string): Promise<void> {
     this.logger.log(`Unregistering data source: ${sourceId}`);
+
+    const source = this.dataSources.get(sourceId);
+    if (source) {
+      this.detachConnectionChangeHandler(sourceId, source);
+    }
 
     // Cancel any pending reconnection
     const timer = this.reconnectTimers.get(sourceId);
@@ -157,10 +154,39 @@ export class ConnectionRecoveryService extends EventDrivenService {
     this.emit("sourceUnregistered", sourceId);
   }
 
+  private detachConnectionChangeHandler(sourceId: string, source: DataSource): void {
+    const handler = this.connectionChangeHandlers.get(sourceId);
+    if (!handler) {
+      return;
+    }
+
+    const emitter = source as unknown as {
+      off?: (event: string, listener: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+    };
+
+    const detach =
+      typeof emitter.off === "function"
+        ? emitter.off.bind(source)
+        : typeof emitter.removeListener === "function"
+          ? emitter.removeListener.bind(source)
+          : undefined;
+
+    if (detach) {
+      detach("connectionChange", handler as unknown as (...args: unknown[]) => void);
+    }
+
+    this.connectionChangeHandlers.delete(sourceId);
+  }
+
   /**
    * Configure feed-to-source mapping for intelligent failover
    */
-  configureFeedSources(feedId: CoreFeedId, primarySources: string[], backupSources: string[]): void {
+  configureFeedSources(
+    feedId: CoreFeedId,
+    primarySources: (ExchangeId | string)[],
+    backupSources: (ExchangeId | string)[]
+  ): void {
     const feedKey = this.getFeedKey(feedId);
     const allSources = [...primarySources, ...backupSources];
 
@@ -351,7 +377,7 @@ export class ConnectionRecoveryService extends EventDrivenService {
   /**
    * Get connection health for all sources
    */
-  getConnectionHealth(): Map<string, ConnectionHealth> {
+  getConnectionHealth(): Map<string, SourceConnectionHealth> {
     // Update circuit breaker states
     for (const [sourceId, health] of this.connectionHealth.entries()) {
       health.circuitBreakerState = this.circuitBreaker.getState(sourceId) || CircuitBreakerState.CLOSED;
@@ -413,6 +439,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private handleConnectionChange(sourceId: string, connected: boolean): void {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     const health = this.connectionHealth.get(sourceId);
     if (!health) return;
 
@@ -429,13 +458,17 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private async handleConnectionLost(sourceId: string): Promise<void> {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     const health = this.connectionHealth.get(sourceId);
     if (health) {
+      const previousDisconnected = health.lastDisconnected;
       health.lastDisconnected = Date.now();
       health.consecutiveFailures++;
 
       // Only warn on first failure or after significant time
-      const timeSinceLastDisconnect = health.lastDisconnected - (health.lastDisconnected || 0);
+      const timeSinceLastDisconnect = previousDisconnected ? health.lastDisconnected - previousDisconnected : Infinity;
       if (health.consecutiveFailures === 1 || timeSinceLastDisconnect > 60000) {
         // 1 minute
         this.logger.warn(`Connection lost for source: ${sourceId} (attempt ${health.consecutiveFailures})`);
@@ -449,6 +482,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private handleConnectionRestored(sourceId: string): void {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     this.logger.log(`Connection restored for source: ${sourceId}`);
 
     const health = this.connectionHealth.get(sourceId);
@@ -466,9 +502,8 @@ export class ConnectionRecoveryService extends EventDrivenService {
       this.reconnectTimers.delete(sourceId);
     }
 
-    // CRITICAL FIX: Reset circuit breaker stats to prevent immediate re-opening
-    // This ensures that subscription failures during reconnection don't immediately
-    // re-open the circuit that we just closed
+    // CRITICAL FIX: Reset circuit breaker stats to prevent immediate re-opening.
+    // Safe during shutdown: resetStats is a no-op when unregistered and closeCircuit silently no-ops.
     this.circuitBreaker.resetStats(sourceId);
     this.circuitBreaker.closeCircuit(sourceId, "Connection restored");
 
@@ -476,6 +511,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
   }
 
   private scheduleRecovery(sourceId: string, errorType?: string): void {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     const health = this.connectionHealth.get(sourceId);
     const source = this.dataSources.get(sourceId);
 
@@ -666,6 +704,9 @@ export class ConnectionRecoveryService extends EventDrivenService {
    * Handle disconnection event with optional error information
    */
   async handleDisconnection(sourceId: string, error?: Error): Promise<void> {
+    if (this.shutdownInProgress || this.cleanupPromise) {
+      return;
+    }
     try {
       const errorType = error ? this.categorizeConnectionError(error) : "unknown";
       this.logger.debug(`Handling disconnection for source: ${sourceId}${error ? ` (${errorType})` : ""}`);
@@ -718,5 +759,10 @@ export class ConnectionRecoveryService extends EventDrivenService {
 
     // Remove all event listeners to prevent memory leaks
     this.removeAllListeners();
+  }
+
+  override async cleanup(): Promise<void> {
+    this.shutdownInProgress = true;
+    this.destroy();
   }
 }

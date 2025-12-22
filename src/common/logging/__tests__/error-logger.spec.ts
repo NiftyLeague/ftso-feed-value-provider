@@ -2,6 +2,7 @@ import { ErrorLogger } from "../error-logger";
 import { ErrorSeverity, ErrorCode } from "../../types/error-handling/error.types";
 import * as fs from "fs";
 import * as path from "path";
+import { TestHelpers } from "@/__tests__/utils";
 
 // Mock fs module
 jest.mock("fs");
@@ -155,26 +156,26 @@ describe("ErrorLogger", () => {
     });
 
     it("should filter recent errors correctly", () => {
-      // Mock Date.now to control timestamps
-      const originalNow = Date.now;
       let mockTime = 1000000; // Base time
-      Date.now = jest.fn(() => mockTime);
 
-      // Add an old error (more than 1 hour ago)
-      errorLogger.logError(new Error("Old error"));
+      TestHelpers.withMockedNow(
+        () => mockTime,
+        () => {
+          // Add an old error (more than 1 hour ago)
+          errorLogger.logError(new Error("Old error"));
 
-      // Move time forward by 2 hours
-      mockTime += 2 * 60 * 60 * 1000;
+          // Move time forward by 2 hours
+          mockTime += 2 * 60 * 60 * 1000;
 
-      // Add a recent error
-      errorLogger.logError(new Error("Recent error"));
+          // Add a recent error
+          errorLogger.logError(new Error("Recent error"));
 
-      const stats = errorLogger.getStatistics();
+          const stats = errorLogger.getStatistics();
 
-      expect(stats.recentErrors).toHaveLength(1);
-      expect(stats.recentErrors[0].error.message).toBe("Recent error");
-
-      Date.now = originalNow;
+          expect(stats.recentErrors).toHaveLength(1);
+          expect(stats.recentErrors[0].error.message).toBe("Recent error");
+        }
+      );
     });
   });
 

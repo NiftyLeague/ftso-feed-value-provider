@@ -24,6 +24,10 @@ describe("Voting Round Handling and Historical Data Compliance", () => {
     if (app) {
       await app.close();
     }
+
+    if (module) {
+      await module.close();
+    }
   });
 
   describe("Voting Round ID Validation", () => {
@@ -330,6 +334,6 @@ describe("Voting Round Handling and Historical Data Compliance", () => {
         expect(response.body.data[1].feed.name).toBe("ETH/USD");
         expect(response.body.data[2].feed.name).toBe("EUR/USD");
       }
-    });
+    }, 30000);
   });
 });

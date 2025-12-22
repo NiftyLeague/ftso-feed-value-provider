@@ -6,6 +6,8 @@ import { StandardizedErrorHandlerService } from "@/error-handling/standardized-e
 import { UniversalRetryService } from "@/error-handling/universal-retry.service";
 import { ProductionDataManagerService } from "@/data-manager/production-data-manager.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
+import { ENV } from "@/config/environment.constants";
 
 import { DataSourceIntegrationService } from "../data-source-integration.service";
 import { DataSourceFactory } from "../data-source.factory";
@@ -139,6 +141,18 @@ describe("DataSourceIntegrationService", () => {
   });
 
   describe("initialize", () => {
+    it("should skip initialization when already initialized", async () => {
+      (service as any).isInitialized = true;
+
+      const registerSpy = jest.spyOn(service as any, "registerExchangeAdapters");
+      const logSpy = jest.spyOn((service as any).logger, "log").mockImplementation(() => undefined);
+
+      await service.initialize();
+
+      expect(logSpy).toHaveBeenCalledWith("Data source integration already initialized, skipping");
+      expect(registerSpy).not.toHaveBeenCalled();
+    });
+
     it("should verify exchange adapters via registry presence checks", async () => {
       // Arrange
       adapterRegistry.getFiltered.mockReturnValue([]);
@@ -147,7 +161,7 @@ describe("DataSourceIntegrationService", () => {
       await service.initialize();
 
       // Assert: ensure presence checks were made for expected adapters
-      const expected = ["binance", "coinbase", "cryptocom", "kraken", "okx", "ccxt-multi-exchange"];
+      const expected = [...ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS, ExchangeId.CcxtMultiExchange];
       for (const name of expected) {
         expect(adapterRegistry.has).toHaveBeenCalledWith(name);
       }
@@ -186,7 +200,7 @@ describe("DataSourceIntegrationService", () => {
     it("should start data sources from active adapters", async () => {
       // Arrange
       const mockAdapter = {
-        exchangeName: "binance",
+        exchangeName: ExchangeId.Binance,
         isActive: true,
         category: 1,
         capabilities: {
@@ -216,7 +230,7 @@ describe("DataSourceIntegrationService", () => {
         updateConfig: jest.fn(),
       } as any;
       const mockDataSource = {
-        id: "binance",
+        id: ExchangeId.Binance,
         priority: 1,
         type: "websocket" as const,
         category: 1,
@@ -242,8 +256,40 @@ describe("DataSourceIntegrationService", () => {
       // Assert
       expect(dataSourceFactory.createFromAdapter).toHaveBeenCalledWith(mockAdapter, 1);
       expect(connectionRecovery.registerDataSource).toHaveBeenCalledWith(mockDataSource);
-      expect(circuitBreaker.registerCircuit).toHaveBeenCalledWith("binance", expect.any(Object));
+      expect(circuitBreaker.registerCircuit).toHaveBeenCalledWith(ExchangeId.Binance, expect.any(Object));
       expect(dataManager.addDataSource).toHaveBeenCalledWith(mockDataSource);
+    });
+  });
+
+  describe("internal helpers", () => {
+    it("initializeDependency throws when dependency does not support initialization", async () => {
+      await expect((service as any).initializeDependency({}, "unknown")).rejects.toThrow(TypeError);
+    });
+
+    it("performCircuitHealthCheck resets circuits when source is connected", () => {
+      // Arrange
+      (circuitBreaker as any).getAllStates = jest
+        .fn()
+        .mockReturnValue(new Map<string, string>([[ExchangeId.Binance, "open"]]));
+      (circuitBreaker as any).resetStats = jest.fn();
+
+      dataManager.getConnectedSources.mockReturnValue([
+        {
+          id: ExchangeId.Binance,
+          isConnected: jest.fn().mockReturnValue(true),
+        } as any,
+      ]);
+
+      // Act
+      (service as any).performCircuitHealthCheck();
+
+      // Assert
+      expect((circuitBreaker as any).resetStats).toHaveBeenCalledWith(ExchangeId.Binance);
+      expect(circuitBreaker.closeCircuit).toHaveBeenCalledWith(
+        ExchangeId.Binance,
+        "Periodic health check - source is connected"
+      );
+      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith(ExchangeId.Binance, "healthy");
     });
   });
 
@@ -318,7 +364,7 @@ describe("DataSourceIntegrationService", () => {
       // Arrange
       const mockSources = [
         {
-          id: "binance",
+          id: ExchangeId.Binance,
           type: "websocket" as const,
           priority: 1,
           category: 1,
@@ -333,7 +379,7 @@ describe("DataSourceIntegrationService", () => {
           onError: jest.fn(),
         },
         {
-          id: "coinbase",
+          id: ExchangeId.Coinbase,
           type: "websocket" as const,
           priority: 1,
           category: 1,
@@ -356,12 +402,12 @@ describe("DataSourceIntegrationService", () => {
       await service.shutdown();
 
       // Assert
-      expect(connectionRecovery.unregisterDataSource).toHaveBeenCalledWith("binance");
-      expect(connectionRecovery.unregisterDataSource).toHaveBeenCalledWith("coinbase");
-      expect(circuitBreaker.unregisterCircuit).toHaveBeenCalledWith("binance");
-      expect(circuitBreaker.unregisterCircuit).toHaveBeenCalledWith("coinbase");
-      expect(dataManager.removeDataSource).toHaveBeenCalledWith("binance");
-      expect(dataManager.removeDataSource).toHaveBeenCalledWith("coinbase");
+      expect(connectionRecovery.unregisterDataSource).toHaveBeenCalledWith(ExchangeId.Binance);
+      expect(connectionRecovery.unregisterDataSource).toHaveBeenCalledWith(ExchangeId.Coinbase);
+      expect(circuitBreaker.unregisterCircuit).toHaveBeenCalledWith(ExchangeId.Binance);
+      expect(circuitBreaker.unregisterCircuit).toHaveBeenCalledWith(ExchangeId.Coinbase);
+      expect(dataManager.removeDataSource).toHaveBeenCalledWith(ExchangeId.Binance);
+      expect(dataManager.removeDataSource).toHaveBeenCalledWith(ExchangeId.Coinbase);
       expect(dataManager.cleanup).toHaveBeenCalled();
     });
   });
@@ -420,7 +466,7 @@ describe("DataSourceIntegrationService", () => {
         symbol: "BTC/USD",
         price: 50000,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         volume: 1000,
         confidence: 0.95,
       };
@@ -434,13 +480,13 @@ describe("DataSourceIntegrationService", () => {
       priceUpdateHandler?.(priceUpdate);
 
       // Assert
-      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith("binance", "healthy");
+      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith(ExchangeId.Binance, "healthy");
       expect(emitSpy).toHaveBeenCalledWith("priceUpdate", priceUpdate);
     });
 
     it("should handle source errors correctly", async () => {
       // Arrange
-      const sourceId = "binance";
+      const sourceId = ExchangeId.Binance;
       const error = new Error("Connection failed");
       const emitSpy = jest.spyOn(service, "emit");
 
@@ -455,13 +501,13 @@ describe("DataSourceIntegrationService", () => {
 
       // Assert
       expect(errorHandler.executeWithStandardizedHandling).toHaveBeenCalled();
-      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith("binance", "unhealthy");
+      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith(ExchangeId.Binance, "unhealthy");
       expect(emitSpy).toHaveBeenCalledWith("sourceError", sourceId, error);
     });
 
     it("should handle source unhealthy events correctly", () => {
       // Arrange
-      const sourceId = "binance";
+      const sourceId = ExchangeId.Binance;
       const emitSpy = jest.spyOn(service, "emit");
 
       // Mock circuit breaker stats to simulate severe failures
@@ -477,15 +523,18 @@ describe("DataSourceIntegrationService", () => {
       sourceUnhealthyHandler?.(sourceId);
 
       // Assert
-      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith("binance", "unhealthy");
+      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith(ExchangeId.Binance, "unhealthy");
       // Circuit only opens on severe failures (>10), which we've mocked
-      expect(circuitBreaker.openCircuit).toHaveBeenCalledWith("binance", "Source unhealthy with excessive failures");
+      expect(circuitBreaker.openCircuit).toHaveBeenCalledWith(
+        ExchangeId.Binance,
+        "Source unhealthy with excessive failures"
+      );
       expect(emitSpy).toHaveBeenCalledWith("sourceUnhealthy", sourceId);
     });
 
     it("should handle source healthy events correctly", () => {
       // Arrange
-      const sourceId = "binance";
+      const sourceId = ExchangeId.Binance;
       const emitSpy = jest.spyOn(service, "emit");
 
       // Get the source healthy handler
@@ -495,7 +544,7 @@ describe("DataSourceIntegrationService", () => {
       sourceHealthyHandler?.(sourceId);
 
       // Assert
-      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith("binance", "healthy");
+      expect(adapterRegistry.updateHealthStatus).toHaveBeenCalledWith(ExchangeId.Binance, "healthy");
       expect(emitSpy).toHaveBeenCalledWith("sourceHealthy", sourceId);
     });
   });

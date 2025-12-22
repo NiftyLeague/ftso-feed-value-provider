@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { ExchangeId } from "@/common/types/adapters";
 
 export class EnvironmentConfigDto {
   @ApiProperty({
@@ -331,9 +332,9 @@ export class HybridSummaryDto {
     description: "Custom adapter exchanges",
     type: "array",
     items: { type: "string" },
-    example: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
+    example: [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Cryptocom, ExchangeId.Kraken, ExchangeId.Okx],
   })
-  customAdapterExchanges!: string[];
+  customAdapterExchanges!: ExchangeId[];
 
   @ApiProperty({
     description: "CCXT exchanges",
@@ -391,9 +392,9 @@ export class HybridProviderConfigDto {
     description: "Custom adapter exchanges",
     type: "array",
     items: { type: "string" },
-    example: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
+    example: [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Cryptocom, ExchangeId.Kraken, ExchangeId.Okx],
   })
-  customAdapterExchanges!: string[];
+  customAdapterExchanges!: ExchangeId[];
 
   @ApiProperty({
     description: "CCXT exchanges",
@@ -415,9 +416,9 @@ export class AdapterConfigurationResponseDto {
     description: "Custom adapter exchanges",
     type: "array",
     items: { type: "string" },
-    example: ["binance", "coinbase", "cryptocom", "kraken", "okx"],
+    example: [ExchangeId.Binance, ExchangeId.Coinbase, ExchangeId.Cryptocom, ExchangeId.Kraken, ExchangeId.Okx],
   })
-  customAdapterExchanges!: string[];
+  customAdapterExchanges!: ExchangeId[];
 
   @ApiProperty({
     description: "CCXT exchanges",

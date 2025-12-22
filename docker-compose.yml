@@ -8,13 +8,15 @@ services:
     restart: unless-stopped
     ports:
       - '3101:3101' # API port
-      - '9090:9090' # Metrics port
     environment:
       # Minimal environment configuration - most defaults are optimized in environment.constants.ts
       # Core settings
       - NODE_ENV=${NODE_ENV:-production}
       - LOG_LEVEL=${LOG_LEVEL:-log}
       - APP_PORT=${APP_PORT:-3101}
+
+      # Optional: Disabled adapters will fall back to CCXT multi-exchange handling
+      - DISABLED_CUSTOM_ADAPTERS=${DISABLED_CUSTOM_ADAPTERS:-}
 
       # Optional: Proxy settings for bypassing geo-restrictions (HTTP 451 errors)
       - WEBSOCKET_PROXY_ENABLED=${WEBSOCKET_PROXY_ENABLED:-false}
@@ -29,7 +31,7 @@ services:
       # - ALERT_WEBHOOK_ENABLED=${ALERT_WEBHOOK_ENABLED:-false}
       # - ALERT_WEBHOOK_URL=${ALERT_WEBHOOK_URL}
     volumes:
-      - ftso-logs:/app/logs
+      - ftso-logs:/logs
     networks:
       - ftso-network
     healthcheck:
@@ -51,6 +53,7 @@ services:
       options:
         max-size: '10m'
         max-file: '3'
+    command: ['node', '--max-old-space-size=2048', 'dist/src/main.js']
     # Optional: Uncomment and configure these labels if using Traefik as reverse proxy
     # labels:
     #   - "traefik.enable=true"
@@ -75,7 +78,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
+      - '--storage.tsdb.retention.time=72h'
       - '--web.enable-lifecycle'
     networks:
       - ftso-network
@@ -99,6 +102,17 @@ services:
       - ftso-network
     profiles:
       - monitoring
+
+  log-pruner:
+    image: busybox:stable
+    container_name: ftso-log-pruner
+    restart: unless-stopped
+    volumes:
+      - ftso-logs:/logs
+      - ./monitoring/log-prune.cron:/etc/crontabs/root:ro
+    command: ['crond', '-f', '-l', '8', '-c', '/etc/crontabs']
+    networks:
+      - ftso-network
 
 volumes:
   ftso-logs:

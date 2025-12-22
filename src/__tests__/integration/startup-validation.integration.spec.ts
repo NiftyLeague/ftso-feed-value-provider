@@ -3,6 +3,7 @@ import { ConfigModule } from "@/config/config.module";
 import { StartupValidationService } from "@/integration/services/startup-validation.service";
 import { IntegrationService } from "@/integration/integration.service";
 import { ConfigService } from "@/config/config.service";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("Startup Validation Integration", () => {
   let module: TestingModule;
@@ -117,8 +118,8 @@ describe("Startup Validation Integration", () => {
         {
           feed: { category: 1, name: "FLR/USD" },
           sources: [
-            { exchange: "binance", symbol: "FLR/USDT" },
-            { exchange: "coinbase", symbol: "FLR/USD" },
+            { exchange: ExchangeId.Binance, symbol: "FLR/USDT" },
+            { exchange: ExchangeId.Coinbase, symbol: "FLR/USD" },
           ],
         },
       ];
@@ -150,7 +151,7 @@ describe("Startup Validation Integration", () => {
     });
 
     it("should validate adapter mappings", () => {
-      const hasCustomAdapter = configService.hasCustomAdapter("binance");
+      const hasCustomAdapter = configService.hasCustomAdapter(ExchangeId.Binance);
       expect(typeof hasCustomAdapter).toBe("boolean");
     });
   });

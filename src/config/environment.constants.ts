@@ -4,6 +4,7 @@
 
 import { EnvironmentUtils } from "@/common/utils/environment.utils";
 import type { LogLevel } from "@/common/types/logging";
+import { ExchangeId, isExchangeId } from "@/common/types/adapters";
 
 // Environment Helpers
 export const ENV_HELPERS = {
@@ -13,6 +14,35 @@ export const ENV_HELPERS = {
 };
 
 import * as packageJson from "../../package.json";
+
+const DEFAULT_CUSTOM_ADAPTERS: readonly ExchangeId[] = [
+  ExchangeId.Binance,
+  ExchangeId.Coinbase,
+  ExchangeId.Cryptocom,
+  ExchangeId.Kraken,
+  ExchangeId.Okx,
+];
+
+const parseDisabledCustomAdapters = (): ExchangeId[] => {
+  const validAdapters = new Set<ExchangeId>(DEFAULT_CUSTOM_ADAPTERS);
+  const disabled = EnvironmentUtils.parseList("DISABLED_CUSTOM_ADAPTERS", []);
+
+  return disabled
+    .map(value => value.toLowerCase())
+    .filter(isExchangeId)
+    .filter(adapter => validAdapters.has(adapter));
+};
+
+const parseDisabledCcxtExchanges = (): string[] => {
+  return EnvironmentUtils.parseList("DISABLED_CCXT_EXCHANGES", [])
+    .map(value => value.toLowerCase())
+    .map(value => value.trim())
+    .filter(Boolean);
+};
+
+const DISABLED_CUSTOM_ADAPTERS = parseDisabledCustomAdapters();
+const ACTIVE_CUSTOM_ADAPTERS = DEFAULT_CUSTOM_ADAPTERS.filter(adapter => !DISABLED_CUSTOM_ADAPTERS.includes(adapter));
+const DISABLED_CCXT_EXCHANGES = parseDisabledCcxtExchanges();
 
 export const ENV = {
   // Application Settings
@@ -35,6 +65,14 @@ export const ENV = {
     ENABLE_FILE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_FILE_LOGGING", false),
     ENABLE_PERFORMANCE_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_PERFORMANCE_LOGGING", false),
     ENABLE_DEBUG_LOGGING: EnvironmentUtils.parseBoolean("ENABLE_DEBUG_LOGGING", false),
+  },
+
+  // Adapter Configuration
+  ADAPTERS: {
+    CUSTOM_ADAPTERS: DEFAULT_CUSTOM_ADAPTERS,
+    DISABLED_CUSTOM_ADAPTERS,
+    ACTIVE_CUSTOM_ADAPTERS,
+    DISABLED_CCXT_EXCHANGES,
   },
 
   // Data Freshness
@@ -277,7 +315,7 @@ export const ENV = {
   // Cache System - Unified Configuration
   CACHE: {
     // Core cache settings
-    TTL_MS: EnvironmentUtils.parseInt("CACHE_TTL_MS", 3000, { min: 100, max: 10000 }),
+    TTL_MS: EnvironmentUtils.parseInt("CACHE_TTL_MS", 5000, { min: 100, max: 10000 }),
     MAX_ENTRIES: EnvironmentUtils.parseInt("CACHE_MAX_ENTRIES", 1500, { min: 100, max: 1000000 }),
     ACCESS_UPDATE_THRESHOLD_MS: EnvironmentUtils.parseInt("CACHE_ACCESS_UPDATE_THRESHOLD_MS", 100, {
       min: 50,
@@ -631,7 +669,7 @@ export const ENV = {
     }),
     CACHE_TTL_MS: EnvironmentUtils.parseInt("AGGREGATION_CACHE_TTL_MS", 300, { min: 100, max: 2000 }),
     MAX_CACHE_SIZE: EnvironmentUtils.parseInt("AGGREGATION_MAX_CACHE_SIZE", 250, { min: 100, max: 10000 }),
-    FRESH_DATA_THRESHOLD_MS: EnvironmentUtils.parseInt("AGGREGATION_FRESH_DATA_THRESHOLD_MS", 2000, {
+    FRESH_DATA_THRESHOLD_MS: EnvironmentUtils.parseInt("AGGREGATION_FRESH_DATA_THRESHOLD_MS", 5000, {
       min: 500,
       max: 10000,
     }),

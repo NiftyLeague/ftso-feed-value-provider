@@ -1,6 +1,7 @@
 import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { ConsensusAggregator } from "@/aggregators/consensus-aggregator.service";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 import { withLogging } from "../utils/test-logging.helpers";
 
 describe("Simple Performance Validation", () => {
@@ -32,7 +33,7 @@ describe("Simple Performance Validation", () => {
         const value = {
           value: Math.random() * 50000,
           timestamp: Date.now(),
-          sources: ["binance"],
+          sources: [ExchangeId.Binance],
           confidence: 0.95,
         };
 
@@ -93,21 +94,21 @@ describe("Simple Performance Validation", () => {
       const priceUpdates: PriceUpdate[] = [
         {
           symbol: "BTC/USD",
-          source: "binance",
+          source: ExchangeId.Binance,
           price: 45000,
           timestamp: Date.now(),
           confidence: 0.95,
         },
         {
           symbol: "BTC/USD",
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           price: 45010,
           timestamp: Date.now(),
           confidence: 0.94,
         },
         {
           symbol: "BTC/USD",
-          source: "kraken",
+          source: ExchangeId.Kraken,
           price: 44995,
           timestamp: Date.now(),
           confidence: 0.93,
@@ -153,14 +154,14 @@ describe("Simple Performance Validation", () => {
       const priceUpdates: PriceUpdate[] = [
         {
           symbol: "BTC/USD",
-          source: "binance",
+          source: ExchangeId.Binance,
           price: 45000,
           timestamp: Date.now(),
           confidence: 0.95,
         },
         {
           symbol: "BTC/USD",
-          source: "coinbase",
+          source: ExchangeId.Coinbase,
           price: 45010,
           timestamp: Date.now(),
           confidence: 0.94,
@@ -260,8 +261,8 @@ describe("Simple Performance Validation", () => {
 
       // Test aggregation performance
       const priceUpdates: PriceUpdate[] = [
-        { symbol: "BTC/USD", source: "binance", price: 45000, timestamp: Date.now(), confidence: 0.95 },
-        { symbol: "BTC/USD", source: "coinbase", price: 45010, timestamp: Date.now(), confidence: 0.94 },
+        { symbol: "BTC/USD", source: ExchangeId.Binance, price: 45000, timestamp: Date.now(), confidence: 0.95 },
+        { symbol: "BTC/USD", source: ExchangeId.Coinbase, price: 45010, timestamp: Date.now(), confidence: 0.94 },
       ];
 
       const aggStart = performance.now();

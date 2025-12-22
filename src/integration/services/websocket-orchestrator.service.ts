@@ -3,7 +3,8 @@ import { EventDrivenService } from "@/common/base/composed.service";
 import { ExchangeAdapterRegistry } from "@/adapters/base/exchange-adapter.registry";
 import { ConfigService } from "@/config/config.service";
 import { hasCustomAdapter } from "@/common/utils";
-import type { IExchangeAdapter } from "@/common/types/adapters";
+import { ENV } from "@/config/environment.constants";
+import { ExchangeId, type IExchangeAdapter } from "@/common/types/adapters";
 import type { CoreFeedId } from "@/common/types/core";
 
 interface ExchangeConnectionState {
@@ -26,6 +27,9 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   private exchangeStates = new Map<string, ExchangeConnectionState>();
   private feedToExchangeMap = new Map<string, Array<{ exchange: string; symbol: string }>>();
   public override isInitialized = false;
+
+  private connectInitTimer?: NodeJS.Timeout;
+  private subscribeInitTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly adapterRegistry: ExchangeAdapterRegistry,
@@ -70,9 +74,17 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
    * Initialize WebSocket connections asynchronously to avoid blocking server startup
    */
   private initializeConnectionsAsync(): void {
-    // Use setTimeout to ensure this runs after the current call stack
-    setTimeout(async () => {
+    // Use managed timeout so we don't leak timers across module restarts
+    if (this.connectInitTimer) {
+      clearTimeout(this.connectInitTimer);
+      this.connectInitTimer = undefined;
+    }
+
+    this.connectInitTimer = this.createTimeout(async () => {
       try {
+        if (!this.isInitialized) {
+          return;
+        }
         this.logger.log("Starting asynchronous WebSocket connections...");
 
         // Step 3: Connect to all required exchanges once
@@ -93,8 +105,16 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
    * Subscribe to required symbols asynchronously to avoid blocking
    */
   private subscribeToRequiredSymbolsAsync(): void {
-    setTimeout(async () => {
+    if (this.subscribeInitTimer) {
+      clearTimeout(this.subscribeInitTimer);
+      this.subscribeInitTimer = undefined;
+    }
+
+    this.subscribeInitTimer = this.createTimeout(async () => {
       try {
+        if (!this.isInitialized) {
+          return;
+        }
         await this.subscribeToRequiredSymbols();
         this.logger.log("Asynchronous symbol subscription completed");
       } catch (error) {
@@ -131,7 +151,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
 
       // Group by adapter type
       if (exchangeState.isConnected && !exchangeState.subscribedSymbols.has(config.symbol)) {
-        if (exchangeState.adapter.exchangeName === "ccxt-multi-exchange") {
+        if (exchangeState.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
           // Collect all CCXT symbols for batch subscription
           ccxtSymbols.add(config.symbol);
         } else {
@@ -149,7 +169,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
       // Find the CCXT adapter from any exchange state that uses it
       let ccxtAdapter: IExchangeAdapter | undefined;
       for (const state of this.exchangeStates.values()) {
-        if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+        if (state.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
           ccxtAdapter = state.adapter;
           break;
         }
@@ -166,7 +186,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
             await ccxtAdapter.subscribe(Array.from(ccxtSymbols));
             // Update all CCXT exchange states
             for (const state of this.exchangeStates.values()) {
-              if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+              if (state.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
                 ccxtSymbols.forEach(symbol => state.subscribedSymbols.add(symbol));
               }
             }
@@ -240,7 +260,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   async reconnectExchange(exchangeName: string): Promise<boolean> {
     const state = this.exchangeStates.get(exchangeName);
     if (!state) {
-      this.logger.warn(`Exchange ${exchangeName} not found in orchestrator`);
+      this.logger.debug(`Exchange ${exchangeName} not found in orchestrator`);
       return false;
     }
 
@@ -309,11 +329,23 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
   private async initializeExchangeStates(): Promise<void> {
     this.logger.log("Initializing exchange connection states...");
 
+    const disabledCcxtExchanges = new Set(ENV.ADAPTERS.DISABLED_CCXT_EXCHANGES);
+
     // Get all unique exchanges from feed mappings
     const requiredExchanges = new Set<string>();
     for (const exchangeConfigs of this.feedToExchangeMap.values()) {
       for (const config of exchangeConfigs) {
         requiredExchanges.add(config.exchange);
+      }
+    }
+
+    // If an exchange would be handled by CCXT, and it's disabled for CCXT, skip it entirely.
+    // This prevents the orchestrator from attempting CCXT subscriptions/polling for disabled exchanges.
+    for (const exchangeName of Array.from(requiredExchanges)) {
+      const normalizedExchange = exchangeName.toLowerCase();
+      if (!hasCustomAdapter(exchangeName) && disabledCcxtExchanges.has(normalizedExchange)) {
+        this.logger.warn(`Skipping exchange disabled for CCXT: ${exchangeName}`);
+        requiredExchanges.delete(exchangeName);
       }
     }
 
@@ -326,7 +358,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
         adapter = this.adapterRegistry.get(exchangeName);
       } else {
         // Use CCXT adapter for non-custom exchanges
-        adapter = this.adapterRegistry.get("ccxt-multi-exchange");
+        adapter = this.adapterRegistry.get(ExchangeId.CcxtMultiExchange);
       }
 
       if (adapter) {
@@ -450,7 +482,7 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
         totalSubscriptions += symbolsArray.length;
 
         // For CCXT adapter, use the standard subscription method which handles multi-exchange internally
-        if (state.adapter.exchangeName === "ccxt-multi-exchange") {
+        if (state.adapter.exchangeName === ExchangeId.CcxtMultiExchange) {
           // CCXT adapter handles multiple exchanges internally via doSubscribe method
           this.logger.debug(`CCXT adapter subscription for ${exchangeName} with symbols: ${symbolsArray.join(", ")}`);
           await state.adapter.subscribe(symbolsArray);
@@ -505,6 +537,15 @@ export class WebSocketOrchestratorService extends EventDrivenService implements 
 
   override async cleanup(): Promise<void> {
     this.logger.log("Cleaning up WebSocket orchestrator...");
+
+    if (this.connectInitTimer) {
+      clearTimeout(this.connectInitTimer);
+      this.connectInitTimer = undefined;
+    }
+    if (this.subscribeInitTimer) {
+      clearTimeout(this.subscribeInitTimer);
+      this.subscribeInitTimer = undefined;
+    }
 
     for (const [exchangeName, state] of this.exchangeStates) {
       try {

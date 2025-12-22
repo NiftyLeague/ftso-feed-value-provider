@@ -3,6 +3,7 @@ import type { IExchangeAdapter, ExchangeCapabilities, ExchangeConnectionConfig }
 import type { RawPriceData, RawVolumeData } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock adapter for testing
 class MockExchangeAdapter implements IExchangeAdapter {
@@ -88,7 +89,7 @@ describe("ExchangeAdapterRegistry", () => {
   beforeEach(() => {
     registry = new ExchangeAdapterRegistry();
 
-    mockCryptoAdapter = new MockExchangeAdapter("binance", FeedCategory.Crypto, {
+    mockCryptoAdapter = new MockExchangeAdapter(ExchangeId.Binance, FeedCategory.Crypto, {
       supportsWebSocket: true,
       supportsREST: true,
       supportsVolume: true,
@@ -107,30 +108,32 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("register", () => {
     it("should register an adapter successfully", () => {
-      registry.register("binance", mockCryptoAdapter);
-      expect(registry.has("binance")).toBe(true);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
+      expect(registry.has(ExchangeId.Binance)).toBe(true);
       expect(registry.size()).toBe(1);
     });
 
     it("should throw error when registering duplicate adapter", () => {
-      registry.register("binance", mockCryptoAdapter);
-      expect(() => registry.register("binance", mockCryptoAdapter)).toThrow("Adapter 'binance' is already registered");
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
+      expect(() => registry.register(ExchangeId.Binance, mockCryptoAdapter)).toThrow(
+        "Adapter 'binance' is already registered"
+      );
     });
 
     it("should handle case-insensitive names", () => {
-      registry.register("BINANCE", mockCryptoAdapter);
-      expect(registry.has("binance")).toBe(true);
-      expect(registry.has("BINANCE")).toBe(true);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
+      expect(registry.has(ExchangeId.Binance)).toBe(true);
+      expect(registry.has(ExchangeId.Binance)).toBe(true);
     });
   });
 
   describe("get", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
     });
 
     it("should retrieve registered adapter", () => {
-      const adapter = registry.get("binance");
+      const adapter = registry.get(ExchangeId.Binance);
       expect(adapter).toBe(mockCryptoAdapter);
     });
 
@@ -140,15 +143,15 @@ describe("ExchangeAdapterRegistry", () => {
     });
 
     it("should return undefined for inactive adapter", () => {
-      registry.setActive("binance", false);
-      const adapter = registry.get("binance");
+      registry.setActive(ExchangeId.Binance, false);
+      const adapter = registry.get(ExchangeId.Binance);
       expect(adapter).toBeUndefined();
     });
   });
 
   describe("getByCategory", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
       registry.register("oanda", mockForexAdapter);
     });
 
@@ -170,7 +173,7 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("getByCapabilities", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
       registry.register("oanda", mockForexAdapter);
     });
 
@@ -194,19 +197,19 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("setActive", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
     });
 
     it("should deactivate adapter", () => {
-      expect(registry.isActive("binance")).toBe(true);
-      registry.setActive("binance", false);
-      expect(registry.isActive("binance")).toBe(false);
+      expect(registry.isActive(ExchangeId.Binance)).toBe(true);
+      registry.setActive(ExchangeId.Binance, false);
+      expect(registry.isActive(ExchangeId.Binance)).toBe(false);
     });
 
     it("should reactivate adapter", () => {
-      registry.setActive("binance", false);
-      registry.setActive("binance", true);
-      expect(registry.isActive("binance")).toBe(true);
+      registry.setActive(ExchangeId.Binance, false);
+      registry.setActive(ExchangeId.Binance, true);
+      expect(registry.isActive(ExchangeId.Binance)).toBe(true);
     });
 
     it("should return false for non-existent adapter", () => {
@@ -217,12 +220,12 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("updateHealthStatus", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
     });
 
     it("should update health status", () => {
-      registry.updateHealthStatus("binance", "degraded");
-      expect(registry.getHealthStatus("binance")).toBe("degraded");
+      registry.updateHealthStatus(ExchangeId.Binance, "degraded");
+      expect(registry.getHealthStatus(ExchangeId.Binance)).toBe("degraded");
     });
 
     it("should return false for non-existent adapter", () => {
@@ -233,7 +236,7 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("findBestAdapter", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
       registry.register("oanda", mockForexAdapter);
     });
 
@@ -249,21 +252,21 @@ describe("ExchangeAdapterRegistry", () => {
 
     it("should prefer healthy adapters over degraded ones", () => {
       const mockCryptoAdapter2 = new MockExchangeAdapter(
-        "coinbase",
+        ExchangeId.Coinbase,
         FeedCategory.Crypto,
         mockCryptoAdapter.capabilities
       );
 
-      registry.register("coinbase", mockCryptoAdapter2);
-      registry.updateHealthStatus("binance", "degraded");
-      registry.updateHealthStatus("coinbase", "healthy");
+      registry.register(ExchangeId.Coinbase, mockCryptoAdapter2);
+      registry.updateHealthStatus(ExchangeId.Binance, "degraded");
+      registry.updateHealthStatus(ExchangeId.Coinbase, "healthy");
 
       const adapter = registry.findBestAdapter("BTC/USD", FeedCategory.Crypto);
       expect(adapter).toBe(mockCryptoAdapter2);
     });
 
     it("should exclude unhealthy adapters", () => {
-      registry.updateHealthStatus("binance", "unhealthy");
+      registry.updateHealthStatus(ExchangeId.Binance, "unhealthy");
       const adapter = registry.findBestAdapter("BTC/USD", FeedCategory.Crypto);
       expect(adapter).toBeUndefined();
     });
@@ -271,9 +274,9 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("getStats", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
       registry.register("oanda", mockForexAdapter);
-      registry.updateHealthStatus("binance", "healthy");
+      registry.updateHealthStatus(ExchangeId.Binance, "healthy");
       registry.updateHealthStatus("oanda", "degraded");
     });
 
@@ -288,7 +291,7 @@ describe("ExchangeAdapterRegistry", () => {
     });
 
     it("should exclude inactive adapters from active count", () => {
-      registry.setActive("binance", false);
+      registry.setActive(ExchangeId.Binance, false);
       const stats = registry.getStats();
       expect(stats.total).toBe(2);
       expect(stats.active).toBe(1);
@@ -297,14 +300,14 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("unregister", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
     });
 
     it("should remove adapter", () => {
-      expect(registry.has("binance")).toBe(true);
-      const result = registry.unregister("binance");
+      expect(registry.has(ExchangeId.Binance)).toBe(true);
+      const result = registry.unregister(ExchangeId.Binance);
       expect(result).toBe(true);
-      expect(registry.has("binance")).toBe(false);
+      expect(registry.has(ExchangeId.Binance)).toBe(false);
     });
 
     it("should return false for non-existent adapter", () => {
@@ -315,7 +318,7 @@ describe("ExchangeAdapterRegistry", () => {
 
   describe("clear", () => {
     beforeEach(() => {
-      registry.register("binance", mockCryptoAdapter);
+      registry.register(ExchangeId.Binance, mockCryptoAdapter);
       registry.register("oanda", mockForexAdapter);
     });
 

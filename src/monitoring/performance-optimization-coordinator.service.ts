@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import { EventDrivenService } from "@/common/base/composed.service";
 import type { BaseServiceConfig } from "@/common/types/services/base.types";
+import type { AggregatedPrice } from "@/common/types/services";
 import { ENV } from "@/config/environment.constants";
 
 // Performance monitoring services
@@ -116,7 +117,7 @@ export class PerformanceOptimizationCoordinatorService
     // Optimization suggestions are handled through periodic analysis
 
     // Listen for aggregation events
-    this.aggregationService.on("aggregatedPrice", price => {
+    this.aggregationService.on<[AggregatedPrice]>("aggregatedPrice", price => {
       this.trackAggregationPerformance(price);
     });
 

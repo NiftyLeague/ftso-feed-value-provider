@@ -1,8 +1,11 @@
-import { CcxtMultiExchangeAdapter, CcxtMultiExchangeConnectionConfig } from "../ccxt.adapter";
+import { CcxtMultiExchangeAdapter } from "../ccxt.adapter";
+import type { CcxtMultiExchangeConnectionConfig } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { TestModuleBuilder } from "@/__tests__/utils/test-module.builder";
 import { TestingModule } from "@nestjs/testing";
+import { ExchangeId } from "@/common/types/adapters";
+import { ENV } from "@/config/environment.constants";
 
 describe("CcxtMultiExchangeAdapter", () => {
   let adapter: CcxtMultiExchangeAdapter;
@@ -13,7 +16,6 @@ describe("CcxtMultiExchangeAdapter", () => {
     tradesLimit: 1000,
     lambda: 0.00005,
     retryBackoffMs: 10000,
-    tier1Exchanges: ["binance", "coinbase", "kraken", "okx", "cryptocom"],
   };
 
   beforeEach(async () => {
@@ -50,7 +52,7 @@ describe("CcxtMultiExchangeAdapter", () => {
   describe("initialization", () => {
     it("should initialize with default config", () => {
       const adapter = new CcxtMultiExchangeAdapter();
-      expect(adapter.exchangeName).toBe("ccxt-multi-exchange");
+      expect(adapter.exchangeName).toBe(ExchangeId.CcxtMultiExchange);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -171,7 +173,7 @@ describe("CcxtMultiExchangeAdapter", () => {
         symbol: "BTC/USD",
         price: 45000.5,
         timestamp: expect.any(Number),
-        source: "ccxt-multi-exchange",
+        source: ExchangeId.CcxtMultiExchange,
         confidence: expect.any(Number),
       });
     });
@@ -188,7 +190,7 @@ describe("CcxtMultiExchangeAdapter", () => {
         symbol: "BTC/USD",
         volume: 100.5,
         timestamp: 1630000000000,
-        source: "ccxt-multi-exchange",
+        source: ExchangeId.CcxtMultiExchange,
       });
     });
 
@@ -237,6 +239,51 @@ describe("CcxtMultiExchangeAdapter", () => {
     it("should check health status", async () => {
       const result = await adapter.healthCheck();
       expect(typeof result).toBe("boolean");
+    });
+  });
+
+  describe("ccxt fallback for disabled adapters", () => {
+    const originalActiveAdapters = [...ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS];
+    const feeds = [
+      {
+        sources: [
+          { exchange: ExchangeId.Binance, symbol: "BTC/USD" },
+          { exchange: ExchangeId.Coinbase, symbol: "BTC/USD" },
+        ],
+      },
+    ];
+
+    const buildCcxtExchangesFromFeeds = (): string[] => {
+      const exchanges = new Set<string>();
+      feeds.forEach(feed => {
+        feed.sources.forEach(source => exchanges.add(source.exchange));
+      });
+      const customAdapterExchanges = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS;
+      return Array.from(exchanges).filter(exchange => !customAdapterExchanges.includes(exchange as ExchangeId));
+    };
+
+    afterEach(() => {
+      // Restore original env adapters after each test
+      (ENV.ADAPTERS as any).ACTIVE_CUSTOM_ADAPTERS = [...originalActiveAdapters];
+    });
+
+    it("routes disabled custom adapters to CCXT", () => {
+      const originalActive = [...ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS];
+      (ENV.ADAPTERS as any).ACTIVE_CUSTOM_ADAPTERS = originalActive.filter(id => id !== ExchangeId.Coinbase);
+
+      const ccxtExchanges = buildCcxtExchangesFromFeeds();
+
+      expect(ccxtExchanges).toContain(ExchangeId.Coinbase);
+      expect(ccxtExchanges).not.toContain(ExchangeId.Binance);
+
+      const adapterWithConfig = new CcxtMultiExchangeAdapter(undefined, {
+        hasCustomAdapter: exchange => ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS.includes(exchange as ExchangeId),
+        getCcxtExchangesFromFeeds: buildCcxtExchangesFromFeeds,
+        getFeedConfigurations: () => feeds,
+      });
+
+      const configured = (adapterWithConfig as any).configService?.getCcxtExchangesFromFeeds?.();
+      expect(configured).toContain(ExchangeId.Coinbase);
     });
   });
 });

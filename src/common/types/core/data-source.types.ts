@@ -4,12 +4,13 @@
  */
 
 import { FeedCategory } from "./feed.types";
+import { ExchangeId } from "@/common/types/adapters";
 
 export interface PriceUpdate {
   symbol: string;
   price: number;
   timestamp: number;
-  source: string;
+  source: ExchangeId | string;
   volume?: number;
   confidence: number;
 }
@@ -18,7 +19,7 @@ export interface VolumeUpdate {
   symbol: string;
   volume: number;
   timestamp: number;
-  source: string;
+  source: ExchangeId | string;
 }
 
 export interface DataSource {

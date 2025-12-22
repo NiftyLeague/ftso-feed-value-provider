@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-dotenv.config();
+dotenv.config({ override: false });
 
 import helmet from "helmet";
 import { NestFactory } from "@nestjs/core";
@@ -56,14 +56,20 @@ async function bootstrap() {
       isProductionReady: heapSizeMB >= 1000, // 1GB minimum for production
     });
 
-    enhancedLogger.logCriticalOperation("application_startup", "Bootstrap", {
-      nodeVersion: process.version,
-      platform: process.platform,
-      pid: process.pid,
-      environment: ENV.APPLICATION.NODE_ENV,
-      heapSizeMB: heapSizeMB,
-      timestamp: Date.now(),
-    });
+    enhancedLogger.logCriticalOperation(
+      "application_startup",
+      "Bootstrap",
+      {
+        nodeVersion: process.version,
+        platform: process.platform,
+        pid: process.pid,
+        environment: ENV.APPLICATION.NODE_ENV,
+        heapSizeMB: heapSizeMB,
+        timestamp: Date.now(),
+      },
+      true,
+      "started"
+    );
 
     // Start memory monitoring
     startMemoryMonitoring(enhancedLogger);
@@ -281,7 +287,8 @@ async function bootstrap() {
         basePath,
         startupTime: serverStartDuration,
       },
-      true
+      true,
+      "completed"
     );
 
     // Log successful server startup
@@ -294,7 +301,8 @@ async function bootstrap() {
         basePath,
         readyToServe: true,
       },
-      true
+      true,
+      "completed"
     );
 
     // Application is ready to serve requests
@@ -633,6 +641,10 @@ function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
   const memoryWarningThreshold = ENV.SYSTEM.MEMORY_WARNING_THRESHOLD;
   const memoryCriticalThreshold = ENV.SYSTEM.MEMORY_CRITICAL_THRESHOLD;
 
+  // Cooldown to avoid repeated heap dumps
+  let lastHeapDump = 0;
+  const heapDumpCooldownMs = 60 * 60 * 1000; // 1 hour
+
   memoryMonitoringInterval = setInterval(async () => {
     const memUsage = process.memoryUsage();
     const v8 = await import("v8");
@@ -659,6 +671,42 @@ function startMemoryMonitoring(_logger: EnhancedLoggerService): void {
     if (heapUsedPercent >= memoryCriticalThreshold) {
       if (logger) {
         logger.error(`CRITICAL: Memory usage is dangerously high - ${JSON.stringify(memoryInfo)}`);
+      }
+      // Auto-capture heap snapshot for investigation (cooldown protected)
+      try {
+        const now = Date.now();
+        if (now - lastHeapDump > heapDumpCooldownMs) {
+          const fs = await import("fs");
+          const pathMod = await import("path");
+
+          // Determine heap dump directory: prefer `/logs` (container-mounted),
+          // otherwise fallback to project-local `logs/` for local runs.
+          const preferred = "/logs";
+          let dir = preferred;
+          try {
+            fs.accessSync(preferred, fs.constants.W_OK);
+          } catch {
+            dir = pathMod.join(process.cwd(), "logs");
+          }
+
+          try {
+            fs.mkdirSync(dir, { recursive: true });
+          } catch (mkErr) {
+            if (logger) logger.warn(`Unable to create heap dump dir ${dir}: ${mkErr}`);
+            return;
+          }
+
+          const filePath = pathMod.join(dir, `heap-${now}.heapsnapshot`);
+          try {
+            v8.writeHeapSnapshot(filePath);
+            lastHeapDump = now;
+            if (logger) logger.warn(`Heap snapshot written to ${filePath}`);
+          } catch (dumpErr) {
+            if (logger) logger.warn(`Failed to write heap snapshot: ${dumpErr}`);
+          }
+        }
+      } catch {
+        /* best-effort only */
       }
     } else if (heapUsedPercent >= memoryWarningThreshold) {
       if (logger) {

@@ -1,7 +1,7 @@
 /**
  * Rate limiting configuration
  */
-export interface RateLimitConfig {
+export interface ProviderRateLimitConfig {
   /**
    * Maximum number of requests allowed in a time window
    */

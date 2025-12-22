@@ -20,6 +20,10 @@ describe("FTSO API Response Format Compliance", () => {
     if (app) {
       await app.close();
     }
+
+    if (module) {
+      await module.close();
+    }
   });
 
   describe("Content-Type and Headers Compliance", () => {

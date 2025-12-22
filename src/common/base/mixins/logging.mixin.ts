@@ -1,42 +1,28 @@
 import { FilteredLogger } from "../../logging/filtered-logger";
 import { EnhancedLoggerService } from "../../logging/enhanced-logger.service";
-import type { Constructor, AbstractConstructor } from "../../types/services/mixins";
-
-/**
- * Logging capabilities interface
- */
-export interface LoggingCapabilities {
-  logInitialization(message?: string): void;
-  logShutdown(message?: string): void;
-  logPerformance(operation: string, duration: number, threshold?: number): void;
-  logError(error: Error, context?: string, additionalData?: Record<string, unknown>): void;
-  logWarning(message: string, context?: string, additionalData?: Record<string, unknown>): void;
-  logDebug(message: string, context?: string, additionalData?: unknown): void;
-  logFatal(message: string, context?: string, additionalData?: Record<string, unknown>): void;
-  logCriticalOperation(operation: string, details: Record<string, unknown>, success?: boolean): void;
-  startPerformanceTimer(operationId: string, operation: string, metadata?: Record<string, unknown>): void;
-  endPerformanceTimer(operationId: string, success?: boolean, additionalMetadata?: Record<string, unknown>): void;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance } from "../../types/services/mixins";
+import type { LoggingCapabilities } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds logging capabilities to a service
  */
-export function WithLogging<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
-  return class LoggingMixin extends Base implements LoggingCapabilities {
-    public readonly logger: FilteredLogger;
-    public enhancedLogger?: EnhancedLoggerService;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(...args: any[]) {
-      super(...args);
-      this.logger = new FilteredLogger(this.constructor.name);
+export function WithLogging<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<
+  ConstructorArgs<TBase>,
+  ConstructorInstance<TBase> &
+    LoggingCapabilities & {
+      readonly logger: FilteredLogger;
+      enhancedLogger?: EnhancedLoggerService;
     }
+> {
+  return class LoggingMixin extends Base implements LoggingCapabilities {
+    public readonly logger: FilteredLogger = new FilteredLogger(this.constructor.name);
+    public enhancedLogger?: EnhancedLoggerService;
 
     initializeEnhancedLogging(useEnhancedLogging: boolean): void {
       if (useEnhancedLogging) {
         this.enhancedLogger = new EnhancedLoggerService(this.constructor.name);
-
-        // Component-specific log levels could be implemented here if needed
       } else {
         this.enhancedLogger = undefined;
       }
@@ -110,15 +96,18 @@ export function WithLogging<TBase extends Constructor | AbstractConstructor>(Bas
     }
 
     startPerformanceTimer(operationId: string, operation: string, metadata?: Record<string, unknown>): void {
-      if (this.enhancedLogger) {
-        this.enhancedLogger.startPerformanceTimer(operationId, operation, this.constructor.name, metadata);
-      }
+      this.enhancedLogger?.startPerformanceTimer(operationId, operation, this.constructor.name, metadata);
     }
 
     endPerformanceTimer(operationId: string, success = true, additionalMetadata?: Record<string, unknown>): void {
-      if (this.enhancedLogger) {
-        this.enhancedLogger.endPerformanceTimer(operationId, success, additionalMetadata);
-      }
+      this.enhancedLogger?.endPerformanceTimer(operationId, success, additionalMetadata);
     }
-  };
+  } as unknown as AnyConstructor<
+    ConstructorArgs<TBase>,
+    ConstructorInstance<TBase> &
+      LoggingCapabilities & {
+        readonly logger: FilteredLogger;
+        enhancedLogger?: EnhancedLoggerService;
+      }
+  >;
 }

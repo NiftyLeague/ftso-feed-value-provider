@@ -1,6 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsArray, IsNumber, IsString, ValidateNested, ArrayMinSize, ArrayMaxSize } from "class-validator";
 import { Type } from "class-transformer";
+import { ExchangeId } from "@/common/types/adapters";
 
 export class FeedErrorDto {
   @ApiProperty({
@@ -67,11 +68,11 @@ export class FeedValueDataDto {
   })
   feed!: FeedIdDto;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: "Feed value in base units as float",
     example: 45000.25,
   })
-  value!: number;
+  value?: number;
 
   @ApiProperty({
     description: "Data source identifier",
@@ -130,7 +131,7 @@ export class RoundFeedValuesResponseDto {
 export class VolumeDto {
   @ApiProperty({
     description: "Exchange name",
-    example: "binance",
+    example: ExchangeId.Binance,
   })
   exchange!: string;
 

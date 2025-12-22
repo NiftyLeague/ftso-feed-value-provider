@@ -36,6 +36,7 @@ Thumbs.db
 *.d.ts
 !src/**/*.d.ts
 scripts/tickers/generated/
+CHANGELOG.md
 
 # Package manager files
 package-lock.json

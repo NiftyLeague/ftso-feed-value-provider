@@ -376,8 +376,9 @@ log_both "==========================="
 if [ -f "$TEST_LOG_FILE" ]; then
     # Count key events
     STARTUP_EVENTS=$(grep -c "Application started\|Server started\|Listening on" "$TEST_LOG_FILE")
-    ERROR_EVENTS=$(grep -c "ERROR\|Error\|error" "$TEST_LOG_FILE")
-    WARNING_EVENTS=$(grep -c "WARN\|Warning\|warning" "$TEST_LOG_FILE")
+    # Only count actual log-level entries, not JSON keys like "error".
+    ERROR_EVENTS=$(grep -E "(\] (ERROR|FATAL)\b|\bERROR:\b|\bFATAL:\b)" "$TEST_LOG_FILE" | wc -l | tr -d ' ')
+    WARNING_EVENTS=$(grep -E "(\] WARN\b|\bWARN:\b)" "$TEST_LOG_FILE" | wc -l | tr -d ' ')
     FEED_EVENTS=$(grep -c "feed.*value\|Feed.*value\|price.*feed" "$TEST_LOG_FILE")
     
     log_both "🚀 Startup events: $STARTUP_EVENTS"
@@ -389,7 +390,7 @@ if [ -f "$TEST_LOG_FILE" ]; then
     if [ $ERROR_EVENTS -gt 0 ]; then
         log_both ""
         log_both "🚨 Recent errors:"
-        grep -i "error" "$TEST_LOG_FILE" | tail -5 | while read -r line; do
+        grep -E "(\] (ERROR|FATAL)\b|\bERROR:\b|\bFATAL:\b|\bException\b)" "$TEST_LOG_FILE" | tail -5 | while read -r line; do
             log_both "  $line"
         done
     fi
@@ -449,7 +450,8 @@ log_both "==============================="
 
 ISSUES_LOG="logs/test/feeds-results/consolidated_issues.log"
 if [ -f "$ISSUES_LOG" ]; then
-    TOTAL_ISSUES=$(wc -l < "$ISSUES_LOG")
+    # Count only real issues (exclude comments and blank lines)
+    TOTAL_ISSUES=$(grep -vE '^(#|\s*$)' "$ISSUES_LOG" 2>/dev/null | wc -l | tr -d ' ')
     log_both "📊 Total issues found: $TOTAL_ISSUES"
     
     if [ $TOTAL_ISSUES -gt 0 ]; then
@@ -457,10 +459,10 @@ if [ -f "$ISSUES_LOG" ]; then
         log_both "🔍 Issue Categories:"
         
         # Categorize issues
-        EXCHANGE_ERRORS=$(grep -c "has errors" "$ISSUES_LOG" 2>/dev/null || echo "0")
-        EXCHANGE_INACTIVE=$(grep -c "no recent activity" "$ISSUES_LOG" 2>/dev/null || echo "0")
-        VOLUME_ISSUES=$(grep -c "Volume endpoint failed" "$ISSUES_LOG" 2>/dev/null || echo "0")
-        FEED_FAILURES=$(grep -c "HTTP\|Invalid response\|ALL_FEEDS_FAILED" "$ISSUES_LOG" 2>/dev/null || echo "0")
+        EXCHANGE_ERRORS=$(grep -c "has errors" "$ISSUES_LOG" 2>/dev/null || true)
+        EXCHANGE_INACTIVE=$(grep -c "no recent activity" "$ISSUES_LOG" 2>/dev/null || true)
+        VOLUME_ISSUES=$(grep -c "Volume endpoint failed" "$ISSUES_LOG" 2>/dev/null || true)
+        FEED_FAILURES=$(grep -c "HTTP\|Invalid response\|ALL_FEEDS_FAILED" "$ISSUES_LOG" 2>/dev/null || true)
         
         log_both "  🚨 Exchange errors: $EXCHANGE_ERRORS"
         log_both "  ⚠️  Inactive exchanges: $EXCHANGE_INACTIVE"

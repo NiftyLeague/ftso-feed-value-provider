@@ -1,6 +1,7 @@
 import axios from "axios";
 import { type MonitoringConfig, AlertSeverity, AlertAction } from "@/common/types/monitoring";
 import { AlertingService } from "../alerting.service";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock axios
 jest.mock("axios");
@@ -8,8 +9,15 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Mock nodemailer
 jest.mock("nodemailer", () => ({
+  // The service uses nodemailer.createTransport(...)
+  createTransport: jest.fn(() => ({
+    sendMail: jest.fn().mockResolvedValue({ messageId: "test-message-id" }),
+    close: jest.fn(),
+  })),
+  // Keep a compatible alias in case other suites reference it
   createTransporter: jest.fn(() => ({
     sendMail: jest.fn().mockResolvedValue({ messageId: "test-message-id" }),
+    close: jest.fn(),
   })),
 }));
 
@@ -18,6 +26,14 @@ describe("AlertingService", () => {
   let mockConfig: MonitoringConfig;
 
   beforeEach(async () => {
+    // Jest is configured with resetMocks=true; restore default implementations
+    // for module mocks that we depend on.
+    const nodemailer = jest.requireMock("nodemailer") as { createTransport: jest.Mock };
+    nodemailer.createTransport.mockImplementation(() => ({
+      sendMail: jest.fn().mockResolvedValue({ messageId: "test-message-id" }),
+      close: jest.fn(),
+    }));
+
     mockConfig = {
       enabled: true,
       interval: 1000,
@@ -126,6 +142,29 @@ describe("AlertingService", () => {
     expect(service).toBeDefined();
   });
 
+  describe("delivery config / transporter init", () => {
+    it("initializes email transporter when enabled and uses secure=true for port 465", () => {
+      const nodemailer = jest.requireMock("nodemailer") as { createTransport: jest.Mock };
+
+      const cfg: MonitoringConfig = JSON.parse(JSON.stringify(mockConfig));
+      cfg.alerting.deliveryConfig.email = {
+        ...(cfg.alerting.deliveryConfig.email ?? ({} as any)),
+        enabled: true,
+        smtpPort: 465,
+      } as any;
+      const s = new AlertingService(cfg.alerting);
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: cfg.alerting.deliveryConfig.email!.smtpHost,
+          port: 465,
+          secure: true,
+        })
+      );
+      void s.cleanup();
+    });
+  });
+
   describe("evaluateMetric", () => {
     it("should trigger alert when threshold is exceeded", () => {
       const logSpy = jest.spyOn(service["logger"], "error");
@@ -166,6 +205,25 @@ describe("AlertingService", () => {
       service.evaluateMetric("consensus_deviation", 0.8);
 
       expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it("does nothing for unknown operators", () => {
+      const cfg: MonitoringConfig = JSON.parse(JSON.stringify(mockConfig));
+      cfg.alerting.rules = [
+        {
+          ...cfg.alerting.rules[0]!,
+          id: "bad_operator",
+          condition: { metric: "bad_operator", threshold: 10, operator: "???" as any },
+          actions: [AlertAction.LOG],
+        },
+      ];
+      const s = new AlertingService(cfg.alerting);
+      const errorSpy = jest.spyOn((s as any).logger, "error");
+
+      s.evaluateMetric("bad_operator", 999);
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      void s.cleanup();
     });
   });
 
@@ -271,19 +329,126 @@ describe("AlertingService", () => {
       );
     });
 
-    it("should handle webhook delivery failures gracefully", async () => {
-      mockedAxios.post.mockRejectedValueOnce(new Error("Network error"));
+    it("logs and swallows webhook send errors", async () => {
+      mockedAxios.post.mockRejectedValueOnce(new Error("webhook failed"));
 
-      const errorSpy = jest.spyOn(service["logger"], "error");
+      const cfg: MonitoringConfig = JSON.parse(JSON.stringify(mockConfig));
+      cfg.alerting.rules[0]!.actions = [AlertAction.WEBHOOK];
 
-      mockConfig.alerting.rules[0].actions = [AlertAction.WEBHOOK];
+      const s = new AlertingService(cfg.alerting);
+      const logSpy = jest.spyOn((s as any).logger, "error").mockImplementation(() => undefined);
 
-      service.evaluateMetric("consensus_deviation", 0.8);
+      const rule = cfg.alerting.rules[0]!;
+      const alert = {
+        id: "a1",
+        ruleId: rule.id,
+        type: "metric",
+        title: "t",
+        message: "m",
+        timestamp: Date.now(),
+        status: "active",
+        resolved: false,
+        severity: rule.severity,
+      };
 
-      // Wait for async webhook delivery
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await (s as any).deliverAlert(alert, rule);
 
-      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to send webhook alert"), expect.any(Error));
+      expect(logSpy).toHaveBeenCalledWith("Failed to send webhook alert", expect.any(Error));
+      void s.cleanup();
+    });
+  });
+
+  describe("email delivery", () => {
+    it("sends email when enabled and action includes EMAIL", async () => {
+      const nodemailer = jest.requireMock("nodemailer") as { createTransport: jest.Mock };
+
+      const cfg: MonitoringConfig = JSON.parse(JSON.stringify(mockConfig));
+      cfg.alerting.deliveryConfig.email = {
+        ...(cfg.alerting.deliveryConfig.email ?? ({} as any)),
+        enabled: true,
+      } as any;
+      cfg.alerting.rules[0]!.actions = [AlertAction.EMAIL];
+
+      const s = new AlertingService(cfg.alerting);
+      const transporter = nodemailer.createTransport.mock.results.at(-1)?.value as { sendMail: jest.Mock };
+      expect(nodemailer.createTransport).toHaveBeenCalled();
+
+      const rule = cfg.alerting.rules[0]!;
+      const alert = {
+        id: "a-email",
+        ruleId: rule.id,
+        type: "metric",
+        title: "Email Alert",
+        message: "hello",
+        timestamp: Date.now(),
+        status: "active",
+        resolved: false,
+        severity: rule.severity,
+        metadata: { feedId: "BTC/USD", exchange: ExchangeId.Binance },
+      };
+
+      await (s as any).deliverAlert(alert, rule);
+
+      expect(transporter.sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: cfg.alerting.deliveryConfig.email!.to,
+          subject: expect.stringContaining("["),
+          html: expect.any(String),
+        })
+      );
+
+      void s.cleanup();
+    });
+
+    it("skips email sending when enabled but recipients are not configured", async () => {
+      const nodemailer = jest.requireMock("nodemailer") as { createTransport: jest.Mock };
+
+      const cfg: MonitoringConfig = JSON.parse(JSON.stringify(mockConfig));
+      cfg.alerting.deliveryConfig.email = {
+        ...(cfg.alerting.deliveryConfig.email ?? ({} as any)),
+        enabled: true,
+        to: undefined,
+      } as any;
+      cfg.alerting.rules[0]!.actions = [AlertAction.EMAIL];
+
+      const s = new AlertingService(cfg.alerting);
+      const transporter = nodemailer.createTransport.mock.results.at(-1)?.value as { sendMail: jest.Mock };
+      expect(nodemailer.createTransport).toHaveBeenCalled();
+      const rule = cfg.alerting.rules[0]!;
+      const alert = {
+        id: "a-email-skip",
+        ruleId: rule.id,
+        type: "metric",
+        title: "Email Alert",
+        message: "hello",
+        timestamp: Date.now(),
+        status: "active",
+        resolved: false,
+        severity: rule.severity,
+      };
+
+      await (s as any).deliverAlert(alert, rule);
+
+      expect(transporter.sendMail).not.toHaveBeenCalled();
+      void s.cleanup();
+    });
+  });
+
+  describe("cleanup and storage", () => {
+    it("cleans up old alerts and logs when it deletes any", () => {
+      const debugSpy = jest.spyOn((service as any).logger, "debug").mockImplementation(() => undefined);
+      const now = Date.now();
+
+      (service as any).alerts.set("old", { id: "old", ruleId: "r", timestamp: now - 1000 * 60 * 60 * 24 * 999 } as any);
+      (service as any).activeAlerts.set("old", {
+        id: "old",
+        ruleId: "old",
+        timestamp: now - 1000 * 60 * 60 * 24 * 999,
+      } as any);
+
+      (service as any).cleanupOldAlerts();
+
+      expect(debugSpy).toHaveBeenCalled();
     });
   });
 
@@ -348,7 +513,7 @@ describe("AlertingService", () => {
     it("should format alert messages correctly", () => {
       service.evaluateMetric("consensus_deviation", 0.8, {
         feedId: "BTC/USD",
-        exchange: "binance",
+        exchange: ExchangeId.Binance,
       });
 
       const alerts = service.getAllAlerts(1);
@@ -356,7 +521,7 @@ describe("AlertingService", () => {
       expect(alerts[0].message).toContain("0.8");
       expect(alerts[0].message).toContain("0.5");
       expect(alerts[0].message).toContain("BTC/USD");
-      expect(alerts[0].message).toContain("binance");
+      expect(alerts[0].message).toContain(ExchangeId.Binance);
     });
   });
 });

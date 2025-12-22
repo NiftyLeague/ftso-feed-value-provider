@@ -8,6 +8,7 @@ const mockCacheService = {
   has: jest.fn(),
   delete: jest.fn(),
   clear: jest.fn(),
+  getPrice: jest.fn(),
   getStats: jest.fn().mockReturnValue({
     hits: 100,
     misses: 50,
@@ -100,6 +101,17 @@ describe("FtsoProviderService", () => {
         service.setIntegrationService(invalidService);
       }).toThrow("Invalid integration service: missing required operations");
     });
+
+    it("should throw if integration service is missing required ops", () => {
+      const invalidService = {
+        getCurrentPrice: jest.fn(),
+        // Missing getCurrentPrices + getSystemHealth
+      } as any;
+
+      expect(() => {
+        service.setIntegrationService(invalidService);
+      }).toThrow("Invalid integration service: missing required operations");
+    });
   });
 
   describe("Error Handling", () => {
@@ -109,10 +121,59 @@ describe("FtsoProviderService", () => {
       await expect(service.getValue(feedId)).rejects.toThrow("Production integration service not available");
     });
 
+    it("logs debug (not error) for known data-unavailable errors", async () => {
+      const mockIntegrationService = {
+        getCurrentPrice: jest.fn().mockRejectedValue(new Error("No price data available")),
+        getCurrentPrices: jest.fn(),
+        getSystemHealth: jest.fn(),
+      };
+
+      service.setIntegrationService(mockIntegrationService as any);
+
+      const debugSpy = jest.spyOn(service as any, "logDebug").mockImplementation(() => undefined);
+      const errorSpy = jest.spyOn(service as any, "logError").mockImplementation(() => undefined);
+
+      await expect(service.getValue({ category: 1, name: "BTC/USD" } as any)).rejects.toThrow(
+        "No price data available"
+      );
+
+      expect(debugSpy).toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
+
     it("should handle missing integration service for getValues", async () => {
       const feedIds = [{ category: 1, name: "BTC/USD" }];
 
       await expect(service.getValues(feedIds)).rejects.toThrow("Production integration service not available");
+    });
+
+    it("returns partial results for getValues when some feeds are missing", async () => {
+      const mockIntegrationService = {
+        getCurrentPrice: jest.fn(),
+        getCurrentPrices: jest.fn().mockResolvedValue([{ symbol: "BTC/USD", price: 100 }]),
+        getSystemHealth: jest.fn(),
+      };
+
+      mockCacheService.getPrice.mockImplementation((feed: any) => {
+        if (feed?.name === "ETH/USD") {
+          return { timestamp: Date.now() - 500, sources: [{}, {}], confidence: 0.7 };
+        }
+        return null;
+      });
+
+      service.setIntegrationService(mockIntegrationService as any);
+
+      const warnSpy = jest.spyOn((service as any).logger, "warn").mockImplementation(() => undefined);
+
+      const feeds = [
+        { category: 1, name: "BTC/USD" },
+        { category: 1, name: "ETH/USD" },
+      ] as any;
+      const result = await service.getValues(feeds);
+
+      expect(result).toEqual([{ feed: feeds[0], value: 100 }]);
+      expect(mockCacheService.getPrice).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalled();
     });
 
     it("should handle getVolumes without integration service", async () => {
@@ -153,6 +214,30 @@ describe("FtsoProviderService", () => {
     it("should call healthCheck", async () => {
       const result = await service.healthCheck();
       expect(result).toBeDefined();
+    });
+
+    it("healthCheck returns unhealthy when integration is not set", async () => {
+      const result = await service.healthCheck();
+      expect(result.status).toBe("unhealthy");
+      expect(result.details?.[0]?.isHealthy).toBe(false);
+    });
+
+    it("healthCheck returns integration health when available", async () => {
+      const mockIntegrationService = {
+        getCurrentPrice: jest.fn(),
+        getCurrentPrices: jest.fn(),
+        getSystemHealth: jest.fn().mockResolvedValue({
+          status: "healthy",
+          connections: 3,
+          adapters: 2,
+          cache: { hitRate: 0.9, entries: 10 },
+        }),
+      };
+      service.setIntegrationService(mockIntegrationService as any);
+
+      const result = await service.healthCheck();
+      expect(result.status).toBe("healthy");
+      expect(result.details?.[0]?.isHealthy).toBe(true);
     });
 
     it("should call getServicePerformanceMetrics", async () => {

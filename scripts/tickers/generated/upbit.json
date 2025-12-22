@@ -1,7 +1,7 @@
 {
   "exchange": "upbit",
-  "timestamp": 1763746473259,
-  "count": 660,
+  "timestamp": 1766016033028,
+  "count": 667,
   "symbols": [
     "0G/BTC",
     "0G/KRW",
@@ -373,6 +373,9 @@
     "MOCA/BTC",
     "MOCA/KRW",
     "MOCA/USDT",
+    "MON/BTC",
+    "MON/KRW",
+    "MON/USDT",
     "MOODENG/BTC",
     "MOODENG/KRW",
     "MOODENG/USDT",
@@ -441,6 +444,7 @@
     "PEPE/KRW",
     "PEPE/USDT",
     "PLUME/BTC",
+    "PLUME/KRW",
     "PLUME/USDT",
     "POKT/BTC",
     "POKT/KRW",
@@ -622,6 +626,9 @@
     "WCT/BTC",
     "WCT/KRW",
     "WCT/USDT",
+    "WET/BTC",
+    "WET/KRW",
+    "WET/USDT",
     "WLD/BTC",
     "WLD/KRW",
     "WLD/USDT",
@@ -12505,6 +12512,102 @@
         "english_name": "Moca Network"
       }
     },
+    "MON/BTC": {
+      "id": "BTC-MON",
+      "symbol": "MON/BTC",
+      "base": "MON",
+      "quote": "BTC",
+      "baseId": "MON",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-MON",
+        "korean_name": "모나드",
+        "english_name": "Monad"
+      }
+    },
+    "MON/KRW": {
+      "id": "KRW-MON",
+      "symbol": "MON/KRW",
+      "base": "MON",
+      "quote": "KRW",
+      "baseId": "MON",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-MON",
+        "korean_name": "모나드",
+        "english_name": "Monad"
+      }
+    },
+    "MON/USDT": {
+      "id": "USDT-MON",
+      "symbol": "MON/USDT",
+      "base": "MON",
+      "quote": "USDT",
+      "baseId": "MON",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-MON",
+        "korean_name": "모나드",
+        "english_name": "Monad"
+      }
+    },
     "MOODENG/BTC": {
       "id": "BTC-MOODENG",
       "symbol": "MOODENG/BTC",
@@ -14677,6 +14780,38 @@
       },
       "info": {
         "market": "BTC-PLUME",
+        "korean_name": "플룸",
+        "english_name": "Plume"
+      }
+    },
+    "PLUME/KRW": {
+      "id": "KRW-PLUME",
+      "symbol": "PLUME/KRW",
+      "base": "PLUME",
+      "quote": "KRW",
+      "baseId": "PLUME",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-PLUME",
         "korean_name": "플룸",
         "english_name": "Plume"
       }
@@ -17749,8 +17884,8 @@
       },
       "info": {
         "market": "BTC-STRAX",
-        "korean_name": "스트라티스",
-        "english_name": "Stratis"
+        "korean_name": "저트라",
+        "english_name": "Xertra"
       }
     },
     "STRAX/KRW": {
@@ -17781,8 +17916,8 @@
       },
       "info": {
         "market": "KRW-STRAX",
-        "korean_name": "스트라티스",
-        "english_name": "Stratis"
+        "korean_name": "저트라",
+        "english_name": "Xertra"
       }
     },
     "STX/BTC": {
@@ -20471,6 +20606,102 @@
         "market": "USDT-WCT",
         "korean_name": "월렛커넥트",
         "english_name": "WalletConnect"
+      }
+    },
+    "WET/BTC": {
+      "id": "BTC-WET",
+      "symbol": "WET/BTC",
+      "base": "WET",
+      "quote": "BTC",
+      "baseId": "WET",
+      "quoteId": "BTC",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "BTC-WET",
+        "korean_name": "휴미디파이",
+        "english_name": "HumidiFi"
+      }
+    },
+    "WET/KRW": {
+      "id": "KRW-WET",
+      "symbol": "WET/KRW",
+      "base": "WET",
+      "quote": "KRW",
+      "baseId": "WET",
+      "quoteId": "KRW",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0005,
+      "maker": 0.0005,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "KRW-WET",
+        "korean_name": "휴미디파이",
+        "english_name": "HumidiFi"
+      }
+    },
+    "WET/USDT": {
+      "id": "USDT-WET",
+      "symbol": "WET/USDT",
+      "base": "WET",
+      "quote": "USDT",
+      "baseId": "WET",
+      "quoteId": "USDT",
+      "type": "spot",
+      "spot": true,
+      "margin": false,
+      "future": false,
+      "option": false,
+      "active": true,
+      "contract": false,
+      "taker": 0.0025,
+      "maker": 0.0025,
+      "precision": {
+        "price": 1e-8,
+        "amount": 1e-8
+      },
+      "limits": {
+        "leverage": {},
+        "amount": {},
+        "price": {},
+        "cost": {}
+      },
+      "info": {
+        "market": "USDT-WET",
+        "korean_name": "휴미디파이",
+        "english_name": "HumidiFi"
       }
     },
     "WLD/BTC": {

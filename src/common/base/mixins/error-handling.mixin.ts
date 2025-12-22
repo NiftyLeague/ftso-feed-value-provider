@@ -1,46 +1,15 @@
-import type { Constructor, AbstractConstructor, IBaseService } from "../../types/services";
-
-/**
- * Error handling capabilities
- */
-export interface ErrorHandlingCapabilities {
-  handleError(
-    error: Error,
-    context: string,
-    options?: {
-      shouldThrow?: boolean;
-      shouldLog?: boolean;
-      threshold?: number;
-      additionalData?: Record<string, unknown>;
-    }
-  ): void;
-  executeWithErrorHandling<T>(
-    operation: () => Promise<T>,
-    context: string,
-    options?: {
-      retries?: number;
-      retryDelay?: number;
-      shouldThrow?: boolean;
-      fallback?: () => Promise<T>;
-      onError?: (error: Error, attempt: number) => void;
-    }
-  ): Promise<T | undefined>;
-  getErrorCount(context: string): number;
-  resetErrorTracking(context?: string): void;
-}
+import type { AnyConstructor, ConstructorArgs, ConstructorInstance, IBaseService } from "../../types/services";
+import type { ErrorHandlingCapabilities } from "../../types/services/mixin-capabilities.types";
 
 /**
  * Mixin that adds error handling to a service
  */
-export function WithErrorHandling<TBase extends Constructor | AbstractConstructor>(Base: TBase) {
+export function WithErrorHandling<TBase extends AnyConstructor>(
+  Base: TBase
+): AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & ErrorHandlingCapabilities> {
   return class ErrorHandlingMixin extends Base implements ErrorHandlingCapabilities {
     public errorCounts = new Map<string, number>();
     public lastErrors = new Map<string, { error: Error; timestamp: number }>();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(...args: any[]) {
-      super(...args);
-    }
 
     handleError(
       error: Error,
@@ -84,9 +53,10 @@ export function WithErrorHandling<TBase extends Constructor | AbstractConstructo
         shouldThrow?: boolean;
         fallback?: () => Promise<T>;
         onError?: (error: Error, attempt: number) => void;
+        retryLogLevel?: "warn" | "debug" | "silent";
       } = {}
     ): Promise<T | undefined> {
-      const { retries = 0, retryDelay = 1000, shouldThrow = true, fallback, onError } = options;
+      const { retries = 0, retryDelay = 1000, shouldThrow = true, fallback, onError, retryLogLevel = "warn" } = options;
 
       let lastError: Error | undefined;
 
@@ -101,13 +71,19 @@ export function WithErrorHandling<TBase extends Constructor | AbstractConstructo
           }
 
           if (attempt < retries) {
-            (this as unknown as IBaseService).logWarning(
-              `Operation failed, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${retries + 1})`,
-              context,
-              {
-                error: lastError.message,
-              }
-            );
+            if (retryLogLevel === "warn") {
+              (this as unknown as IBaseService).logWarning(
+                `Operation failed, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${retries + 1})`,
+                context,
+                {
+                  error: lastError.message,
+                }
+              );
+            } else if (retryLogLevel === "debug") {
+              (this as unknown as IBaseService).logger.debug(
+                `[${context}] Operation failed, retrying in ${retryDelay}ms (attempt ${attempt + 1}/${retries + 1}): ${lastError.message}`
+              );
+            }
             // Use sleep for retry delay (this mixin doesn't have waitForCondition)
             await this.sleep(retryDelay);
           }
@@ -153,5 +129,5 @@ export function WithErrorHandling<TBase extends Constructor | AbstractConstructo
     public sleep(ms: number): Promise<void> {
       return new Promise(resolve => setTimeout(resolve, ms));
     }
-  };
+  } as unknown as AnyConstructor<ConstructorArgs<TBase>, ConstructorInstance<TBase> & ErrorHandlingCapabilities>;
 }

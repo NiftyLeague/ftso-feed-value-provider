@@ -1,5 +1,6 @@
 export * from "./common-error.dto";
 export * from "./config.dto";
+export * from "./debug.dto";
 export * from "./feed.dto";
 export * from "./health-metrics.dto";
 

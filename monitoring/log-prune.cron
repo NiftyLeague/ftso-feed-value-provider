@@ -1,0 +1,4 @@
+# Prune application logs older than 72 hours
+# Runs hourly: remove files older than 3 days and empty dirs
+0 * * * * find /logs -type f -mtime +3 -delete
+5 * * * * find /logs -type d -empty -delete

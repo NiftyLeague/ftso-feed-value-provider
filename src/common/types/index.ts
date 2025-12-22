@@ -7,6 +7,7 @@
  */
 
 export * from "./adapters";
+export * from "./aggregators";
 export * from "./cache";
 export * from "./core";
 export * from "./data-manager";

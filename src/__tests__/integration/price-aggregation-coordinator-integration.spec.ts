@@ -7,6 +7,7 @@ import { CachePerformanceMonitorService } from "@/cache/cache-performance-monito
 import { ConfigService } from "@/config/config.service";
 import { type CoreFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
 import type { AggregatedPrice } from "@/common/types/services";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests", () => {
   let coordinatorService: PriceAggregationCoordinatorService;
@@ -24,7 +25,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
     symbol: "BTC/USD",
     price: 50000,
     timestamp: Date.now(),
-    sources: ["binance", "coinbase"],
+    sources: [ExchangeId.Binance, ExchangeId.Coinbase],
     confidence: 0.95,
     consensusScore: 0.98,
   };
@@ -57,7 +58,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
             getFeedConfigurations: jest.fn().mockReturnValue([
               {
                 feed: mockFeedId,
-                sources: ["binance", "coinbase"],
+                sources: [ExchangeId.Binance, ExchangeId.Coinbase],
                 enabled: true,
               },
             ]),
@@ -163,7 +164,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
         symbol: "BTC/USD",
         price: mockAggregatedPrice.price,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.95,
       };
 
@@ -255,7 +256,7 @@ describe("Price Aggregation Coordinator Integration - Cache Cross-Service Tests"
         symbol: "ETH/USD",
         price: 3000,
         timestamp: Date.now(),
-        sources: ["binance", "kraken"],
+        sources: [ExchangeId.Binance, ExchangeId.Kraken],
         confidence: 0.92,
         consensusScore: 0.95,
       };

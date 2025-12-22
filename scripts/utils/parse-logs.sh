@@ -11,6 +11,9 @@
 filter_actual_errors() {
     local log_file="$1"
     grep -i " ERROR \| FATAL \|exception\|abort\|crash\|panic" "$log_file" 2>/dev/null | \
+    # Exclude script-generated summary lines that contain the token " Error "
+    # (e.g. "🚨 Error events: 0"), which are not application errors.
+    grep -v -E "^🚨[[:space:]]+Error events:[[:space:]]+[0-9]+" | \
         grep -v -E "(Error Handling|should.*error|test.*error|✓.*error|describe.*error|it.*error)" | \
         grep -v -E "(Error Scenarios|error scenarios|Error Response Format|error handling and edge cases)" | \
         grep -v -E "(Error Classification Utils|Test.*Error|.*Test.*error)" | \

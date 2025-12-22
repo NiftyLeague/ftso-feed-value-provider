@@ -1,41 +1,16 @@
 import { BaseExchangeAdapter } from "@/adapters/base/base-exchange-adapter";
-import type { ExchangeCapabilities, ExchangeConnectionConfig } from "@/common/types/adapters";
+import type {
+  ExchangeCapabilities,
+  ExchangeConnectionConfig,
+  KrakenRestTickerData,
+  KrakenTickerData,
+} from "@/common/types/adapters";
+import { ExchangeId } from "@/common/types/adapters";
 import type { PriceUpdate, VolumeUpdate } from "@/common/types/core";
 import { FeedCategory } from "@/common/types/core";
 
-export interface KrakenTickerData {
-  channelID: number;
-  channelName: string;
-  pair: string;
-  data: {
-    a: [string, string, string]; // Ask [price, whole lot volume, lot volume]
-    b: [string, string, string]; // Bid [price, whole lot volume, lot volume]
-    c: [string, string]; // Last trade closed [price, lot volume]
-    v: [string, string]; // Volume [today, last 24 hours]
-    p: [string, string]; // Volume weighted average price [today, last 24 hours]
-    t: [number, number]; // Number of trades [today, last 24 hours]
-    l: [string, string]; // Low [today, last 24 hours]
-    h: [string, string]; // High [today, last 24 hours]
-    o: [string, string]; // Opening price [today, last 24 hours]
-  };
-}
-
-export interface KrakenRestTickerData {
-  [pair: string]: {
-    a: [string, string, string]; // Ask
-    b: [string, string, string]; // Bid
-    c: [string, string]; // Last trade closed
-    v: [string, string]; // Volume
-    p: [string, string]; // VWAP
-    t: [number, number]; // Number of trades
-    l: [string, string]; // Low
-    h: [string, string]; // High
-    o: string; // Opening price
-  };
-}
-
 export class KrakenAdapter extends BaseExchangeAdapter {
-  readonly exchangeName = "kraken";
+  readonly exchangeName = ExchangeId.Kraken;
   readonly category = FeedCategory.Crypto;
   readonly capabilities: ExchangeCapabilities = {
     supportsWebSocket: true,

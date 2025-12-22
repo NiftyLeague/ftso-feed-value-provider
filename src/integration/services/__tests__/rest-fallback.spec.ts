@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { DataSourceFactory } from "../data-source.factory";
 import { BinanceAdapter } from "@/adapters/crypto/binance.adapter";
 import { PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 describe("REST Fallback Functionality", () => {
   let factory: DataSourceFactory;
@@ -35,7 +36,7 @@ describe("REST Fallback Functionality", () => {
         symbol: "BTC/USDT",
         price: 50000,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 
@@ -81,7 +82,7 @@ describe("REST Fallback Functionality", () => {
         symbol: "BTC/USDT",
         price: 50000,
         timestamp: Date.now(),
-        source: "binance",
+        source: ExchangeId.Binance,
         confidence: 0.9,
       };
 

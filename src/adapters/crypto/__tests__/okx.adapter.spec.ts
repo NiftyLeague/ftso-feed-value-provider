@@ -5,8 +5,10 @@ jest.mock("ws", () => {
   return MockWebSocket;
 });
 
-import { OkxAdapter, OkxTickerData } from "../okx.adapter";
+import { OkxAdapter } from "../okx.adapter";
+import type { OkxTickerData } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock WebSocket
 class MockWebSocket {
@@ -60,7 +62,7 @@ describe("OkxAdapter", () => {
 
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
-      expect(adapter.exchangeName).toBe("okx");
+      expect(adapter.exchangeName).toBe(ExchangeId.Okx);
       expect(adapter.category).toBe(FeedCategory.Crypto);
       expect(adapter.capabilities.supportsWebSocket).toBe(true);
       expect(adapter.capabilities.supportsREST).toBe(true);
@@ -107,7 +109,7 @@ describe("OkxAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("okx");
+      expect(result.source).toBe(ExchangeId.Okx);
       expect(result.volume).toBe(1000);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -119,7 +121,7 @@ describe("OkxAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.volume).toBe(1000);
-      expect(result.source).toBe("okx");
+      expect(result.source).toBe(ExchangeId.Okx);
       expect(typeof result.timestamp).toBe("number");
     });
 
@@ -278,7 +280,7 @@ describe("OkxAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000);
-      expect(result.source).toBe("okx");
+      expect(result.source).toBe(ExchangeId.Okx);
       expect(result.volume).toBe(1000);
     });
 
@@ -289,7 +291,7 @@ describe("OkxAdapter", () => {
         statusText: "Not Found",
       });
 
-      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Failed to fetch OKX ticker");
+      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("Failed to fetch okx ticker");
     });
 
     it("should handle OKX API errors", async () => {
@@ -304,7 +306,7 @@ describe("OkxAdapter", () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("OKX API error");
+      await expect(adapter.fetchTickerREST("INVALID/PAIR")).rejects.toThrow("okx API error");
     });
   });
 
@@ -391,6 +393,178 @@ describe("OkxAdapter", () => {
         // Skip test if WebSocket mock doesn't have send method
         expect(true).toBe(true);
       }
+    });
+  });
+
+  describe("WebSocket close handling", () => {
+    it("logs OKX-specific close codes when not shutting down", () => {
+      (adapter as any).isShuttingDown = false;
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug").mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn").mockImplementation(() => undefined);
+
+      expect((adapter as any).handleWebSocketClose(4004, "x")).toBe(true);
+      expect((adapter as any).handleWebSocketClose(1006, "x")).toBe(true);
+      expect((adapter as any).handleWebSocketClose(1000, "x")).toBe(true);
+      expect((adapter as any).handleWebSocketClose(9999, "x")).toBe(true);
+
+      expect(debugSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalled();
+
+      debugSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe("WebSocket message handling", () => {
+    it("handles raw pong and ping strings", () => {
+      const parseSpy = jest.spyOn(adapter as any, "parseWebSocketData");
+      const pongSpy = jest.spyOn(adapter as any, "onPongReceived").mockImplementation(() => undefined);
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug").mockImplementation(() => undefined);
+
+      parseSpy.mockReturnValueOnce("pong");
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(pongSpy).toHaveBeenCalledTimes(1);
+
+      parseSpy.mockReturnValueOnce("ping");
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(debugSpy).toHaveBeenCalledWith("Received ping from OKX WebSocket");
+
+      debugSpy.mockRestore();
+      pongSpy.mockRestore();
+      parseSpy.mockRestore();
+    });
+
+    it("handles JSON pong, subscription, and error messages", () => {
+      const parseSpy = jest.spyOn(adapter as any, "parseWebSocketData");
+      const pongSpy = jest.spyOn(adapter as any, "onPongReceived").mockImplementation(() => undefined);
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug").mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn").mockImplementation(() => undefined);
+
+      parseSpy.mockReturnValueOnce({ event: "pong" });
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(pongSpy).toHaveBeenCalledTimes(1);
+
+      parseSpy.mockReturnValueOnce({ event: "subscribe" });
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(debugSpy).toHaveBeenCalledWith("OKX subscription confirmation:", { event: "subscribe" });
+
+      parseSpy.mockReturnValueOnce({ event: "error", code: "520", msg: "server 520" });
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/OKX server error \(520\)/));
+
+      parseSpy.mockReturnValueOnce({ event: "error", code: "123", msg: "nope" });
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(warnSpy).toHaveBeenCalledWith("OKX WebSocket error:", { event: "error", code: "123", msg: "nope" });
+
+      warnSpy.mockRestore();
+      debugSpy.mockRestore();
+      pongSpy.mockRestore();
+      parseSpy.mockRestore();
+    });
+
+    it("processes valid ticker data and skips invalid entries", () => {
+      const parseSpy = jest.spyOn(adapter as any, "parseWebSocketData");
+      const onPriceUpdate = jest.fn();
+      (adapter as any).onPriceUpdateCallback = onPriceUpdate;
+
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug").mockImplementation(() => undefined);
+
+      const validTicker: OkxTickerData = {
+        instType: "SPOT",
+        instId: "BTC-USDT",
+        last: "50000",
+        lastSz: "0.1",
+        askPx: "50001",
+        askSz: "1.0",
+        bidPx: "49999",
+        bidSz: "1.0",
+        open24h: "49000",
+        high24h: "51000",
+        low24h: "48000",
+        volCcy24h: "50000000",
+        vol24h: "1000",
+        ts: Date.now().toString(),
+        sodUtc0: "49500",
+        sodUtc8: "49600",
+      };
+
+      const invalidTicker = { ...validTicker, last: "" };
+
+      parseSpy.mockReturnValueOnce({
+        arg: { channel: "tickers", instId: "BTC-USDT" },
+        data: [validTicker, invalidTicker],
+      });
+
+      (adapter as any).handleWebSocketMessage("ignored");
+
+      expect(onPriceUpdate).toHaveBeenCalledTimes(1);
+      expect(onPriceUpdate.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ symbol: "BTC/USDT", source: ExchangeId.Okx, price: 50000 })
+      );
+
+      debugSpy.mockRestore();
+      parseSpy.mockRestore();
+    });
+
+    it("warns on 520 processing errors and reports other errors via onErrorCallback", () => {
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn").mockImplementation(() => undefined);
+      const errorSpy = jest.spyOn((adapter as any).logger, "error").mockImplementation(() => undefined);
+      const onError = jest.fn();
+      (adapter as any).onErrorCallback = onError;
+
+      jest.spyOn(adapter as any, "parseWebSocketData").mockImplementation(() => {
+        throw new Error("520 boom");
+      });
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(warnSpy).toHaveBeenCalledWith("OKX connection error (520) - will retry:", "520 boom");
+
+      (adapter as any).parseWebSocketData.mockImplementation(() => {
+        throw new Error("other");
+      });
+      (adapter as any).handleWebSocketMessage("ignored");
+      expect(errorSpy).toHaveBeenCalledWith("Error processing OKX WebSocket message:", expect.any(Error));
+      expect(onError).toHaveBeenCalledWith(expect.any(Error));
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+  });
+
+  describe("REST ticker fallback", () => {
+    it("throws when REST returns no data", async () => {
+      jest.spyOn(adapter as any, "fetchRestApi").mockResolvedValue({
+        json: async () => ({ code: "0", msg: "", data: [] }),
+      } as any);
+
+      await expect(adapter.fetchTickerREST("BTC/USDT")).rejects.toThrow(/No data/i);
+    });
+  });
+
+  describe("ping handling", () => {
+    it("logs when WebSocket is not connected", () => {
+      jest.spyOn(adapter as any, "isWebSocketConnected").mockReturnValue(false);
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug").mockImplementation(() => undefined);
+
+      (adapter as any).sendPingMessage();
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringMatching(/WebSocket not connected/i));
+      debugSpy.mockRestore();
+    });
+
+    it("logs send success and failure when connected", () => {
+      jest.spyOn(adapter as any, "isWebSocketConnected").mockReturnValue(true);
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug").mockImplementation(() => undefined);
+
+      jest.spyOn(adapter as any, "sendWebSocketMessage").mockResolvedValue(undefined);
+      (adapter as any).sendPingMessage();
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringMatching(/Sent ping to OKX WebSocket/i));
+
+      (adapter as any).sendWebSocketMessage.mockImplementation(() => {
+        throw new Error("nope");
+      });
+      (adapter as any).sendPingMessage();
+      expect(debugSpy).toHaveBeenCalledWith("❌ Failed to send ping to OKX WebSocket:", expect.any(Error));
+
+      debugSpy.mockRestore();
     });
   });
 });

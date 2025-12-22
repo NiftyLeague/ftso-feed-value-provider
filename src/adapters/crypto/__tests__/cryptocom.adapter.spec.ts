@@ -1,5 +1,7 @@
-import { CryptocomAdapter, ICryptocomTickerData, ICryptocomRestResponse } from "../cryptocom.adapter";
+import { CryptocomAdapter } from "../cryptocom.adapter";
+import type { ICryptocomRestResponse, ICryptocomTickerData } from "@/common/types/adapters";
 import { FeedCategory } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 // Mock the BaseExchangeAdapter's WebSocket methods
 jest.mock("@/adapters/base/base-exchange-adapter", () => {
@@ -65,7 +67,7 @@ describe("CryptocomAdapter", () => {
   describe("initialization", () => {
     it("should initialize with correct properties", () => {
       // Test basic properties
-      expect(adapter.exchangeName).toBe("cryptocom");
+      expect(adapter.exchangeName).toBe(ExchangeId.Cryptocom);
       expect(adapter.category).toBe(FeedCategory.Crypto);
 
       // Test capabilities
@@ -136,7 +138,7 @@ describe("CryptocomAdapter", () => {
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000.5);
       expect(result.timestamp).toBe(1640995200000);
-      expect(result.source).toBe("cryptocom");
+      expect(result.source).toBe(ExchangeId.Cryptocom);
       expect(result.volume).toBe(20.0);
       expect(result.confidence).toBeGreaterThan(0);
       expect(result.confidence).toBeLessThanOrEqual(1);
@@ -148,7 +150,7 @@ describe("CryptocomAdapter", () => {
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.volume).toBe(20.0);
       expect(result.timestamp).toBe(1640995200000);
-      expect(result.source).toBe("cryptocom");
+      expect(result.source).toBe(ExchangeId.Cryptocom);
     });
 
     it("should handle symbol mapping correctly", () => {
@@ -269,7 +271,7 @@ describe("CryptocomAdapter", () => {
 
       expect(result.symbol).toBe("BTC/USDT");
       expect(result.price).toBe(50000.5);
-      expect(result.source).toBe("cryptocom");
+      expect(result.source).toBe(ExchangeId.Cryptocom);
       expect(global.fetch).toHaveBeenCalledWith("https://api.crypto.com/v2/public/get-ticker?instrument_name=BTC_USDT");
     });
 
@@ -498,6 +500,186 @@ describe("CryptocomAdapter", () => {
       expect(firstCall.id).toBeDefined();
       expect(secondCall.id).toBeDefined();
       expect(firstCall.id).not.toBe(secondCall.id);
+    });
+  });
+
+  describe("WebSocket message handling", () => {
+    beforeEach(async () => {
+      await adapter.connect();
+    });
+
+    it("handles heartbeat messages by calling onPongReceived", () => {
+      const pongSpy = jest.spyOn(adapter as any, "onPongReceived");
+
+      (adapter as any).handleWebSocketMessage(JSON.stringify({ method: "public/heartbeat" }));
+
+      expect(pongSpy).toHaveBeenCalled();
+    });
+
+    it("handles subscription confirmation messages", () => {
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug");
+
+      (adapter as any).handleWebSocketMessage(
+        JSON.stringify({
+          method: "subscribe",
+          result: { channel: "ticker.BTC_USDT" },
+        })
+      );
+
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("Subscribed to"));
+    });
+
+    it("handles ticker messages and emits price updates for valid data", () => {
+      const onPrice = jest.fn();
+      adapter.onPriceUpdate(onPrice);
+
+      (adapter as any).handleWebSocketMessage(
+        JSON.stringify({
+          method: "ticker",
+          result: { data: [mockTickerData] },
+        })
+      );
+
+      expect(onPrice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          symbol: "BTC/USDT",
+          source: ExchangeId.Cryptocom,
+        })
+      );
+    });
+
+    it("logs debug for invalid ticker messages", () => {
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug");
+
+      (adapter as any).handleWebSocketMessage(
+        JSON.stringify({
+          method: "ticker",
+          result: {
+            data: [
+              {
+                ...mockTickerData,
+                a: "not-a-number",
+              },
+            ],
+          },
+        })
+      );
+
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid ticker data"), expect.anything());
+    });
+
+    it("returns early when WebSocket payload is not parseable", () => {
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug");
+      const onPrice = jest.fn();
+      adapter.onPriceUpdate(onPrice);
+
+      (adapter as any).handleWebSocketMessage("{not-json");
+
+      expect(onPrice).not.toHaveBeenCalled();
+      // Still logs received message attempt only if parse succeeded; ensure no crash
+      expect(debugSpy).not.toHaveBeenCalledWith(expect.stringContaining("Processing Crypto.com ticker"));
+    });
+
+    it("invokes error callback when message handler throws", () => {
+      const errCb = jest.fn();
+      adapter.onError(errCb);
+
+      jest.spyOn(adapter as any, "parseWebSocketData").mockImplementation(() => {
+        throw new Error("parse failed");
+      });
+
+      (adapter as any).handleWebSocketMessage(JSON.stringify({ method: "ticker" }));
+
+      expect(errCb).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
+
+  describe("ping and close handling", () => {
+    beforeEach(async () => {
+      await adapter.connect();
+    });
+
+    it("sendPingMessage warns when not connected", () => {
+      jest.spyOn(adapter as any, "isWebSocketConnected").mockReturnValue(false);
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn");
+
+      (adapter as any).sendPingMessage();
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("WebSocket not connected"));
+    });
+
+    it("sendPingMessage logs every 10th heartbeat", () => {
+      jest.spyOn(adapter as any, "isWebSocketConnected").mockReturnValue(true);
+      jest.spyOn(adapter as any, "sendWebSocketMessage").mockResolvedValue(true);
+
+      (adapter as any).messageId = 9;
+      const logSpy = jest.spyOn((adapter as any).logger, "log");
+
+      (adapter as any).sendPingMessage();
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Sent heartbeat"));
+    });
+
+    it("sendPingMessage triggers error handling when send fails", () => {
+      jest.spyOn(adapter as any, "isWebSocketConnected").mockReturnValue(true);
+      jest.spyOn(adapter as any, "sendWebSocketMessage").mockImplementation(() => {
+        throw new Error("send failed");
+      });
+      const handleErrSpy = jest.spyOn(adapter as any, "handleWebSocketError");
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn");
+
+      (adapter as any).sendPingMessage();
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to send heartbeat"), expect.anything());
+      expect(handleErrSpy).toHaveBeenCalled();
+    });
+
+    it("handleWebSocketClose logs and returns true when not shutting down", () => {
+      (adapter as any).isShuttingDown = false;
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug");
+
+      const handled = (adapter as any).handleWebSocketClose();
+
+      expect(handled).toBe(true);
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("will reconnect"));
+    });
+
+    it("handleWebSocketClose defers to base when shutting down", () => {
+      (adapter as any).isShuttingDown = true;
+      const debugSpy = jest.spyOn((adapter as any).logger, "debug");
+
+      (adapter as any).handleWebSocketClose();
+
+      // Crypto.com-specific log should not happen when shutting down
+      expect(debugSpy).not.toHaveBeenCalledWith(expect.stringContaining("will reconnect"));
+    });
+  });
+
+  describe("subscription error handling", () => {
+    beforeEach(async () => {
+      await adapter.connect();
+    });
+
+    it("doSubscribe logs warn on send failure", async () => {
+      jest.spyOn(adapter as any, "sendWebSocketMessage").mockRejectedValueOnce(new Error("send failed"));
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn");
+
+      await adapter.subscribe(["BTC/USDT"]);
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("subscription error"), expect.anything());
+    });
+
+    it("doUnsubscribe logs warn on send failure", async () => {
+      jest
+        .spyOn(adapter as any, "sendWebSocketMessage")
+        .mockResolvedValueOnce(true) // subscribe succeeds
+        .mockRejectedValueOnce(new Error("send failed")); // unsubscribe fails
+      const warnSpy = jest.spyOn((adapter as any).logger, "warn");
+
+      await adapter.subscribe(["BTC/USDT"]);
+      await adapter.unsubscribe(["BTC/USDT"]);
+
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("unsubscription error"), expect.anything());
     });
   });
 });

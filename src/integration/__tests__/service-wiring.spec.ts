@@ -10,6 +10,7 @@ import { RealTimeCacheService } from "@/cache/real-time-cache.service";
 import { ConfigService } from "@/config/config.service";
 import { EnhancedLoggerService } from "@/common/logging/enhanced-logger.service";
 import { type CoreFeedId, FeedCategory, type PriceUpdate } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 import { IntegrationService } from "../integration.service";
 import { DataSourceIntegrationService } from "../services/data-source-integration.service";
@@ -40,15 +41,15 @@ describe("Service Wiring Integration", () => {
         {
           feed: { category: 1, name: "BTC/USD" },
           sources: [
-            { exchange: "binance", symbol: "BTC/USDT" },
-            { exchange: "coinbase", symbol: "BTC/USD" },
+            { exchange: ExchangeId.Binance, symbol: "BTC/USDT" },
+            { exchange: ExchangeId.Coinbase, symbol: "BTC/USD" },
           ],
         },
         {
           feed: { category: 1, name: "ETH/USD" },
           sources: [
-            { exchange: "binance", symbol: "ETH/USDT" },
-            { exchange: "coinbase", symbol: "ETH/USD" },
+            { exchange: ExchangeId.Binance, symbol: "ETH/USDT" },
+            { exchange: ExchangeId.Coinbase, symbol: "ETH/USD" },
           ],
         },
       ]),

@@ -13,7 +13,9 @@ export class CachePerformanceMonitorService extends EventDrivenService implement
   private monitoringInterval?: NodeJS.Timeout;
   private lastRequestCount = 0;
   private lastRequestTime = Date.now();
-  private lastWarningTime = 0; // Track last warning to implement cooldown
+  private lastWarningTime?: number; // Track last warning to implement cooldown
+
+  private readonly serviceStartTime = Date.now();
 
   private readonly monitoringIntervalMs = 60000; // 60 seconds (reduced frequency to minimize spam)
   private readonly warningCooldownMs = 300000; // 5 minutes cooldown between warnings
@@ -204,21 +206,25 @@ Overall Health: ${health.overallHealthy ? "HEALTHY ✓" : "NEEDS ATTENTION ✗"}
     // Log performance warnings with cooldown to prevent spam
     const health = this.checkPerformanceThresholds();
     const now = Date.now();
-    const timeSinceLastWarning = now - this.lastWarningTime;
+    const timeSinceLastWarning =
+      this.lastWarningTime === undefined ? Number.POSITIVE_INFINITY : now - this.lastWarningTime;
+    const timeSinceLastWarningForLog =
+      this.lastWarningTime === undefined ? "never" : `${Math.round(timeSinceLastWarning / 1000)}s`;
 
     // Only warn if we have significant activity and performance is consistently poor
     // Only warn if we have significant activity and service is initialized
     const significantActivity = cacheStats.totalRequests > 1000; // Increased threshold
     const isServiceReady = this.isInitialized; // Use service state instead of time
+    const hasStabilized = now - this.serviceStartTime > 120_000;
 
-    if (!health.overallHealthy && significantActivity && isServiceReady) {
+    if (!health.overallHealthy && significantActivity && isServiceReady && hasStabilized) {
       if (timeSinceLastWarning > this.warningCooldownMs) {
         this.logger.warn("Cache performance consistently degraded", {
           hitRate: cacheStats.hitRate,
           memoryUsage: cacheStats.memoryUsage,
           responseTime: this.calculateAverageResponseTime(),
           totalRequests: cacheStats.totalRequests,
-          timeSinceLastWarning: `${Math.round(timeSinceLastWarning / 1000)}s`,
+          timeSinceLastWarning: timeSinceLastWarningForLog,
         });
         this.lastWarningTime = now;
       } else {

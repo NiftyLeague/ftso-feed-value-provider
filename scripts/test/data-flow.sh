@@ -124,22 +124,25 @@ analyze_logs() {
     local recent_errors="0"
     local recent_warnings="0"
     if [ -f "$LOG_FILE" ]; then
-        recent_errors=$(tail -n 100 "$LOG_FILE" 2>/dev/null | grep -c "ERROR" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
-        recent_warnings=$(tail -n 100 "$LOG_FILE" 2>/dev/null | grep -c "WARN" 2>/dev/null | head -1 | tr -d '\n' || echo "0")
+        # grep -c prints "0" even when it exits 1 (no matches). Avoid appending a second "0" via `|| echo 0`.
+        recent_errors=$(tail -n 100 "$LOG_FILE" 2>/dev/null | grep -c "ERROR" 2>/dev/null || true)
+        recent_warnings=$(tail -n 100 "$LOG_FILE" 2>/dev/null | grep -c "WARN" 2>/dev/null || true)
     fi
     
     # Ensure variables are clean integers
-    recent_errors=${recent_errors:-0}
-    recent_warnings=${recent_warnings:-0}
+    recent_errors=$(echo "${recent_errors:-0}" | tr -d '[:space:]')
+    recent_warnings=$(echo "${recent_warnings:-0}" | tr -d '[:space:]')
     
     # Check for WebSocket connections
-    local ws_connections=$(tail -n 100 "$LOG_FILE" | grep -c "WebSocket.*connected\|Subscribed to.*symbols" || echo "0")
+    local ws_connections=$(tail -n 100 "$LOG_FILE" 2>/dev/null | grep -c "WebSocket.*connected\|Subscribed to.*symbols" 2>/dev/null || true)
+    ws_connections=$(echo "${ws_connections:-0}" | tr -d '[:space:]')
     if [ "$ws_connections" -gt 0 ]; then
         WEBSOCKET_CONNECTIONS=$((WEBSOCKET_CONNECTIONS + ws_connections))
     fi
     
     # Check for price aggregation activity
-    local price_aggregations=$(tail -n 100 "$LOG_FILE" | grep -c "Price aggregated\|aggregated price" || echo "0")
+    local price_aggregations=$(tail -n 100 "$LOG_FILE" 2>/dev/null | grep -c "Price aggregated\|aggregated price" 2>/dev/null || true)
+    price_aggregations=$(echo "${price_aggregations:-0}" | tr -d '[:space:]')
     if [ "$price_aggregations" -gt 0 ]; then
         echo "   📈 Price aggregation activity detected: $price_aggregations events"
         DATA_FLOW_DETECTED="true"

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigService } from "@/config/config.service";
 import type { CoreFeedId } from "@/common/types/core";
+import { ExchangeId } from "@/common/types/adapters";
 
 import { DataSourceIntegrationService } from "../services/data-source-integration.service";
 import { IntegrationService } from "../integration.service";
@@ -122,7 +123,7 @@ describe("IntegrationService", () => {
       // Arrange
       const mockFeedConfig = {
         feed: { category: 1, name: "BTC/USD" } as CoreFeedId,
-        sources: [{ exchange: "binance", symbol: "BTCUSDT" }],
+        sources: [{ exchange: ExchangeId.Binance, symbol: "BTCUSDT" }],
       };
 
       dataSourceIntegration.initialize.mockResolvedValue(undefined);

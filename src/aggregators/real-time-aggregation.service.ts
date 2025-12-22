@@ -1,9 +1,10 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
-import { getFeedIdFromSymbol } from "@/common/utils";
+import { getFeedConfiguration, getFeedIdFromSymbol } from "@/common/utils";
 import { EventDrivenService } from "@/common/base";
 import type { CoreFeedId, PriceUpdate } from "@/common/types/core";
-import type { BaseServiceConfig, AggregatedPrice, QualityMetrics } from "@/common/types/services";
+import type { AggregatedPrice, BaseServiceConfig, QualityMetrics } from "@/common/types/services";
 import type { ServicePerformanceMetrics } from "@/common/types/services";
+import type { AggregationCacheStats } from "@/common/types/aggregators";
 import { ENV } from "@/config/environment.constants";
 
 import { ConsensusAggregator } from "./consensus-aggregator.service";
@@ -11,11 +12,11 @@ import { ProductionDataManagerService } from "@/data-manager/production-data-man
 
 interface IAggregationService {
   getActiveFeedCount(): number;
-  getCacheStats(): IAggregationCacheStats;
+  getCacheStats(): AggregationCacheStats;
   getSubscriptionCount(): number;
 }
 
-export interface CacheEntry {
+interface AggregationCacheEntry {
   value: AggregatedPrice;
   timestamp: number;
   ttl: number;
@@ -24,18 +25,10 @@ export interface CacheEntry {
   votingRound?: number;
 }
 
-export interface IAggregationCacheStats {
-  totalEntries: number;
-  hitRate: number;
-  missRate: number;
-  evictionCount: number;
-  averageAge: number;
-}
-
 /**
  * Configuration interface for RealTimeAggregationService
  */
-export interface RealTimeAggregationConfig extends BaseServiceConfig {
+interface RealTimeAggregationConfig extends BaseServiceConfig {
   cacheTTLMs: number; // Maximum 1-second TTL for price data
   maxCacheSize: number; // LRU cache size limit
   aggregationIntervalMs: number; // How often to recalculate prices
@@ -43,7 +36,7 @@ export interface RealTimeAggregationConfig extends BaseServiceConfig {
   performanceTargetMs: number; // Target response time (100ms)
 }
 
-export interface PriceSubscription {
+interface PriceSubscription {
   feedId: CoreFeedId;
   callback: (price: AggregatedPrice) => void;
   lastUpdate?: number;
@@ -55,7 +48,7 @@ export class RealTimeAggregationService
   implements OnModuleInit, OnModuleDestroy, IAggregationService
 {
   // Real-time cache with 1-second TTL
-  private readonly cache = new Map<string, CacheEntry>();
+  private readonly cache = new Map<string, AggregationCacheEntry>();
   private readonly cacheAccessOrder = new Map<string, number>(); // For LRU eviction
   private cacheStats = {
     hits: 0,
@@ -73,6 +66,10 @@ export class RealTimeAggregationService
   private readonly processingUpdates = new Set<string>(); // Track updates being processed
   private readonly activeAggregations = new Set<string>(); // Track active aggregations
 
+  // Track staleness-drop logging to avoid spamming
+  private readonly staleDropLastLogged = new Map<string, number>();
+  private readonly STALE_DROP_COOLDOWN_MS = 60000;
+
   // Performance optimization features
   private readonly batchProcessor = new Map<string, PriceUpdate[]>();
   private batchProcessingInterval?: NodeJS.Timeout;
@@ -82,6 +79,8 @@ export class RealTimeAggregationService
   // Rate limiting for performance warnings
   private performanceWarningLastLogged = new Map<string, number>();
   private readonly PERFORMANCE_WARNING_COOLDOWN_MS = 60000; // 1 minute
+
+  private readonly serviceStartTime = Date.now();
 
   // Rate limiting for aggregation failure warnings
   private aggregationFailureLastLogged = new Map<string, number>();
@@ -184,15 +183,30 @@ export class RealTimeAggregationService
       }
 
       if (updates.length === 0) {
-        this.logger.warn(
-          `No price updates available for ${feedId.name} - this should not happen if REST fallback is working`
-        );
-        this.enhancedLogger?.warn(`No price updates available for ${feedId.name}`, {
-          component: "RealTimeAggregation",
-          operation: "get_aggregated_price",
-          symbol: feedId.name,
-          metadata: { availableUpdates: 0 },
-        });
+        const hasConfig = !!getFeedConfiguration(feedId);
+        if (!hasConfig) {
+          // Requests can include feeds that are not configured in feeds.json.
+          // Treat this as an unsupported feed (not a REST fallback failure) to avoid log spam.
+          this.logger.debug(
+            `Unsupported feed requested (not configured in feeds.json): ${feedId.name} (category ${feedId.category})`
+          );
+          this.enhancedLogger?.debug(`Feed not configured: ${feedId.name}`, {
+            component: "RealTimeAggregation",
+            operation: "get_aggregated_price",
+            symbol: feedId.name,
+            metadata: { availableUpdates: 0, reason: "feed_not_configured" },
+          });
+        } else {
+          this.logger.warn(
+            `No price updates available for ${feedId.name} - this should not happen if REST fallback is working`
+          );
+          this.enhancedLogger?.warn(`No price updates available for ${feedId.name}`, {
+            component: "RealTimeAggregation",
+            operation: "get_aggregated_price",
+            symbol: feedId.name,
+            metadata: { availableUpdates: 0 },
+          });
+        }
 
         this.endTimer(operationId);
         this.activeAggregations.delete(feedKey);
@@ -232,11 +246,13 @@ export class RealTimeAggregationService
         : baseThreshold * startupMultiplier;
 
       // Only warn for extremely degraded performance (5x threshold)
-      const criticalThreshold = dynamicThreshold * 5;
+      // More conservative critical threshold to avoid false positives in short runs
+      const criticalThreshold = dynamicThreshold * 10;
+      const hasStabilized = now - this.serviceStartTime > 120_000;
 
       if (responseTime > criticalThreshold) {
         // Only warn for truly critical performance issues when service is initialized
-        if (isServiceInitialized && this.activeAggregations.size <= 50) {
+        if (isServiceInitialized && hasStabilized && this.activeAggregations.size <= 50) {
           const warningKey = `perf_critical_${feedId.name}`;
           const lastLogged = this.performanceWarningLastLogged.get(warningKey) || 0;
           const cooldownPeriod = this.PERFORMANCE_WARNING_COOLDOWN_MS * 5; // Much longer cooldown
@@ -385,6 +401,39 @@ export class RealTimeAggregationService
       const now = Date.now();
       const freshUpdates = updatedList.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
 
+      // Log staleness drops with cooldown so we can see why feeds go missing
+      if (freshUpdates.length < updatedList.length) {
+        const lastLogged = this.staleDropLastLogged.get(feedKey) || 0;
+        if (now - lastLogged > this.STALE_DROP_COOLDOWN_MS) {
+          const maxAge = Math.max(...updatedList.map(u => now - u.timestamp));
+          const dropped = updatedList.length - freshUpdates.length;
+          const kept = freshUpdates.length;
+          const dropRatio = dropped / Math.max(1, updatedList.length);
+
+          // Stale drops are expected occasionally (network jitter / batching). Only warn when severe.
+          if (kept === 0 || dropRatio >= 0.9) {
+            this.logger.warn(`Dropped stale updates for ${feedId.name}`, {
+              feed: feedId.name,
+              dropped,
+              kept,
+              dropRatio,
+              maxAgeMs: maxAge,
+              thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+            });
+          } else {
+            this.logger.debug(`Dropped stale updates for ${feedId.name}`, {
+              feed: feedId.name,
+              dropped,
+              kept,
+              dropRatio,
+              maxAgeMs: maxAge,
+              thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+            });
+          }
+          this.staleDropLastLogged.set(feedKey, now);
+        }
+      }
+
       this.activePriceUpdates.set(feedKey, freshUpdates);
 
       // Notify subscribers immediately for critical updates
@@ -467,7 +516,7 @@ export class RealTimeAggregationService
   /**
    * Get cache statistics
    */
-  getCacheStats(): IAggregationCacheStats {
+  getCacheStats(): AggregationCacheStats {
     const totalRequests = this.cacheStats.totalRequests;
     const hitRate = totalRequests > 0 ? this.cacheStats.hits / totalRequests : 0;
     const missRate = totalRequests > 0 ? this.cacheStats.misses / totalRequests : 0;
@@ -672,8 +721,7 @@ export class RealTimeAggregationService
   /**
    * Listen for events (uses EventDrivenService implementation)
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  override on(event: string | symbol, listener: (...args: any[]) => void): this {
+  override on<T extends unknown[]>(event: string | symbol, listener: (...args: T) => void): this {
     return super.on(event, listener);
   }
 
@@ -683,7 +731,7 @@ export class RealTimeAggregationService
     return `${feedId.category}:${feedId.name}`;
   }
 
-  private getCachedPrice(feedKey: string): CacheEntry | null {
+  private getCachedPrice(feedKey: string): AggregationCacheEntry | null {
     const entry = this.cache.get(feedKey);
     if (!entry) {
       return null;
@@ -706,7 +754,7 @@ export class RealTimeAggregationService
 
   private setCachedPrice(feedKey: string, price: AggregatedPrice): void {
     const now = Date.now();
-    const entry: CacheEntry = {
+    const entry: AggregationCacheEntry = {
       value: price,
       timestamp: now,
       ttl: this.aggregationConfig.cacheTTLMs,
@@ -734,8 +782,8 @@ export class RealTimeAggregationService
 
   private evictLRU(): void {
     // Find least recently used entry
-    let oldestKey = "";
-    let oldestTime = Date.now();
+    let oldestKey: string | undefined;
+    let oldestTime = Number.POSITIVE_INFINITY;
 
     for (const [key, accessTime] of this.cacheAccessOrder) {
       if (accessTime < oldestTime) {
@@ -884,11 +932,53 @@ export class RealTimeAggregationService
       for (const [feedKey, updates] of this.batchProcessor.entries()) {
         if (updates.length === 0) continue;
 
-        // Get the most recent update for each source
-        const latestUpdates = this.getLatestUpdatesBySource(updates);
+        // Get existing updates and merge with the new batch
+        const existingUpdates = this.activePriceUpdates.get(feedKey) || [];
+        const combinedUpdates = [...existingUpdates, ...updates];
+
+        // Get the most recent update for each source from the combined list
+        const latestUpdates = this.getLatestUpdatesBySource(combinedUpdates);
+
+        // Filter out stale updates to ensure data freshness
+        const now = Date.now();
+        const freshUpdates = latestUpdates.filter(u => now - u.timestamp <= ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS);
+
+        // Log if any updates were dropped due to staleness
+        if (freshUpdates.length < latestUpdates.length) {
+          const lastLogged = this.staleDropLastLogged.get(feedKey) || 0;
+          if (now - lastLogged > this.STALE_DROP_COOLDOWN_MS) {
+            const maxAge = Math.max(...latestUpdates.map(u => now - u.timestamp));
+            const dropped = latestUpdates.length - freshUpdates.length;
+            const kept = freshUpdates.length;
+            const dropRatio = dropped / Math.max(1, latestUpdates.length);
+
+            // Stale drops are expected occasionally. Only warn when the feed effectively has no fresh data.
+            if (kept === 0 || dropRatio >= 0.9) {
+              this.logger.warn(`Dropped stale updates for ${feedKey} during batch processing`, {
+                feed: feedKey,
+                dropped,
+                kept,
+                dropRatio,
+                maxAgeMs: maxAge,
+                thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+              });
+            } else {
+              this.logger.debug(`Dropped stale updates for ${feedKey} during batch processing`, {
+                feed: feedKey,
+                dropped,
+                kept,
+                dropRatio,
+                maxAgeMs: maxAge,
+                thresholdMs: ENV.AGGREGATION.FRESH_DATA_THRESHOLD_MS,
+              });
+            }
+            this.staleDropLastLogged.set(feedKey, now);
+          }
+        }
 
         // Update active price data
         this.activePriceUpdates.set(feedKey, latestUpdates);
+        this.activePriceUpdates.set(feedKey, freshUpdates);
 
         // Notify subscribers
         const feedId = this.parseFeedKey(feedKey);

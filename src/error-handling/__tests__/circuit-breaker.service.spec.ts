@@ -1,5 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { CircuitBreakerState } from "@/common/types/error-handling";
+import { ENV } from "@/config/environment.constants";
+import { TestHelpers } from "@/__tests__/utils";
 import { CircuitBreakerService } from "../circuit-breaker.service";
 
 describe("CircuitBreakerService", () => {
@@ -38,6 +40,87 @@ describe("CircuitBreakerService", () => {
 
       expect(stats).toBeDefined();
       expect(stats!.state).toBe(CircuitBreakerState.CLOSED);
+    });
+
+    it("does not reset state when re-registering an existing circuit", () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { failureThreshold: 2, recoveryTimeout: 100, successThreshold: 1 });
+      service.openCircuit(serviceId, "Test");
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
+
+      // Re-register with different config should update config but keep the state.
+      service.registerCircuit(serviceId, { failureThreshold: 99 });
+      expect(service.getState(serviceId)).toBe(CircuitBreakerState.OPEN);
+    });
+
+    it("applies more lenient thresholds for adapter/integration-like service IDs", () => {
+      const serviceId = "MyDataSourceAdapter";
+      service.registerCircuit(serviceId, { failureThreshold: 1, recoveryTimeout: 999_999, successThreshold: 1 });
+
+      const config = (service as any).configs.get(serviceId);
+      expect(config.failureThreshold).toBeGreaterThanOrEqual(10);
+      expect(config.recoveryTimeout).toBeLessThanOrEqual(20_000);
+      expect(config.successThreshold).toBeGreaterThanOrEqual(3);
+    });
+
+    it("applies exchange-specific leniency when serviceId contains an active adapter name", () => {
+      const exchange = ENV.ADAPTERS.ACTIVE_CUSTOM_ADAPTERS[0];
+      const serviceId = `ws-${exchange}-source`;
+      service.registerCircuit(serviceId, { failureThreshold: 1, recoveryTimeout: 999_999, successThreshold: 99 });
+
+      const config = (service as any).configs.get(serviceId);
+      expect(config.failureThreshold).toBeGreaterThanOrEqual(15);
+      expect(config.recoveryTimeout).toBeLessThanOrEqual(30_000);
+      expect(config.successThreshold).toBe(1);
+      expect(config.monitoringWindow).toBe(60_000);
+    });
+  });
+
+  describe("Initialization", () => {
+    it("starts periodic health check only once", async () => {
+      const startSpy = jest.spyOn(service as any, "startPeriodicHealthCheck");
+
+      await service.initialize();
+      await service.initialize();
+
+      expect(startSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Warning cooldown", () => {
+    it("rate-limits transitionToOpen warnings across open/close cycles", async () => {
+      const serviceId = "cooldown-test";
+      service.registerCircuit(serviceId, { failureThreshold: 1, recoveryTimeout: 100, successThreshold: 1 });
+
+      const warnSpy = jest.spyOn((service as any).logger, "warn");
+
+      let now = 1_700_000_000_000;
+      await TestHelpers.withMockedNowAsync(
+        () => now,
+        async () => {
+          // First failure opens and warns
+          await service
+            .execute(serviceId, async () => {
+              throw new Error("fail");
+            })
+            .catch(() => undefined);
+          expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Circuit breaker OPENED"), expect.anything());
+
+          // Close, then open again within cooldown -> no extra warning
+          service.closeCircuit(serviceId, "reset");
+          warnSpy.mockClear();
+          now += 1000;
+          await service
+            .execute(serviceId, async () => {
+              throw new Error("fail");
+            })
+            .catch(() => undefined);
+          expect(warnSpy).not.toHaveBeenCalledWith(
+            expect.stringContaining("Circuit breaker OPENED"),
+            expect.anything()
+          );
+        }
+      );
     });
   });
 
@@ -431,6 +514,125 @@ describe("CircuitBreakerService", () => {
       expect(stats!.totalRequests).toBe(0);
       expect(stats!.totalSuccesses).toBe(0);
       expect(stats!.totalFailures).toBe(0);
+    });
+
+    it("openCircuit warns when circuit is not registered", () => {
+      const warnSpy = jest.spyOn((service as any).logger, "warn");
+      service.openCircuit("missing", "Manual");
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Cannot open circuit"));
+    });
+
+    it("closeCircuit debug-logs when circuit is not registered", () => {
+      const debugSpy = jest.spyOn((service as any).logger, "debug");
+      service.closeCircuit("missing", "Manual");
+      expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("Cannot close circuit"));
+    });
+
+    it("re-emits circuitOpened/circuitClosed events with cooldown when state is unchanged", () => {
+      const serviceId = "test-service";
+      const openedSpy = jest.fn();
+      const closedSpy = jest.fn();
+      service.on("circuitOpened", openedSpy);
+      service.on("circuitClosed", closedSpy);
+
+      let now = 1_700_000_000_000;
+      TestHelpers.withMockedNow(
+        () => now,
+        () => {
+          // First open emits directly via transition.
+          service.openCircuit(serviceId, "Test");
+          openedSpy.mockClear();
+
+          // Re-open after cooldown should re-emit.
+          now += 6000;
+          service.openCircuit(serviceId, "Test again");
+          expect(openedSpy).toHaveBeenCalledTimes(1);
+
+          // Re-open within cooldown should be suppressed.
+          openedSpy.mockClear();
+          now += 1000;
+          service.openCircuit(serviceId, "Test again");
+          expect(openedSpy).toHaveBeenCalledTimes(0);
+
+          // Close emits directly via transition.
+          now += 6000;
+          service.closeCircuit(serviceId, "Manual");
+          closedSpy.mockClear();
+
+          // Re-close after cooldown should re-emit.
+          now += 6000;
+          service.closeCircuit(serviceId, "Manual");
+          expect(closedSpy).toHaveBeenCalledTimes(1);
+
+          // Re-close within cooldown should be suppressed.
+          closedSpy.mockClear();
+          now += 1000;
+          service.closeCircuit(serviceId, "Manual");
+          expect(closedSpy).toHaveBeenCalledTimes(0);
+        }
+      );
+    });
+  });
+
+  describe("Internal cleanup and health check branches", () => {
+    it("cleanHistory rate-limits and trims history to 500 entries", () => {
+      const serviceId = "test-service";
+      service.registerCircuit(serviceId, { monitoringWindow: 1_000_000 });
+
+      const history = Array.from({ length: 600 }, () => ({
+        timestamp: 1_700_000_000_000,
+        success: true,
+        responseTime: 1,
+      }));
+      (service as any).requestHistory.set(serviceId, history);
+
+      let now = 1_700_000_000_000;
+      TestHelpers.withMockedNow(
+        () => now,
+        () => {
+          // Within cleanup interval -> no-op
+          (service as any).lastCleanupTime.set(serviceId, now);
+          (service as any).cleanHistory(serviceId);
+          expect(((service as any).requestHistory.get(serviceId) as any[]).length).toBe(600);
+
+          // After cleanup interval -> trims
+          now += 10_001;
+          (service as any).cleanHistory(serviceId);
+          expect(((service as any).requestHistory.get(serviceId) as any[]).length).toBe(500);
+        }
+      );
+    });
+
+    it("performCircuitHealthCheck recovers stuck HALF_OPEN and forces stuck OPEN to HALF_OPEN", () => {
+      const halfOpenId = "half-open";
+      const openId = "open";
+
+      service.registerCircuit(halfOpenId, { recoveryTimeout: 1000 });
+      service.registerCircuit(openId, { recoveryTimeout: 1000 });
+
+      // Force HALF_OPEN state
+      (service as any).circuits.set(halfOpenId, CircuitBreakerState.HALF_OPEN);
+      const halfStats = (service as any).stats.get(halfOpenId);
+      halfStats.state = CircuitBreakerState.HALF_OPEN;
+      halfStats.lastSuccessTime = undefined;
+      halfStats.lastFailureTime = undefined;
+      halfStats.uptime = 1_700_000_000_000;
+
+      // Force OPEN state
+      (service as any).circuits.set(openId, CircuitBreakerState.OPEN);
+      const openStats = (service as any).stats.get(openId);
+      openStats.state = CircuitBreakerState.OPEN;
+      openStats.lastFailureTime = 1_700_000_000_000;
+
+      const now = 1_700_000_000_000 + 100_000;
+      TestHelpers.withMockedNow(now, () => {
+        // HALF_OPEN has no requests for >60s -> should reset/close
+        // OPEN has been open for > recoveryTimeout + 30s -> should force HALF_OPEN
+        (service as any).performCircuitHealthCheck();
+
+        expect(service.getState(halfOpenId)).toBe(CircuitBreakerState.CLOSED);
+        expect(service.getState(openId)).toBe(CircuitBreakerState.HALF_OPEN);
+      });
     });
   });
 

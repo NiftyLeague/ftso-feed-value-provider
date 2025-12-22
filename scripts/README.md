@@ -34,31 +34,34 @@ For easier access to scripts, use the convenience runner:
 
 ## 🔍 Debug Scripts (`scripts/debug/`)
 
-| Script                | Purpose                                               | Usage                                 |
-| --------------------- | ----------------------------------------------------- | ------------------------------------- |
-| `all.sh`              | Comprehensive debug analysis (runs all debug scripts) | `./scripts/debug/all.sh`              |
-| `cache.sh`            | Cache system performance and efficiency analysis      | `./scripts/debug/cache.sh`            |
-| `config.sh`           | Configuration and environment validation              | `./scripts/debug/config.sh`           |
-| `data-aggregation.sh` | Data aggregation and consensus analysis               | `./scripts/debug/data-aggregation.sh` |
-| `errors.sh`           | Error pattern analysis and circuit breaker monitoring | `./scripts/debug/errors.sh`           |
-| `feeds.sh`            | Feed data quality and validation analysis             | `./scripts/debug/feeds.sh`            |
-| `integration.sh`      | Service integration and orchestration analysis        | `./scripts/debug/integration.sh`      |
-| `performance.sh`      | System performance monitoring and analysis            | `./scripts/debug/performance.sh`      |
-| `resilience.sh`       | Circuit breaker and failover system analysis          | `./scripts/debug/resilience.sh`       |
-| `startup.sh`          | Analyze application startup performance and issues    | `./scripts/debug/startup.sh`          |
-| `websockets.sh`       | Monitor WebSocket connections and health              | `./scripts/debug/websockets.sh`       |
+| Script                      | Purpose                                               | Usage                                       |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------- |
+| `all.sh`                    | Comprehensive debug analysis (runs all debug scripts) | `./scripts/debug/all.sh`                    |
+| `cache.sh`                  | Cache system performance and efficiency analysis      | `./scripts/debug/cache.sh`                  |
+| `config.sh`                 | Configuration and environment validation              | `./scripts/debug/config.sh`                 |
+| `data-aggregation.sh`       | Data aggregation and consensus analysis               | `./scripts/debug/data-aggregation.sh`       |
+| `errors.sh`                 | Error pattern analysis and circuit breaker monitoring | `./scripts/debug/errors.sh`                 |
+| `feeds.sh`                  | Feed data quality and validation analysis             | `./scripts/debug/feeds.sh`                  |
+| `integration.sh`            | Service integration and orchestration analysis        | `./scripts/debug/integration.sh`            |
+| `performance.sh`            | System performance monitoring and analysis            | `./scripts/debug/performance.sh`            |
+| `resilience-consistency.sh` | Environment consistency validation                    | `./scripts/debug/resilience-consistency.sh` |
+| `resilience.sh`             | Circuit breaker and failover system analysis          | `./scripts/debug/resilience.sh`             |
+| `startup.sh`                | Analyze application startup performance and issues    | `./scripts/debug/startup.sh`                |
+| `websockets.sh`             | Monitor WebSocket connections and health              | `./scripts/debug/websockets.sh`             |
 
 ## 🧪 Testing Scripts (`scripts/test/`)
 
-| Script          | Purpose                                             | Usage                          |
-| --------------- | --------------------------------------------------- | ------------------------------ |
-| `all.sh`        | Comprehensive testing suite (runs all test scripts) | `./scripts/test/all.sh`        |
-| `docker.sh`     | Test Docker deployment and container health         | `./scripts/test/docker.sh`     |
-| `shutdown.sh`   | Test graceful shutdown behavior                     | `./scripts/test/shutdown.sh`   |
-| `load.sh`       | Load testing and stress testing                     | `./scripts/test/load.sh`       |
-| `security.sh`   | Security testing and rate limiting validation       | `./scripts/test/security.sh`   |
-| `server.sh`     | Test server functionality and endpoints             | `./scripts/test/server.sh`     |
-| `validation.sh` | Test suite reliability and performance validation   | `./scripts/test/validation.sh` |
+| Script         | Purpose                                             | Usage                         |
+| -------------- | --------------------------------------------------- | ----------------------------- |
+| `all.sh`       | Comprehensive testing suite (runs all test scripts) | `./scripts/test/all.sh`       |
+| `readiness.sh` | Readiness checks (startup + health)                 | `./scripts/test/readiness.sh` |
+| `server.sh`    | Test server functionality and endpoints             | `./scripts/test/server.sh`    |
+| `security.sh`  | Security testing and rate limiting validation       | `./scripts/test/security.sh`  |
+| `feeds.sh`     | Feed API and data sanity checks                     | `./scripts/test/feeds.sh`     |
+| `data-flow.sh` | End-to-end data-flow validation                     | `./scripts/test/data-flow.sh` |
+| `load.sh`      | Load testing and stress testing                     | `./scripts/test/load.sh`      |
+| `shutdown.sh`  | Test graceful shutdown behavior                     | `./scripts/test/shutdown.sh`  |
+| `docker.sh`    | Test Docker deployment and container health         | `./scripts/test/docker.sh`    |
 
 ### ⚡ Optimized Test Performance
 
@@ -81,10 +84,11 @@ The test scripts have been optimized for reliability and performance:
 
 ```bash
 # Use package.json scripts (recommended)
-pnpm test:scripts           # All tests with timeouts
-pnpm test:scripts:server    # Server test only
-pnpm test:scripts:security  # Security test only
-pnpm test:scripts:load      # Load test only
+pnpm test:all               # All system tests (scripts/test/all.sh)
+pnpm test:server            # Server test only
+pnpm test:security          # Security test only
+pnpm test:load              # Load test only
+pnpm test:validate          # Jest validation suite (via scripts/run.sh)
 
 # Or use run.sh directly
 ./scripts/run.sh test all    # All tests
@@ -110,27 +114,27 @@ pre-built images from GitHub Container Registry.
 
 ```bash
 # Pull and start
-docker-compose -f docker-compose.registry.yml up -d
+docker compose -f docker-compose.registry.yml up -d
 
 # View logs
-docker-compose -f docker-compose.registry.yml logs -f
+docker compose -f docker-compose.registry.yml logs -f
 
 # Stop
-docker-compose -f docker-compose.registry.yml down
+docker compose -f docker-compose.registry.yml down
 ```
 
 **VM Deployment (Host Network - Recommended):**
 
 ```bash
 # Better performance for VMs
-NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
 ```
 
 **With Monitoring Stack:**
 
 ```bash
 # Includes Prometheus + Grafana
-docker-compose -f docker-compose.registry.yml --profile monitoring up -d
+docker compose -f docker-compose.registry.yml --profile monitoring up -d
 ```
 
 ### Configuration Options
@@ -139,20 +143,20 @@ All settings can be overridden via environment variables:
 
 ```bash
 # Custom tag
-TAG=v1.2.3 docker-compose -f docker-compose.registry.yml up -d
+TAG=v1.2.3 docker compose -f docker-compose.registry.yml up -d
 
 # Custom resources
-MEMORY_LIMIT=2G CPU_LIMIT=2.0 docker-compose -f docker-compose.registry.yml up -d
+MEMORY_LIMIT=2G CPU_LIMIT=2.0 docker compose -f docker-compose.registry.yml up -d
 
 # Custom log level
-LOG_LEVEL=debug docker-compose -f docker-compose.registry.yml up -d
+LOG_LEVEL=debug docker compose -f docker-compose.registry.yml up -d
 
 # Custom ports
-API_PORT=8080 METRICS_PORT=9091 docker-compose -f docker-compose.registry.yml up -d
+API_PORT=8080 docker compose -f docker-compose.registry.yml up -d
 
 # Combine multiple
 TAG=latest NETWORK_MODE=host MEMORY_LIMIT=2G LOG_LEVEL=warn \
-  docker-compose -f docker-compose.registry.yml up -d
+  docker compose -f docker-compose.registry.yml up -d
 ```
 
 ### Available Environment Variables
@@ -162,7 +166,6 @@ TAG=latest NETWORK_MODE=host MEMORY_LIMIT=2G LOG_LEVEL=warn \
 | `TAG`                | `latest`     | Image tag to pull                 |
 | `NETWORK_MODE`       | `bridge`     | Network mode (`bridge` or `host`) |
 | `API_PORT`           | `3101`       | API port mapping                  |
-| `METRICS_PORT`       | `9090`       | Metrics port mapping              |
 | `NODE_ENV`           | `production` | Node environment                  |
 | `LOG_LEVEL`          | `warn`       | Logging level                     |
 | `MEMORY_LIMIT`       | `1G`         | Memory limit                      |
@@ -170,7 +173,7 @@ TAG=latest NETWORK_MODE=host MEMORY_LIMIT=2G LOG_LEVEL=warn \
 | `MEMORY_RESERVATION` | `512M`       | Memory reservation                |
 | `CPU_RESERVATION`    | `0.5`        | CPU reservation                   |
 
-### NPM Scripts (Convenience)
+### pnpm Scripts (Convenience)
 
 ```bash
 # Start from registry
@@ -225,7 +228,7 @@ pnpm docker:registry:monitoring
 ./scripts/run.sh debug errors        # Analyze error patterns
 ./scripts/run.sh debug cache         # Analyze cache performance
 ./scripts/run.sh debug resilience    # Check circuit breakers
-./scripts/run.sh debug aggregation   # Analyze consensus system
+./scripts/run.sh debug data-aggregation # Analyze consensus system
 ./scripts/run.sh debug config        # Validate configuration
 ./scripts/run.sh debug integration   # Check service integration
 
@@ -237,7 +240,8 @@ pnpm docker:registry:monitoring
 ./scripts/debug/errors.sh
 ./scripts/debug/cache.sh
 ./scripts/debug/resilience.sh
-./scripts/debug/aggregation.sh
+./scripts/debug/data-aggregation.sh
+./scripts/debug/resilience-consistency.sh
 ./scripts/debug/config.sh
 ./scripts/debug/integration.sh
 ```
@@ -250,7 +254,10 @@ pnpm docker:registry:monitoring
 ./scripts/run.sh test server         # Test server endpoints
 ./scripts/run.sh test security       # Test security measures
 ./scripts/run.sh test load           # Run load tests
-./scripts/run.sh test validation     # Validate test suite
+./scripts/run.sh test validate       # Validate Jest suite
+./scripts/run.sh test readiness      # Readiness checks
+./scripts/run.sh test feeds          # Feed API checks
+./scripts/run.sh test data-flow      # End-to-end data-flow
 ./scripts/run.sh test shutdown       # Test graceful shutdown
 
 # Or run directly
@@ -258,7 +265,9 @@ pnpm docker:registry:monitoring
 ./scripts/test/server.sh
 ./scripts/test/security.sh
 ./scripts/test/load.sh
-./scripts/test/validation.sh
+./scripts/test/readiness.sh
+./scripts/test/feeds.sh
+./scripts/test/data-flow.sh
 ./scripts/test/shutdown.sh
 ```
 
@@ -273,12 +282,12 @@ pnpm docker:test
 # Deploy from registry (standard mode)
 pnpm docker:registry:up
 # or
-docker-compose -f docker-compose.registry.yml up -d
+docker compose -f docker-compose.registry.yml up -d
 
 # Deploy from registry (VM mode with host network)
 NETWORK_MODE=host pnpm docker:registry:up
 # or
-NETWORK_MODE=host docker-compose -f docker-compose.registry.yml up -d
+NETWORK_MODE=host docker compose -f docker-compose.registry.yml up -d
 
 # Deploy with custom resources
 MEMORY_LIMIT=2G CPU_LIMIT=2.0 pnpm docker:registry:up
@@ -315,24 +324,9 @@ All logs are stored in the `logs/` directory:
 
 ```
 logs/
-├── startup.log                      # Application startup logs
-├── websocket-debug.log              # WebSocket connection analysis
-├── performance-debug.log            # Performance monitoring logs
-├── performance-metrics.log          # System metrics (CSV format)
-├── feeds-debug.log                  # Feed data analysis logs
-├── error-debug.log                  # Error analysis logs
-├── cache-debug.log                  # Cache system analysis logs
-├── resilience-debug.log             # Circuit breaker analysis logs
-├── aggregation-debug.log            # Aggregation system analysis logs
-├── config-debug.log                 # Configuration analysis logs
-├── integration-debug.log            # Integration analysis logs
-├── server-test.log                  # Server functionality test logs
-├── security-test.log                # Security testing logs
-├── load-test.log                    # Load testing logs
-├── test-validation.log              # Test validation logs
 ├── feed-values-response.json        # API response samples
 ├── volumes-response.json            # Volume API response samples
-├── debug_session_YYYYMMDD_HHMMSS/   # Comprehensive debug sessions
+├── debug/                           # Debug script outputs
 │   ├── comprehensive_summary.md
 │   ├── startup_output.log
 │   ├── websockets_output.log
@@ -341,37 +335,41 @@ logs/
 │   ├── errors_output.log
 │   ├── cache_output.log
 │   ├── resilience_output.log
-│   ├── aggregation_output.log
+│   ├── data-aggregation_output.log
 │   ├── config_output.log
-│   └── integration_output.log
-└── test_session_YYYYMMDD_HHMMSS/    # Comprehensive test sessions
-    ├── comprehensive_test_summary.md
-    ├── server_output.log
-    ├── security_output.log
-    ├── load_output.log
-    ├── validation_output.log
-    └── shutdown_output.log
+│   ├── integration_output.log
+│   └── resilience-consistency_output.log
+└── test/                            # Test script outputs
+  ├── comprehensive_test_summary.md
+  ├── readiness_output.log
+  ├── server_output.log
+  ├── security_output.log
+  ├── feeds_output.log
+  ├── data-flow_output.log
+  ├── load_output.log
+  ├── shutdown_output.log
+  └── docker_output.log
 ```
 
 ## 🔍 Script Coverage Matrix
 
 ### System Components Covered
 
-| Component                  | Debug Script      | Test Script      | Coverage |
-| -------------------------- | ----------------- | ---------------- | -------- |
-| **Application Startup**    | ✅ startup.sh     | ✅ server.sh     | Complete |
-| **WebSocket Connections**  | ✅ websockets.sh  | ✅ load.sh       | Complete |
-| **Performance Monitoring** | ✅ performance.sh | ✅ load.sh       | Complete |
-| **Feed Data Quality**      | ✅ feeds.sh       | ✅ validation.sh | Complete |
-| **Error Handling**         | ✅ errors.sh      | ✅ server.sh     | Complete |
-| **Cache System**           | ✅ cache.sh       | ✅ load.sh       | Complete |
-| **Circuit Breakers**       | ✅ resilience.sh  | ✅ load.sh       | Complete |
-| **Data Aggregation**       | ✅ aggregation.sh | ✅ feeds.sh      | Complete |
-| **Configuration**          | ✅ config.sh      | ✅ validation.sh | Complete |
-| **Service Integration**    | ✅ integration.sh | ✅ server.sh     | Complete |
-| **API Security**           | ❌                | ✅ security.sh   | Partial  |
-| **Load Handling**          | ❌                | ✅ load.sh       | Partial  |
-| **Graceful Shutdown**      | ❌                | ✅ shutdown.sh   | Partial  |
+| Component                  | Debug Script           | Test Script     | Coverage |
+| -------------------------- | ---------------------- | --------------- | -------- |
+| **Application Startup**    | ✅ startup.sh          | ✅ readiness.sh | Complete |
+| **WebSocket Connections**  | ✅ websockets.sh       | ✅ load.sh      | Complete |
+| **Performance Monitoring** | ✅ performance.sh      | ✅ load.sh      | Complete |
+| **Feed Data Quality**      | ✅ feeds.sh            | ✅ feeds.sh     | Complete |
+| **Error Handling**         | ✅ errors.sh           | ✅ server.sh    | Complete |
+| **Cache System**           | ✅ cache.sh            | ✅ load.sh      | Complete |
+| **Circuit Breakers**       | ✅ resilience.sh       | ✅ load.sh      | Complete |
+| **Data Aggregation**       | ✅ data-aggregation.sh | ✅ data-flow.sh | Complete |
+| **Configuration**          | ✅ config.sh           | ✅ validate     | Complete |
+| **Service Integration**    | ✅ integration.sh      | ✅ server.sh    | Complete |
+| **API Security**           | ❌                     | ✅ security.sh  | Partial  |
+| **Load Handling**          | ❌                     | ✅ load.sh      | Partial  |
+| **Graceful Shutdown**      | ❌                     | ✅ shutdown.sh  | Partial  |
 
 ## 🛠️ Customization
 

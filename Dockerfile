@@ -82,7 +82,8 @@ COPY --from=builder --chown=ftso-provider:nodejs /app/src/config ./src/config
 COPY --chown=ftso-provider:nodejs package.json ./
 
 # Create logs directory with proper permissions
-RUN mkdir -p /app/logs && chown -R ftso-provider:nodejs /app/logs
+# Application writes heap snapshots and logs to /logs (volume-mounted)
+RUN mkdir -p /logs && chown -R ftso-provider:nodejs /logs
 
 # Switch to non-root user
 USER ftso-provider

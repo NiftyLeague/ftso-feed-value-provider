@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { StandardService } from "./common/base/composed.service";
 import { RealTimeCacheService } from "./cache/real-time-cache.service";
-import { RealTimeAggregationService, type IAggregationCacheStats } from "./aggregators/real-time-aggregation.service";
+import { RealTimeAggregationService } from "./aggregators/real-time-aggregation.service";
 
 import type { AggregationStatistics, HealthCheckResult, HealthStatusType } from "./common/types/monitoring";
+import type { AggregationCacheStats } from "./common/types/aggregators";
 import type { FeedId, FeedValueData, FeedVolumeData } from "./common/types/http";
 import type { CoreFeedId } from "./common/types/core";
 import type { CacheStats } from "./common/types/cache";
@@ -97,11 +98,62 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
       }));
 
       const aggregatedPrices = await this.integrationService.getCurrentPrices(coreFeedIds);
+      const results: FeedValueData[] = [];
 
-      const results: FeedValueData[] = aggregatedPrices.map((price, index) => ({
-        feed: feeds[index],
-        value: price.price,
-      }));
+      // Map aggregated prices by symbol for safe lookup even when some feeds fail
+      const priceMap = new Map<string, (typeof aggregatedPrices)[number]>();
+      for (const price of aggregatedPrices) {
+        if (price?.symbol) {
+          priceMap.set(price.symbol, price);
+        }
+      }
+
+      // Build results in the same order as requested feeds
+      const missing: string[] = [];
+      for (const feed of feeds) {
+        const price = priceMap.get(feed.name);
+        if (price) {
+          results.push({
+            feed,
+            value: price.price,
+          });
+        } else {
+          missing.push(`${feed.category}:${feed.name}`);
+        }
+      }
+
+      if (missing.length > 0) {
+        const missingDiagnostics = missing.slice(0, 25).map(key => {
+          const name = key.split(":")[1];
+          const feed = feeds.find(f => f.name === name);
+          if (!feed) {
+            return { feed: key, cache: "no_feed_match" };
+          }
+
+          const cached = this.cacheService.getPrice(feed);
+          if (!cached) {
+            return { feed: key, cache: "empty" };
+          }
+
+          const ageMs = Date.now() - cached.timestamp;
+          return {
+            feed: key,
+            cache: {
+              ageMs,
+              sourcesCount: Array.isArray(cached.sources) ? cached.sources.length : 0,
+              confidence: cached.confidence,
+            },
+          };
+        });
+
+        this.logger.warn("Partial getValues response: some feeds had no aggregated price", {
+          requested: feeds.length,
+          received: aggregatedPrices.length,
+          resolved: results.length,
+          missingFeeds: missing,
+          missingDiagnostics,
+        });
+      }
 
       const responseTime = this.endTimer("getValues");
       this.logPerformance(`getValues-${feeds.length}feeds`, responseTime);
@@ -242,7 +294,7 @@ export class FtsoProviderService extends StandardService implements IFtsoProvide
     };
   }
 
-  private mapAggregationStats(cacheStats: IAggregationCacheStats): AggregationStatistics {
+  private mapAggregationStats(cacheStats: AggregationCacheStats): AggregationStatistics {
     return {
       totalAggregations: 0, // Not tracked in current implementation
       averageAggregationTime: 0, // Not tracked in current implementation
