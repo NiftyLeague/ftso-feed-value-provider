@@ -21,7 +21,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
@@ -51,7 +51,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
@@ -82,7 +82,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq bc
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
@@ -126,7 +126,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq bc
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
