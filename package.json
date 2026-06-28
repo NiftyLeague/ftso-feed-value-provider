@@ -98,7 +98,7 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.1.9",
-    "@nestjs/core": "^11.1.9",
+    "@nestjs/core": "^11.1.18",
     "@nestjs/platform-express": "^11.1.9",
     "@nestjs/swagger": "^11.2.3",
     "axios": "^1.13.2",
