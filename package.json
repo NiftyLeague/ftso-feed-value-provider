@@ -109,7 +109,7 @@
     "helmet": "^8.1.0",
     "https-proxy-agent": "^7.0.6",
     "nodemailer": "^7.0.11",
-    "protobufjs": "^7.5.4",
+    "protobufjs": "^7.6.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "uuid": "^11.1.0",
