@@ -3,3 +3,6 @@ onlyBuiltDependencies:
   - '@scarf/scarf'
   - ccxt
   - unrs-resolver
+
+overrides:
+  fast-xml-parser: '5.3.5'
