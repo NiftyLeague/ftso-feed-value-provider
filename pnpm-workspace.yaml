@@ -3,3 +3,8 @@ onlyBuiltDependencies:
   - '@scarf/scarf'
   - ccxt
   - unrs-resolver
+
+overrides:
+  minimatch@3: 3.1.5
+  minimatch@9: 9.0.9
+  minimatch@10: 10.2.5
